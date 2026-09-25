@@ -1,0 +1,15 @@
+repository: https://github.com/Orange-OpenSource/hurl.git
+tag: 8.0.1
+commit: a39c7c43457ba2aa8edad833f33f9afe28444838
+license: Apache-2.0 (see LICENSE)
+files unchanged from upstream; synced by scripts/sync-hurl-conformance.sh
+
+counts (.hurl / .sh):
+  tests_error_parser: 49 / 46
+  tests_failed_not_linted: 4 / 2
+  tests_failed: 72 / 96
+  tests_ok_not_linted: 3 / 3
+  tests_ok: 172 / 192
+  tests_pty: 8 / 11
+  tests_ssl: 14 / 19
+  tests_unix_socket: 1 / 1

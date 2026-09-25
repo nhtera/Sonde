@@ -1,0 +1,213 @@
+* Options:
+*     retry: 5
+* ------------------------------------------------------------------------------
+* Executing entry 1
+*
+* Cookie store:
+*
+* Request:
+* GET http://localhost:8000/not-found
+*
+* Request can be run with the following curl command:
+* curl 'http://localhost:8000/not-found'
+*
+> GET /not-found HTTP/1.1
+> Host: localhost:8000
+> Accept: */*
+> User-Agent: hurl/<<<.*?>>>
+>
+* Response: (received 207 bytes in <<<\d+>>> ms)
+*
+< HTTP/1.1 404 NOT FOUND
+< Content-Length: 207
+< Content-Type: text/html; charset=utf-8
+< Date: <<<.*?>>>
+< Server: Flask Server
+< Via: waitress
+<
+*
+* Assert status code
+*   --> tests_failed/retry/retry.hurl:2:6
+*    |
+*    | GET http://localhost:8000/not-found
+*  2 | HTTP 200
+*    |      ^^^ actual value is <404>
+*    |
+*
+* Retry on entry 1 (count: 1/5, interval: 100 ms)
+* ------------------------------------------------------------------------------
+* Executing entry 1
+*
+* Cookie store:
+*
+* Request:
+* GET http://localhost:8000/not-found
+*
+* Request can be run with the following curl command:
+* curl 'http://localhost:8000/not-found'
+*
+> GET /not-found HTTP/1.1
+> Host: localhost:8000
+> Accept: */*
+> User-Agent: hurl/<<<.*?>>>
+>
+* Response: (received 207 bytes in <<<\d+>>> ms)
+*
+< HTTP/1.1 404 NOT FOUND
+< Content-Length: 207
+< Content-Type: text/html; charset=utf-8
+< Date: <<<.*?>>>
+< Server: Flask Server
+< Via: waitress
+<
+*
+* Assert status code
+*   --> tests_failed/retry/retry.hurl:2:6
+*    |
+*    | GET http://localhost:8000/not-found
+*  2 | HTTP 200
+*    |      ^^^ actual value is <404>
+*    |
+*
+* Retry on entry 1 (count: 2/5, interval: 100 ms)
+* ------------------------------------------------------------------------------
+* Executing entry 1
+*
+* Cookie store:
+*
+* Request:
+* GET http://localhost:8000/not-found
+*
+* Request can be run with the following curl command:
+* curl 'http://localhost:8000/not-found'
+*
+> GET /not-found HTTP/1.1
+> Host: localhost:8000
+> Accept: */*
+> User-Agent: hurl/<<<.*?>>>
+>
+* Response: (received 207 bytes in <<<\d+>>> ms)
+*
+< HTTP/1.1 404 NOT FOUND
+< Content-Length: 207
+< Content-Type: text/html; charset=utf-8
+< Date: <<<.*?>>>
+< Server: Flask Server
+< Via: waitress
+<
+*
+* Assert status code
+*   --> tests_failed/retry/retry.hurl:2:6
+*    |
+*    | GET http://localhost:8000/not-found
+*  2 | HTTP 200
+*    |      ^^^ actual value is <404>
+*    |
+*
+* Retry on entry 1 (count: 3/5, interval: 100 ms)
+* ------------------------------------------------------------------------------
+* Executing entry 1
+*
+* Cookie store:
+*
+* Request:
+* GET http://localhost:8000/not-found
+*
+* Request can be run with the following curl command:
+* curl 'http://localhost:8000/not-found'
+*
+> GET /not-found HTTP/1.1
+> Host: localhost:8000
+> Accept: */*
+> User-Agent: hurl/<<<.*?>>>
+>
+* Response: (received 207 bytes in <<<\d+>>> ms)
+*
+< HTTP/1.1 404 NOT FOUND
+< Content-Length: 207
+< Content-Type: text/html; charset=utf-8
+< Date: <<<.*?>>>
+< Server: Flask Server
+< Via: waitress
+<
+*
+* Assert status code
+*   --> tests_failed/retry/retry.hurl:2:6
+*    |
+*    | GET http://localhost:8000/not-found
+*  2 | HTTP 200
+*    |      ^^^ actual value is <404>
+*    |
+*
+* Retry on entry 1 (count: 4/5, interval: 100 ms)
+* ------------------------------------------------------------------------------
+* Executing entry 1
+*
+* Cookie store:
+*
+* Request:
+* GET http://localhost:8000/not-found
+*
+* Request can be run with the following curl command:
+* curl 'http://localhost:8000/not-found'
+*
+> GET /not-found HTTP/1.1
+> Host: localhost:8000
+> Accept: */*
+> User-Agent: hurl/<<<.*?>>>
+>
+* Response: (received 207 bytes in <<<\d+>>> ms)
+*
+< HTTP/1.1 404 NOT FOUND
+< Content-Length: 207
+< Content-Type: text/html; charset=utf-8
+< Date: <<<.*?>>>
+< Server: Flask Server
+< Via: waitress
+<
+*
+* Assert status code
+*   --> tests_failed/retry/retry.hurl:2:6
+*    |
+*    | GET http://localhost:8000/not-found
+*  2 | HTTP 200
+*    |      ^^^ actual value is <404>
+*    |
+*
+* Retry on entry 1 (count: 5/5, interval: 100 ms)
+* ------------------------------------------------------------------------------
+* Executing entry 1
+*
+* Cookie store:
+*
+* Request:
+* GET http://localhost:8000/not-found
+*
+* Request can be run with the following curl command:
+* curl 'http://localhost:8000/not-found'
+*
+> GET /not-found HTTP/1.1
+> Host: localhost:8000
+> Accept: */*
+> User-Agent: hurl/<<<.*?>>>
+>
+* Response: (received 207 bytes in <<<\d+>>> ms)
+*
+< HTTP/1.1 404 NOT FOUND
+< Content-Length: 207
+< Content-Type: text/html; charset=utf-8
+< Date: <<<.*?>>>
+< Server: Flask Server
+< Via: waitress
+<
+*
+* Retry max count reached, no more retry
+*
+error: Assert status code
+  --> tests_failed/retry/retry.hurl:2:6
+   |
+   | GET http://localhost:8000/not-found
+ 2 | HTTP 200
+   |      ^^^ actual value is <404>
+   |
+

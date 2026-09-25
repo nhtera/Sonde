@@ -1,0 +1,2 @@
+curl 'http://localhost:8000/utf8_bom'
+curl --header 'Content-Type:' --data-binary '@tests_ok_not_linted/bom.hurl' 'http://localhost:8000/mirror'

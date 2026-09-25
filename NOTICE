@@ -1,2 +1,8 @@
 Sonde
 Copyright 2026 The Sonde Authors
+
+This product includes software derived from Hurl
+(https://github.com/Orange-OpenSource/hurl), Copyright Orange,
+licensed under the Apache License 2.0:
+- internal/syntax is a Go port of Hurl's hurl_core parser (8.0.1).
+- testdata/conformance/hurl contains Hurl's integration tests, unchanged.
