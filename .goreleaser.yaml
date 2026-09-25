@@ -1,0 +1,58 @@
+# GoReleaser v2. Local check: make snapshot
+version: 2
+project_name: sonde
+
+builds:
+  - id: sonde
+    main: ./cmd/sonde
+    binary: sonde
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/nhtera/sonde/internal/cli.version={{ .Version }}
+      - -X github.com/nhtera/sonde/internal/cli.commit={{ .Commit }}
+      - -X github.com/nhtera/sonde/internal/cli.date={{ .Date }}
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: sonde
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  # Not templatable. Every v0.x release is a pre-release; Phase 10 switches
+  # this to "auto" so only tags like v1.2.0-rc.1 are marked pre-release.
+  prerelease: "true"
+
+# Enabled in Phase 10 (distribution):
+# homebrew_casks:
+#   - repository: { owner: nhtera, name: homebrew-tap }
+# scoops:
+#   - repository: { owner: nhtera, name: scoop-bucket }
+# signs:
+#   - artifacts: checksum

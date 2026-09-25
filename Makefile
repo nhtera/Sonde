@@ -1,0 +1,75 @@
+# Sonde developer tasks. Tools are pinned and installed into ./bin.
+
+GOLANGCI_LINT_VERSION := v2.14.0
+GOVULNCHECK_VERSION   := v1.8.0
+GO_LICENSES_VERSION   := v2.0.1
+ALLOWED_LICENSES      := Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC
+
+BIN      := $(CURDIR)/bin
+# Build tools with the repo toolchain (go.mod `toolchain`), not the tools' own minimum.
+GO_TOOLCHAIN = $(shell go env GOVERSION)
+GO_INSTALL   = GOBIN=$(BIN) GOTOOLCHAIN=$(GO_TOOLCHAIN) go install
+PKG      := github.com/nhtera/sonde/internal/cli
+VERSION  ?= dev
+COMMIT   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
+FUZZTIME ?= 10s
+
+.PHONY: build test race lint vuln fuzz-smoke conformance snapshot license-check headers licenses docs tools clean
+
+build: ## Build bin/sonde (static, trimmed)
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
+
+test: ## Run unit tests
+	go test ./...
+
+race: ## Run unit tests with the race detector
+	go test -race ./...
+
+lint: $(BIN)/golangci-lint ## Run golangci-lint (linters + formatters)
+	$(BIN)/golangci-lint run ./...
+
+vuln: $(BIN)/govulncheck ## Scan for known vulnerabilities
+	$(BIN)/govulncheck ./...
+
+fuzz-smoke: ## Run every Fuzz target briefly (FUZZTIME=10s)
+	@for pkg in $$(go list ./...); do \
+	  list=$$(go test -list '^Fuzz' $$pkg) || exit 1; \
+	  for fn in $$(echo "$$list" | grep '^Fuzz'); do \
+	    echo "fuzz $$pkg $$fn"; \
+	    go test -run='^$$' -fuzz="^$$fn$$" -fuzztime=$(FUZZTIME) $$pkg || exit 1; \
+	  done; \
+	done
+
+conformance: ## Hurl conformance suite (lands in Phase 5)
+	@echo "conformance: not implemented yet (Phase 5)" >&2; exit 1
+
+snapshot: ## Local GoReleaser snapshot build into dist/
+	goreleaser release --snapshot --clean
+
+license-check: headers licenses ## SPDX headers + dependency license allowlist
+
+headers: ## Check SPDX headers (and self-test the checker)
+	scripts/check-license-headers-test.sh
+	scripts/check-license-headers.sh
+
+licenses: $(BIN)/go-licenses ## Check dependency licenses against the allowlist
+	$(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES)
+
+docs: ## Generated docs (compat tables land with internal/docs)
+	@echo "docs: nothing to generate yet (internal/docs lands in Phase 5)" >&2; exit 1
+
+tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses ## Install pinned tools into ./bin
+
+$(BIN)/golangci-lint:
+	$(GO_INSTALL) github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+
+$(BIN)/govulncheck:
+	$(GO_INSTALL) golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+
+$(BIN)/go-licenses:
+	$(GO_INSTALL) github.com/google/go-licenses/v2@$(GO_LICENSES_VERSION)
+
+clean:
+	rm -rf $(BIN) dist coverage.*
