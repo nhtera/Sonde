@@ -1,0 +1,129 @@
+[
+ {
+  "line": 4,
+  "success": true
+ },
+ {
+  "line": 5,
+  "success": true
+ },
+ {
+  "line": 6,
+  "success": true
+ },
+ {
+  "line": 7,
+  "success": true
+ },
+ {
+  "line": 8,
+  "success": false,
+  "message": "Assert failure\n  --\u003e jsonpath.hurl:8:0\n   |\n   | GET {{base}}/json\n   | ...\n 8 | jsonpath \"$..*\" count == 7\n   |   actual:   integer \u003c50\u003e\n   |   expected: integer \u003c7\u003e\n   |"
+ },
+ {
+  "line": 9,
+  "success": false,
+  "message": "Assert failure\n  --\u003e jsonpath.hurl:9:0\n   |\n   | GET {{base}}/json\n   | ...\n 9 | jsonpath \"$.books[*].title\" == \"x\"\n   |   actual:   list \u003c[Dune,Emma,Ubik]\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 10,
+  "success": true
+ },
+ {
+  "line": 11,
+  "success": true
+ },
+ {
+  "line": 12,
+  "success": true
+ },
+ {
+  "line": 13,
+  "success": true
+ },
+ {
+  "line": 14,
+  "success": true
+ },
+ {
+  "line": 15,
+  "success": false,
+  "message": "Assert failure\n  --\u003e jsonpath.hurl:15:0\n   |\n   | GET {{base}}/json\n   | ...\n15 | jsonpath \"$.books[0].tags\" == \"sf\"\n   |   actual:   list \u003c[sf]\u003e\n   |   expected: string \u003csf\u003e\n   |"
+ },
+ {
+  "line": 16,
+  "success": true
+ },
+ {
+  "line": 17,
+  "success": true
+ },
+ {
+  "line": 18,
+  "success": true
+ },
+ {
+  "line": 19,
+  "success": false,
+  "message": "Assert failure\n  --\u003e jsonpath.hurl:19:0\n   |\n   | GET {{base}}/json\n   | ...\n19 | jsonpath \"$.obj\" == \"x\"\n   |   actual:   object \u003cObject()\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 20,
+  "success": true
+ },
+ {
+  "line": 21,
+  "success": true
+ },
+ {
+  "line": 22,
+  "success": true
+ },
+ {
+  "line": 23,
+  "success": false,
+  "message": "Invalid JSONPath\n  --\u003e jsonpath.hurl:23:10\n   |\n   | GET {{base}}/json\n   | ...\n23 | jsonpath \"$.obj[\" == 1\n   |          ^^^^^^^^ JSONPath expression '$.obj[' is not valid\n   |"
+ },
+ {
+  "line": 24,
+  "success": false,
+  "message": "Filter error\n  --\u003e jsonpath.hurl:24:29\n   |\n   | GET {{base}}/json\n   | ...\n24 | jsonpath \"$.books[*].price\" jsonpath \"$[0]\" == 1\n   |                             ^^^^^^^^^^^^^^^ invalid filter input type\n   |                                                actual:   list\n   |                                                expected: string\n   |"
+ },
+ {
+  "line": 25,
+  "success": false,
+  "message": "Filter error\n  --\u003e jsonpath.hurl:25:18\n   |\n   | GET {{base}}/json\n   | ...\n25 | jsonpath \"$.str\" jsonpath \"$\" == 1\n   |                  ^^^^^^^^^^^^ invalid filter input: value is not a valid JSON\n   |"
+ },
+ {
+  "line": 26,
+  "success": true
+ },
+ {
+  "line": 27,
+  "success": false,
+  "message": "Assert failure\n  --\u003e jsonpath.hurl:27:0\n   |\n   | GET {{base}}/json\n   | ...\n27 | jsonpath \"$.list[?@ \u003e -0.75]\" count == 3\n   |   actual:   integer \u003c2\u003e\n   |   expected: integer \u003c3\u003e\n   |"
+ },
+ {
+  "line": 28,
+  "success": false,
+  "message": "Filter error\n  --\u003e jsonpath.hurl:28:31\n   |\n   | GET {{base}}/json\n   | ...\n28 | jsonpath \"$.list[?@ \u003c -0.75]\" count == 0\n   |                               ^^^^^ missing value to apply filter\n   |"
+ },
+ {
+  "line": 29,
+  "success": false,
+  "message": "Assert failure\n  --\u003e jsonpath.hurl:29:0\n   |\n   | GET {{base}}/json\n   | ...\n29 | jsonpath \"$['😀']\" exists\n   |   actual:   none\n   |   expected: something\n   |"
+ },
+ {
+  "line": 30,
+  "success": false,
+  "message": "Assert failure\n  --\u003e jsonpath.hurl:30:0\n   |\n   | GET {{base}}/json\n   | ...\n30 | jsonpath \"$['😀']\" exists\n   |   actual:   none\n   |   expected: something\n   |"
+ },
+ {
+  "line": 31,
+  "success": true
+ },
+ {
+  "line": 32,
+  "success": true
+ }
+]

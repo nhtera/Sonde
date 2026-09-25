@@ -25,17 +25,21 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | Package | Role | Allowed internal deps |
 |---|---|---|
 | `cmd/sonde` | `main` → `cli.Execute()` | `internal/cli` |
-| `engine` (**public**) | `Runner`, `Unit`, `RunFile`, `RunSource`, `Options`, `HTTPOptions`, events, results, `ResponseValidator`, `Violation` | syntax, value, redact, template, query, filter, predicate, exchange, httpx, sandbox |
-| `exchange` (**public**) | transport-neutral `Request`/`Response`/`Timings`/`CertInfo`/`Cookie` model | value |
+| `engine` (**public**) | `Runner`, `Unit`, `RunFile`, `RunSource`, `Options`, `HTTPOptions`, events, results, `ResponseValidator`, `Violation` | syntax, value, redact, template, query, filter, predicate, runerr, exchange, httpx, sandbox |
+| `exchange` (**public**) | transport-neutral `Request`/`Response`/`Timings`/`CertInfo`/`Cookie` model; decoded body (br/gzip/deflate/zstd), charset-decoded text, `Set-Cookie` parsing | charset |
 | `internal/syntax` | reader, parser, AST, lossless printer, canonical formatter, diagnostics, dialect gate | — (leaf) |
-| `internal/value` | typed `Value` (null/bool/int/bigint/float/string/bytes/list/object/date/nodeset) | — (leaf) |
+| `internal/value` | typed `Value` (null/bool/int/bigint/float/string/bytes/list/object/date/nodeset/unit/regex/http response); equality, ordering, display/repr/render; JSON decoding; Unicode-aware regex classes | — (leaf) |
+| `internal/runerr` | runtime error (span, kind, assert flag, messages) shared by evaluation packages | syntax |
+| `internal/charset` | WHATWG encoding labels, strict decoding | — (leaf) |
+| `internal/datefmt` | strftime-style date formatting and parsing (`dateFormat`, `toDate`, cookie dates) | — (leaf) |
+| `internal/xpath` | XPath 1.0 on HTML (lenient) and XML (namespaces) documents | value |
 | `internal/redact` | per-run, append-only, concurrency-safe secret registry + encoded-variant matching | — (leaf) |
 | `internal/sandbox` | `os.Root`-based file access for all request-file paths | — (leaf) |
-| `internal/template` | `{{ }}` rendering, functions (`newUuid`, `newDate` — Hurl 8 set only) | syntax, value |
-| `internal/jsonpath` | RFC 9535 evaluator over `value.Value`, sorted-key traversal, Hurl unwrap rule (fork of `theory/jsonpath`, MIT) | value |
-| `internal/query` | all Hurl queries over `exchange.Response` | syntax, value, exchange, jsonpath |
-| `internal/filter` | all Hurl filters | syntax, value, jsonpath |
-| `internal/predicate` | all Hurl predicates | syntax, value |
+| `internal/template` | `Env` (variables, clock, UUID source, file access), `{{ }}` rendering, functions (`newUuid`, `newDate` — Hurl 8 set only), multiline and JSON body rendering | syntax, value, runerr |
+| `internal/jsonpath` | RFC 9535 evaluator over `value.Value`, sorted-key traversal, Hurl unwrap rule (Go port of Hurl's JSONPath module, Apache-2.0, see NOTICE) | value |
+| `internal/query` | all Hurl queries over the responses of an entry (redirect chain), with a per-entry parsed-body cache | syntax, value, exchange, template, filter, runerr, xpath, datefmt |
+| `internal/filter` | all Hurl filters | syntax, value, jsonpath, template, runerr, xpath, datefmt, charset |
+| `internal/predicate` | all Hurl predicates | syntax, value, template, runerr, datefmt |
 | `internal/httpx` | client/transport builder, options, manual redirect loop, timings, cookie jar, decompression | exchange, sandbox |
 | `internal/report` | incremental terminal, JSON, JUnit, TAP, HTML renderers (consume redacted events/results) | engine |
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
@@ -52,7 +56,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `editors/vscode` | VS Code extension (TypeScript) — separate npm package | — |
 | `testdata/conformance/hurl` | vendored Hurl 8 test tree + servers + requirements + manifest | — |
 
-**Rules (enforced by `depguard` in `.golangci.yml`):** leaves import nothing internal; nothing imports `internal/cli`; `internal/report` imports only `engine` result/event types; `net/http` allowed only in `httpx`, `exchange` (`http.ParseSetCookie`), `stream`, `mock`, `openapi` (remote fetch, opt-in), `grpcx`; `_test.go` files exempt. Go source file names: `snake_case.go`; shell scripts: `kebab-case.sh`. One decision-record series: `docs/decisions/NNNN-*.md` (RFCs are decision records with status `proposed`).
+**Rules (enforced by `depguard` in `.golangci.yml`):** leaves import nothing internal; nothing imports `internal/cli`; `internal/report` imports only `engine` result/event types; `net/http` allowed only in `httpx`, `stream`, `mock`, `openapi` (remote fetch, opt-in), `grpcx`; `_test.go` files exempt. Go source file names: `snake_case.go`; shell scripts: `kebab-case.sh`. One decision-record series: `docs/decisions/NNNN-*.md` (RFCs are decision records with status `proposed`).
 
 ## 3. Execution Flow
 
@@ -192,11 +196,12 @@ Owner: `docs/sonde-yaml.md` (Phase 5) — the only place keys are defined; stric
 | Need | Library | License |
 |---|---|---|
 | CLI | `github.com/spf13/cobra` | Apache-2.0 |
-| JSONPath (RFC 9535) | internal fork of `github.com/theory/jsonpath` (sorted-key traversal) | MIT — attribution in NOTICE |
+| JSONPath (RFC 9535) | `internal/jsonpath`, Go port of Hurl's JSONPath module (sorted-key traversal) | Apache-2.0 — attribution in NOTICE |
+| Charsets | `golang.org/x/text` (`encoding/htmlindex`) | BSD-3-Clause |
 | XPath / HTML / XML | `github.com/antchfx/xpath`, `htmlquery`, `xmlquery` | MIT |
 | Brotli / zstd | `github.com/andybalholm/brotli`, `github.com/klauspost/compress/zstd` | MIT / BSD-3 (verify via go-licenses) |
 | HTTP/3 | `github.com/quic-go/quic-go/http3` | MIT |
-| strftime (`format` filter) | `github.com/lestrrat-go/strftime` | MIT |
+| strftime (`dateFormat`, `toDate`) | `internal/datefmt`, reproduces chrono 0.4.44 | MIT/Apache-2.0 — attribution in NOTICE |
 | JSON pretty/color | `github.com/tidwall/pretty` | MIT |
 | YAML (`sonde.yaml`, OpenCollection) | `go.yaml.in/yaml/v3` (yaml/go-yaml) | Apache-2.0 / MIT |
 | Parallelism | `golang.org/x/sync/semaphore` (no errgroup cancel-on-error) | BSD-3 |

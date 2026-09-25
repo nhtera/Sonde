@@ -1,0 +1,263 @@
+[
+ {
+  "line": 4,
+  "success": true
+ },
+ {
+  "line": 5,
+  "success": false,
+  "message": "Filter error\n  --\u003e strings.hurl:5:18\n   |\n   | GET {{base}}/json\n   | ...\n 5 | jsonpath \"$.str\" count == 4\n   |                  ^^^^^ invalid filter input type\n   |                           actual:   string\n   |                           expected: list, bytes or nodeset\n   |"
+ },
+ {
+  "line": 6,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:6:0\n   |\n   | GET {{base}}/json\n   | ...\n 6 | jsonpath \"$.str\" isEmpty\n   |   actual:   count equals to 5\n   |   expected: count equals to 0\n   |"
+ },
+ {
+  "line": 7,
+  "success": true
+ },
+ {
+  "line": 8,
+  "success": true
+ },
+ {
+  "line": 9,
+  "success": true
+ },
+ {
+  "line": 10,
+  "success": true
+ },
+ {
+  "line": 11,
+  "success": true
+ },
+ {
+  "line": 12,
+  "success": true
+ },
+ {
+  "line": 13,
+  "success": true
+ },
+ {
+  "line": 14,
+  "success": true
+ },
+ {
+  "line": 15,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:15:0\n   |\n   | GET {{base}}/json\n   | ...\n15 | jsonpath \"$.csv\" split \",\" == 3\n   |   actual:   list \u003c[a,b,,c]\u003e\n   |   expected: integer \u003c3\u003e\n   |"
+ },
+ {
+  "line": 16,
+  "success": true
+ },
+ {
+  "line": 17,
+  "success": true
+ },
+ {
+  "line": 18,
+  "success": false,
+  "message": "Filter error\n  --\u003e strings.hurl:18:28\n   |\n   | GET {{base}}/json\n   | ...\n18 | jsonpath \"$.csv\" split \",\" nth 9 == \"c\"\n   |                            ^^^^^ invalid filter input: out of bound - size is 4\n   |"
+ },
+ {
+  "line": 19,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:19:0\n   |\n   | GET {{base}}/json\n   | ...\n19 | jsonpath \"$.csv\" split \"\" count == 9\n   |   actual:   integer \u003c8\u003e\n   |   expected: integer \u003c9\u003e\n   |"
+ },
+ {
+  "line": 20,
+  "success": true
+ },
+ {
+  "line": 21,
+  "success": true
+ },
+ {
+  "line": 22,
+  "success": true
+ },
+ {
+  "line": 23,
+  "success": true
+ },
+ {
+  "line": 24,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:24:0\n   |\n   | GET {{base}}/json\n   | ...\n24 | jsonpath \"$.words\" regex /(\\d+)/ == \"x\"\n   |   actual:   none\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 25,
+  "success": true
+ },
+ {
+  "line": 26,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:26:0\n   |\n   | GET {{base}}/json\n   | ...\n26 | jsonpath \"$.html\" htmlUnescape htmlEscape == \"x\"\n   |   actual:   string \u003c\u0026lt;p class=\u0026quot;x\u0026quot;\u0026gt;café \u0026amp;amp \u0026#x27;\u0026#x27;€\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 27,
+  "success": true
+ },
+ {
+  "line": 28,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:28:0\n   |\n   | GET {{base}}/json\n   | ...\n28 | jsonpath \"$.url\" urlQueryParam \"z\" == \"x\"\n   |   actual:   none\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 29,
+  "success": true
+ },
+ {
+  "line": 30,
+  "success": true
+ },
+ {
+  "line": 31,
+  "success": true
+ },
+ {
+  "line": 32,
+  "success": true
+ },
+ {
+  "line": 33,
+  "success": true
+ },
+ {
+  "line": 34,
+  "success": false,
+  "message": "Filter error\n  --\u003e strings.hurl:34:18\n   |\n   | GET {{base}}/json\n   | ...\n34 | jsonpath \"$.b64\" base64UrlSafeDecode toHex == \"x\"\n   |                  ^^^^^^^^^^^^^^^^^^^ invalid filter input: base64 string contains padding\n   |"
+ },
+ {
+  "line": 35,
+  "success": true
+ },
+ {
+  "line": 36,
+  "success": true
+ },
+ {
+  "line": 37,
+  "success": true
+ },
+ {
+  "line": 38,
+  "success": true
+ },
+ {
+  "line": 39,
+  "success": false,
+  "message": "Filter error\n  --\u003e strings.hurl:39:18\n   |\n   | GET {{base}}/json\n   | ...\n39 | jsonpath \"$.str\" base64Encode == \"x\"\n   |                  ^^^^^^^^^^^^ invalid filter input type\n   |                                  actual:   string\n   |                                  expected: bytes\n   |"
+ },
+ {
+  "line": 40,
+  "success": true
+ },
+ {
+  "line": 41,
+  "success": false,
+  "message": "Filter error\n  --\u003e strings.hurl:41:19\n   |\n   | GET {{base}}/json\n   | ...\n41 | jsonpath \"$.list\" toString == \"x\"\n   |                   ^^^^^^^^ invalid filter input: list \u003c[1,2.0,three,null,true,Object()]\u003e can not be converted to a string\n   |"
+ },
+ {
+  "line": 42,
+  "success": true
+ },
+ {
+  "line": 43,
+  "success": true
+ },
+ {
+  "line": 44,
+  "success": true
+ },
+ {
+  "line": 45,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:45:0\n   |\n   | GET {{base}}/json\n   | ...\n45 | jsonpath \"$.nulls\" isEmpty\n   |   actual:   null \u003cnull\u003e\n   |   expected: count equals to 0\n   |   \u003e\u003e\u003e types between actual and expected are not consistent\n   |"
+ },
+ {
+  "line": 46,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:46:0\n   |\n   | GET {{base}}/json\n   | ...\n46 | jsonpath \"$.obj\" isEmpty\n   |   actual:   count equals to 3\n   |   expected: count equals to 0\n   |"
+ },
+ {
+  "line": 47,
+  "success": false,
+  "message": "Filter error\n  --\u003e strings.hurl:47:18\n   |\n   | GET {{base}}/json\n   | ...\n47 | jsonpath \"$.obj\" count == 3\n   |                  ^^^^^ invalid filter input type\n   |                           actual:   object\n   |                           expected: list, bytes or nodeset\n   |"
+ },
+ {
+  "line": 48,
+  "success": true
+ },
+ {
+  "line": 49,
+  "success": true
+ },
+ {
+  "line": 50,
+  "success": true
+ },
+ {
+  "line": 51,
+  "success": true
+ },
+ {
+  "line": 52,
+  "success": true
+ },
+ {
+  "line": 53,
+  "success": true
+ },
+ {
+  "line": 54,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:54:0\n   |\n   | GET {{base}}/json\n   | ...\n54 | jsonpath \"$.list\" contains \"four\"\n   |   actual:   list \u003c[1,2.0,three,null,true,Object()]\u003e\n   |   expected: contains string \u003cfour\u003e\n   |"
+ },
+ {
+  "line": 55,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:55:0\n   |\n   | GET {{base}}/json\n   | ...\n55 | jsonpath \"$.str\" includes \"c\"\n   |   actual:   string \u003ccafé\u003e\n   |   expected: includes string \u003cc\u003e\n   |   \u003e\u003e\u003e types between actual and expected are not consistent\n   |"
+ },
+ {
+  "line": 56,
+  "success": true
+ },
+ {
+  "line": 57,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:57:0\n   |\n   | GET {{base}}/json\n   | ...\n57 | jsonpath \"$.str\" isIsoDate\n   |   actual:   café\n   |   expected: string with format YYYY-MM-DDTHH:mm:ss.sssZ\n   |"
+ },
+ {
+  "line": 58,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:58:0\n   |\n   | GET {{base}}/json\n   | ...\n58 | jsonpath \"$.int\" isIsoDate\n   |   actual:   integer \u003c1\u003e\n   |   expected: string\n   |   \u003e\u003e\u003e types between actual and expected are not consistent\n   |"
+ },
+ {
+  "line": 59,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:59:0\n   |\n   | GET {{base}}/json\n   | ...\n59 | jsonpath \"$.str\" isUuid\n   |   actual:   café\n   |   expected: string in UUID format\n   |"
+ },
+ {
+  "line": 60,
+  "success": false,
+  "message": "Assert failure\n  --\u003e strings.hurl:60:0\n   |\n   | GET {{base}}/json\n   | ...\n60 | jsonpath \"$.str\" isIpv4\n   |   actual:   café\n   |   expected: string in IPv4 format\n   |"
+ },
+ {
+  "line": 61,
+  "success": true
+ },
+ {
+  "line": 62,
+  "success": true
+ },
+ {
+  "line": 63,
+  "success": false,
+  "message": "Filter error\n  --\u003e strings.hurl:63:20\n   |\n   | GET {{base}}/json\n   | ...\n63 | jsonpath \"$.empty\" first == 1\n   |                    ^^^^^ invalid filter input type\n   |                             actual:   string\n   |                             expected: list\n   |"
+ }
+]

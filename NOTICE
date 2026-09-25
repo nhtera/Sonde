@@ -6,3 +6,16 @@ This product includes software derived from Hurl
 licensed under the Apache License 2.0:
 - internal/syntax is a Go port of Hurl's hurl_core parser (8.0.1).
 - testdata/conformance/hurl contains Hurl's integration tests, unchanged.
+- internal/jsonpath is a Go port of Hurl's JSONPath module (8.0.1).
+
+This product includes test data from the jsonpath-compliance-test-suite
+project (https://github.com/jsonpath-standard/jsonpath-compliance-test-suite),
+licensed under the BSD 2-Clause License:
+- internal/jsonpath/testdata/cts/cts.json is that project's compliance
+  test suite, unchanged.
+
+This product includes software derived from chrono
+(https://github.com/chronotope/chrono), licensed under the MIT License or
+the Apache License 2.0:
+- internal/datefmt reproduces chrono's strftime formatting and parsing
+  (0.4.44).

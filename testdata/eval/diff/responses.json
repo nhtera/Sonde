@@ -1,0 +1,151 @@
+{
+ "/json": {
+  "headers": [
+   [
+    "Content-Type",
+    "application/json"
+   ]
+  ],
+  "body": "{\"int\": 1, \"float\": 1.0, \"float2\": 2.5, \"neg\": -1.5, \"big\": 123456789012345678901234567890, \"big2\": 99999999999999999999, \"exp\": 1e2, \"huge\": 1e400,\n \"str\": \"café\", \"empty\": \"\", \"list\": [1, 2.0, \"three\", null, true, {\"k\": \"v\"}], \"obj\": {\"b\": 2, \"a\": 1, \"c\": {\"z\": 26, \"y\": 25}},\n \"nulls\": null, \"bool\": false, \"date\": \"2026-01-02T03:04:05.123Z\", \"html\": \"&lt;p class=&quot;x&quot;&gt;caf&eacute; &amp;amp &#x27;&#39;&#128;&#1;\", \"url\": \"https://x.org/a?b=1&c=hello%20world+x\",\n \"b64\": \"SGVsbG8=\", \"b64url\": \"-_8\", \"unicode\": \"١٢٣\", \"words\": \"héllo wörld\", \"csv\": \"a,b,,c\", \"neg0\": -0.0, \"tiny\": 1e-7, \"tenth\": 0.1,\n \"books\": [{\"title\": \"Dune\", \"price\": 8.99, \"tags\": [\"sf\"]}, {\"title\": \"Emma\", \"price\": 12, \"tags\": []}, {\"title\": \"Ubik\", \"price\": 7.5}]}"
+ },
+ "/html": {
+  "headers": [
+   [
+    "Content-Type",
+    "text/html; charset=utf-8"
+   ]
+  ],
+  "body": "<html><head><title>Café &amp; Co</title></head><body><p class=\"a\">one</p><p>two<br>three</p><ul><li>1</li><li>2</li></ul></body></html>"
+ },
+ "/xml": {
+  "headers": [
+   [
+    "Content-Type",
+    "application/xml"
+   ]
+  ],
+  "body": "<?xml version=\"1.0\"?><book xmlns=\"urn:books\" xmlns:isbn=\"urn:isbn\"><title>Dune</title><isbn:number>42</isbn:number><price cur=\"EUR\">9.5</price></book>"
+ },
+ "/text": {
+  "headers": [
+   [
+    "Content-Type",
+    "text/plain"
+   ]
+  ],
+  "body": "Hello World!\nline 2 ١٢ café\n"
+ },
+ "/gzip": {
+  "headers": [
+   [
+    "Content-Type",
+    "text/plain"
+   ],
+   [
+    "Content-Encoding",
+    "gzip"
+   ]
+  ],
+  "base64": "H4sIAAAAAAAC/0vOzy0oSi0uTk1RSE5MO7wSAIXlJOgQAAAA"
+ },
+ "/latin1": {
+  "headers": [
+   [
+    "Content-Type",
+    "text/plain; charset=ISO-8859-1"
+   ]
+  ],
+  "base64": "Y2Fm6SBjcuhtZQ=="
+ },
+ "/badutf8": {
+  "headers": [
+   [
+    "Content-Type",
+    "text/plain"
+   ]
+  ],
+  "base64": "Yf/+Yg=="
+ },
+ "/bytes": {
+  "headers": [
+   [
+    "Content-Type",
+    "application/octet-stream"
+   ]
+  ],
+  "base64": "AAECyv7/"
+ },
+ "/headers": {
+  "headers": [
+   [
+    "Content-Type",
+    "text/plain"
+   ],
+   [
+    "X-Multi",
+    "one"
+   ],
+   [
+    "X-Multi",
+    "two"
+   ],
+   [
+    "X-Num",
+    "42"
+   ],
+   [
+    "X-Date",
+    "Wed, 13 Jan 2021 22:23:01 GMT"
+   ]
+  ],
+  "body": "h"
+ },
+ "/cookies": {
+  "headers": [
+   [
+    "Content-Type",
+    "text/plain"
+   ],
+   [
+    "Set-Cookie",
+    "LSID=DQAAAKEaem_vYg; Path=/accounts; Expires=Wed, 13 Jan 2021 22:23:01 GMT; Secure; HttpOnly"
+   ],
+   [
+    "Set-Cookie",
+    "HSID=AYQEVnDKrdst; Domain=.localhost; Expires=Wed, 13-Jan-2021 22:23:01 GMT; HttpOnly; Max-Age=60; SameSite=Lax"
+   ],
+   [
+    "Set-Cookie",
+    "SSID=Ap4P; Max-Age=abc"
+   ]
+  ],
+  "body": "c"
+ },
+ "/badjson": {
+  "headers": [
+   [
+    "Content-Type",
+    "application/json"
+   ]
+  ],
+  "body": "{\"a\": 1,}"
+ },
+ "/empty": {
+  "headers": [
+   [
+    "Content-Type",
+    "text/plain"
+   ]
+  ],
+  "body": ""
+ },
+ "/neg": {
+  "headers": [
+   [
+    "Content-Type",
+    "application/json"
+   ]
+  ],
+  "body": "{\"neg\": -1.5, \"one\": 1, \"list\": [-1, -0.25, 3]}"
+ }
+}

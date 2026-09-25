@@ -1,0 +1,1257 @@
+# Copyright 2026 The Sonde Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Single doc-data source for Sonde's Hurl 8.0.1 compatibility tables.
+# Hand-maintained; verified against the extracted inventories by
+# internal/docs/inventory_test.go (run scripts/gen-grammar-inventory.sh
+# and scripts/gen-cli-inventory.sh to regenerate the .tsv files this
+# file is checked against). docs/compat.md is generated from this file
+# by `make docs` — edit here, not there.
+#
+# status: supported | partial | planned | unsupported
+# phase: the plans/ roadmap phase implementing this (omitted once supported)
+# reason: required for partial/unsupported
+# usage: occurrence count in the vendored Hurl conformance corpus
+
+queries:
+  - name: "body"
+    status: "supported"
+    doc: "the response body, decoded per Content-Encoding"
+  - name: "bytes"
+    status: "supported"
+    doc: "the decoded response body as raw bytes"
+  - name: "certificate"
+    status: "supported"
+    doc: "a field of the peer TLS certificate (Subject, Issuer, dates, serial, SAN, or the raw value)"
+  - name: "cookie"
+    status: "supported"
+    doc: "a Set-Cookie value or one of its attributes by name[Attribute]"
+  - name: "duration"
+    status: "supported"
+    doc: "total request duration in milliseconds"
+  - name: "header"
+    status: "supported"
+    doc: "the value of a named response header"
+  - name: "ip"
+    status: "supported"
+    doc: "the remote IP address the request connected to"
+  - name: "jsonpath"
+    status: "supported"
+    doc: "a JSONPath expression evaluated against a JSON body"
+  - name: "md5"
+    status: "supported"
+    doc: "the MD5 digest of the response body"
+  - name: "rawbytes"
+    status: "supported"
+    doc: "the response body as raw, undecoded bytes"
+  - name: "redirects"
+    status: "supported"
+    doc: "the list of intermediate responses in a redirect chain"
+  - name: "regex"
+    status: "supported"
+    doc: "the first capture group of a regex matched against the body"
+  - name: "sha256"
+    status: "supported"
+    doc: "the SHA-256 digest of the response body"
+  - name: "status"
+    status: "supported"
+    doc: "HTTP response status code, as an integer"
+  - name: "url"
+    status: "supported"
+    doc: "the final URL after following redirects"
+  - name: "variable"
+    status: "supported"
+    doc: "the current value of a named variable"
+  - name: "version"
+    status: "supported"
+    doc: "HTTP version of the response (HTTP/1.0, HTTP/1.1, HTTP/2, HTTP/3)"
+  - name: "xpath"
+    status: "supported"
+    doc: "an XPath expression evaluated against an HTML or XML body"
+
+filters:
+  - name: "base64Decode"
+    status: "supported"
+    doc: "decodes a base64 string into bytes"
+  - name: "base64Encode"
+    status: "supported"
+    doc: "encodes bytes as a base64 string"
+  - name: "base64UrlSafeDecode"
+    status: "supported"
+    doc: "decodes a URL-safe base64 string into bytes"
+  - name: "base64UrlSafeEncode"
+    status: "supported"
+    doc: "encodes bytes as a URL-safe base64 string"
+  - name: "charsetDecode"
+    status: "supported"
+    doc: "decodes bytes to a string using the named charset"
+  - name: "count"
+    status: "supported"
+    doc: "the number of elements in a collection"
+  - name: "dateFormat"
+    status: "supported"
+    doc: "formats a date using a strftime-style pattern"
+  - name: "daysAfterNow"
+    status: "supported"
+    doc: "days between now and a date value, positive if in the future"
+  - name: "daysBeforeNow"
+    status: "supported"
+    doc: "days between a date value and now, positive if in the past"
+  - name: "decode"
+    status: "supported"
+    doc: "deprecated alias of charsetDecode"
+  - name: "first"
+    status: "supported"
+    doc: "the first element of a collection"
+  - name: "format"
+    status: "supported"
+    doc: "deprecated alias of dateFormat"
+  - name: "htmlEscape"
+    status: "supported"
+    doc: "escapes HTML special characters in a string"
+  - name: "htmlUnescape"
+    status: "supported"
+    doc: "unescapes HTML entities in a string"
+  - name: "jsonpath"
+    status: "supported"
+    doc: "evaluates a JSONPath expression against a JSON value"
+  - name: "last"
+    status: "supported"
+    doc: "the last element of a collection"
+  - name: "location"
+    status: "supported"
+    doc: "the Location header value of an HTTP response value"
+  - name: "nth"
+    status: "supported"
+    doc: "the nth element (0-based) of a collection"
+  - name: "regex"
+    status: "supported"
+    doc: "the first capture group of a regex matched against a string"
+  - name: "replace"
+    status: "supported"
+    doc: "replaces every occurrence of a substring"
+  - name: "replaceRegex"
+    status: "supported"
+    doc: "replaces every regex match with a replacement string"
+  - name: "split"
+    status: "supported"
+    doc: "splits a string on a separator into a list"
+  - name: "toDate"
+    status: "supported"
+    doc: "parses a string into a date using a strftime-style pattern"
+  - name: "toFloat"
+    status: "supported"
+    doc: "converts a value to a floating-point number"
+  - name: "toHex"
+    status: "supported"
+    doc: "encodes bytes as a lowercase hex string"
+  - name: "toInt"
+    status: "supported"
+    doc: "converts a value to an integer"
+  - name: "toString"
+    status: "supported"
+    doc: "converts a value to its string representation"
+  - name: "urlDecode"
+    status: "supported"
+    doc: "percent-decodes a URL-encoded string"
+  - name: "urlEncode"
+    status: "supported"
+    doc: "percent-encodes a string for use in a URL"
+  - name: "urlQueryParam"
+    status: "supported"
+    doc: "extracts a named query parameter from a URL string"
+  - name: "utf8Decode"
+    status: "supported"
+    doc: "decodes bytes as UTF-8 into a string"
+  - name: "utf8Encode"
+    status: "supported"
+    doc: "encodes a string as UTF-8 bytes"
+  - name: "xpath"
+    status: "supported"
+    doc: "evaluates an XPath expression against an HTML or XML value"
+
+predicates:
+  - name: "!="
+    status: "supported"
+    doc: "the value differs from the expected value"
+  - name: "<"
+    status: "supported"
+    doc: "the value is less than the expected number or date"
+  - name: "<="
+    status: "supported"
+    doc: "the value is less than or equal to the expected number or date"
+  - name: "=="
+    status: "supported"
+    doc: "the value equals the expected value"
+  - name: ">"
+    status: "supported"
+    doc: "the value is greater than the expected number or date"
+  - name: ">="
+    status: "supported"
+    doc: "the value is greater than or equal to the expected number or date"
+  - name: "contains"
+    status: "supported"
+    doc: "a string, bytes or list value contains the expected element"
+  - name: "endsWith"
+    status: "supported"
+    doc: "a string or bytes value ends with the expected suffix"
+  - name: "exists"
+    status: "supported"
+    doc: "the query produced a value"
+  - name: "includes"
+    status: "supported"
+    doc: "a list contains the expected element (alias family of contains)"
+  - name: "isBoolean"
+    status: "supported"
+    doc: "the value is a boolean"
+  - name: "isCollection"
+    status: "supported"
+    doc: "the value is a list or object"
+  - name: "isDate"
+    status: "supported"
+    doc: "the value is a date"
+  - name: "isEmpty"
+    status: "supported"
+    doc: "a string, bytes, list or object value is empty"
+  - name: "isFloat"
+    status: "supported"
+    doc: "the value is a floating-point number"
+  - name: "isInteger"
+    status: "supported"
+    doc: "the value is an integer"
+  - name: "isIpv4"
+    status: "supported"
+    doc: "the value is a valid IPv4 address string"
+  - name: "isIpv6"
+    status: "supported"
+    doc: "the value is a valid IPv6 address string"
+  - name: "isIsoDate"
+    status: "supported"
+    doc: "the value is a string in ISO 8601 date-time format"
+  - name: "isList"
+    status: "supported"
+    doc: "the value is a list"
+  - name: "isNumber"
+    status: "supported"
+    doc: "the value is an integer or a float"
+  - name: "isObject"
+    status: "supported"
+    doc: "the value is a JSON object"
+  - name: "isString"
+    status: "supported"
+    doc: "the value is a string"
+  - name: "isUuid"
+    status: "supported"
+    doc: "the value is a string in UUID format"
+  - name: "matches"
+    status: "supported"
+    doc: "a string matches the expected regex"
+  - name: "startsWith"
+    status: "supported"
+    doc: "a string or bytes value starts with the expected prefix"
+
+functions:
+  - name: "newDate"
+    status: "supported"
+    doc: "returns the current date-time"
+  - name: "newUuid"
+    status: "supported"
+    doc: "returns a freshly generated UUID v4"
+
+options:
+  - name: "aws-sigv4"
+    status: "unsupported"
+    doc: "signs the request with AWS Signature Version 4"
+    reason: "stretch goal; not scheduled (low conformance weight)"
+    usage: 1
+  - name: "cacert"
+    status: "planned"
+    phase: 4
+    doc: "CA certificate bundle used to verify the server (PEM)"
+    usage: 5
+  - name: "cert"
+    status: "planned"
+    phase: 4
+    doc: "client certificate file, optionally with :PASSWORD"
+    usage: 2
+  - name: "compressed"
+    status: "planned"
+    phase: 4
+    doc: "requests a compressed response and decodes it"
+    usage: 1
+  - name: "connect-timeout"
+    status: "planned"
+    phase: 4
+    doc: "maximum time allowed to establish the connection"
+    usage: 0
+  - name: "connect-to"
+    status: "planned"
+    phase: 4
+    doc: "redirects connections for HOST1:PORT1 to HOST2:PORT2"
+    usage: 1
+  - name: "delay"
+    status: "planned"
+    phase: 4
+    doc: "sleep before sending this entry's request"
+    usage: 10
+  - name: "digest"
+    status: "unsupported"
+    doc: "uses HTTP Digest authentication"
+    reason: "HTTP Digest authentication not implemented (low conformance weight)"
+    usage: 1
+  - name: "header"
+    status: "planned"
+    phase: 4
+    doc: "adds a custom header to the request"
+    usage: 2
+  - name: "http1.0"
+    status: "unsupported"
+    doc: "forces HTTP/1.0"
+    reason: "Go's net/http cannot send a literal HTTP/1.0 request (Request.Proto is ignored)"
+    usage: 1
+  - name: "http1.1"
+    status: "planned"
+    phase: 4
+    doc: "forces HTTP/1.1"
+    usage: 2
+  - name: "http2"
+    status: "planned"
+    phase: 4
+    doc: "forces HTTP/2"
+    usage: 2
+  - name: "http3"
+    status: "planned"
+    phase: 4
+    doc: "forces HTTP/3"
+    usage: 1
+  - name: "insecure"
+    status: "planned"
+    phase: 4
+    doc: "skips TLS certificate verification"
+    usage: 3
+  - name: "ipv4"
+    status: "planned"
+    phase: 4
+    doc: "resolves hostnames to IPv4 addresses only"
+    usage: 0
+  - name: "ipv6"
+    status: "planned"
+    phase: 4
+    doc: "resolves hostnames to IPv6 addresses only"
+    usage: 0
+  - name: "key"
+    status: "planned"
+    phase: 4
+    doc: "private key file matching --cert"
+    usage: 2
+  - name: "limit-rate"
+    status: "planned"
+    phase: 4
+    doc: "caps the transfer rate in bytes per second"
+    usage: 0
+  - name: "location"
+    status: "planned"
+    phase: 4
+    doc: "follows HTTP redirects"
+    usage: 10
+  - name: "location-trusted"
+    status: "planned"
+    phase: 4
+    doc: "follows redirects and forwards credentials to every host"
+    usage: 1
+  - name: "max-redirs"
+    status: "planned"
+    phase: 4
+    doc: "maximum number of redirects to follow, -1 for unlimited"
+    usage: 4
+  - name: "max-time"
+    status: "planned"
+    phase: 4
+    doc: "maximum time allowed for the whole transfer"
+    usage: 0
+  - name: "negotiate"
+    status: "unsupported"
+    doc: "uses SPNEGO (Negotiate) authentication"
+    reason: "SPNEGO authentication not implemented (low conformance weight)"
+    usage: 0
+  - name: "netrc"
+    status: "planned"
+    phase: 4
+    doc: "reads credentials from ~/.netrc, failing if absent"
+    usage: 0
+  - name: "netrc-file"
+    status: "planned"
+    phase: 4
+    doc: "reads credentials from the given netrc-format file"
+    usage: 1
+  - name: "netrc-optional"
+    status: "planned"
+    phase: 4
+    doc: "reads credentials from ~/.netrc if present, else the URL"
+    usage: 0
+  - name: "ntlm"
+    status: "unsupported"
+    doc: "uses NTLM authentication"
+    reason: "NTLM authentication not implemented (low conformance weight)"
+    usage: 1
+  - name: "output"
+    status: "planned"
+    phase: 4
+    doc: "writes the response body to a file instead of stdout"
+    usage: 10
+  - name: "path-as-is"
+    status: "planned"
+    phase: 4
+    doc: "sends the URL path without normalizing /../ or /./"
+    usage: 1
+  - name: "pinnedpubkey"
+    status: "planned"
+    phase: 4
+    doc: "verifies the server's public key against pinned hashes"
+    usage: 2
+  - name: "proxy"
+    status: "planned"
+    phase: 4
+    doc: "routes the request through the given proxy"
+    usage: 1
+  - name: "repeat"
+    status: "planned"
+    phase: 4
+    doc: "repeats this entry's request N times, -1 for infinite"
+    usage: 3
+  - name: "resolve"
+    status: "planned"
+    phase: 4
+    doc: "provides a custom address for a HOST:PORT pair"
+    usage: 2
+  - name: "retry"
+    status: "planned"
+    phase: 4
+    doc: "maximum retries on entry error, -1 for unlimited"
+    usage: 6
+  - name: "retry-interval"
+    status: "planned"
+    phase: 4
+    doc: "delay between retries"
+    usage: 3
+  - name: "skip"
+    status: "planned"
+    phase: 4
+    doc: "skips this entry without executing it"
+    usage: 1
+  - name: "unix-socket"
+    status: "planned"
+    phase: 4
+    doc: "connects through a Unix domain socket instead of the network"
+    usage: 0
+  - name: "user"
+    status: "planned"
+    phase: 4
+    doc: "adds Basic authentication with USER:PASSWORD"
+    usage: 6
+  - name: "variable"
+    status: "planned"
+    phase: 4
+    doc: "defines a variable local to this entry"
+    usage: 19
+  - name: "verbose"
+    status: "planned"
+    phase: 4
+    doc: "turns on verbose output for this entry"
+    usage: 6
+  - name: "verbosity"
+    status: "planned"
+    phase: 4
+    doc: "sets the verbosity level (brief, verbose, debug) for this entry"
+    usage: 2
+  - name: "very-verbose"
+    status: "planned"
+    phase: 4
+    doc: "turns on very verbose output, including libcurl-style logs"
+    usage: 1
+
+flags:
+  - name: "--aws-sigv4"
+    arg: "PROVIDER1[:PROVIDER2[:REGION[:SERVICE]]]"
+    status: "unsupported"
+    doc: "signs the request with AWS Signature Version 4"
+    reason: "stretch goal; not scheduled (low conformance weight)"
+    usage: 4
+  - name: "--cacert"
+    arg: "FILE"
+    status: "planned"
+    phase: 4
+    doc: "CA certificate bundle used to verify the server (PEM)"
+    usage: 8
+  - name: "--cert"
+    short: "-E"
+    arg: "CERTIFICATE[:PASSWORD]"
+    status: "planned"
+    phase: 4
+    doc: "client certificate file, optionally with :PASSWORD"
+    usage: 1
+  - name: "--color"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "forces colorized output"
+    usage: 12
+  - name: "--compressed"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "requests a compressed response and decodes it"
+    usage: 3
+  - name: "--connect-timeout"
+    arg: "SECONDS"
+    status: "planned"
+    phase: 4
+    doc: "maximum time allowed to establish the connection"
+    usage: 1
+  - name: "--connect-to"
+    arg: "HOST1:PORT1:HOST2:PORT2"
+    status: "planned"
+    phase: 4
+    doc: "redirects connections for HOST1:PORT1 to HOST2:PORT2"
+    usage: 3
+  - name: "--continue-on-error"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "keeps running remaining files after a failure"
+    usage: 18
+  - name: "--cookie"
+    short: "-b"
+    arg: "FILE"
+    status: "planned"
+    phase: 4
+    doc: "reads cookies from a Netscape-format FILE"
+    usage: 1
+  - name: "--cookie-jar"
+    short: "-c"
+    arg: "FILE"
+    status: "planned"
+    phase: 4
+    doc: "writes cookies to FILE after the run"
+    usage: 5
+  - name: "--curl"
+    arg: "FILE"
+    status: "planned"
+    phase: 8
+    doc: "exports each request as a list of curl commands"
+    usage: 5
+  - name: "--delay"
+    arg: "MILLISECONDS"
+    status: "planned"
+    phase: 4
+    doc: "sleep before each request"
+    usage: 2
+  - name: "--digest"
+    arg: ""
+    status: "unsupported"
+    doc: "uses HTTP Digest authentication"
+    reason: "HTTP Digest authentication not implemented (low conformance weight)"
+    usage: 1
+  - name: "--error-format"
+    arg: "FORMAT"
+    status: "planned"
+    phase: 4
+    doc: "controls how error messages are rendered (short or long)"
+    usage: 3
+  - name: "--file-root"
+    arg: "DIR"
+    status: "planned"
+    phase: 4
+    doc: "sets the root directory used to resolve file paths"
+    usage: 5
+  - name: "--from-entry"
+    arg: "ENTRY_NUMBER"
+    status: "planned"
+    phase: 4
+    doc: "starts execution at the given entry number"
+    usage: 2
+  - name: "--glob"
+    arg: "GLOB"
+    status: "planned"
+    phase: 5
+    doc: "adds input files matching the given glob pattern"
+    usage: 6
+  - name: "--header"
+    short: "-H"
+    arg: "NAME:VALUE"
+    status: "planned"
+    phase: 4
+    doc: "adds a custom header to every request"
+    usage: 7
+  - name: "--http1.0"
+    short: "-0"
+    arg: ""
+    status: "unsupported"
+    doc: "forces HTTP/1.0"
+    reason: "Go's net/http cannot send a literal HTTP/1.0 request (Request.Proto is ignored)"
+    usage: 1
+  - name: "--http1.1"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "forces HTTP/1.1"
+    usage: 1
+  - name: "--http2"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "forces HTTP/2"
+    usage: 0
+  - name: "--http3"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "forces HTTP/3"
+    usage: 1
+  - name: "--include"
+    short: "-i"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "includes the response headers in the output"
+    usage: 6
+  - name: "--insecure"
+    short: "-k"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "skips TLS certificate verification"
+    usage: 1
+  - name: "--ipv4"
+    short: "-4"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "resolves hostnames to IPv4 addresses only"
+    usage: 7
+  - name: "--ipv6"
+    short: "-6"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "resolves hostnames to IPv6 addresses only"
+    usage: 1
+  - name: "--jobs"
+    arg: "NUM"
+    status: "planned"
+    phase: 5
+    doc: "maximum number of parallel jobs, 1 disables parallelism"
+    usage: 13
+  - name: "--json"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "outputs each file's result as JSON"
+    usage: 15
+  - name: "--key"
+    arg: "KEY"
+    status: "planned"
+    phase: 4
+    doc: "private key file matching --cert"
+    usage: 1
+  - name: "--limit-rate"
+    arg: "SPEED"
+    status: "planned"
+    phase: 4
+    doc: "caps the transfer rate in bytes per second"
+    usage: 1
+  - name: "--location"
+    short: "-L"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "follows HTTP redirects"
+    usage: 8
+  - name: "--location-trusted"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "follows redirects and forwards credentials to every host"
+    usage: 0
+  - name: "--max-filesize"
+    arg: "BYTES"
+    status: "planned"
+    phase: 4
+    doc: "caps the size of a downloaded file"
+    usage: 1
+  - name: "--max-redirs"
+    arg: "NUM"
+    status: "planned"
+    phase: 4
+    doc: "maximum number of redirects to follow, -1 for unlimited"
+    usage: 3
+  - name: "--max-time"
+    short: "-m"
+    arg: "SECONDS"
+    status: "planned"
+    phase: 4
+    doc: "maximum time allowed for the whole transfer"
+    usage: 4
+  - name: "--negotiate"
+    arg: ""
+    status: "unsupported"
+    doc: "uses SPNEGO (Negotiate) authentication"
+    reason: "SPNEGO authentication not implemented (low conformance weight)"
+    usage: 0
+  - name: "--netrc"
+    short: "-n"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "reads credentials from ~/.netrc, failing if absent"
+    usage: 0
+  - name: "--netrc-file"
+    arg: "FILE"
+    status: "planned"
+    phase: 4
+    doc: "reads credentials from the given netrc-format file"
+    usage: 1
+  - name: "--netrc-optional"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "reads credentials from ~/.netrc if present, else the URL"
+    usage: 0
+  - name: "--no-assert"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "ignores asserts defined in the file"
+    usage: 1
+  - name: "--no-color"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "disables colorized output"
+    usage: 8
+  - name: "--no-cookie-store"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "disables the cookie store between requests"
+    usage: 2
+  - name: "--no-output"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "suppresses the default last-response-body output"
+    usage: 18
+  - name: "--no-pretty"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "disables pretty-printing of response output"
+    usage: 1
+  - name: "--no-proxy"
+    arg: "HOST(S)"
+    status: "planned"
+    phase: 4
+    doc: "lists hosts that bypass the proxy"
+    usage: 0
+  - name: "--ntlm"
+    arg: ""
+    status: "unsupported"
+    doc: "uses NTLM authentication"
+    reason: "NTLM authentication not implemented (low conformance weight)"
+    usage: 1
+  - name: "--output"
+    short: "-o"
+    arg: "FILE"
+    status: "planned"
+    phase: 4
+    doc: "writes to FILE instead of stdout"
+    usage: 14
+  - name: "--parallel"
+    arg: ""
+    status: "planned"
+    phase: 5
+    doc: "runs files in parallel (default in test mode)"
+    usage: 12
+  - name: "--path-as-is"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "sends the URL path without normalizing /../ or /./"
+    usage: 1
+  - name: "--pinnedpubkey"
+    arg: "HASHES"
+    status: "planned"
+    phase: 4
+    doc: "verifies the server's public key against pinned hashes"
+    usage: 2
+  - name: "--pretty"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "pretty-prints JSON response output"
+    usage: 4
+  - name: "--progress-bar"
+    arg: ""
+    status: "planned"
+    phase: 5
+    doc: "shows a progress bar in test mode"
+    usage: 2
+  - name: "--proxy"
+    short: "-x"
+    arg: "[PROTOCOL://]HOST[:PORT]"
+    status: "planned"
+    phase: 4
+    doc: "routes the request through the given proxy"
+    usage: 4
+  - name: "--repeat"
+    arg: "NUM"
+    status: "planned"
+    phase: 4
+    doc: "repeats the input file sequence N times, -1 for infinite"
+    usage: 4
+  - name: "--report-html"
+    arg: "DIR"
+    status: "planned"
+    phase: 5
+    doc: "writes an HTML report to DIR"
+    usage: 6
+  - name: "--report-json"
+    arg: "DIR"
+    status: "planned"
+    phase: 5
+    doc: "writes a JSON report to DIR"
+    usage: 5
+  - name: "--report-junit"
+    arg: "FILE"
+    status: "planned"
+    phase: 5
+    doc: "writes a JUnit XML report to FILE"
+    usage: 4
+  - name: "--report-tap"
+    arg: "FILE"
+    status: "planned"
+    phase: 5
+    doc: "writes a TAP report to FILE"
+    usage: 6
+  - name: "--resolve"
+    arg: "HOST:PORT:ADDR"
+    status: "planned"
+    phase: 4
+    doc: "provides a custom address for a HOST:PORT pair"
+    usage: 3
+  - name: "--retry"
+    arg: "NUM"
+    status: "planned"
+    phase: 4
+    doc: "maximum retries on entry error, -1 for unlimited"
+    usage: 2
+  - name: "--retry-interval"
+    arg: "MILLISECONDS"
+    status: "planned"
+    phase: 4
+    doc: "delay between retries"
+    usage: 2
+  - name: "--secret"
+    arg: "NAME=VALUE"
+    status: "planned"
+    phase: 4
+    doc: "defines a variable whose value is treated as a secret"
+    usage: 11
+  - name: "--secrets-file"
+    arg: "FILE"
+    status: "planned"
+    phase: 4
+    doc: "defines secrets from a file"
+    usage: 1
+  - name: "--ssl-no-revoke"
+    arg: ""
+    status: "unsupported"
+    doc: "(Windows) disables certificate revocation checks"
+    reason: "Windows-specific certificate revocation control; no equivalent in Go's crypto/tls"
+    usage: 4
+  - name: "--test"
+    arg: ""
+    status: "planned"
+    phase: 5
+    doc: "activates test mode (parallel execution, test-style output)"
+    usage: 20
+  - name: "--to-entry"
+    arg: "ENTRY_NUMBER"
+    status: "planned"
+    phase: 4
+    doc: "stops execution at the given entry number"
+    usage: 2
+  - name: "--unix-socket"
+    arg: "PATH"
+    status: "planned"
+    phase: 4
+    doc: "connects through a Unix domain socket instead of the network"
+    usage: 1
+  - name: "--user"
+    short: "-u"
+    arg: "USER:PASSWORD"
+    status: "planned"
+    phase: 4
+    doc: "adds Basic authentication with USER:PASSWORD"
+    usage: 4
+  - name: "--user-agent"
+    short: "-A"
+    arg: "NAME"
+    status: "planned"
+    phase: 4
+    doc: "sets the User-Agent header sent to the server"
+    usage: 1
+  - name: "--variable"
+    arg: "NAME=VALUE"
+    status: "planned"
+    phase: 4
+    doc: "defines a variable"
+    usage: 16
+  - name: "--variables-file"
+    arg: "FILE"
+    status: "planned"
+    phase: 4
+    doc: "defines variables from a properties file"
+    usage: 2
+  - name: "--verbose"
+    short: "-v"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "turns on verbose output (alias of --verbosity verbose)"
+    usage: 43
+  - name: "--verbosity"
+    arg: "LEVEL"
+    status: "planned"
+    phase: 4
+    doc: "sets the verbosity level for debug logging"
+    usage: 2
+  - name: "--very-verbose"
+    arg: ""
+    status: "planned"
+    phase: 4
+    doc: "turns on very verbose output, including HTTP and libcurl-style logs"
+    usage: 6
+
+env:
+  - name: "CI"
+    status: "planned"
+    phase: 4
+    doc: "presence signals a CI environment (affects color/progress defaults)"
+    usage: 4
+  - name: "HURL_COLOR"
+    status: "planned"
+    phase: 4
+    doc: "same as --color when set truthy, --no-color when falsy"
+    usage: 5
+  - name: "HURL_COMPRESSED"
+    status: "planned"
+    phase: 4
+    doc: "same as --compressed"
+    usage: 1
+  - name: "HURL_CONNECT_TIMEOUT"
+    status: "planned"
+    phase: 4
+    doc: "same as --connect-timeout"
+    usage: 1
+  - name: "HURL_CONTINUE_ON_ERROR"
+    status: "planned"
+    phase: 4
+    doc: "same as --continue-on-error"
+    usage: 1
+  - name: "HURL_DELAY"
+    status: "planned"
+    phase: 4
+    doc: "same as --delay"
+    usage: 2
+  - name: "HURL_ERROR_FORMAT"
+    status: "planned"
+    phase: 4
+    doc: "same as --error-format"
+    usage: 1
+  - name: "HURL_HEADER"
+    status: "planned"
+    phase: 4
+    doc: "adds one or more `|`-separated custom headers"
+    usage: 1
+  - name: "HURL_HTTP10"
+    status: "unsupported"
+    doc: "same as --http1.0"
+    reason: "mirrors --http1.0; Go's net/http cannot send a literal HTTP/1.0 request"
+    usage: 1
+  - name: "HURL_HTTP11"
+    status: "planned"
+    phase: 4
+    doc: "same as --http1.1"
+    usage: 1
+  - name: "HURL_HTTP2"
+    status: "planned"
+    phase: 4
+    doc: "same as --http2"
+    usage: 0
+  - name: "HURL_HTTP3"
+    status: "planned"
+    phase: 4
+    doc: "same as --http3"
+    usage: 0
+  - name: "HURL_INSECURE"
+    status: "planned"
+    phase: 4
+    doc: "same as --insecure"
+    usage: 1
+  - name: "HURL_IPV4"
+    status: "planned"
+    phase: 4
+    doc: "same as --ipv4"
+    usage: 1
+  - name: "HURL_IPV6"
+    status: "planned"
+    phase: 4
+    doc: "same as --ipv6"
+    usage: 1
+  - name: "HURL_JOBS"
+    status: "planned"
+    phase: 5
+    doc: "same as --jobs"
+    usage: 1
+  - name: "HURL_LIMIT_RATE"
+    status: "planned"
+    phase: 4
+    doc: "same as --limit-rate"
+    usage: 1
+  - name: "HURL_LOCATION"
+    status: "planned"
+    phase: 4
+    doc: "same as --location"
+    usage: 1
+  - name: "HURL_LOCATION_TRUSTED"
+    status: "planned"
+    phase: 4
+    doc: "same as --location-trusted"
+    usage: 1
+  - name: "HURL_MAX_FILESIZE"
+    status: "planned"
+    phase: 4
+    doc: "same as --max-filesize"
+    usage: 1
+  - name: "HURL_MAX_REDIRS"
+    status: "planned"
+    phase: 4
+    doc: "same as --max-redirs"
+    usage: 2
+  - name: "HURL_MAX_TIME"
+    status: "planned"
+    phase: 4
+    doc: "same as --max-time"
+    usage: 3
+  - name: "HURL_NO_ASSERT"
+    status: "planned"
+    phase: 4
+    doc: "same as --no-assert"
+    usage: 1
+  - name: "HURL_NO_COLOR"
+    status: "planned"
+    phase: 4
+    doc: "same as --no-color"
+    usage: 6
+  - name: "HURL_NO_COOKIE_STORE"
+    status: "planned"
+    phase: 4
+    doc: "same as --no-cookie-store"
+    usage: 1
+  - name: "HURL_NO_OUTPUT"
+    status: "planned"
+    phase: 4
+    doc: "same as --no-output"
+    usage: 1
+  - name: "HURL_NO_PRETTY"
+    status: "planned"
+    phase: 4
+    doc: "same as --no-pretty"
+    usage: 0
+  - name: "HURL_PRETTY"
+    status: "planned"
+    phase: 4
+    doc: "same as --pretty"
+    usage: 1
+  - name: "HURL_RETRY"
+    status: "planned"
+    phase: 4
+    doc: "same as --retry"
+    usage: 1
+  - name: "HURL_RETRY_INTERVAL"
+    status: "planned"
+    phase: 4
+    doc: "same as --retry-interval"
+    usage: 1
+  - name: "HURL_SECRET_name"
+    status: "planned"
+    phase: 4
+    doc: "defines a secret variable named `name` from its value"
+    usage: 3
+  - name: "HURL_TEST"
+    status: "planned"
+    phase: 5
+    doc: "same as --test"
+    usage: 1
+  - name: "HURL_USER"
+    status: "planned"
+    phase: 4
+    doc: "same as --user"
+    usage: 1
+  - name: "HURL_USER_AGENT"
+    status: "planned"
+    phase: 4
+    doc: "same as --user-agent"
+    usage: 1
+  - name: "HURL_VARIABLE_name"
+    status: "planned"
+    phase: 4
+    doc: "defines a variable named `name` from its value"
+    usage: 1
+  - name: "HURL_VERBOSE"
+    status: "planned"
+    phase: 4
+    doc: "same as --verbose"
+    usage: 4
+  - name: "HURL_VERBOSITY"
+    status: "planned"
+    phase: 4
+    doc: "same as --verbosity"
+    usage: 4
+  - name: "HURL_VERY_VERBOSE"
+    status: "planned"
+    phase: 4
+    doc: "same as --very-verbose"
+    usage: 2
+  - name: "NO_COLOR"
+    status: "planned"
+    phase: 4
+    doc: "disables colorized output when set to any value"
+    usage: 3
+  - name: "TF_BUILD"
+    status: "planned"
+    phase: 4
+    doc: "presence signals an Azure Pipelines CI environment"
+    usage: 0
+  - name: "XDG_CONFIG_HOME"
+    status: "planned"
+    phase: 4
+    doc: "base directory used to locate the config file at $XDG_CONFIG_HOME/hurl/config"
+    usage: 16
+
+config:
+  - name: "header"
+    status: "planned"
+    phase: 4
+    doc: "adds a custom header to every request"
+  - name: "max-redirs"
+    status: "planned"
+    phase: 4
+    doc: "maximum number of redirects to follow, -1 for unlimited"
+  - name: "user-agent"
+    status: "planned"
+    phase: 4
+    doc: "sets the User-Agent header sent to the server"
+  - name: "verbose"
+    status: "planned"
+    phase: 4
+    doc: "same as --verbose"
+
+differences:
+  - area: "Syntax"
+    input: "Regex literal errors other than an invalid `{…}` repetition"
+    hurl: "Rust `regex` message"
+    sonde: "Go `regexp` message (same position)"
+  - area: "Syntax"
+    input: "Regexes valid in only one engine, e.g. `a{,3}`, `\\d{2}{2}`, `a{1001}`, `[]-Z]`"
+    hurl: "accepted"
+    sonde: "rejected"
+  - area: "Syntax"
+    input: "… and the reverse, e.g. `[0-9[Query]`"
+    hurl: "rejected"
+    sonde: "accepted"
+  - area: "Syntax"
+    input: "XML body with DTD-declared entities"
+    hurl: "accepted (libxml2)"
+    sonde: "rejected: `invalid XML`"
+  - area: "Syntax"
+    input: "XML body with text or a comment before the root element"
+    hurl: "rejected"
+    sonde: "accepted"
+  - area: "Syntax"
+    input: "XML error position"
+    hurl: "character where libxml2 failed"
+    sonde: "last character read by Go's `encoding/xml` (same in all test files)"
+  - area: "Syntax"
+    input: "JSON nested deeper than 1000 levels"
+    hurl: "stack overflow"
+    sonde: "rejected: `nesting is deeper than 1000 levels`"
+  - area: "Syntax"
+    input: "File larger than 64 MiB"
+    hurl: "accepted"
+    sonde: "rejected: `Issue reading from FILE: file is larger than 64 MiB`"
+  - area: "Evaluation"
+    input: "Integers beyond 64 bits in comparisons, e.g. `123456789012345678901234567890 > 9223372036854775807`"
+    hurl: "compared as digit strings: false"
+    sonde: "compared numerically: true"
+  - area: "Evaluation"
+    input: "Rendering of a float whose fraction is negative or below 2.2e-16, e.g. `toString` of `-1.5` or `1e-300`"
+    hurl: "`-1.5.0`, `0.000…1.0`"
+    sonde: "`-1.5`, `0.000…1`"
+  - area: "Evaluation"
+    input: "Negative JSONPath number literal with a fraction, e.g. `$[?@ == -1.5]`"
+    hurl: "read as `-0.5`"
+    sonde: "read as `-1.5`"
+  - area: "Evaluation"
+    input: "NaN (e.g. from XPath `number()` on text) compared with a number"
+    hurl: "equal to every number"
+    sonde: "equal to nothing, never less or greater"
+  - area: "Evaluation"
+    input: "Unprefixed XPath name on an XML document with a default namespace, e.g. `count(//title)`"
+    hurl: "matches nothing (use `_:title`)"
+    sonde: "also matches the namespaced elements"
+  - area: "Evaluation"
+    input: "Malformed XML response body for `xpath`, or XML using entities declared in a DTD"
+    hurl: "libxml2 recovers what it can, expands the entities"
+    sonde: "`Invalid XML` error"
+  - area: "Evaluation"
+    input: "HTML response for `xpath`"
+    hurl: "libxml2 HTML parser"
+    sonde: "HTML5 parser: `html`, `head` and `body` always exist"
+  - area: "Evaluation"
+    input: "`\\b` in regexes, and `\\W`/`\\S` inside a bracket class"
+    hurl: "Unicode"
+    sonde: "ASCII"
+  - area: "Evaluation"
+    input: "Response with several content codings, e.g. `Content-Encoding: gzip, br`"
+    hurl: "decoded in listed order"
+    sonde: "decoded in reverse order (last applied first)"
+  - area: "Evaluation"
+    input: "`Content-Encoding: zstd`"
+    hurl: "`compression zstd is not supported`"
+    sonde: "decoded"
+  - area: "Evaluation"
+    input: "Decoded (decompressed) body larger than 512 MiB"
+    hurl: "decoded"
+    sonde: "`Decompression error`"
+  - area: "Evaluation"
+    input: "JSON response nested deeper than 128 levels, or with a lone surrogate escape (`\\ud800`)"
+    hurl: "`Invalid JSON`"
+    sonde: "accepted (the surrogate reads as U+FFFD)"
+  - area: "Evaluation"
+    input: "`urlQueryParam` on a malformed or unusual URL, e.g. `http:///x`"
+    hurl: "parsed by the Rust `url` crate (WHATWG rules)"
+    sonde: "parsed by Go's `net/url`: `http:///x` is `empty host`, other messages differ"
+  - area: "Evaluation"
+    input: "Nested numbers compared by JSONPath `==`, e.g. `$[?@.a == [1]]` on `{\"a\": [1.0]}`"
+    hurl: "compared as written: not equal"
+    sonde: "compared by value: equal"
+  - area: "Evaluation"
+    input: "Date string with a leap second, e.g. `toDate` of `23:59:60`"
+    hurl: "keeps the instant at 23:59:59.999999999"
+    sonde: "rolls over to the next minute"
+  - area: "Evaluation"
+    input: "Regex syntax outside the common subset: `(?x)`, `\\u{…}`, repetitions over 1000, class set operations `&&` `--`; `\\Q…\\E`"
+    hurl: "first group accepted, `\\Q…\\E` rejected"
+    sonde: "first group rejected (`Invalid regex`), `\\Q…\\E` accepted"

@@ -1,0 +1,108 @@
+[
+ {
+  "line": 4,
+  "success": true
+ },
+ {
+  "line": 5,
+  "success": true
+ },
+ {
+  "line": 6,
+  "success": true
+ },
+ {
+  "line": 7,
+  "success": true
+ },
+ {
+  "line": 8,
+  "success": true
+ },
+ {
+  "line": 9,
+  "success": false,
+  "message": "Assert failure\n  --\u003e documents.hurl:9:0\n   |\n   | GET {{base}}/html\n   | ...\n 9 | xpath \"//p\" == 2\n   |   actual:   nodeset \u003cNodeset(size=2)\u003e\n   |   expected: integer \u003c2\u003e\n   |"
+ },
+ {
+  "line": 10,
+  "success": false,
+  "message": "Assert failure\n  --\u003e documents.hurl:10:0\n   |\n   | GET {{base}}/html\n   | ...\n10 | xpath \"//nothing\" exists\n   |   actual:   nodeset \u003cNodeset(size=0)\u003e\n   |   expected: something\n   |"
+ },
+ {
+  "line": 11,
+  "success": true
+ },
+ {
+  "line": 12,
+  "success": true
+ },
+ {
+  "line": 13,
+  "success": true
+ },
+ {
+  "line": 14,
+  "success": true
+ },
+ {
+  "line": 15,
+  "success": true
+ },
+ {
+  "line": 16,
+  "success": false,
+  "message": "Invalid XPath expression\n  --\u003e documents.hurl:16:7\n   |\n   | GET {{base}}/html\n   | ...\n16 | xpath \"//[\" == 1\n   |       ^^^^^ XPath expression is not valid\n   |"
+ },
+ {
+  "line": 17,
+  "success": true
+ },
+ {
+  "line": 18,
+  "success": true
+ },
+ {
+  "line": 22,
+  "success": true
+ },
+ {
+  "line": 23,
+  "success": true
+ },
+ {
+  "line": 24,
+  "success": true
+ },
+ {
+  "line": 25,
+  "success": true
+ },
+ {
+  "line": 26,
+  "success": true
+ },
+ {
+  "line": 27,
+  "success": true
+ },
+ {
+  "line": 31,
+  "success": false,
+  "message": "Invalid JSON\n  --\u003e documents.hurl:31:1\n   |\n   | GET {{base}}/badjson\n   | ...\n31 | jsonpath \"$.a\" == 1\n   | ^^^^^^^^^^^^^^ HTTP response is not a valid JSON\n   |"
+ },
+ {
+  "line": 32,
+  "success": false,
+  "message": "Filter error\n  --\u003e documents.hurl:32:6\n   |\n   | GET {{base}}/badjson\n   | ...\n32 | body jsonpath \"$.a\" == 1\n   |      ^^^^^^^^^^^^^^ invalid filter input: value is not a valid JSON\n   |"
+ },
+ {
+  "line": 33,
+  "success": true
+ },
+ {
+  "line": 34,
+  "success": false,
+  "message": "Invalid XML\n  --\u003e documents.hurl:34:1\n   |\n   | GET {{base}}/badjson\n   | ...\n34 | xpath \"/\" exists\n   | ^^^^^^^^^ HTTP response is not a valid XML\n   |"
+ }
+]

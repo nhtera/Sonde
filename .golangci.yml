@@ -38,14 +38,13 @@ linters:
             - "$all"
             - "!$test"
             - "!**/internal/httpx/**"
-            - "!**/exchange/**"
             - "!**/internal/stream/**"
             - "!**/internal/mock/**"
             - "!**/internal/openapi/**"
             - "!**/internal/grpcx/**"
           deny:
             - pkg: net/http
-              desc: "net/http is allowed only in internal/httpx, exchange, internal/stream, internal/mock, internal/openapi, internal/grpcx (architecture §2)"
+              desc: "net/http is allowed only in internal/httpx, internal/stream, internal/mock, internal/openapi, internal/grpcx (architecture §2)"
         pkg-cmd-sonde:
           list-mode: lax
           files: ["**/cmd/sonde/**", "!$test"]
@@ -59,7 +58,7 @@ linters:
           files: ["**/engine/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, exchange, internal/httpx, internal/sandbox (architecture §2)"
+              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/sandbox (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/value$
@@ -68,6 +67,7 @@ linters:
             - github.com/nhtera/sonde/internal/query$
             - github.com/nhtera/sonde/internal/filter$
             - github.com/nhtera/sonde/internal/predicate$
+            - github.com/nhtera/sonde/internal/runerr$
             - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/httpx$
             - github.com/nhtera/sonde/internal/sandbox$
@@ -76,9 +76,9 @@ linters:
           files: ["**/exchange/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "exchange may import only: internal/value (architecture §2)"
+              desc: "exchange may import only: internal/charset (architecture §2)"
           allow:
-            - github.com/nhtera/sonde/internal/value$
+            - github.com/nhtera/sonde/internal/charset$
         pkg-syntax:
           list-mode: lax
           files: ["**/internal/syntax/**", "!$test"]
@@ -114,10 +114,11 @@ linters:
           files: ["**/internal/template/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/template may import only: internal/syntax, internal/value (architecture §2)"
+              desc: "internal/template may import only: internal/syntax, internal/value, internal/runerr (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/value$
+            - github.com/nhtera/sonde/internal/runerr$
         pkg-jsonpath:
           list-mode: lax
           files: ["**/internal/jsonpath/**", "!$test"]
@@ -131,31 +132,71 @@ linters:
           files: ["**/internal/query/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/query may import only: internal/syntax, internal/value, exchange, internal/jsonpath (architecture §2)"
+              desc: "internal/query may import only: internal/syntax, internal/value, exchange, internal/template, internal/filter, internal/runerr, internal/xpath, internal/datefmt (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/value$
             - github.com/nhtera/sonde/exchange$
-            - github.com/nhtera/sonde/internal/jsonpath$
+            - github.com/nhtera/sonde/internal/template$
+            - github.com/nhtera/sonde/internal/filter$
+            - github.com/nhtera/sonde/internal/runerr$
+            - github.com/nhtera/sonde/internal/xpath$
+            - github.com/nhtera/sonde/internal/datefmt$
         pkg-filter:
           list-mode: lax
           files: ["**/internal/filter/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/filter may import only: internal/syntax, internal/value, internal/jsonpath (architecture §2)"
+              desc: "internal/filter may import only: internal/syntax, internal/value, internal/jsonpath, internal/template, internal/runerr, internal/xpath, internal/datefmt, internal/charset (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/value$
             - github.com/nhtera/sonde/internal/jsonpath$
+            - github.com/nhtera/sonde/internal/template$
+            - github.com/nhtera/sonde/internal/runerr$
+            - github.com/nhtera/sonde/internal/xpath$
+            - github.com/nhtera/sonde/internal/datefmt$
+            - github.com/nhtera/sonde/internal/charset$
         pkg-predicate:
           list-mode: lax
           files: ["**/internal/predicate/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/predicate may import only: internal/syntax, internal/value (architecture §2)"
+              desc: "internal/predicate may import only: internal/syntax, internal/value, internal/template, internal/runerr, internal/datefmt (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/value$
+            - github.com/nhtera/sonde/internal/template$
+            - github.com/nhtera/sonde/internal/runerr$
+            - github.com/nhtera/sonde/internal/datefmt$
+        pkg-runerr:
+          list-mode: lax
+          files: ["**/internal/runerr/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/runerr may import only: internal/syntax (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/internal/syntax$
+        pkg-xpath:
+          list-mode: lax
+          files: ["**/internal/xpath/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/xpath may import only: internal/value (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/internal/value$
+        pkg-charset:
+          list-mode: lax
+          files: ["**/internal/charset/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/charset may import only: no sonde packages (leaf) (architecture §2)"
+        pkg-datefmt:
+          list-mode: lax
+          files: ["**/internal/datefmt/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/datefmt may import only: no sonde packages (leaf) (architecture §2)"
         pkg-httpx:
           list-mode: lax
           files: ["**/internal/httpx/**", "!$test"]

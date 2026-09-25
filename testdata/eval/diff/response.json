@@ -1,0 +1,316 @@
+[
+ {
+  "line": 4,
+  "success": true
+ },
+ {
+  "line": 5,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:5:0\n   |\n   | GET {{base}}/headers\n   | ...\n 5 | header \"X-Multi\" == \"one\"\n   |   actual:   list \u003c[one,two]\u003e\n   |   expected: string \u003cone\u003e\n   |"
+ },
+ {
+  "line": 6,
+  "success": true
+ },
+ {
+  "line": 7,
+  "success": true
+ },
+ {
+  "line": 8,
+  "success": true
+ },
+ {
+  "line": 9,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:9:0\n   |\n   | GET {{base}}/headers\n   | ...\n 9 | header \"X-Missing\" exists\n   |   actual:   none\n   |   expected: something\n   |"
+ },
+ {
+  "line": 10,
+  "success": false,
+  "message": "Filter error\n  --\u003e response.hurl:10:20\n   |\n   | GET {{base}}/headers\n   | ...\n10 | header \"X-Missing\" count == 1\n   |                    ^^^^^ missing value to apply filter\n   |"
+ },
+ {
+  "line": 11,
+  "success": true
+ },
+ {
+  "line": 12,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:12:0\n   |\n   | GET {{base}}/headers\n   | ...\n12 | header \"X-Date\" toDate \"%a, %d %b %Y %H:%M:%S GMT\" == \"2021-01-13\"\n   |   actual:   date \u003c2021-01-13 22:23:01 UTC\u003e\n   |   expected: string \u003c2021-01-13\u003e\n   |"
+ },
+ {
+  "line": 13,
+  "success": false,
+  "message": "Filter error\n  --\u003e response.hurl:13:17\n   |\n   | GET {{base}}/headers\n   | ...\n13 | header \"X-Date\" toDate \"%Y\" == 1\n   |                 ^^^^^^^^^^^ value \u003cWed, 13 Jan 2021 22:23:01 GMT\u003e could not be parsed with \u003c%Y\u003e format\n   |"
+ },
+ {
+  "line": 14,
+  "success": true
+ },
+ {
+  "line": 15,
+  "success": true
+ },
+ {
+  "line": 16,
+  "success": true
+ },
+ {
+  "line": 17,
+  "success": false,
+  "message": "Filter error\n  --\u003e response.hurl:17:52\n   |\n   | GET {{base}}/headers\n   | ...\n17 | header \"X-Date\" toDate \"%a, %d %b %Y %H:%M:%S GMT\" format \"%👻\" == \"x\"\n   |                                                    ^^^^^^^^^^^ date format \u003c%👻\u003e is not supported\n   |"
+ },
+ {
+  "line": 18,
+  "success": false,
+  "message": "Filter error\n  --\u003e response.hurl:18:17\n   |\n   | GET {{base}}/headers\n   | ...\n18 | header \"X-Date\" format \"%Y\" == \"x\"\n   |                 ^^^^^^^^^^^ invalid filter input type\n   |                                actual:   string\n   |                                expected: date\n   |"
+ },
+ {
+  "line": 19,
+  "success": true
+ },
+ {
+  "line": 20,
+  "success": true
+ },
+ {
+  "line": 21,
+  "success": true
+ },
+ {
+  "line": 22,
+  "success": true
+ },
+ {
+  "line": 23,
+  "success": true
+ },
+ {
+  "line": 24,
+  "success": true
+ },
+ {
+  "line": 25,
+  "success": true
+ },
+ {
+  "line": 26,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:26:0\n   |\n   | GET {{base}}/headers\n   | ...\n26 | certificate \"Subject\" exists\n   |   actual:   none\n   |   expected: something\n   |"
+ },
+ {
+  "line": 27,
+  "success": true
+ },
+ {
+  "line": 28,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:28:0\n   |\n   | GET {{base}}/headers\n   | ...\n28 | variable \"nope\" exists\n   |   actual:   none\n   |   expected: something\n   |"
+ },
+ {
+  "line": 32,
+  "success": true
+ },
+ {
+  "line": 33,
+  "success": true
+ },
+ {
+  "line": 34,
+  "success": true
+ },
+ {
+  "line": 35,
+  "success": true
+ },
+ {
+  "line": 36,
+  "success": true
+ },
+ {
+  "line": 37,
+  "success": true
+ },
+ {
+  "line": 38,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:38:0\n   |\n   | GET {{base}}/cookies\n   | ...\n38 | cookie \"SSID[Max-Age]\" exists\n   |   actual:   none\n   |   expected: something\n   |"
+ },
+ {
+  "line": 39,
+  "success": true
+ },
+ {
+  "line": 40,
+  "success": true
+ },
+ {
+  "line": 41,
+  "success": true
+ },
+ {
+  "line": 42,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:42:0\n   |\n   | GET {{base}}/cookies\n   | ...\n42 | cookie \"HSID[Secure]\" exists\n   |   actual:   none\n   |   expected: something\n   |"
+ },
+ {
+  "line": 43,
+  "success": true
+ },
+ {
+  "line": 44,
+  "success": true
+ },
+ {
+  "line": 45,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:45:0\n   |\n   | GET {{base}}/cookies\n   | ...\n45 | cookie \"NOPE\" exists\n   |   actual:   none\n   |   expected: something\n   |"
+ },
+ {
+  "line": 46,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:46:0\n   |\n   | GET {{base}}/cookies\n   | ...\n46 | cookie \"LSID[Secure]\" == \"x\"\n   |   actual:   unit\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 50,
+  "success": true
+ },
+ {
+  "line": 51,
+  "success": true
+ },
+ {
+  "line": 52,
+  "success": true
+ },
+ {
+  "line": 53,
+  "success": true
+ },
+ {
+  "line": 54,
+  "success": true
+ },
+ {
+  "line": 55,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:55:0\n   |\n   | GET {{base}}/bytes\n   | ...\n55 | bytes contains hex,beef;\n   |   actual:   bytes \u003c000102cafeff\u003e\n   |   expected: contains bytes \u003cbeef\u003e\n   |"
+ },
+ {
+  "line": 56,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:56:0\n   |\n   | GET {{base}}/bytes\n   | ...\n56 | bytes isEmpty\n   |   actual:   count equals to 6\n   |   expected: count equals to 0\n   |"
+ },
+ {
+  "line": 57,
+  "success": true
+ },
+ {
+  "line": 58,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:58:0\n   |\n   | GET {{base}}/bytes\n   | ...\n58 | bytes == \"x\"\n   |   actual:   bytes \u003c000102cafeff\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 59,
+  "success": true
+ },
+ {
+  "line": 60,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:60:0\n   |\n   | GET {{base}}/bytes\n   | ...\n60 | sha256 toHex == \"x\"\n   |   actual:   string \u003c15f92facfb7a00f9e5e8dfa263df19603b9cb839bde5a876190d6d4f2e707c42\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 61,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:61:0\n   |\n   | GET {{base}}/bytes\n   | ...\n61 | md5 toHex == \"x\"\n   |   actual:   string \u003caee545b185f8481ef974451426631c88\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 62,
+  "success": true
+ },
+ {
+  "line": 63,
+  "success": true
+ },
+ {
+  "line": 64,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:64:0\n   |\n   | GET {{base}}/bytes\n   | ...\n64 | bytes utf8Decode == \"x\"\n   |   actual:   string \u003c\u0000\u0001\u0002���\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 65,
+  "success": false,
+  "message": "Invalid decoding\n  --\u003e response.hurl:65:1\n   |\n   | GET {{base}}/bytes\n   | ...\n65 | body == \"x\"\n   | ^^^^ could not decode response body with charset 'UTF-8'\n   |"
+ },
+ {
+  "line": 69,
+  "success": true
+ },
+ {
+  "line": 70,
+  "success": true
+ },
+ {
+  "line": 71,
+  "success": true
+ },
+ {
+  "line": 72,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:72:0\n   |\n   | GET {{base}}/gzip\n   | ...\n72 | sha256 == hex,00;\n   |   actual:   bytes \u003c8f02b4af9c9b8409c7a0e83554805df9891b2d4461b85b6b1026827e6909f0b8\u003e\n   |   expected: bytes \u003c00\u003e\n   |"
+ },
+ {
+  "line": 76,
+  "success": true
+ },
+ {
+  "line": 77,
+  "success": true
+ },
+ {
+  "line": 78,
+  "success": false,
+  "message": "Filter error\n  --\u003e response.hurl:78:7\n   |\n   | GET {{base}}/latin1\n   | ...\n78 | bytes charsetDecode \"utf-8\" == \"x\"\n   |       ^^^^^^^^^^^^^^^^^^^^^ value can not be decoded with \u003cutf-8\u003e encoding\n   |"
+ },
+ {
+  "line": 79,
+  "success": false,
+  "message": "Filter error\n  --\u003e response.hurl:79:7\n   |\n   | GET {{base}}/latin1\n   | ...\n79 | bytes charsetDecode \"nope\" == \"x\"\n   |       ^^^^^^^^^^^^^^^^^^^^ \u003cnope\u003e encoding is not supported\n   |"
+ },
+ {
+  "line": 80,
+  "success": true
+ },
+ {
+  "line": 81,
+  "success": false,
+  "message": "Assert failure\n  --\u003e response.hurl:81:0\n   |\n   | GET {{base}}/latin1\n   | ...\n81 | bytes utf8Decode == \"x\"\n   |   actual:   string \u003ccaf� cr�me\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 85,
+  "success": false,
+  "message": "Invalid decoding\n  --\u003e response.hurl:85:1\n   |\n   | GET {{base}}/badutf8\n   | ...\n85 | body == \"x\"\n   | ^^^^ could not decode response body with charset 'UTF-8'\n   |"
+ },
+ {
+  "line": 86,
+  "success": true
+ },
+ {
+  "line": 90,
+  "success": true
+ },
+ {
+  "line": 91,
+  "success": true
+ },
+ {
+  "line": 92,
+  "success": true
+ },
+ {
+  "line": 93,
+  "success": false,
+  "message": "Invalid JSON\n  --\u003e response.hurl:93:1\n   |\n   | GET {{base}}/empty\n   | ...\n93 | jsonpath \"$\" exists\n   | ^^^^^^^^^^^^ HTTP response is not a valid JSON\n   |"
+ }
+]

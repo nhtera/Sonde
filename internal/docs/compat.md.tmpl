@@ -1,0 +1,122 @@
+<!-- Generated from internal/docs/table.yaml by `make docs`. Do not edit. -->
+
+# Hurl Compatibility
+
+Sonde targets Hurl 8.0.1 files and CLI behavior. This page lists every known
+difference. Phase 5 extends it with runtime and CLI gaps.
+
+## Syntax (`sonde check`, `sonde fmt`, all commands that read files)
+
+Measured against the vendored Hurl 8.0.1 test tree (`testdata/conformance/hurl`):
+
+- All 272 valid `.hurl` files outside `tests_error_parser` parse and print back
+  byte for byte (also with CRLF line endings); the two intentionally invalid
+  ones (invalid UTF-8, bad method) are rejected with Hurl's message.
+- All 46 invalid files of `tests_error_parser` are rejected (its 3 valid
+  companions parse); for the 44 with an `.err` oracle, the error position and
+  the rendered message match exactly.
+
+Differences on inputs outside the test tree:
+
+| Input | Hurl 8.0.1 | Sonde |
+|---|---|---|
+{{ range .Differences -}}
+{{ if eq .Area "Syntax" -}}
+| {{ .Input }} | {{ .Hurl }} | {{ .Sonde }} |
+{{ end -}}
+{{ end }}
+Accepted as Hurl does: text after a placeholder's variable inside a string,
+e.g. `{{ "{{" }}a b{{ "}}" }}` or `{{ "{{" }}a{{ "}" }}b{{ "}}" }}`, is ignored (and kept by `sonde fmt`); XML
+declarations with any encoding or version.
+
+`sonde fmt` is not `hurlfmt`: it only normalizes horizontal whitespace and
+line endings (see `docs/architecture.md`, CLI commands) and never reorders
+sections. Files already formatted by `hurlfmt` are left unchanged.
+
+## Evaluation (queries, filters, predicates, templates)
+
+Checked against Hurl 8.0.1 by `internal/evaldiff`: 300 asserts over the
+fixtures in `testdata/eval/diff` (124 of them failing on purpose, so their
+error messages are compared too) give the same result and the same message,
+except the rows below (`testdata/eval/diff/known-differences.txt`). Every
+JSONPath, XPath, regex and date format literal of the conformance tests is
+also accepted or rejected as Hurl does.
+
+| Input | Hurl 8.0.1 | Sonde |
+|---|---|---|
+{{ range .Differences -}}
+{{ if eq .Area "Evaluation" -}}
+| {{ .Input }} | {{ .Hurl }} | {{ .Sonde }} |
+{{ end -}}
+{{ end }}
+Regexes (`matches`, `regex`, `replaceRegex`, JSONPath `match`/`search`) run
+on Go's RE2 engine with `\d`, `\w` and `\s` translated to their Unicode
+meaning, as in Hurl.
+
+## Queries
+
+| Query | Status | Description |
+|---|---|---|
+{{ range .Queries -}}
+| `{{ .Name }}` | {{ .Status }} | {{ .Doc }} |
+{{ end }}
+## Filters
+
+| Filter | Status | Description |
+|---|---|---|
+{{ range .Filters -}}
+| `{{ .Name }}` | {{ .Status }} | {{ .Doc }} |
+{{ end }}
+## Predicates
+
+| Predicate | Status | Description |
+|---|---|---|
+{{ range .Predicates -}}
+| `{{ .Name }}` | {{ .Status }} | {{ .Doc }} |
+{{ end }}
+## Template functions
+
+| Function | Status | Description |
+|---|---|---|
+{{ range .Functions -}}
+| `{{ .Name }}` | {{ .Status }} | {{ .Doc }} |
+{{ end }}
+## Request options
+
+Request `[Options]` section keys.
+
+| Option | Status | Phase | Description |
+|---|---|---|---|
+{{ range .Options -}}
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+{{ end }}
+## CLI flags
+
+Occurrence counts are measured across the vendored Hurl 8.0.1 conformance
+test scripts (`testdata/conformance/hurl/**/*.sh`).
+
+| Flag | Short | Status | Phase | Hurl test usage | Description |
+|---|---|---|---|---|---|
+{{ range .Flags -}}
+| `{{ .Name }}` | {{ if .Short }}`{{ .Short }}`{{ end }} | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+{{ end }}
+## Environment variables
+
+Occurrence counts are measured across the vendored Hurl 8.0.1 conformance
+test scripts (`testdata/conformance/hurl/**/*.sh`).
+
+| Variable | Status | Phase | Hurl test usage | Description |
+|---|---|---|---|---|
+{{ range .Env -}}
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+{{ end }}
+## Config file
+
+Hurl 8.0.1 reads `$XDG_CONFIG_HOME/hurl/config` (or `$HOME/config/hurl/config`
+as a fallback), a plain-text file of one `--option[ value]` per line.
+
+| Key | Status | Phase | Description |
+|---|---|---|---|
+{{ range .Config -}}
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }} |
+{{ end }}

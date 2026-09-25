@@ -1,0 +1,301 @@
+[
+ {
+  "line": 4,
+  "success": true
+ },
+ {
+  "line": 5,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:5:0\n   |\n   | GET {{base}}/json\n   | ...\n 5 | jsonpath \"$.date\" toDate \"%+\" format \"%Y-%m-%dT%H:%M:%S%.fZ\" == \"x\"\n   |   actual:   string \u003c2026-01-02T03:04:05.123Z\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 6,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:6:0\n   |\n   | GET {{base}}/json\n   | ...\n 6 | jsonpath \"$.date\" toDate \"%+\" == \"x\"\n   |   actual:   date \u003c2026-01-02 03:04:05.123 UTC\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 7,
+  "success": true
+ },
+ {
+  "line": 8,
+  "success": false,
+  "message": "Filter error\n  --\u003e misc.hurl:8:19\n   |\n   | GET {{base}}/json\n   | ...\n 8 | jsonpath \"$.date\" toDate \"%Y-%m-%d\" == 1\n   |                   ^^^^^^^^^^^^^^^^^ value \u003c2026-01-02T03:04:05.123Z\u003e could not be parsed with \u003c%Y-%m-%d\u003e format\n   |"
+ },
+ {
+  "line": 9,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:9:0\n   |\n   | GET {{base}}/json\n   | ...\n 9 | jsonpath \"$.date\" toDate \"%Y-%m-%dT%H:%M:%S%.fZ\" format \"%A %B %j %U %e %I %p %Z %z %s %y %C %G %V %u %w\" == \"x\"\n   |   actual:   string \u003cFriday January 002 00  2 03 AM UTC +0000 1767323045 26 20 2026 01 5 5\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 10,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:10:0\n   |\n   | GET {{base}}/json\n   | ...\n10 | jsonpath \"$.date\" toDate \"%+\" format \"%-d %_m %0e %3f %.6f %:z %T %D %F %R %r %c %v %h %k %l %P\" == \"x\"\n   |   actual:   string \u003c2  1 02 123 .123000 +00:00 03:04:05 01/02/26 2026-01-02 03:04 03:04:05 AM Fri Jan  2 03:04:05 2026  2-Jan-2026 Jan  3  3 am\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 11,
+  "success": true
+ },
+ {
+  "line": 12,
+  "success": true
+ },
+ {
+  "line": 13,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:13:0\n   |\n   | GET {{base}}/json\n   | ...\n13 | jsonpath \"$.str\" == \"{{onef}}\"\n   |   actual:   string \u003ccafé\u003e\n   |   expected: string \u003c1.0\u003e\n   |"
+ },
+ {
+  "line": 14,
+  "success": true
+ },
+ {
+  "line": 15,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:15:0\n   |\n   | GET {{base}}/json\n   | ...\n15 | jsonpath \"$.books[?search(@.title, 'u')].title\" == \"x\"\n   |   actual:   string \u003cDune\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 16,
+  "success": true
+ },
+ {
+  "line": 17,
+  "success": false,
+  "message": "Invalid JSONPath\n  --\u003e misc.hurl:17:10\n   |\n   | GET {{base}}/json\n   | ...\n17 | jsonpath \"$.books[?match(@.title, '\\\\w+')].title\" count == 3\n   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ JSONPath expression '$.books[?match(@.title, '\\w+')].title' is not valid\n   |"
+ },
+ {
+  "line": 18,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:18:0\n   |\n   | GET {{base}}/json\n   | ...\n18 | jsonpath \"$.obj.c\" == \"x\"\n   |   actual:   object \u003cObject()\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 19,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:19:0\n   |\n   | GET {{base}}/json\n   | ...\n19 | jsonpath \"$.books\" nth 0 == \"x\"\n   |   actual:   object \u003cObject()\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 20,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:20:0\n   |\n   | GET {{base}}/json\n   | ...\n20 | jsonpath \"$.list\" == \"x\"\n   |   actual:   list \u003c[1,2.0,three,null,true,Object()]\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 21,
+  "success": false,
+  "message": "Filter error\n  --\u003e misc.hurl:21:25\n   |\n   | GET {{base}}/json\n   | ...\n21 | jsonpath \"$.list\" nth 5 jsonpath \"$.k\" == \"v\"\n   |                         ^^^^^^^^^^^^^^ invalid filter input type\n   |                                           actual:   object\n   |                                           expected: string\n   |"
+ },
+ {
+  "line": 22,
+  "success": false,
+  "message": "Filter error\n  --\u003e misc.hurl:22:18\n   |\n   | GET {{base}}/json\n   | ...\n22 | jsonpath \"$.int\" jsonpath \"$\" == 1\n   |                  ^^^^^^^^^^^^ invalid filter input type\n   |                                  actual:   integer\n   |                                  expected: string\n   |"
+ },
+ {
+  "line": 23,
+  "success": true
+ },
+ {
+  "line": 24,
+  "success": true
+ },
+ {
+  "line": 25,
+  "success": true
+ },
+ {
+  "line": 26,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:26:0\n   |\n   | GET {{base}}/json\n   | ...\n26 | jsonpath \"$.huge\" toString == \"x\"\n   |   actual:   string \u003c1e+400\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 27,
+  "success": false,
+  "message": "Filter error\n  --\u003e misc.hurl:27:19\n   |\n   | GET {{base}}/json\n   | ...\n27 | jsonpath \"$.huge\" toFloat == 1\n   |                   ^^^^^^^ invalid filter input: integer \u003c1e+400\u003e is too big to be cast as a float\n   |"
+ },
+ {
+  "line": 28,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:28:0\n   |\n   | GET {{base}}/json\n   | ...\n28 | jsonpath \"$.huge\" == 1\n   |   actual:   integer \u003c1e+400\u003e\n   |   expected: integer \u003c1\u003e\n   |"
+ },
+ {
+  "line": 29,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:29:0\n   |\n   | GET {{base}}/json\n   | ...\n29 | jsonpath \"$.list\" isEmpty\n   |   actual:   count equals to 6\n   |   expected: count equals to 0\n   |"
+ },
+ {
+  "line": 30,
+  "success": false,
+  "message": "Filter error\n  --\u003e misc.hurl:30:20\n   |\n   | GET {{base}}/json\n   | ...\n30 | jsonpath \"$.empty\" count == 0\n   |                    ^^^^^ invalid filter input type\n   |                             actual:   string\n   |                             expected: list, bytes or nodeset\n   |"
+ },
+ {
+  "line": 31,
+  "success": true
+ },
+ {
+  "line": 32,
+  "success": true
+ },
+ {
+  "line": 33,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:33:0\n   |\n   | GET {{base}}/json\n   | ...\n33 | jsonpath \"$.list[3]\" isEmpty\n   |   actual:   null \u003cnull\u003e\n   |   expected: count equals to 0\n   |   \u003e\u003e\u003e types between actual and expected are not consistent\n   |"
+ },
+ {
+  "line": 34,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:34:0\n   |\n   | GET {{base}}/json\n   | ...\n34 | jsonpath \"$.missing\" isEmpty\n   |   actual:   none\n   |   expected: empty\n   |"
+ },
+ {
+  "line": 35,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:35:0\n   |\n   | GET {{base}}/json\n   | ...\n35 | jsonpath \"$.missing\" contains \"x\"\n   |   actual:   none\n   |   expected: contains string \u003cx\u003e\n   |"
+ },
+ {
+  "line": 36,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:36:0\n   |\n   | GET {{base}}/json\n   | ...\n36 | jsonpath \"$.missing\" matches \"a\"\n   |   actual:   none\n   |   expected: matches regex \u003ca\u003e\n   |"
+ },
+ {
+  "line": 37,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:37:0\n   |\n   | GET {{base}}/json\n   | ...\n37 | jsonpath \"$.missing\" matches /a/\n   |   actual:   none\n   |   expected: matches regex \u003ca\u003e\n   |"
+ },
+ {
+  "line": 38,
+  "success": false,
+  "message": "Filter error\n  --\u003e misc.hurl:38:22\n   |\n   | GET {{base}}/json\n   | ...\n38 | jsonpath \"$.missing\" toString == \"x\"\n   |                      ^^^^^^^^ missing value to apply filter\n   |"
+ },
+ {
+  "line": 39,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:39:0\n   |\n   | GET {{base}}/json\n   | ...\n39 | jsonpath \"$.missing\" \u003e 1\n   |   actual:   none\n   |   expected: greater than \u003cinteger \u003c1\u003e\u003e\n   |"
+ },
+ {
+  "line": 40,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:40:0\n   |\n   | GET {{base}}/json\n   | ...\n40 | jsonpath \"$.missing\" == hex,01;\n   |   actual:   none\n   |   expected: 1 byte\n   |"
+ },
+ {
+  "line": 41,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:41:0\n   |\n   | GET {{base}}/json\n   | ...\n41 | jsonpath \"$.missing\" isString\n   |   actual:   none\n   |   expected: string\n   |"
+ },
+ {
+  "line": 42,
+  "success": true
+ },
+ {
+  "line": 43,
+  "success": true
+ },
+ {
+  "line": 44,
+  "success": false,
+  "message": "Invalid JSONPath\n  --\u003e misc.hurl:44:10\n   |\n   | GET {{base}}/json\n   | ...\n44 | jsonpath \"$.books[{{onef}}].title\" == \"Emma\"\n   |          ^^^^^^^^^^^^^^^^^^^^^^^^^ JSONPath expression '$.books[1.0].title' is not valid\n   |"
+ },
+ {
+  "line": 45,
+  "success": false,
+  "message": "Undefined variable\n  --\u003e misc.hurl:45:21\n   |\n   | GET {{base}}/json\n   | ...\n45 | jsonpath \"$.books[{{nope}}].title\" == \"Emma\"\n   |                     ^^^^ you must set the variable nope\n   |"
+ },
+ {
+  "line": 46,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:46:0\n   |\n   | GET {{base}}/json\n   | ...\n46 | jsonpath \"$.str\" == {{onef}}\n   |   actual:   string \u003ccafé\u003e\n   |   expected: float \u003c1.0\u003e\n   |"
+ },
+ {
+  "line": 47,
+  "success": true
+ },
+ {
+  "line": 48,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:48:0\n   |\n   | GET {{base}}/json\n   | ...\n48 | jsonpath \"$.list\" not includes {{one}}\n   |   actual:   list \u003c[1,2.0,three,null,true,Object()]\u003e\n   |   expected: not includes integer \u003c1\u003e\n   |"
+ },
+ {
+  "line": 49,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:49:0\n   |\n   | GET {{base}}/json\n   | ...\n49 | jsonpath \"$.list\" not contains 1\n   |   actual:   list \u003c[1,2.0,three,null,true,Object()]\u003e\n   |   expected: not contains integer \u003c1\u003e\n   |"
+ },
+ {
+  "line": 50,
+  "success": true
+ },
+ {
+  "line": 51,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:51:0\n   |\n   | GET {{base}}/json\n   | ...\n51 | jsonpath \"$.bool\" not == false\n   |   actual:   boolean \u003cfalse\u003e\n   |   expected: not boolean \u003cfalse\u003e\n   |"
+ },
+ {
+  "line": 52,
+  "success": true
+ },
+ {
+  "line": 53,
+  "success": true
+ },
+ {
+  "line": 54,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:54:0\n   |\n   | GET {{base}}/json\n   | ...\n54 | jsonpath \"$.date\" \u003c \"2025\"\n   |   actual:   string \u003c2026-01-02T03:04:05.123Z\u003e\n   |   expected: less than string \u003c2025\u003e\n   |"
+ },
+ {
+  "line": 55,
+  "success": true
+ },
+ {
+  "line": 56,
+  "success": true
+ },
+ {
+  "line": 57,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:57:0\n   |\n   | GET {{base}}/json\n   | ...\n57 | jsonpath \"$.int\" == true\n   |   actual:   integer \u003c1\u003e\n   |   expected: boolean \u003ctrue\u003e\n   |"
+ },
+ {
+  "line": 58,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:58:0\n   |\n   | GET {{base}}/json\n   | ...\n58 | jsonpath \"$.nulls\" != null\n   |   actual:   null \u003cnull\u003e\n   |   expected: null \u003cnull\u003e\n   |"
+ },
+ {
+  "line": 59,
+  "success": true
+ },
+ {
+  "line": 60,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:60:0\n   |\n   | GET {{base}}/json\n   | ...\n60 | jsonpath \"$.obj\" == \"Object()\"\n   |   actual:   object \u003cObject()\u003e\n   |   expected: string \u003cObject()\u003e\n   |"
+ },
+ {
+  "line": 61,
+  "success": false,
+  "message": "Filter error\n  --\u003e misc.hurl:61:18\n   |\n   | GET {{base}}/json\n   | ...\n61 | jsonpath \"$.obj\" count == 3\n   |                  ^^^^^ invalid filter input type\n   |                           actual:   object\n   |                           expected: list, bytes or nodeset\n   |"
+ },
+ {
+  "line": 62,
+  "success": false,
+  "message": "Invalid expression type\n  --\u003e misc.hurl:62:25\n   |\n   | GET {{base}}/json\n   | ...\n62 | jsonpath \"$.list\" nth {{onef}} == 2\n   |                         ^^^^ expecting integer, actual value is float \u003c1.0\u003e\n   |"
+ },
+ {
+  "line": 63,
+  "success": true
+ },
+ {
+  "line": 64,
+  "success": false,
+  "message": "Undefined variable\n  --\u003e misc.hurl:64:34\n   |\n   | GET {{base}}/json\n   | ...\n64 | jsonpath \"$.csv\" split \",\" nth {{nope}} == 2\n   |                                  ^^^^ you must set the variable nope\n   |"
+ },
+ {
+  "line": 65,
+  "success": false,
+  "message": "Invalid regex\n  --\u003e misc.hurl:65:24\n   |\n   | GET {{base}}/json\n   | ...\n65 | jsonpath \"$.csv\" regex \"(\" == \"x\"\n   |                        ^^^ regex expression is not valid\n   |"
+ },
+ {
+  "line": 66,
+  "success": false,
+  "message": "Invalid regex\n  --\u003e misc.hurl:66:18\n   |\n   | GET {{base}}/json\n   | ...\n66 | jsonpath \"$.str\" matches \"(\"\n   |                  ^^^^^^^^^^^ regex expression is not valid\n   |"
+ },
+ {
+  "line": 67,
+  "success": false,
+  "message": "Assert failure\n  --\u003e misc.hurl:67:0\n   |\n   | GET {{base}}/json\n   | ...\n67 | body == \"x\"\n   |   actual:   string \u003c{\"int\": 1, \"float\": 1.0, \"float2\": 2.5, \"neg\": -1.5, \"big\": 123456789012345678901234567890, \"big2\": 99999999999999999999, \"exp\": 1e2, \"huge\": 1e400,\n   | \"str\": \"café\", \"empty\": \"\", \"list\": [1, 2.0, \"three\", null, true, {\"k\": \"v\"}], \"obj\": {\"b\": 2, \"a\": 1, \"c\": {\"z\": 26, \"y\": 25}},\n   | \"nulls\": null, \"bool\": false, \"date\": \"2026-01-02T03:04:05.123Z\", \"html\": \"\u0026lt;p class=\u0026quot;x\u0026quot;\u0026gt;caf\u0026eacute; \u0026amp;amp \u0026#x27;\u0026#39;\u0026#128;\u0026#1;\", \"url\": \"https://x.org/a?b=1\u0026c=hello%20world+x\",\n   | \"b64\": \"SGVsbG8=\", \"b64url\": \"-_8\", \"unicode\": \"١٢٣\", \"words\": \"héllo wörld\", \"csv\": \"a,b,,c\", \"neg0\": -0.0, \"tiny\": 1e-7, \"tenth\": 0.1,\n   | \"books\": [{\"title\": \"Dune\", \"price\": 8.99, \"tags\": [\"sf\"]}, {\"title\": \"Emma\", \"price\": 12, \"tags\": []}, {\"title\": \"Ubik\", \"price\": 7.5}]}\u003e\n   |   expected: string \u003cx\u003e\n   |"
+ }
+]

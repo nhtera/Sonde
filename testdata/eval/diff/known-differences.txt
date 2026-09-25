@@ -1,0 +1,10 @@
+# Asserts whose result intentionally differs from the reference results.
+# Format: FILE:LINE reason. TestDiff fails if a listed assert stops differing.
+documents.hurl:26 an unprefixed XPath name also matches elements in a default namespace
+numbers.hurl:16 integers beyond 64 bits compare numerically (the reference compares digit strings)
+numbers.hurl:18 integers beyond 64 bits compare numerically (the reference compares digit strings)
+numbers.hurl:34 negative non-integral floats render without a trailing ".0"
+negative.hurl:4 negative JSONPath number literals with a fraction keep their sign (the reference reads -1.5 as -0.5)
+negative.hurl:5 negative JSONPath number literals with a fraction keep their sign (the reference reads -1.5 as -0.5)
+negative.hurl:6 negative JSONPath number literals with a fraction keep their sign (the reference reads -0.5 as 0.5)
+negative.hurl:7 negative JSONPath number literals with a fraction keep their sign (the reference reads -0.25 as 0.25)

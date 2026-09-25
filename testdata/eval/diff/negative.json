@@ -1,0 +1,22 @@
+[
+ {
+  "line": 4,
+  "success": false,
+  "message": "Assert failure\n  --\u003e negative.hurl:4:0\n   |\n   | GET {{base}}/neg\n   | ...\n 4 | jsonpath \"$[?@ == -1.5]\" == -1.5\n   |   actual:   none\n   |   expected: float \u003c-1.5.0\u003e\n   |"
+ },
+ {
+  "line": 5,
+  "success": false,
+  "message": "Assert failure\n  --\u003e negative.hurl:5:0\n   |\n   | GET {{base}}/neg\n   | ...\n 5 | jsonpath \"$.list[?@ \u003e -1.5]\" count == 3\n   |   actual:   integer \u003c2\u003e\n   |   expected: integer \u003c3\u003e\n   |"
+ },
+ {
+  "line": 6,
+  "success": false,
+  "message": "Assert failure\n  --\u003e negative.hurl:6:0\n   |\n   | GET {{base}}/neg\n   | ...\n 6 | jsonpath \"$.list[?@ \u003c -0.5]\" == -1\n   |   actual:   list \u003c[-1,-0.25.0]\u003e\n   |   expected: integer \u003c-1\u003e\n   |"
+ },
+ {
+  "line": 7,
+  "success": false,
+  "message": "Assert failure\n  --\u003e negative.hurl:7:0\n   |\n   | GET {{base}}/neg\n   | ...\n 7 | jsonpath \"$.list[?@ == -0.25]\" == -0.25\n   |   actual:   none\n   |   expected: float \u003c-0.25.0\u003e\n   |"
+ }
+]

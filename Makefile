@@ -57,8 +57,8 @@ headers: ## Check SPDX headers (and self-test the checker)
 licenses: $(BIN)/go-licenses ## Check dependency licenses against the allowlist
 	$(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES)
 
-docs: ## Generated docs (compat tables land with internal/docs)
-	@echo "docs: nothing to generate yet (internal/docs lands in Phase 5)" >&2; exit 1
+docs: ## Regenerate docs/compat.md from internal/docs/table.yaml
+	go test ./internal/docs -run TestCompatUpToDate -update
 
 tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses ## Install pinned tools into ./bin
 

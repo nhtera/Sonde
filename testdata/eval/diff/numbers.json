@@ -1,0 +1,199 @@
+[
+ {
+  "line": 4,
+  "success": true
+ },
+ {
+  "line": 5,
+  "success": true
+ },
+ {
+  "line": 6,
+  "success": true
+ },
+ {
+  "line": 7,
+  "success": true
+ },
+ {
+  "line": 8,
+  "success": true
+ },
+ {
+  "line": 9,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:9:0\n   |\n   | GET {{base}}/json\n   | ...\n 9 | jsonpath \"$.float\" isInteger\n   |   actual:   float \u003c1.0\u003e\n   |   expected: integer\n   |"
+ },
+ {
+  "line": 10,
+  "success": true
+ },
+ {
+  "line": 11,
+  "success": true
+ },
+ {
+  "line": 12,
+  "success": true
+ },
+ {
+  "line": 13,
+  "success": true
+ },
+ {
+  "line": 14,
+  "success": true
+ },
+ {
+  "line": 15,
+  "success": true
+ },
+ {
+  "line": 16,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:16:0\n   |\n   | GET {{base}}/json\n   | ...\n16 | jsonpath \"$.big\" \u003e 9223372036854775807\n   |   actual:   integer \u003c123456789012345678901234567890\u003e\n   |   expected: greater than integer \u003c9223372036854775807\u003e\n   |"
+ },
+ {
+  "line": 17,
+  "success": true
+ },
+ {
+  "line": 18,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:18:0\n   |\n   | GET {{base}}/json\n   | ...\n18 | jsonpath \"$.big2\" \u003c 123456789012345678901234567890\n   |   actual:   integer \u003c99999999999999999999\u003e\n   |   expected: less than integer \u003c123456789012345678901234567890\u003e\n   |"
+ },
+ {
+  "line": 19,
+  "success": true
+ },
+ {
+  "line": 20,
+  "success": true
+ },
+ {
+  "line": 21,
+  "success": true
+ },
+ {
+  "line": 22,
+  "success": true
+ },
+ {
+  "line": 23,
+  "success": true
+ },
+ {
+  "line": 24,
+  "success": true
+ },
+ {
+  "line": 25,
+  "success": true
+ },
+ {
+  "line": 26,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:26:0\n   |\n   | GET {{base}}/json\n   | ...\n26 | jsonpath \"$.float2\" \u003c= 2.4\n   |   actual:   float \u003c2.5\u003e\n   |   expected: less or equal than float \u003c2.4\u003e\n   |"
+ },
+ {
+  "line": 27,
+  "success": true
+ },
+ {
+  "line": 28,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:28:0\n   |\n   | GET {{base}}/json\n   | ...\n28 | jsonpath \"$.int\" == \"1\"\n   |   actual:   integer \u003c1\u003e\n   |   expected: string \u003c1\u003e\n   |"
+ },
+ {
+  "line": 29,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:29:0\n   |\n   | GET {{base}}/json\n   | ...\n29 | jsonpath \"$.int\" \u003e \"0\"\n   |   actual:   integer \u003c1\u003e\n   |   expected: greater than string \u003c0\u003e\n   |   \u003e\u003e\u003e types between actual and expected are not consistent\n   |"
+ },
+ {
+  "line": 30,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:30:0\n   |\n   | GET {{base}}/json\n   | ...\n30 | jsonpath \"$.float\" == 2\n   |   actual:   float \u003c1.0\u003e\n   |   expected: integer \u003c2\u003e\n   |"
+ },
+ {
+  "line": 31,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:31:0\n   |\n   | GET {{base}}/json\n   | ...\n31 | jsonpath \"$.big\" == 1\n   |   actual:   integer \u003c123456789012345678901234567890\u003e\n   |   expected: integer \u003c1\u003e\n   |"
+ },
+ {
+  "line": 32,
+  "success": true
+ },
+ {
+  "line": 33,
+  "success": true
+ },
+ {
+  "line": 34,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:34:0\n   |\n   | GET {{base}}/json\n   | ...\n34 | jsonpath \"$.neg\" toString == \"-1.5\"\n   |   actual:   string \u003c-1.5.0\u003e\n   |   expected: string \u003c-1.5\u003e\n   |"
+ },
+ {
+  "line": 35,
+  "success": true
+ },
+ {
+  "line": 36,
+  "success": true
+ },
+ {
+  "line": 37,
+  "success": true
+ },
+ {
+  "line": 38,
+  "success": true
+ },
+ {
+  "line": 39,
+  "success": true
+ },
+ {
+  "line": 40,
+  "success": false,
+  "message": "Filter error\n  --\u003e numbers.hurl:40:18\n   |\n   | GET {{base}}/json\n   | ...\n40 | jsonpath \"$.big\" toFloat == 1\n   |                  ^^^^^^^ invalid filter input: integer \u003c123456789012345678901234567890\u003e is too big to be cast as a float\n   |"
+ },
+ {
+  "line": 41,
+  "success": false,
+  "message": "Filter error\n  --\u003e numbers.hurl:41:18\n   |\n   | GET {{base}}/json\n   | ...\n41 | jsonpath \"$.big\" toInt == 1\n   |                  ^^^^^ invalid filter input type\n   |                           actual:   integer\n   |                           expected: float, integer or string\n   |"
+ },
+ {
+  "line": 42,
+  "success": false,
+  "message": "Filter error\n  --\u003e numbers.hurl:42:18\n   |\n   | GET {{base}}/json\n   | ...\n42 | jsonpath \"$.str\" toInt == 1\n   |                  ^^^^^ invalid filter input: string \u003ccafé\u003e\n   |"
+ },
+ {
+  "line": 43,
+  "success": true
+ },
+ {
+  "line": 44,
+  "success": true
+ },
+ {
+  "line": 45,
+  "success": true
+ },
+ {
+  "line": 46,
+  "success": false,
+  "message": "Assert failure\n  --\u003e numbers.hurl:46:0\n   |\n   | GET {{base}}/json\n   | ...\n46 | jsonpath \"$.missing\" == 1\n   |   actual:   none\n   |   expected: integer \u003c1\u003e\n   |"
+ },
+ {
+  "line": 47,
+  "success": true
+ },
+ {
+  "line": 48,
+  "success": true
+ },
+ {
+  "line": 49,
+  "success": true
+ }
+]
