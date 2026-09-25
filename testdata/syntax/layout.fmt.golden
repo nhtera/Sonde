@@ -1,0 +1,42 @@
+# Hand-written layout cases for the formatter; bodies must stay untouched.
+
+
+POST https://example.org/orders?x=1   # create
+Content-Type: application/json
+Authorization: Bearer {{ token }}
+
+[Query]
+page: 1
+[Options]
+retry: 3
+delay: 250ms
+variable: id=42
+{
+    "name" : "{{name}}",   "tags": [ 1,2 ]
+}
+HTTP/1.1 201
+[Captures]
+order: jsonpath "$.id" toInt redact
+[Asserts]
+status == 201
+jsonpath "$.items" count not == 0   # trailing comment
+header "Location" matches /\/orders\/\d+/
+body contains "ok"
+
+
+
+GET https://example.org/orders/{{order}}
+[BasicAuth]
+user: pass
+[Multipart]
+file: file,report.pdf; application/pdf
+HTTP 200
+```json
+{  "keep":   "spacing" }
+```
+GET https://example.org/raw
+HTTP *
+`one line`
+# the end
+
+

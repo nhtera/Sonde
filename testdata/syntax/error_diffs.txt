@@ -1,0 +1,2 @@
+# Parser-error positions that intentionally differ from the conformance
+# oracle, one "<file> line|column" per line with a reason. Empty: all match.

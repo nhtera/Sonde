@@ -33,7 +33,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		// library flattened the cancellation error.
 		return ExitInterrupted
 	}
-	if err != nil {
+	if err != nil && !isSilent(err) {
 		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 	}
 	return exitCode(err)
@@ -57,12 +57,17 @@ func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	}
 	root.SetOut(stdout)
 	root.SetErr(stderr)
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return NewExitError(ExitUsage, err)
+	})
+	// No generated completion command: `sonde NAME` must stay free for files.
+	root.CompletionOptions.DisableDefaultCmd = true
 
 	flags := root.PersistentFlags()
 	flags.BoolVar(&opts.color, "color", false, "colorize output")
 	flags.BoolVar(&opts.noColor, "no-color", false, "do not colorize output")
 	root.MarkFlagsMutuallyExclusive("color", "no-color")
 
-	root.AddCommand(newVersionCmd())
+	root.AddCommand(newVersionCmd(), newCheckCmd(), newFmtCmd())
 	return root
 }

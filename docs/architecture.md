@@ -142,6 +142,19 @@ API stability: pre-1.0 may change; from v1.0 `engine` + `exchange` follow semver
 
 Multi-unit aggregation: 1 and 127 abort; otherwise the most severe of 2 > 3 > 4 > 0 (verify against Hurl `main.rs` in Phase 5). Non-run subcommands: `fmt --check` → 1 if unformatted; `import` → 1 on unreadable input, 0 with warnings.
 
+Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-command errors → 1; any other untyped error from a command body → 127 (`typed` wrapper); commands that print their own diagnostics end with a silent exit (code only, no extra `error:` line).
+
+### CLI commands (implemented)
+| Command | Behavior | Exit codes |
+|---|---|---|
+| `sonde version` | version, commit, build date, Go version | 0 |
+| `sonde check FILE...` | parses every file; prints the first syntax error of each invalid file in Hurl's format (`error: Parsing …` snippet with caret) to stderr | 0, 2 (any invalid or unreadable file) |
+| `sonde fmt FILE...` | canonical layout to stdout; `-w/--write` rewrites in place atomically (temp file + rename, mode kept); `--check` lists unformatted files on stdout | 0; 1 (`--check` found unformatted files); 2 (parse/read error, wins over 1); 127 (write failed) |
+
+Unreadable input: `error: Issue reading from FILE: …` (invalid UTF-8 reported with the byte index). A UTF-8 BOM is skipped when parsing and kept by `fmt`. No `completion` command is generated (names stay free for the Hurl-style `sonde FILE...` form).
+
+Canonical format (`internal/syntax.Format`): horizontal whitespace and line endings only — never reorders sections, never touches body content, keeps blank lines and comments; no indentation; `key: value`; single spaces between query, filters, predicate and value; trailing whitespace removed (blank lines emptied); LF line endings outside bodies; final newline. Files already in `hurlfmt` layout are left unchanged (checked on Hurl's linted test suites).
+
 ### Variable precedence (lowest → highest; Hurl-aligned)
 1. `sonde.yaml` environment: `variables`, then `variables_files`
 2. `HURL_VARIABLE_*`, then `SONDE_VARIABLE_*` env vars
@@ -166,7 +179,7 @@ Every path originating from a request file — `file,` bodies/parts, `output`, `
 Body queries (`body`, `bytes`, `sha256`, `jsonpath`, …) see decoded content; `rawbytes` sees raw; `compressed` only adds `Accept-Encoding` and decodes stdout. Redirects: manual loop, one RoundTrip per hop, per-hop timings, credentials forwarded only on same host + port + scheme unless `location-trusted`. Header names are canonicalized by Go (documented). `http2` on `http://` stays HTTP/1.1 (h2c upgrade unsupported). Decoded body cap 512 MiB default (`max-filesize` overrides).
 
 ### Unsupported features
-Parser accepts the **full** Hurl 8 grammar. Anything the runtime does not implement → runtime error (exit 3) `option "aws-sigv4" is not supported by sonde yet`, tracked in `docs/compat.md`. Never silently ignore.
+Parser accepts the **full** Hurl 8 grammar (parser-level differences: `docs/compat.md`). Anything the runtime does not implement → runtime error (exit 3) `option "aws-sigv4" is not supported by sonde yet`, tracked in `docs/compat.md`. Never silently ignore.
 
 ### JSON result contract
 One schema for `--json` and `--report-json`: **Hurl-compatible base** (Hurl 8.0.1 JSON result shape, so Hurl's `--json` conformance tests and existing tooling work) with all Sonde-only data (contracts, iterations, streams, gRPC) under a top-level `sonde` key per object; additive changes only within a major version; documented in `docs/report-json.md`; covered by `docs/stability.md`. JUnit/TAP/HTML layouts follow Hurl's where its conformance tests compare them.

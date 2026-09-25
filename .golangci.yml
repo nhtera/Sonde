@@ -11,6 +11,11 @@ linters:
     - revive
     - staticcheck
   exclusions:
+    rules:
+      # The printer writes to an embedded strings.Builder, which cannot fail.
+      - path: internal/syntax/printer\.go
+        linters: [gosec]
+        text: G104
     presets:
       - comments
       - common-false-positives

@@ -12,6 +12,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestExitCode(t *testing.T) {
@@ -144,5 +146,28 @@ func TestResolveBuildInfo(t *testing.T) {
 				t.Errorf("GoVersion = %q, want %q", got.GoVersion, runtime.Version())
 			}
 		})
+	}
+}
+
+func TestTyped(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		err  error
+		want int
+	}{
+		{nil, ExitOK},
+		{boom, ExitUndefined},
+		{NewExitError(ExitParse, boom), ExitParse},
+		{silentExit(ExitAssert), ExitAssert},
+		{context.Canceled, ExitInterrupted},
+	}
+	for _, c := range cases {
+		err := typed(func(*cobra.Command, []string) error { return c.err })(nil, nil)
+		if got := exitCode(err); got != c.want {
+			t.Errorf("typed(%v): exit %d, want %d", c.err, got, c.want)
+		}
+	}
+	if !isSilent(silentExit(1)) || isSilent(boom) || isSilent(NewExitError(1, boom)) {
+		t.Error("isSilent")
 	}
 }

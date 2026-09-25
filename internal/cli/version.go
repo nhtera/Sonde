@@ -76,11 +76,8 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version, commit, build date and Go version",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			if err := writeVersion(cmd.OutOrStdout(), currentBuildInfo()); err != nil {
-				return NewExitError(ExitUndefined, err)
-			}
-			return nil
-		},
+		RunE: typed(func(cmd *cobra.Command, _ []string) error {
+			return writeVersion(cmd.OutOrStdout(), currentBuildInfo())
+		}),
 	}
 }

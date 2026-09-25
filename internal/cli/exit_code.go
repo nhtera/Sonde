@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/spf13/cobra"
 )
 
-// Process exit codes (docs/architecture.md §5): Hurl 8 codes plus the
-// documented Sonde addition ExitInterrupted.
+// Process exit codes (docs/architecture.md §5), including the documented
+// ExitInterrupted.
 const (
 	ExitOK          = 0   // success
 	ExitUsage       = 1   // CLI usage / option error
@@ -31,6 +33,33 @@ type ExitError struct {
 // NewExitError wraps err with the given exit code.
 func NewExitError(code int, err error) *ExitError {
 	return &ExitError{Code: code, Err: err}
+}
+
+// silentExit ends a command with code after it already reported its own
+// diagnostics; nothing more is printed.
+func silentExit(code int) *ExitError {
+	return &ExitError{Code: code}
+}
+
+func isSilent(err error) bool {
+	exitErr, ok := errors.AsType[*ExitError](err)
+	return ok && exitErr.Err == nil
+}
+
+// typed wraps a command body so any error it returns carries an exit code:
+// untyped errors become ExitUndefined. Only cobra's own errors (unknown
+// command, bad arguments) stay untyped and map to ExitUsage.
+func typed(f func(cmd *cobra.Command, args []string) error) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		err := f(cmd, args)
+		if err == nil || errors.Is(err, context.Canceled) {
+			return err
+		}
+		if _, ok := errors.AsType[*ExitError](err); ok {
+			return err
+		}
+		return NewExitError(ExitUndefined, err)
+	}
 }
 
 func (e *ExitError) Error() string {
