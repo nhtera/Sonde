@@ -244,7 +244,7 @@ func (e *Error) Message() string {
 //	   |              ^ expecting ';'
 //	   |
 func (e *Error) Render(filename string, src []byte) string {
-	lines := sourceLines(string(src))
+	lines := SourceLines(string(src))
 	width := max(len(strconv.Itoa(len(lines))), 2)
 	spaces := strings.Repeat(" ", width)
 
@@ -281,9 +281,9 @@ func carets(line string, col int) string {
 	return strings.Repeat(" ", col+tabs*3) + "^ "
 }
 
-// sourceLines splits into lines: "\n" separators, a trailing
+// SourceLines splits source text into lines: "\n" separators, a trailing
 // "\r" removed, no final empty line.
-func sourceLines(s string) []string {
+func SourceLines(s string) []string {
 	if s == "" {
 		return nil
 	}

@@ -75,6 +75,7 @@ type Body struct {
 	LineTerminators []*LineTerminator
 	Space0          Whitespace
 	Value           Bytes
+	Span            Span // the body value
 	LineTerminator0 *LineTerminator
 }
 
@@ -178,6 +179,7 @@ type Capture struct {
 	Filters         []*FilterItem
 	Space3          Whitespace // before `redact`, empty otherwise
 	Redact          bool
+	Span            Span // from the name to the last filter or `redact`
 	LineTerminator0 *LineTerminator
 }
 
@@ -189,6 +191,7 @@ type Assert struct {
 	Filters         []*FilterItem
 	Space1          Whitespace
 	Predicate       *Predicate
+	Span            Span // from the query to the end of the predicate
 	LineTerminator0 *LineTerminator
 }
 

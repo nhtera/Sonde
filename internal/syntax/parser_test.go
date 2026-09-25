@@ -432,3 +432,22 @@ func TestDialectFor(t *testing.T) {
 		t.Error("DialectFor")
 	}
 }
+
+func TestNodeSpans(t *testing.T) {
+	src := "GET http://a\nHTTP 200\n[Captures]\n  id: header \"a\" count  redact  \n[Asserts]\n status  ==  200 # c\n{\"a\": 1}\n"
+	f, err := Parse("t.hurl", []byte(src), DialectHurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := f.Entries[0].Response
+	text := func(s Span) string { return src[s.Start.Offset:s.End.Offset] }
+	if got := text(resp.Sections[0].Captures[0].Span); got != `id: header "a" count  redact` {
+		t.Errorf("capture span = %q", got)
+	}
+	if got := text(resp.Sections[1].Asserts[0].Span); got != "status  ==  200" {
+		t.Errorf("assert span = %q", got)
+	}
+	if got := text(resp.Body.Span); got != `{"a": 1}` {
+		t.Errorf("body span = %q", got)
+	}
+}

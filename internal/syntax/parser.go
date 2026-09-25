@@ -229,9 +229,11 @@ func body(r *reader) (*Body, *Error) {
 	}
 	b := &Body{LineTerminators: lts}
 	b.Space0, _ = zeroOrMoreSpaces(r)
+	start := r.pos
 	if b.Value, err = bodyBytes(r); err != nil {
 		return nil, err
 	}
+	b.Span = Span{start, r.pos}
 	if b.LineTerminator0, err = lineTerminator(r); err != nil {
 		return nil, err
 	}

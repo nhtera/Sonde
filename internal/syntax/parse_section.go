@@ -165,6 +165,7 @@ func capture(r *reader) (*Capture, *Error) {
 	}
 	c := &Capture{LineTerminators: lts}
 	c.Space0, _ = zeroOrMoreSpaces(r)
+	start := r.pos
 	if c.Name, err = recovering(keyString)(r); err != nil {
 		return nil, err
 	}
@@ -194,6 +195,7 @@ func capture(r *reader) (*Capture, *Error) {
 	} else {
 		c.Space3 = emptyWhitespace(r.pos)
 	}
+	c.Span = Span{start, r.pos}
 	if c.LineTerminator0, err = lineTerminator(r); err != nil {
 		return nil, err
 	}
@@ -207,6 +209,7 @@ func assert(r *reader) (*Assert, *Error) {
 	}
 	a := &Assert{LineTerminators: lts}
 	a.Space0, _ = zeroOrMoreSpaces(r)
+	start := r.pos
 	if a.Query, err = query(r); err != nil {
 		return nil, err
 	}
@@ -219,6 +222,7 @@ func assert(r *reader) (*Assert, *Error) {
 	if a.Predicate, err = predicate(r); err != nil {
 		return nil, err
 	}
+	a.Span = Span{start, r.pos}
 	if a.LineTerminator0, err = lineTerminator(r); err != nil {
 		return nil, err
 	}
