@@ -1,0 +1,6 @@
+curl --digest -u user:pass https://example.com/digest
+curl --ntlm -u user:pass https://example.com/ntlm
+curl --negotiate https://example.com/negotiate
+curl --http1.0 https://example.com/http1.0
+curl --http3 https://example.com/http3
+curl --aws-sigv4 'aws:amz:us-east-1:s3' https://example.com/aws-sigv4

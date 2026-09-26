@@ -6,6 +6,7 @@ package engine
 import (
 	"encoding/base64"
 	neturl "net/url"
+	"os"
 	"path"
 	"strings"
 
@@ -21,7 +22,14 @@ func (u *unit) buildRequest(req *syntax.Request) (*httpx.RequestSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	if reason := checkURL(url); reason != "" {
+	// forExport (only ever set by RenderCurl, see curl_export.go) skips
+	// this check: a run always sends the URL it renders, so an invalid
+	// one must fail there, but an export never sends anything, and a
+	// URL that is only invalid because of an undefined variable's
+	// literal {{name}} placeholder (see template.Env.Missing) is still
+	// worth printing as the curl command it would be, once that
+	// variable is actually set.
+	if reason := checkURL(url); reason != "" && !u.forExport {
 		e := runerr.New(req.URL.Span, runerr.InvalidURL, false)
 		e.Value, e.Reason = url, reason
 		return nil, e
@@ -104,6 +112,31 @@ func checkURL(url string) string {
 	return "Missing scheme <http://> or <https://>"
 }
 
+// readBodyFile reads a request body's referenced file (a FileRef body or a
+// multipart file field) exactly like u.env.File, except that RenderCurl
+// (forExport, see curl_export.go) never opens it blindly: a Stat check
+// first — which, unlike opening the file, cannot block — refuses a FIFO
+// or other special file with the same "file can not be read" error a run
+// would give for one it genuinely couldn't read, instead of hanging an
+// export a caller has no way to cancel. A real run always reads the file
+// directly, unaffected. A file this check can't even resolve (a bad
+// template, or one outside the sandbox root) falls through to env.File,
+// which reports that exactly as a run would.
+func (u *unit) readBodyFile(name *syntax.Template) ([]byte, error) {
+	if u.forExport {
+		if path, err := u.env.Render(name); err == nil {
+			if abs, perr := u.root.Path(path); perr == nil {
+				if info, serr := os.Stat(abs); serr != nil || !info.Mode().IsRegular() {
+					rerr := runerr.New(name.Span, runerr.FileReadAccess, false)
+					rerr.Value = path
+					return nil, rerr
+				}
+			}
+		}
+	}
+	return u.env.File(name)
+}
+
 func (u *unit) keyValue(kv *syntax.KeyValue) (string, string, error) {
 	name, err := u.env.Render(kv.Key)
 	if err != nil {
@@ -133,7 +166,7 @@ func (u *unit) body(b syntax.Bytes) (httpx.Body, error) {
 	case *syntax.Hex:
 		return httpx.Body{Kind: httpx.BodyBinary, Data: b.Value}, nil
 	case *syntax.FileRef:
-		data, err := u.env.File(b.Filename)
+		data, err := u.readBodyFile(b.Filename)
 		if err != nil {
 			return httpx.Body{}, err
 		}
@@ -163,7 +196,7 @@ func (u *unit) multipartParam(p syntax.MultipartParam) (httpx.MultipartParam, er
 		if err != nil {
 			return httpx.MultipartParam{}, err
 		}
-		data, err := u.env.File(p.Value.Filename)
+		data, err := u.readBodyFile(p.Value.Filename)
 		if err != nil {
 			return httpx.MultipartParam{}, err
 		}

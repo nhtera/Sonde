@@ -1,0 +1,18 @@
+== Widgets/Details
+# Get widget
+GET {{base_url}}/widgets/1
+== Widgets
+# test script (never executed):
+# pm.response.to.have.status(200);
+# List widgets
+GET {{base_url}}/widgets
+== Folder Group Demo
+# Ping
+GET {{base_url}}/ping
+== sonde.yaml
+version: 1
+environments:
+  collection: {}
+defaults:
+  env: collection
+warning script: Widgets: test script kept as a comment, not executed

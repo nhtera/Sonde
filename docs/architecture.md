@@ -47,7 +47,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
 | `internal/dataset` | CSV / JSON-array rows for `--data` | value |
 | `internal/openapi` | spec load (owns remote fetch), route match, `engine.ResponseValidator` impl, spec → AST generator | exchange, syntax, engine (interface only) |
-| `internal/convert` | shared import writer + flags; curl/Postman/OpenCollection/`.http` importers; single curl renderer | syntax, exchange, config |
+| `internal/convert` | shared import writer + flags; importers in subpackages `curl`, `postman`, `opencollection`, `httpfile` (curl export uses the engine's renderer, `engine/curl.go`) | syntax, exchange, config (subpackages: + convert) |
 | `internal/docs` | single doc-data source (`table.yaml`) for compat.md, LSP hover | — |
 | `internal/lsp` | language server | syntax, config, docs |
 | `internal/cli` | cobra commands, Hurl-compatible root, flag → `engine.Options` mapping, output wiring | everything above |
@@ -98,6 +98,16 @@ func (r *Runner) RunSource(ctx context.Context, name string, src []byte) (*UnitR
 func (r *Runner) RunAll(ctx context.Context, stop <-chan struct{}, jobs iter.Seq[Job], n int, h Hooks)
 func (r *Runner) Redact(s string) string // with every secret known so far
 func (r *Runner) Close() error
+
+// RenderCurl renders each entry of file as a curl command without sending
+// anything; an undefined variable stays {{name}} and is listed per entry.
+func RenderCurl(ctx context.Context, file *syntax.File, opt Options) ([]CurlEntry, error)
+type CurlEntry struct {
+	Index     int      // 1-based
+	Command   string   // redacted like --curl
+	Undefined []string // variables left as {{name}}
+	Err       error    // this entry could not be rendered
+}
 
 type Job struct {
 	Name      string
@@ -175,6 +185,8 @@ Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-com
 | `sonde [options] FILE...`, `sonde run [options] FILE...` | runs request files like `hurl [options] FILE...` (no FILE: stdin; a directory: its `.hurl`/`.sonde` files; `--glob`); stdout = last response body (`-i`, `--pretty`, `-o`, `--no-output`) or one JSON result per file (`--json`); `--test` prints a per-file line and a summary to stderr; runtime errors rendered as Hurl does; `--data FILE` runs each file once per CSV/JSON row (`--data-secret COL`), labeled `<file>#row-N`; a bad data file → 1; `--openapi SPEC` (`--openapi-server`, `--openapi-strict`, `--openapi-allow-remote`, or `sonde.yaml` `openapi:`) validates every final response, a violation is an assert failure, an unloadable spec → 1 | 0; 1 (usage, missing input); 2 (parse error, stops the run); 3 (runtime error in any file); 4 (assert failures only); 127; 130 |
 | `sonde version` | version, commit, build date, Go version | 0 |
 | `sonde import openapi SPEC -o DIR` | one request file per operation (`--group tag\|path\|flat`, `--base-url-var`, `--ext`, `--force`, `--dry-run`) and a `sonde.yaml` skeleton (never overwritten); summary on stderr; see `docs/guides/import-export.md` | 0 (warnings included); 1 (unreadable spec, bad flag, existing files without `--force`) |
+| `sonde import curl\|postman\|opencollection\|http INPUT -o DIR` | request files, and for Postman, OpenCollection and `.http` environments a `sonde.yaml` skeleton plus secrets stubs (names only, 0600, never overwritten); scripts become comments, never run; files the input names are never read; input ≤ 64 MiB; see `docs/guides/import-export.md` | 0 (warnings included); 1 (unreadable input, bad flag, existing files without `--force`) |
+| `sonde export curl FILE... [--entry N]` | one curl command per entry on stdout, as `--curl` renders it, without sending; variables as for a run (`--variable`, `--secret`, files, `sonde.yaml`); an undefined variable stays `{{name}}` with a warning; secrets redacted | 0; 1 (usage, bad `--entry`); 2 (parse error); 3 (an entry could not be rendered) |
 | `sonde check FILE...` | parses every file; prints the first syntax error of each invalid file in Hurl's format (`error: Parsing …` snippet with caret) to stderr | 0, 2 (any invalid or unreadable file) |
 | `sonde fmt FILE...` | canonical layout to stdout; `-w/--write` rewrites in place atomically (temp file + rename, mode kept); `--check` lists unformatted files on stdout | 0; 1 (`--check` found unformatted files); 2 (parse/read error, wins over 1); 127 (write failed) |
 
@@ -197,7 +209,7 @@ Secrets: `sonde.yaml` `secrets_files`, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secr
 Type inference for CLI/env/CSV values (Hurl-compatible): `true`/`false` → bool, `null` → null, integer → int, float → float, else string.
 
 ### Redaction
-One registry per run (`internal/redact`): union of all sources incl. dynamic captures; values never removed. Matches raw, base64, URL-encoded and JSON-escaped forms. Applied inside the engine to events and results; run-level sinks (`--curl`, `--cookie-jar`, report finalization) written after the run with the final union.
+One registry per run (`internal/redact`): union of all sources incl. dynamic captures; values never removed. Matches raw, base64, URL-encoded and JSON-escaped forms, and the forms the curl renderer writes (every byte but ASCII letters and digits percent-encoded; shell-quoted, also of the JSON-escaped form); `engine/curl_redact_test.go` pins them to the renderer. Applied inside the engine to events and results; run-level sinks (`--curl`, `--cookie-jar`, report finalization) written after the run with the final union.
 Data rows are the exception, so that rows never grow the run's registry: a row's secrets (`--data-secret` columns, and the `redact` captures and Basic credentials of that row's run) live in a registry of that unit, applied to its events and, through `UnitResult.Redact` (one pass over both registries, so overlapping secrets stay masked whole), by every sink to its result. Another row's output is not scanned for them.
 
 ### File access
@@ -231,7 +243,7 @@ Owner: `docs/sonde-yaml.md` (Phase 5) — the only place keys are defined; stric
 | Parallelism | `golang.org/x/sync/semaphore` (no errgroup cancel-on-error) | BSD-3 |
 | Public suffix / charsets / rate / term | `golang.org/x/net/publicsuffix`, `x/text`, `x/time/rate`, `x/term` | BSD-3 |
 | OpenAPI 3.0/3.1, Swagger 2.0 conversion | `github.com/getkin/kin-openapi` ([decision 0001](decisions/0001-openapi-library.md)) | MIT |
-| Shell words (curl import) | `github.com/mattn/go-shellwords` | MIT (`google/shlex` archived — rejected) |
+| Shell words (curl import) | own tokenizer in `internal/convert/curl` (`'…'`, `"…"`, `$'…'`, continuations, `$VAR`) | — (`go-shellwords` can't read `$'…'`, which the curl export writes; `google/shlex` archived) |
 | LSP types | `go.lsp.dev/protocol` (go-language-server/protocol) | BSD-3 (`tliron/glsp` stale since 2025-06 — rejected) |
 | WebSocket (post-v1) | `github.com/coder/websocket` | ISC |
 | gRPC (post-v1) | `google.golang.org/grpc`, `github.com/bufbuild/protocompile` | Apache-2.0 |

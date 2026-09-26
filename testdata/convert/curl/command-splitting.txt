@@ -1,0 +1,3 @@
+$ curl https://example.com/one
+$ curl https://example.com/two | jq .name
+% curl https://example.com/three > out.json 2>&1

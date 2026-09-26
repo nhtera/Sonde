@@ -1,0 +1,4 @@
+POST https://example.com/api/upload
+[Multipart]
+name: bob
+avatar: file,photo.png; image/png

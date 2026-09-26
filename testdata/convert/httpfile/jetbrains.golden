@@ -1,0 +1,36 @@
+== jetbrains
+# name: List widgets
+GET {{base}}/widgets?limit=10&offset=0
+Accept: application/json
+
+# pre-request script (not executed):
+#     request.variables.set("traceId", "abc123");
+# name: Create widget
+# response handler (not executed):
+#     client.test("Status is 201", function() {
+#         client.assert(response.status === 201, "expected 201");
+#     });
+POST {{base}}/widgets
+Content-Type: application/json
+X-Trace-Id: {{traceId}}
+{"name": "gadget", "id": "{{id}}", "count": 3}
+
+# name: Delete widget
+DELETE {{base}}/widgets/1
+[Options]
+max-time: 5s
+connect-timeout: 2s
+== sonde.yaml
+version: 1
+environments:
+  default:
+    variables:
+      base: https://api.example.com/v1
+      host: https://api.example.com
+      id: '{{$uuid}}'
+      version: v1
+defaults:
+  env: default
+warning script: Create widget: pre-request script kept as a comment, never executed
+warning script: Create widget: response handler kept as a comment, never executed
+warning unsupported: file variable "id" resolves to "{{$uuid}}", which sonde.yaml cannot expand further; set it directly or via --variable

@@ -47,6 +47,19 @@ type Env struct {
 	// ReadFile reads a file named in the request file. It returns an error
 	// wrapping ErrFileAccessDenied for a path outside the allowed root.
 	ReadFile func(name string) ([]byte, error)
+	// Missing, when set, is consulted by Eval for a variable Vars does
+	// not define, instead of failing with an UndefinedVariable error: it
+	// returns the value to use in its place and whether it applied
+	// (false falls through to the normal undefined-variable error, so
+	// Missing may itself be selective). A run never sets this (nil,
+	// meaning every undefined variable is an error, as always); it
+	// exists for engine.RenderCurl, which renders a curl command line
+	// for a variable a capture would only define once the entry actually
+	// ran, and must not fail just because that hasn't happened. Vars
+	// itself is never mutated to remember a Missing result: each call
+	// site (an entry, in RenderCurl's case) gets its own answer, so nothing
+	// leaks to a different context sharing the same Env.
+	Missing func(name string) (value.Value, bool)
 }
 
 // ErrFileAccessDenied reports a file outside the allowed root.
@@ -81,6 +94,11 @@ func (e *Env) Eval(x syntax.Expr) (value.Value, error) {
 	}
 	v, ok := e.Vars.Get(x.Name)
 	if !ok {
+		if e.Missing != nil {
+			if mv, ok := e.Missing(x.Name); ok {
+				return mv, nil
+			}
+		}
 		err := runerr.New(x.Span, runerr.UndefinedVariable, false)
 		err.Value = x.Name
 		return nil, err

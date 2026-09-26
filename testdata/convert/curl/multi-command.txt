@@ -1,0 +1,3 @@
+# fetch the list, then delete one
+curl -sS https://example.com/api/items
+curl -X DELETE https://example.com/api/items/42 -u admin:s3cret; curl https://example.com/api/ping

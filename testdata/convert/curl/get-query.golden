@@ -1,0 +1,1 @@
+GET https://example.com/api/search?q=hello world&limit=10&tag=a%26b

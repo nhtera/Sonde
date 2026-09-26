@@ -1,0 +1,98 @@
+opencollection: "1.0.0"
+info:
+  name: Demo API
+  version: "1.0.0"
+request:
+  headers:
+    - name: X-Client
+      value: sonde-import
+  auth:
+    type: bearer
+    token: "{{token}}"
+  variables:
+    - name: base_url
+      value: "https://api.example.com"
+config:
+  environments:
+    - name: Local
+      variables:
+        - name: base_url
+          value: "http://localhost:3000"
+        - name: api_key
+          secret: true
+items:
+  - info:
+      name: Users
+      type: folder
+      seq: 1
+    items:
+      - info:
+          name: List users
+          type: http
+          seq: 1
+        http:
+          method: GET
+          url: "{{base_url}}/users/:id"
+          params:
+            - name: id
+              value: "1"
+              type: path
+            - name: active
+              value: "true"
+              type: query
+        runtime:
+          assertions:
+            - expression: res.status
+              operator: eq
+              value: "200"
+        docs: Lists one user by id.
+      - info:
+          name: Create user
+          type: http
+          seq: 2
+        http:
+          method: POST
+          url: "{{base_url}}/users"
+          auth: inherit
+          body:
+            type: json
+            data: "{\"name\": \"{{name}}\"}"
+        runtime:
+          scripts:
+            - type: after-response
+              code: "console.log(res.status)"
+  - info:
+      name: Search
+      type: graphql
+      seq: 2
+    graphql:
+      url: "{{base_url}}/graphql"
+      body:
+        query: "query { users { id name } }"
+  - info:
+      name: Legacy stream
+      type: websocket
+      seq: 3
+    websocket:
+      url: "wss://example.com"
+  - info:
+      name: Upload avatar
+      type: http
+      seq: 4
+    http:
+      method: POST
+      url: "{{base_url}}/upload"
+      auth:
+        type: basic
+        username: admin
+        password: "{{admin_password}}"
+      body:
+        type: multipart-form
+        data:
+          - name: file
+            type: file
+            value: "./avatar.png"
+            contentType: "image/png"
+          - name: caption
+            type: text
+            value: "hello"

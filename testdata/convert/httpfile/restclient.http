@@ -1,0 +1,39 @@
+@host = example.test
+@apiKey = {{$dotenv API_KEY}}
+# @prompt username Enter your username
+
+// @name login
+POST https://{{host}}/login
+Content-Type: application/x-www-form-urlencoded
+
+user={{username}}&pass=s3cret%20value
+
+###
+
+# @name profile
+GET https://{{host}}/me
+Authorization: Bearer {{login.response.body.$.token}}
+X-Api-Key: {{apiKey}}
+
+### Upload avatar
+POST https://{{host}}/avatar
+Content-Type: multipart/form-data; boundary=boundary123
+
+--boundary123
+Content-Disposition: form-data; name="title"
+
+hello
+--boundary123
+Content-Disposition: form-data; name="file"; filename="pic.png"
+Content-Type: image/png
+
+< ./pic.png
+--boundary123--
+
+### Raw file body
+POST https://{{host}}/blob
+Content-Type: application/octet-stream
+
+<@ ./blob.bin
+
+>> ./out/blob-response.json

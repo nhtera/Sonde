@@ -1,0 +1,36 @@
+{
+  "info": {
+    "name": "Folder Group Demo",
+    "schema": "https://schema.postman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Ping",
+      "request": {"method": "GET", "url": "{{base_url}}/ping"}
+    },
+    {
+      "name": "Widgets",
+      "event": [
+        {
+          "listen": "test",
+          "script": {"exec": ["pm.response.to.have.status(200);"]}
+        }
+      ],
+      "item": [
+        {
+          "name": "List widgets",
+          "request": {"method": "GET", "url": "{{base_url}}/widgets"}
+        },
+        {
+          "name": "Details",
+          "item": [
+            {
+              "name": "Get widget",
+              "request": {"method": "GET", "url": "{{base_url}}/widgets/1"}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

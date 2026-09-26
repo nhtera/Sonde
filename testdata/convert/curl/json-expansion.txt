@@ -1,0 +1,5 @@
+curl --json '{"token":"'"$TOKEN"'","id":1}' https://example.com/api/widgets
+curl --json '{"a":1}' --json '{"b":2}' https://example.com/api/merge
+curl --json @body.json https://example.com/api/upload
+curl -d 'x=1' --json '{"y":2}' https://example.com/api/mixed
+curl --json '{"z":3}' -H 'Content-Type:' -H 'Accept:' https://example.com/api/no-implied-headers

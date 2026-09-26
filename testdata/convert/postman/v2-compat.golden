@@ -1,0 +1,16 @@
+== String request
+# String request
+GET https://api.example.test/ping
+== Object auth and string header
+# Object auth and string header
+GET https://api.example.test/secure
+X-Trace: abc
+Accept: application/json
+[BasicAuth]
+u: {{pw}}
+== sonde.yaml
+version: 1
+environments:
+  collection: {}
+defaults:
+  env: collection

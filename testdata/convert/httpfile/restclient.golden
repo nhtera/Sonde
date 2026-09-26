@@ -1,0 +1,41 @@
+== restclient
+# name: login
+POST https://{{host}}/login
+Content-Type: application/x-www-form-urlencoded
+[Form]
+user: {{username}}
+pass: s3cret value
+
+# name: profile
+GET https://{{host}}/me
+Authorization: Bearer {{login_response_body___token}}
+X-Api-Key: {{apiKey}}
+
+# name: Upload avatar
+POST https://{{host}}/avatar
+Content-Type: multipart/form-data; boundary=boundary123
+[Multipart]
+title: hello
+file: file,./pic.png; image/png
+
+# name: Raw file body
+POST https://{{host}}/blob
+Content-Type: application/octet-stream
+[Options]
+output: ./out/blob-response.json
+file,./blob.bin;
+== sonde.yaml
+version: 1
+environments:
+  default:
+    variables:
+      apiKey: '{{$dotenv API_KEY}}'
+      host: example.test
+      username: ""
+defaults:
+  env: default
+warning unsupported: file variable "apiKey" resolves to "{{$dotenv API_KEY}}", which sonde.yaml cannot expand further; set it directly or via --variable
+warning unsupported: {{login.response.body.$.token}} references another request's request or response; use a Sonde capture instead
+warning unsupported-body: "<@ ./blob.bin" has the source tool substitute its own variables inside the file before sending; Sonde's file body sends it as is, so those "{{...}}" are not substituted
+warning unsupported-option: @prompt username: no interactive prompt at import time; set the username variable yourself
+warning unsupported-option: Raw file body: ">> ./out/blob-response.json" never overwrites an existing file in JetBrains (it adds a numeric suffix instead); Sonde's "output:" always overwrites

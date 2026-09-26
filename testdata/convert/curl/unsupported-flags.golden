@@ -1,0 +1,8 @@
+GET https://example.com/api/resource
+User-Agent: acme-client/1.0
+Referer: https://example.com/
+[Options]
+insecure: true
+location: true
+output: /dev/null
+warning unsupported-option: curl: --retry is not supported and was ignored

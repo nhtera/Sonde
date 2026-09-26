@@ -1,0 +1,6 @@
+POST https://example.com/api/greet
+X-Name: ABC
+Content-Type: application/x-www-form-urlencoded
+```raw
+line1
+line2	tabbed```

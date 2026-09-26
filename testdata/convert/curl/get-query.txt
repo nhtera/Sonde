@@ -1,0 +1,1 @@
+curl -G -d 'q=hello world' -d 'limit=10' --data-urlencode 'tag=a&b' https://example.com/api/search

@@ -1,0 +1,8 @@
+info:
+  name: Search
+  type: graphql
+  seq: 3
+graphql:
+  url: "{{base_url}}/graphql"
+  body:
+    query: "query { users { id name } }"

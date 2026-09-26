@@ -1,0 +1,11 @@
+POST https://example.com/api/users/{{USER_ID}}?token={{TOKEN}}
+Authorization: Bearer {{TOKEN}}
+X-Static: {{STATIC_HEADER}}
+Content-Type: application/x-www-form-urlencoded
+```
+user={{USER_ID}}&ts=$(date +%s)```
+warning unsupported: shell variable $TOKEN became {{TOKEN}}; set it with --variable or sonde.yaml
+warning unsupported: shell variable $STATIC_HEADER became {{STATIC_HEADER}}; set it with --variable or sonde.yaml
+warning unsupported: shell variable $USER_ID became {{USER_ID}}; set it with --variable or sonde.yaml
+warning unsupported: curl: shell expansion $(date +%s) is not evaluated; kept as literal text
+warning unsupported-option: curl: -H $LITERAL_IN_SINGLE_QUOTES (no ':' or trailing ';') is not supported and was ignored

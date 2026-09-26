@@ -1,0 +1,16 @@
+info:
+  name: List users
+  type: http
+  seq: 1
+http:
+  method: GET
+  url: "{{base_url}}/users"
+  params:
+    - name: active
+      value: "true"
+      type: query
+runtime:
+  assertions:
+    - expression: response.status
+      operator: equals
+      value: "200"

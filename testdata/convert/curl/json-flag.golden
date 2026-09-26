@@ -1,0 +1,5 @@
+POST https://example.com/api/widgets
+Content-Type: application/json
+Accept: application/json
+```json
+{"a":1,"b":true}```

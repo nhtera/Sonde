@@ -1,0 +1,38 @@
+== file Search
+POST {{base_url}}/graphql
+```graphql
+query { users { id name } }
+```
+== file Upload avatar
+POST {{base_url}}/upload
+[Form]
+caption: hello {{name}}
+[BasicAuth]
+admin: {{admin_password}}
+== file Users/Get user
+GET {{base_url}}/users/{{id}}
+X-Api-Key: {{api_key}}
+[Options]
+variable: id="1"
+== file Users/List users
+GET {{base_url}}/users
+X-Api-Key: {{api_key}}
+[Query]
+active: true
+HTTP 200
+== extra secrets/local.secrets (keep=true)
+api_key=
+== sonde.yaml
+version: 1
+environments:
+  Local:
+    variables:
+      base_url: http://localhost:3000
+    secrets_files:
+      - secrets/local.secrets
+  default:
+    variables:
+      base_url: https://api.example.com
+defaults:
+  env: default
+warning secret: Local: secret variable "api_key" has no value in the output; fill it in the secrets stub

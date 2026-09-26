@@ -1,0 +1,111 @@
+{
+  "info": {
+    "name": "Demo API",
+    "schema": "https://schema.postman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{token}}", "type": "string"}]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {"type": "text/javascript", "exec": ["console.log('collection prerequest')"]}
+    }
+  ],
+  "variable": [
+    {"key": "base_url", "value": "https://api.example.test", "type": "string"},
+    {"key": "api_key", "value": "s3cr3t", "type": "secret"}
+  ],
+  "item": [
+    {
+      "name": "Users",
+      "variable": [{"key": "user_id", "value": "42", "type": "string"}],
+      "item": [
+        {
+          "name": "Get user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {"type": "text/javascript", "exec": ["pm.response.to.have.status(200);"]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "X-Trace", "value": "{{$guid}}"}],
+            "url": "{{base_url}}/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Disabled request",
+          "disabled": true,
+          "request": {"method": "GET", "url": "{{base_url}}/disabled"}
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "auth": {"type": "noauth"},
+      "item": [
+        {
+          "name": "Health",
+          "request": {"method": "GET", "url": "{{base_url}}/health"}
+        }
+      ]
+    },
+    {
+      "name": "Empty",
+      "item": []
+    },
+    {
+      "name": "Create widget",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {"key": "username", "value": "admin"},
+            {"key": "password", "value": "{{admin_password}}"}
+          ]
+        },
+        "header": [
+          {"key": "X-Disabled-Header", "value": "nope", "disabled": true}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"{{widget_name}}\", \"count\": 1}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": "{{base_url}}/widgets"
+      }
+    },
+    {
+      "name": "Upload",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {"key": "title", "value": "{{title}}", "type": "text"},
+            {"key": "file", "type": "file", "src": "./photo.png"}
+          ]
+        },
+        "url": "{{base_url}}/upload"
+      }
+    },
+    {
+      "name": "Legacy form",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {"key": "a", "value": "1"},
+            {"key": "b", "value": "{{b}}"}
+          ]
+        },
+        "url": "{{base_url}}/legacy"
+      }
+    }
+  ]
+}

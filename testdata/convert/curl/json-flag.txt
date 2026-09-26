@@ -1,0 +1,1 @@
+curl --json '{"a":1,"b":true}' https://example.com/api/widgets

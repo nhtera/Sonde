@@ -1,0 +1,27 @@
+POST https://example.com/api/widgets
+Content-Type: application/json
+Accept: application/json
+```json
+{"token":"{{TOKEN}}","id":1}```
+
+POST https://example.com/api/merge
+Content-Type: application/json
+Accept: application/json
+```json
+{"a":1}&{"b":2}```
+
+POST https://example.com/api/upload
+Content-Type: application/json
+Accept: application/json
+file,body.json;
+
+POST https://example.com/api/mixed
+Content-Type: application/json
+Accept: application/json
+```json
+x=1&{"y":2}```
+
+POST https://example.com/api/no-implied-headers
+```json
+{"z":3}```
+warning unsupported: shell variable $TOKEN became {{TOKEN}}; set it with --variable or sonde.yaml

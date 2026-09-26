@@ -1,0 +1,5 @@
+POST https://example.com/api/users
+Content-Type: application/json
+Authorization: Bearer abc123
+```raw
+{"name":"Ada","age":30}```

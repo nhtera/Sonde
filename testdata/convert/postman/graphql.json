@@ -1,0 +1,22 @@
+{
+  "info": {
+    "name": "GraphQL Demo",
+    "schema": "https://schema.postman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get widget",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/graphql",
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Widget($id: ID!) {\n  widget(id: $id) {\n    id\n    name\n  }\n}",
+            "variables": "{\"id\": \"1\"}"
+          }
+        }
+      }
+    }
+  ]
+}

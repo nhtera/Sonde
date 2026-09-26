@@ -232,6 +232,11 @@ type unit struct {
 	io   unitIO
 	// rowSecrets are the data row's secrets (nil without a row).
 	rowSecrets *redact.Registry
+	// forExport is true only for a unit RenderCurl builds (curl_export.go):
+	// it never sends anything, so buildRequest/body/multipartParam skip
+	// checkURL and never read a file body's actual content, only its
+	// name — see the comments at each check.
+	forExport bool
 }
 
 // addSecret registers a secret found while running: with the row's

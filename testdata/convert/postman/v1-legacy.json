@@ -1,0 +1,9 @@
+{
+  "info": {
+    "name": "Legacy Export"
+  },
+  "requests": [
+    {"name": "Old request", "url": "https://example.test", "method": "GET"}
+  ],
+  "folders": []
+}

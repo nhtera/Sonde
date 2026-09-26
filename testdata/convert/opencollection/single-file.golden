@@ -1,0 +1,50 @@
+== file Search
+POST {{base_url}}/graphql
+X-Client: sonde-import
+Authorization: Bearer {{token}}
+```graphql
+query { users { id name } }
+```
+== file Upload avatar
+POST {{base_url}}/upload
+X-Client: sonde-import
+[Multipart]
+file: file,./avatar.png; image/png
+caption: hello
+[BasicAuth]
+admin: {{admin_password}}
+== file Users/Create user
+# opencollection after-response script:
+# console.log(res.status)
+POST {{base_url}}/users
+X-Client: sonde-import
+Authorization: Bearer {{token}}
+{"name": "{{name}}"}
+== file Users/List users
+# Lists one user by id.
+GET {{base_url}}/users/{{id}}
+X-Client: sonde-import
+Authorization: Bearer {{token}}
+[Query]
+active: true
+[Options]
+variable: id="1"
+HTTP 200
+== extra secrets/local.secrets (keep=true)
+api_key=
+== sonde.yaml
+version: 1
+environments:
+  Local:
+    variables:
+      base_url: http://localhost:3000
+    secrets_files:
+      - secrets/local.secrets
+  default:
+    variables:
+      base_url: https://api.example.com
+defaults:
+  env: default
+warning script: Users/Create user: after-response script kept as a comment, never executed
+warning secret: Local: secret variable "api_key" has no value in the output; fill it in the secrets stub
+skipped Legacy stream: opencollection: websocket items are not requests Sonde can import

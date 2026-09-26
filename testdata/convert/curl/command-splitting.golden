@@ -1,0 +1,5 @@
+GET https://example.com/one
+
+GET https://example.com/two
+
+GET https://example.com/three

@@ -1,0 +1,8 @@
+GET https://example.com/api/items
+
+DELETE https://example.com/api/items/42
+[Options]
+user: admin:s3cret
+
+GET https://example.com/api/ping
+warning secret: curl: -u wrote a password in plain text; consider --secret and {{password}}

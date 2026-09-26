@@ -1,0 +1,18 @@
+== Get widget
+# Get widget
+POST {{base_url}}/graphql
+```graphql
+query Widget($id: ID!) {
+  widget(id: $id) {
+    id
+    name
+  }
+}
+variables {"id": "1"}
+```
+== sonde.yaml
+version: 1
+environments:
+  collection: {}
+defaults:
+  env: collection

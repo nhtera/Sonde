@@ -1,0 +1,6 @@
+curl --location-trusted --digest -4 --path-as-is --max-redirs 5 --limit-rate 2M \
+  --resolve example.com:443:127.0.0.1 --resolve api.example.com:443:127.0.0.2 \
+  --connect-to a.example.com:443:b.example.com:443 \
+  --pinnedpubkey 'sha256//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
+  -o out.bin \
+  https://example.com/api/resource

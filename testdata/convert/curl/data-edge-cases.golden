@@ -1,0 +1,19 @@
+POST https://example.com/urlencode-with-at
+Content-Type: application/x-www-form-urlencoded
+```raw
+email=a%40b.com```
+
+POST https://example.com/data-raw-at
+Content-Type: application/x-www-form-urlencoded
+```raw
+@not-a-file```
+
+GET https://example.com/many-ignored-flags
+warning unsupported-option: curl: --dump-header is not supported and was ignored
+warning unsupported-option: curl: --speed-limit is not supported and was ignored
+warning unsupported-option: curl: --speed-time is not supported and was ignored
+warning unsupported-option: curl: --continue-at is not supported and was ignored
+warning unsupported-option: curl: --quote is not supported and was ignored
+warning unsupported-option: curl: --telnet-option is not supported and was ignored
+warning unsupported-option: curl: --proxy-user is not supported and was ignored
+warning unsupported-option: curl: --ftp-port is not supported and was ignored

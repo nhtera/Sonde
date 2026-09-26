@@ -1,0 +1,24 @@
+{
+  "info": {
+    "name": "V2 Compat",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "String request",
+      "request": "https://api.example.test/ping"
+    },
+    {
+      "name": "Object auth and string header",
+      "request": {
+        "method": "GET",
+        "url": "https://api.example.test/secure",
+        "header": "X-Trace: abc\nAccept: application/json",
+        "auth": {
+          "type": "basic",
+          "basic": {"username": "u", "password": "{{pw}}"}
+        }
+      }
+    }
+  ]
+}

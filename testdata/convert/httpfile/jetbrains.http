@@ -1,0 +1,36 @@
+@host = https://api.example.com
+@version = v1
+@base = {{host}}/{{version}}
+@id = {{$uuid}}
+
+### List widgets
+GET {{base}}/widgets
+    ?limit=10
+    &offset=0
+Accept: application/json
+
+### Create widget
+< {%
+    request.variables.set("traceId", "abc123");
+%}
+POST {{base}}/widgets
+Content-Type: application/json
+X-Trace-Id: {{traceId}}
+
+{
+  "name": "gadget",
+  "id": "{{id}}",
+  "count": 3
+}
+
+> {%
+    client.test("Status is 201", function() {
+        client.assert(response.status === 201, "expected 201");
+    });
+%}
+
+### Delete widget
+# @no-cookie-jar
+# @timeout 5000ms
+# @connection-timeout 2s
+DELETE {{base}}/widgets/1

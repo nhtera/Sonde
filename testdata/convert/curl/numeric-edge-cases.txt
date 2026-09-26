@@ -1,0 +1,4 @@
+curl --max-time inf https://example.com/max-time-inf
+curl --connect-timeout NaN https://example.com/connect-timeout-nan
+curl --limit-rate 99999999999999999g https://example.com/limit-rate-overflow
+curl --max-time 2.5 --limit-rate 512k https://example.com/valid-numbers

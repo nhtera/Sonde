@@ -1,0 +1,13 @@
+GET https://example.com/max-time-inf
+
+GET https://example.com/connect-timeout-nan
+
+GET https://example.com/limit-rate-overflow
+
+GET https://example.com/valid-numbers
+[Options]
+max-time: 2500ms
+limit-rate: 524288
+warning unsupported-option: curl: --max-time inf is not a number of seconds
+warning unsupported-option: curl: --connect-timeout NaN is not a number of seconds
+warning unsupported-option: curl: --limit-rate 99999999999999999g is not a valid rate

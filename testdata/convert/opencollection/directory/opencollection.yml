@@ -1,0 +1,8 @@
+opencollection: "1.0.0"
+info:
+  name: Demo API (directory)
+  version: "1.0.0"
+request:
+  variables:
+    - name: base_url
+      value: "https://api.example.com"

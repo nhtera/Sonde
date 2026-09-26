@@ -1,0 +1,76 @@
+{
+  "info": {
+    "name": "Auth Types",
+    "schema": "https://schema.postman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Digest",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/digest",
+        "auth": {
+          "type": "digest",
+          "digest": [
+            {"key": "username", "value": "user"},
+            {"key": "password", "value": "{{digest_password}}"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "NTLM",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/ntlm",
+        "auth": {
+          "type": "ntlm",
+          "ntlm": [
+            {"key": "username", "value": "domain\\user"},
+            {"key": "password", "value": "{{ntlm_password}}"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "AWS SigV4",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/aws",
+        "auth": {
+          "type": "awsv4",
+          "awsv4": [
+            {"key": "accessKey", "value": "AKIDEXAMPLE"},
+            {"key": "secretKey", "value": "{{aws_secret}}"},
+            {"key": "region", "value": "us-east-1"},
+            {"key": "service", "value": "execute-api"},
+            {"key": "sessionToken", "value": "{{aws_session_token}}"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "API key in query",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/apikey",
+        "auth": {
+          "type": "apikey",
+          "apikey": [
+            {"key": "key", "value": "api_key"},
+            {"key": "value", "value": "{{api_key}}"},
+            {"key": "in", "value": "query"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "OAuth2",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/oauth2",
+        "auth": {"type": "oauth2"}
+      }
+    }
+  ]
+}

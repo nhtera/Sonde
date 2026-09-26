@@ -1,0 +1,9 @@
+info:
+  name: Users
+  seq: 1
+request:
+  auth:
+    type: apikey
+    key: X-Api-Key
+    value: "{{api_key}}"
+    placement: header

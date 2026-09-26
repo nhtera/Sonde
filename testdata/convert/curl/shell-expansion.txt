@@ -1,0 +1,4 @@
+curl -H "Authorization: Bearer $TOKEN" -H "X-Static: ${STATIC_HEADER}" \
+  -H '$LITERAL_IN_SINGLE_QUOTES' \
+  --data "user=$USER_ID&ts=$(date +%s)" \
+  "https://example.com/api/users/$USER_ID?token=$TOKEN"

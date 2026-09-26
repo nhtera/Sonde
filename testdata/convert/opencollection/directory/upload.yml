@@ -1,0 +1,16 @@
+info:
+  name: Upload avatar
+  type: http
+  seq: 2
+http:
+  method: POST
+  url: "{{base_url}}/upload"
+  auth:
+    type: basic
+    username: admin
+    password: "{{admin_password}}"
+  body:
+    type: form-urlencoded
+    data:
+      - name: caption
+        value: "hello {{name}}"

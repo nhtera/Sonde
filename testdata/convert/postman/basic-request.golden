@@ -1,0 +1,52 @@
+== Users/Get user
+# prerequest script (never executed):
+# console.log('collection prerequest')
+# Get user
+# test script (never executed):
+# pm.response.to.have.status(200);
+GET {{base_url}}/users/{{user_id}}
+X-Trace: {{newUuid}}
+Authorization: Bearer {{token}}
+HTTP 200
+== Admin/Health
+# Health
+GET {{base_url}}/health
+== Create widget
+# Create widget
+POST {{base_url}}/widgets
+Content-Type: application/json
+[BasicAuth]
+admin: {{admin_password}}
+{"name": "{{widget_name}}", "count": 1}
+== Upload
+# Upload
+POST {{base_url}}/upload
+Authorization: Bearer {{token}}
+[Multipart]
+title: {{title}}
+file: file,./photo.png;
+== Legacy form
+# Legacy form
+POST {{base_url}}/legacy
+Authorization: Bearer {{token}}
+[Form]
+a: 1
+b: {{b}}
+== extra secrets/collection.secrets
+api_key=
+== sonde.yaml
+version: 1
+environments:
+  collection:
+    variables:
+      base_url: https://api.example.test
+      user_id: "42"
+    secrets_files:
+      - secrets/collection.secrets
+defaults:
+  env: collection
+skipped Users/Disabled request: disabled
+skipped Empty: empty folder
+warning secret: collection variable "api_key" is a secret; add its value to the environment's secrets file
+warning script: collection: prerequest script kept as a comment, not executed
+warning script: Users/Get user: test script kept as a comment, not executed

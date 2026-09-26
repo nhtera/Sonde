@@ -1,0 +1,13 @@
+POST https://example.com/upload
+[Multipart]
+file: file,a.png; image/png
+
+POST https://example.com/upload-notes
+[Multipart]
+notes:
+
+POST https://example.com/form-string
+[Multipart]
+raw: @literally-not-a-file
+warning unsupported-option: curl: -F file=@...;filename=... (attribute not supported) is not supported and was ignored
+warning unsupported-option: curl: -F notes=<notes.txt (reads a file's content as a literal value) is not supported and was ignored
