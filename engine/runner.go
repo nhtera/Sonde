@@ -7,7 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -51,7 +51,7 @@ func (r *Runner) Close() error { return nil }
 // RunFile reads and runs a file; the error reports a file that cannot be
 // read or a setup failure (e.g. an unreadable cookie file).
 func (r *Runner) RunFile(ctx context.Context, path string) (*UnitResult, error) {
-	src, err := os.ReadFile(path) //nolint:gosec // G304: the command line names the file
+	src, err := readSource(path)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +61,21 @@ func (r *Runner) RunFile(ctx context.Context, path string) (*UnitResult, error) 
 // RunSource runs the content of a file named name (used for messages and
 // to locate the default file root).
 func (r *Runner) RunSource(ctx context.Context, name string, src []byte) (*UnitResult, error) {
+	return r.runSource(ctx, name, src, unitIO{onEvent: r.opt.OnEvent, stdout: r.opt.Stdout})
+}
+
+// unitIO is where a unit sends its events and output, and when it stops.
+type unitIO struct {
+	onEvent func(Event)
+	stdout  io.Writer
+	// stop, when closed, ends the unit at its next entry boundary.
+	stop <-chan struct{}
+	// vars and secrets of the job, below the runner's options.
+	vars    map[string]any
+	secrets map[string]string
+}
+
+func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio unitIO) (*UnitResult, error) {
 	res := &UnitResult{File: name, Source: src, Timestamp: time.Now()}
 	f, err := syntax.Parse(name, src, syntax.DialectFor(name))
 	if err != nil {
@@ -80,7 +95,7 @@ func (r *Runner) RunSource(ctx context.Context, name string, src []byte) (*UnitR
 		return nil, err
 	}
 	defer root.Close() //nolint:errcheck // read-only use
-	u := &unit{runner: r, file: f, name: name, src: src, root: root, rootDir: rootDir}
+	u := &unit{runner: r, file: f, name: name, src: src, root: root, rootDir: rootDir, io: uio}
 	client, err := httpx.NewClient(httpx.ClientConfig{
 		Sandbox:       root,
 		CookieFile:    r.opt.CookieFile,
@@ -99,7 +114,7 @@ func (r *Runner) RunSource(ctx context.Context, name string, src []byte) (*UnitR
 	}
 	defer client.Close() //nolint:errcheck // idle connections only
 	u.client = client
-	vars, err := r.variables()
+	vars, err := r.variables(uio)
 	if err != nil {
 		return nil, err
 	}
@@ -114,17 +129,25 @@ func (r *Runner) RunSource(ctx context.Context, name string, src []byte) (*UnitR
 }
 
 // variables builds the initial variables: options then secrets.
-func (r *Runner) variables() (template.Vars, error) {
+func (r *Runner) variables(uio unitIO) (template.Vars, error) {
 	vars := template.Vars{}
-	for name, v := range r.opt.Variables {
-		val, err := toValue(v)
-		if err != nil {
-			return nil, fmt.Errorf("variable %s: %w", name, err)
+	for _, src := range []map[string]any{uio.vars, r.opt.Variables} {
+		for name, v := range src {
+			val, err := toValue(v)
+			if err != nil {
+				return nil, fmt.Errorf("variable %s: %w", name, err)
+			}
+			vars.Set(name, val)
 		}
-		vars.Set(name, val)
 	}
-	for name, v := range r.opt.Secrets {
-		vars.SetSecret(name, v)
+	for i, src := range []map[string]string{uio.secrets, r.opt.Secrets} {
+		for name, v := range src {
+			r.secrets.Add(name, v)
+			if _, ok := r.opt.Variables[name]; i == 0 && ok {
+				continue // the runner's variable wins over a job secret
+			}
+			vars.SetSecret(name, v)
+		}
 	}
 	return vars, nil
 }
@@ -162,11 +185,27 @@ type unit struct {
 	env     *template.Env
 	// verbosity of the running entry.
 	verbosity Verbosity
+	// last is the index of the last entry to run.
+	last int
+	io   unitIO
 }
 
 func (u *unit) emit(ev Event) {
-	if u.runner.opt.OnEvent != nil {
-		u.runner.opt.OnEvent(ev)
+	if u.io.onEvent != nil {
+		u.io.onEvent(ev)
+	}
+}
+
+// stopped reports whether the unit must not start another entry.
+func (u *unit) stopped(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		return true
+	}
+	select {
+	case <-u.io.stop:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -232,10 +271,15 @@ func (u *unit) run(ctx context.Context, res *UnitResult) {
 	if opt.ToEntry > 0 && opt.ToEntry < last {
 		last = opt.ToEntry
 	}
+	u.last = last
 	u.verbosity = opt.Verbosity
 	u.logRunInfo(last, len(entries))
 	repeatCount := 0
-	for current <= last && ctx.Err() == nil {
+	for current <= last {
+		if u.stopped(ctx) {
+			res.Interrupted = true
+			break
+		}
 		entry := entries[current-1]
 		u.verbosity = u.entryVerbosity(entry)
 		u.debugImportant("------------------------------------------------------------------------------")
@@ -271,7 +315,8 @@ func (u *unit) run(ctx context.Context, res *UnitResult) {
 		if eo.delay > 0 {
 			u.debug("")
 			u.debugImportant(fmt.Sprintf("Delay entry %d (pause %d ms)", current, eo.delay.Milliseconds()))
-			if !sleep(ctx, eo.delay) {
+			if !u.sleep(ctx, eo.delay) {
+				res.Interrupted = true
 				break
 			}
 		}
@@ -295,7 +340,7 @@ func (u *unit) run(ctx context.Context, res *UnitResult) {
 			u.debugImportant(fmt.Sprintf("Repeat entry %d (x%d/%d)", current, repeatCount, *eo.repeat))
 		}
 	}
-	res.Success = success(res.Entries)
+	res.Success = success(res.Entries) && !res.Interrupted
 	if res.Success && len(res.Entries) == 0 {
 		u.log(LogWarning, "No entry have been executed for file "+u.name)
 	}
@@ -316,7 +361,7 @@ func success(entries []*EntryResult) bool {
 func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int, eo *entryOptions) []*EntryResult {
 	var results []*EntryResult
 	for retry := 0; ; retry++ {
-		u.emit(EntryStarted{Index: index, Retry: retry})
+		u.emit(EntryStarted{Index: index, Retry: retry, Last: u.last})
 		res := u.runEntry(ctx, entry, index, eo)
 		hasError := len(res.Errors) > 0
 		maxReached := eo.retry >= 0 && retry >= eo.retry
@@ -324,7 +369,7 @@ func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int,
 			u.debugImportant("Retry max count reached, no more retry")
 			u.debug("")
 		}
-		again := eo.retry != 0 && !maxReached && hasError && ctx.Err() == nil
+		again := eo.retry != 0 && !maxReached && hasError && !u.stopped(ctx)
 		res.Retried = again
 		switch {
 		case !hasError && eo.output != nil:
@@ -350,7 +395,8 @@ func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int,
 		u.debug("")
 		u.debugImportant(fmt.Sprintf("Retry on entry %d (count: %d/%s, interval: %d ms)",
 			index, retry+1, limit, eo.retryInterval.Milliseconds()))
-		if !sleep(ctx, eo.retryInterval) {
+		if !u.sleep(ctx, eo.retryInterval) {
+			res.Retried = false // the retry never happened: its error stands
 			return results
 		}
 		u.debugImportant("------------------------------------------------------------------------------")
@@ -358,14 +404,17 @@ func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int,
 	}
 }
 
-// sleep waits d or until ctx is done; it reports whether d elapsed.
-func sleep(ctx context.Context, d time.Duration) bool {
+// sleep waits d, or until ctx is done or the unit is stopped; it reports
+// whether d elapsed.
+func (u *unit) sleep(ctx context.Context, d time.Duration) bool {
 	t := time.NewTimer(d)
 	defer t.Stop()
 	select {
 	case <-t.C:
 		return true
 	case <-ctx.Done():
+		return false
+	case <-u.io.stop:
 		return false
 	}
 }

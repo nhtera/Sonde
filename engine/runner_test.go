@@ -449,3 +449,16 @@ func TestRunBasicAuthSecretRedacted(t *testing.T) {
 		}
 	}
 }
+
+// A redact capture is refused in verbose mode unless logs are buffered.
+func TestRunRedactCaptureVerbose(t *testing.T) {
+	const src = "GET {{base}}/json\nHTTP 200\n[Captures]\ntoken: jsonpath \"$.token\" redact\n"
+	res, _ := run(t, src, Options{Verbosity: Verbose})
+	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.PossibleLoggedSecret {
+		t.Errorf("immediate logs: errors = %v", errs)
+	}
+	res, _ = run(t, src, Options{Verbosity: Verbose, BufferedLogs: true})
+	if !res.Success {
+		t.Errorf("buffered logs: errors = %v", res.Errors())
+	}
+}

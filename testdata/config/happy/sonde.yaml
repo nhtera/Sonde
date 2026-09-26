@@ -1,0 +1,21 @@
+version: 1
+
+environments:
+  local:
+    variables:
+      base_url: http://localhost:8080
+      retries: 3
+      ratio: 0.5
+      strict: true
+      extra: null
+    variables_files:
+      - env/local.vars
+    secrets_files:
+      - env/local.secrets
+  staging:
+    variables:
+      base_url: https://staging.example.internal
+
+defaults:
+  env: local
+  jobs: 4

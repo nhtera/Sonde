@@ -1,0 +1,36 @@
+{{- /* Copyright 2026 The Sonde Authors
+SPDX-License-Identifier: Apache-2.0 */ -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<title>Sonde test report</title>
+<style>
+:root{color-scheme:light dark}
+body{font-family:ui-sans-serif,system-ui,sans-serif;margin:2rem;background:#fff;color:#1b1f24}
+h1{font-size:1.4rem}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid #d0d7de;padding:.4rem .6rem;text-align:left}
+tr.failure td.status{color:#a40e26;font-weight:600}
+tr.success td.status{color:#116329;font-weight:600}
+a{color:#0969da}
+.summary{color:#57606a;margin-bottom:1rem}
+</style>
+</head>
+<body>
+<h1>Sonde test report</h1>
+<p class="summary">{{.Total}} file(s) &mdash; {{.Succeeded}} succeeded, {{.Failed}} failed</p>
+<table>
+<thead><tr><th>Status</th><th>File</th><th>Duration</th><th>Run at</th></tr></thead>
+<tbody>
+{{range .Entries}}<tr class="{{if .Success}}success{{else}}failure{{end}}">
+<td class="status">{{if .Success}}PASS{{else}}FAIL{{end}}</td>
+<td><a href="store/{{.ID}}.html">{{.Filename}}</a></td>
+<td>{{.TimeMS}} ms</td>
+<td>{{.RunAt}}</td>
+</tr>
+{{end}}</tbody>
+</table>
+</body>
+</html>

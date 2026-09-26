@@ -4,6 +4,8 @@
 package config
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/nhtera/sonde/internal/value"
@@ -50,6 +52,48 @@ func TestParseAssignmentMissingValue(t *testing.T) {
 	const want = "Missing value for variable name!"
 	if err.Error() != want {
 		t.Errorf("error = %q, want %q", err.Error(), want)
+	}
+}
+
+// TestParseAssignmentForcedMissingValueNeverEchoesValue guards a malformed
+// --secret NAME=VALUE against ever printing a value: only a short,
+// plain-looking name (found before the first ':' or space) may be echoed
+// back to help a typo, and only when it looks like a name, not a value.
+func TestParseAssignmentForcedMissingValueNeverEchoesValue(t *testing.T) {
+	const secretValue = "s3cr3t-and-must-never-appear"
+	_, err := ParseAssignment("token: "+secretValue, Forced)
+	if err == nil {
+		t.Fatal("expected an error for a secret with no '='")
+	}
+	if strings.Contains(err.Error(), secretValue) {
+		t.Fatalf("error leaked the secret value: %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "token") {
+		t.Errorf("error = %q, want it to name the plausible name %q", err.Error(), "token")
+	}
+	if !errors.Is(err, errMissingAssignmentValue) {
+		t.Error("error does not wrap errMissingAssignmentValue")
+	}
+}
+
+// TestParseAssignmentForcedMissingValueNoPlausibleName checks that no
+// hint is added when nothing before the first ':'/space looks like a
+// name: erring toward printing nothing rather than a chunk of garbage.
+func TestParseAssignmentForcedMissingValueNoPlausibleName(t *testing.T) {
+	_, err := ParseAssignment("!!!not-a-name!!! rest of the line", Forced)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if strings.Contains(err.Error(), "not-a-name") || strings.Contains(err.Error(), "rest of the line") {
+		t.Errorf("error = %q, want no part of the line echoed back", err.Error())
+	}
+}
+
+func TestParseAssignmentInferredMissingValueKeepsUpstreamWording(t *testing.T) {
+	_, err := ParseAssignment("name", Inferred)
+	const want = "Missing value for variable name!"
+	if err == nil || err.Error() != want {
+		t.Errorf("error = %v, want %q (upstream wording, --variable is not a secret)", err, want)
 	}
 }
 

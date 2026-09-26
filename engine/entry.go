@@ -41,7 +41,9 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 		return res
 	}
 	resp := e.Response
-	if resp != nil && u.verbosity >= Brief {
+	// Logs written as they come may already hold a value a later `redact`
+	// capture makes secret; buffered logs are redacted when shown.
+	if resp != nil && u.verbosity >= Brief && !u.runner.opt.BufferedLogs {
 		for _, c := range captures(resp) {
 			if c.Redact {
 				// The entry is located at the capture, as the reference does.
@@ -520,8 +522,8 @@ func (u *unit) writeOutput(res *EntryResult, eo *entryOptions) {
 		}
 	}
 	if eo.output.name == "-" {
-		if u.runner.opt.Stdout != nil {
-			_, _ = u.runner.opt.Stdout.Write(body)
+		if u.io.stdout != nil {
+			_, _ = u.io.stdout.Write(body)
 		}
 		return
 	}

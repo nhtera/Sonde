@@ -235,9 +235,11 @@ linters:
           files: ["**/internal/report/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/report may import only: engine (architecture §2)"
+              desc: "internal/report may import only: engine, exchange, internal/value (architecture §2)"
           allow:
             - github.com/nhtera/sonde/engine$
+            - github.com/nhtera/sonde/exchange$
+            - github.com/nhtera/sonde/internal/value$
         pkg-config:
           list-mode: lax
           files: ["**/internal/config/**", "!$test"]

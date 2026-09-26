@@ -1,0 +1,7 @@
+version: 1
+environments:
+  local:
+    variables:
+      list_value:
+        - 1
+        - 2

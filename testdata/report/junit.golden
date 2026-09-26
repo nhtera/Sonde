@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite tests="2" errors="0" failures="1"><testcase id="tests/test.1.hurl" name="tests/test.1.hurl" time="0.042" /><testcase id="tests/test.2.hurl" name="tests/test.2.hurl" time="0.007"><failure>Assert body value
+  --&gt; tests/test.2.hurl:4:1
+   |
+   | GET http://example.com/hello
+   | ...
+ 4 | `Hello World`
+   | ^^^^^^^^^^^^^ actual value is &lt;hello, ***&gt;
+   |</failure></testcase></testsuite><testsuite tests="1" errors="0" failures="0"><testcase id="tests/test.3.hurl" name="tests/test.3.hurl" time="0.042" /></testsuite></testsuites>

@@ -22,9 +22,12 @@ type UnitResult struct {
 	ParseError *syntax.Error
 	// Entries has one result per attempt: a retried entry appears once per
 	// attempt, repeated entries once per repetition.
-	Entries  []*EntryResult
-	Success  bool
-	Duration time.Duration
+	Entries []*EntryResult
+	// Interrupted is set when the run was stopped or canceled before its
+	// last entry; an interrupted run is not a success.
+	Interrupted bool
+	Success     bool
+	Duration    time.Duration
 	// Cookies is the cookie store at the end of the run.
 	Cookies []Cookie
 	// Timestamp is the start of the run.

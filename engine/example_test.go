@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/nhtera/sonde/engine"
 )
@@ -47,4 +48,32 @@ jsonpath "$.status" == "ok"
 	// success: true
 	// status: 200
 	// captured: count 3
+}
+
+// Run several files, two at a time, and count the successes.
+func ExampleRunner_RunAll() {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/missing" {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	jobs := []engine.Job{
+		{Name: "a.hurl", Source: []byte("GET " + srv.URL + "/a\nHTTP 200\n")},
+		{Name: "b.hurl", Source: []byte("GET " + srv.URL + "/missing\nHTTP 200\n")},
+		{Name: "c.hurl", Source: []byte("GET " + srv.URL + "/c\nHTTP 200\n")},
+	}
+	r := engine.NewRunner(engine.Options{})
+	defer r.Close() //nolint:errcheck // example cleanup
+	failed := map[string]bool{}
+	r.RunAll(context.Background(), nil, slices.Values(jobs), 2, engine.Hooks{
+		Finished: func(_ int, job engine.Job, res *engine.UnitResult, err error) bool {
+			failed[job.Name] = err != nil || !res.Success
+			return true
+		},
+	})
+	fmt.Println(failed["a.hurl"], failed["b.hurl"], failed["c.hurl"])
+	// Output:
+	// false true false
 }

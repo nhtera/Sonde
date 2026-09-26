@@ -1,0 +1,180 @@
+# JSON result schema
+
+`sonde [options] FILE... --json` prints one line of this shape per file run;
+`sonde --test --report-json DIR` writes the same shape, accumulated across
+every invocation, to `DIR/report.json`. One schema serves both: see
+[architecture.md §5](./architecture.md#5-contracts), "JSON result contract".
+
+The base fields below are byte-compatible with Hurl 8.0.1's own `--json`
+export — a Hurl parser or dashboard built against that schema reads a
+Sonde result unchanged. A future top-level `sonde` key is reserved for
+Sonde-only data (contracts, iterations, streams, gRPC) that has no Hurl
+equivalent; it is additive within a major version and not yet populated.
+
+Every string value in a result — a URL, header, cookie, capture, assert
+message, curl command, and so on — has already been redacted with the
+run's final secret union (`internal/redact`): a secret can never appear in
+a report in the clear.
+
+## `Result` (one file)
+
+| Field | Type | Description |
+|---|---|---|
+| `filename` | string | The file path as given on the command line. |
+| `success` | bool | Whether every attempt that was not retried passed. |
+| `time` | integer | Total duration, in milliseconds. |
+| `cookies` | `Cookie[]` | The cookie jar at the end of the run. |
+| `entries` | `Entry[]` | One object per attempt: a retried entry appears once per attempt, a repeated entry once per repetition. |
+
+### `Cookie`
+
+| Field | Type |
+|---|---|
+| `domain` | string |
+| `expires` | integer (Unix seconds, 0 when session-only) |
+| `https` | bool |
+| `include_subdomain` | bool |
+| `name` | string |
+| `path` | string |
+| `value` | string |
+
+### `Entry` (one attempt)
+
+| Field | Type | Description |
+|---|---|---|
+| `index` | integer | 1-based entry index in the file. |
+| `line` | integer | Source line of the request method. |
+| `time` | integer | Attempt duration, in milliseconds. |
+| `curl_cmd` | string | The equivalent `curl` command line. |
+| `calls` | `Call[]` | One HTTP exchange per call; a redirect produces more than one. |
+| `captures` | `Capture[]` | Variables captured by this attempt. |
+| `asserts` | `Assert[]` | One per implicit or explicit assert, in source order. |
+
+### `Call`
+
+| Field | Type |
+|---|---|
+| `request` | `Request` |
+| `response` | `Response` |
+| `timings` | `Timings` |
+
+### `Request`
+
+| Field | Type |
+|---|---|
+| `method` | string |
+| `url` | string |
+| `headers` | `NameValue[]` |
+| `cookies` | `NameValue[]` (the request's own `Cookie` header, split into pairs) |
+| `query_string` | `NameValue[]` (the URL's query parameters, decoded) |
+
+### `Response`
+
+| Field | Type | Description |
+|---|---|---|
+| `http_version` | string | `"HTTP/1.0"`, `"HTTP/1.1"`, `"HTTP/2"` or `"HTTP/3"`. |
+| `status` | integer | |
+| `headers` | `NameValue[]` | |
+| `cookies` | `ResponseCookie[]` | Every `Set-Cookie` header, parsed. |
+| `body` | string, omitted for `--json` | Present only in a `--report-json` report: the response body's path, relative to `report.json` (see "Response bodies" below). |
+
+### `ResponseCookie`
+
+| Field | Type | Present when |
+|---|---|---|
+| `name` | string | always |
+| `value` | string | always |
+| `domain` | string | the `Domain` attribute was set |
+| `path` | string | the `Path` attribute was set |
+| `expires` | string | the `Expires` attribute was set (raw text) |
+| `max_age` | string | the `Max-Age` attribute was set (raw text, not re-parsed) |
+| `same_site` | string | the `SameSite` attribute was set |
+| `secure` | bool (`true` or omitted) | the `Secure` flag was set |
+| `httponly` | bool (`true` or omitted) | the `HttpOnly` flag was set |
+
+### `NameValue`
+
+| Field | Type |
+|---|---|
+| `name` | string |
+| `value` | string |
+
+### `Timings`
+
+All fields are integer milliseconds, except the two timestamps, which are
+UTC in `2006-01-02T15:04:05.000000Z` form.
+
+| Field |
+|---|
+| `name_lookup` |
+| `connect` |
+| `app_connect` |
+| `pre_transfer` |
+| `start_transfer` |
+| `total` |
+| `begin_call` (timestamp) |
+| `end_call` (timestamp) |
+
+### `Capture`
+
+| Field | Type |
+|---|---|
+| `name` | string |
+| `value` | see "Capture value encoding" below |
+
+### `Assert`
+
+| Field | Type | Present when |
+|---|---|---|
+| `line` | integer | always |
+| `success` | bool | always |
+| `message` | string | `success` is `false`: the rendered failure, source snippet included |
+
+## Capture value encoding
+
+A captured value is encoded in the JSON type closest to it:
+
+| Captured kind | JSON encoding |
+|---|---|
+| null | `null` |
+| bool | `true` / `false` |
+| integer that fits in 64 bits | number |
+| integer too large for that | number, unquoted (arbitrary precision) |
+| float | number |
+| string | string |
+| bytes | base64 string |
+| date | its display text (e.g. `2024-01-01T00:00:00Z`) |
+| regex | its source pattern, as a string |
+| list | array, each element encoded the same way |
+| object | `{"key": value, ...}`, member order preserved |
+| XPath nodeset | `{"type": "nodeset", "size": <count>}` |
+| unit (a query that matched but produced no data, e.g. a cookie flag) | `{"type": "unit"}` |
+| one hop of a redirect chain | `{"status": <code>, "location": <url or "None">}` |
+
+## Response bodies (`--report-json` only)
+
+`--json` never embeds or references a response body. `--report-json DIR`
+saves each call's response body under `DIR/store/` and points `body` at
+it:
+
+```
+DIR/
+├── report.json
+└── store/
+    ├── 5b1f2c3e-<uuid>-b6b1e9b4a5df_response.json
+    ├── 8b53a2c1-<uuid>-2c7a2edc0a63_response.html
+    └── ...
+```
+
+The file is named `<random-id>_response`, with an extension picked from
+the response's `Content-Type` (`.json`, `.xml`, `.html`, or none); `body`
+holds the path relative to `report.json`, e.g.
+`"store/5b1f2c3e-<uuid>-b6b1e9b4a5df_response.json"`.
+
+## Cumulative reports
+
+Every `--report-*` flag accumulates: running `sonde --test --report-json
+DIR ...` twice appends the second run's files to the first's in
+`report.json` (and its response bodies to `store/`), rather than
+overwriting it. `--report-junit` and `--report-tap` behave the same way;
+see `docs/architecture.md` for their formats.

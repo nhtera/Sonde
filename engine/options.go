@@ -47,6 +47,10 @@ type Options struct {
 	NoAssert        bool
 	ContinueOnError bool
 	Verbosity       Verbosity
+	// BufferedLogs tells that log events are held until their unit ends
+	// and then redacted with Runner.Redact, which allows `redact` captures
+	// in verbose mode.
+	BufferedLogs bool
 
 	// Stdout receives responses written with `output: -`. Nil: discarded.
 	Stdout io.Writer

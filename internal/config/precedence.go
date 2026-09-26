@@ -60,7 +60,7 @@ func BuildSecrets(env Env, secretsFiles, secrets []string) (map[string]string, e
 		}
 		assigns, err := ParseProperties(data, Forced)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s: %w", path, err)
 		}
 		for _, a := range assigns {
 			if err := AddSecret(out, a.Name, a.Value); err != nil {

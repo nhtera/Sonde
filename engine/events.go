@@ -52,6 +52,9 @@ type Log struct {
 type EntryStarted struct {
 	Index int
 	Retry int
+	// Last is the index of the last entry the run executes (the file's
+	// entry count, or the --to-entry limit).
+	Last int
 }
 
 // EntryFinished is sent after an attempt of an entry.
