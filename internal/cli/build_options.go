@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -28,9 +29,36 @@ type runContext struct {
 	output      string
 	errorFormat string // "short" or "long"
 	cookieJar   string
+	curlFile    string
+	reportHTML  string
+	reportJSON  string
+	reportJUnit string
+	reportTAP   string
 	test        bool
+	progressBar bool
 	glob        []string
 	repeat      int // 1: once (default), -1: infinite
+	// parallel is whether this run uses the parallel runner architecture
+	// at all (--test or --parallel), independent of the worker count: see
+	// its assignment in buildRunContext for why this, not jobs > 1, is
+	// what selects buffered per-job logs and the progress bar.
+	parallel bool
+	// jobs is the number of files RunAll may run at once: 1 (sequential)
+	// unless --parallel or --test/`sonde test`, in which case it is
+	// --jobs, or the number of CPUs when --jobs was not given.
+	jobs int
+	// env and configFile are --env/--config, resolved against sonde.yaml
+	// per input file in run.go (env also falls back to SONDE_ENV, then
+	// each file's nearest project's defaults.env).
+	env        string
+	configFile string
+}
+
+// hasReport reports whether any --report-* flag was given: results are
+// only retained for the report writers when at least one is (memory flat
+// otherwise, per the plan).
+func (rc *runContext) hasReport() bool {
+	return rc.reportHTML != "" || rc.reportJSON != "" || rc.reportJUnit != "" || rc.reportTAP != ""
 }
 
 // buildRunContext resolves every flag, environment variable and config
@@ -61,6 +89,14 @@ func buildRunContext(cmd *cobra.Command, o *runOptions, env config.Env, stdout i
 		return nil, err
 	}
 	rc.cookieJar = o.cookieJar
+	rc.curlFile = o.curl
+	rc.reportHTML = o.reportHTML
+	rc.reportJSON = o.reportJSON
+	rc.reportJUnit = o.reportJUnit
+	rc.reportTAP = o.reportTAP
+	rc.env = o.env
+	rc.configFile = o.config
+	rc.progressBar = o.progressBar
 	rc.pretty = resolvePretty(cmd, o, env, isTerminalWriter(stdout))
 	rc.output = o.output
 
@@ -70,6 +106,19 @@ func buildRunContext(cmd *cobra.Command, o *runOptions, env config.Env, stdout i
 	}
 	rc.noOutput = noOutput
 	rc.glob = o.glob
+
+	// --test implies --parallel, matching the upstream CLI; --jobs (or
+	// its env var) picks the worker count, defaulting to the number of
+	// CPUs. Sequential (1) otherwise, regardless of --jobs. rc.parallel is
+	// also the reference CLI's own switch between its sequential and
+	// parallel runners (run_par vs. run_seq in main.rs) — independent of
+	// --jobs, which only picks the parallel runner's worker count: even
+	// `--test --jobs 1` uses the parallel runner with one worker, so this
+	// is what CLI code should check for parallel-runner-only behavior
+	// (buffered per-job logs, the progress bar), not rc.jobs > 1.
+	parallel := rc.test || resolveBool(cmd, "parallel", "PARALLEL", o.parallel, env)
+	rc.parallel = parallel
+	rc.jobs = resolveJobs(cmd, o, env, parallel)
 
 	variables, err := config.BuildVariables(env, o.variablesFiles, o.variables)
 	if err != nil {
@@ -128,11 +177,6 @@ func buildRunContext(cmd *cobra.Command, o *runOptions, env config.Env, stdout i
 		{"negotiate", o.negotiate},
 		{"ntlm", o.ntlm},
 		{"ssl-no-revoke", o.sslNoRevoke},
-		{"curl", o.curl != ""},
-		{"report-html", o.reportHTML != ""},
-		{"report-json", o.reportJSON != ""},
-		{"report-junit", o.reportJUnit != ""},
-		{"report-tap", o.reportTAP != ""},
 	} {
 		if unsupported.enabled {
 			return nil, unsupportedOptionErr(unsupported.name)
@@ -187,6 +231,24 @@ func resolveErrorFormat(cmd *cobra.Command, o *runOptions, env config.Env) (stri
 		return v, nil
 	}
 	return "short", nil
+}
+
+// resolveJobs returns how many files RunAll may run at once: 1 when the
+// run is not parallel, else --jobs (or HURL_JOBS/SONDE_JOBS) when it is a
+// positive number, else the number of CPUs — matching the upstream CLI's
+// own "--jobs default = available CPUs" rule. --jobs 1 (explicit) forces
+// sequential even when parallel/test mode was otherwise requested.
+func resolveJobs(cmd *cobra.Command, o *runOptions, env config.Env, parallel bool) int {
+	if !parallel {
+		return 1
+	}
+	if changed(cmd, "jobs") && o.jobs > 0 {
+		return o.jobs
+	}
+	if n, ok, err := env.Int("JOBS"); ok && err == nil && n > 0 {
+		return int(n)
+	}
+	return runtime.NumCPU()
 }
 
 func resolvePretty(cmd *cobra.Command, o *runOptions, env config.Env, stdoutTTY bool) bool {

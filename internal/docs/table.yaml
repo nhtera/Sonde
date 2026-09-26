@@ -491,7 +491,7 @@ flags:
     usage: 5
   - name: "--curl"
     arg: "FILE"
-    status: "planned"
+    status: "supported"
     phase: 8
     doc: "exports each request as a list of curl commands"
     usage: 5
@@ -523,7 +523,7 @@ flags:
     usage: 2
   - name: "--glob"
     arg: "GLOB"
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "adds input files matching the given glob pattern"
     usage: 6
@@ -582,7 +582,7 @@ flags:
     usage: 1
   - name: "--jobs"
     arg: "NUM"
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "maximum number of parallel jobs, 1 disables parallelism"
     usage: 13
@@ -694,7 +694,7 @@ flags:
     usage: 14
   - name: "--parallel"
     arg: ""
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "runs files in parallel (default in test mode)"
     usage: 12
@@ -715,7 +715,7 @@ flags:
     usage: 4
   - name: "--progress-bar"
     arg: ""
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "shows a progress bar in test mode"
     usage: 2
@@ -732,25 +732,25 @@ flags:
     usage: 4
   - name: "--report-html"
     arg: "DIR"
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "writes an HTML report to DIR"
     usage: 6
   - name: "--report-json"
     arg: "DIR"
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "writes a JSON report to DIR"
     usage: 5
   - name: "--report-junit"
     arg: "FILE"
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "writes a JUnit XML report to FILE"
     usage: 4
   - name: "--report-tap"
     arg: "FILE"
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "writes a TAP report to FILE"
     usage: 6
@@ -787,7 +787,7 @@ flags:
     usage: 4
   - name: "--test"
     arg: ""
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "activates test mode (parallel execution, test-style output)"
     usage: 20
@@ -904,7 +904,7 @@ env:
     doc: "same as --ipv6"
     usage: 1
   - name: "HURL_JOBS"
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "same as --jobs"
     usage: 1
@@ -969,7 +969,7 @@ env:
     doc: "defines a secret variable named `name` from its value"
     usage: 3
   - name: "HURL_TEST"
-    status: "planned"
+    status: "supported"
     phase: 5
     doc: "same as --test"
     usage: 1
@@ -1182,10 +1182,6 @@ differences:
     hurl: "printed as is"
     sonde: "redacted (`***`), as in every other output"
   - area: "HTTP"
-    input: "Parallel runs (`--parallel`, `--jobs`)"
-    hurl: "parallel"
-    sonde: "sequential (Phase 5)"
-  - area: "HTTP"
-    input: "Reports (`--report-*`), `--curl`"
-    hurl: "supported"
-    sonde: "`option … is not supported by sonde yet` (Phases 5 and 8)"
+    input: "HTML report (`--report-html`)"
+    hurl: "per-file pages with source, timeline and waterfall"
+    sonde: "same directory layout; per-file pages with source, calls and bodies, no timeline; no JavaScript, strict CSP"

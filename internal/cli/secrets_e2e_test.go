@@ -167,3 +167,120 @@ func TestE2EInterrupted(t *testing.T) {
 		t.Errorf("exit code = %d, want %d; stderr=%s", code, ExitInterrupted, errOut.String())
 	}
 }
+
+// TestE2ESondeYAMLSecretsFilesRedacted is the regression test for
+// code-reviewer finding #3 & #7 (2026-09-26): secrets from
+// sonde.yaml's secrets_files must never appear in clear in any output
+// sink: stderr (-v), stdout (--json), reports (--report-junit, --report-tap,
+// --report-json including store/ files, --report-html all files).
+// This test walks every generated file to verify redaction.
+func TestE2ESondeYAMLSecretsFilesRedacted(t *testing.T) {
+	const fileSecret = "file-secret-8c29f7" //nolint:gosec // G101: a fake test value, not a credential
+	mux := http.NewServeMux()
+	mux.HandleFunc("/secret", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Secret", fileSecret)
+		_, _ = w.Write([]byte("response: " + fileSecret)) //nolint:gosec // G705: test server echoing its own secret
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	// Create a project directory with both sonde.yaml and secrets file
+	projectDir := t.TempDir()
+	secretsFile := filepath.Join(projectDir, "secrets.txt")
+	if err := os.WriteFile(secretsFile, []byte("mysec="+fileSecret+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	yaml := "version: 1\n" +
+		"environments:\n" +
+		"  test:\n" +
+		"    secrets_files:\n" +
+		"      - secrets.txt\n" +
+		"defaults:\n" +
+		"  env: test\n"
+
+	sondeYAML := filepath.Join(projectDir, "sonde.yaml")
+	if err := os.WriteFile(sondeYAML, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	reqFile := filepath.Join(projectDir, "leak.hurl")
+	if err := os.WriteFile(reqFile, []byte("GET "+srv.URL+"/secret\nX-Sec: {{mysec}}\nHTTP 200\n[Captures]\nsecval: header \"X-Secret\" redact\n[Asserts]\nstatus == 404\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reportDir := t.TempDir()
+	junit := filepath.Join(reportDir, "junit.xml")
+	tap := filepath.Join(reportDir, "report.tap")
+	jsonDir := filepath.Join(reportDir, "json")
+	htmlDir := filepath.Join(reportDir, "html")
+
+	code, stdout, stderr := runArgs(t, reqFile,
+		"--test",
+		"--report-junit", junit,
+		"--report-tap", tap,
+		"--report-json", jsonDir,
+		"--report-html", htmlDir,
+	)
+	// Expect assertion failure (status code 4) since we assert status == 404 but get 200
+	if code != ExitAssert {
+		t.Fatalf("exit code = %d, want %d; stderr=%s", code, ExitAssert, stderr)
+	}
+
+	sinks := map[string]string{
+		"stdout": stdout,
+		"stderr": stderr,
+	}
+
+	// Check stdout and stderr for the file secret: it must never appear in clear
+	for name, content := range sinks {
+		if strings.Contains(content, fileSecret) {
+			t.Errorf("%s leaks the file secret:\n%s", name, content)
+		}
+	}
+
+	// Walk all report files
+	for _, path := range []string{junit, tap} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Errorf("failed to read %s: %v", path, err)
+			continue
+		}
+		if strings.Contains(string(data), fileSecret) {
+			t.Errorf("%s leaks the file secret", path)
+		}
+	}
+
+	// Check JSON report and store/ files
+	if err := filepath.Walk(jsonDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		data, readErr := os.ReadFile(path) //nolint:gosec // G304: path from filepath.Walk over t.TempDir()
+		if readErr != nil {
+			return readErr
+		}
+		if strings.Contains(string(data), fileSecret) {
+			t.Errorf("JSON file %s leaks the file secret", path)
+		}
+		return nil
+	}); err != nil {
+		t.Errorf("walking JSON dir: %v", err)
+	}
+
+	// Check HTML report files
+	if err := filepath.Walk(htmlDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		data, readErr := os.ReadFile(path) //nolint:gosec // G304: path from filepath.Walk over t.TempDir()
+		if readErr != nil {
+			return readErr
+		}
+		if strings.Contains(string(data), fileSecret) {
+			t.Errorf("HTML file %s leaks the file secret", path)
+		}
+		return nil
+	}); err != nil {
+		t.Errorf("walking HTML dir: %v", err)
+	}
+}

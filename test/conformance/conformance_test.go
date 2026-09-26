@@ -29,6 +29,7 @@ import (
 // TestMain only when SONDE_CONFORMANCE=1, and torn down on the way out,
 // including on SIGINT/SIGTERM/panic.
 type harness struct {
+	root     string // repository root, for locating the committed manifest.
 	hurlRoot string
 	shimDir  string
 	target   string // the `hurl` binary under test, per SONDE_CONFORMANCE_BIN or a fresh ./cmd/sonde build.
@@ -115,7 +116,7 @@ func setupHarness() (*harness, error) {
 		return nil, fmt.Errorf("starting extended-lane servers: %w", err)
 	}
 
-	return &harness{hurlRoot: hurlRoot, shimDir: shimDir, target: target, python: python, servers: servers}, nil
+	return &harness{root: root, hurlRoot: hurlRoot, shimDir: shimDir, target: target, python: python, servers: servers}, nil
 }
 
 func (h *harness) teardown() {
@@ -126,14 +127,21 @@ func (h *harness) teardown() {
 }
 
 // TestConformance runs every discovered script through the binary under
-// test, lane by lane, and writes a full report to SONDE_CONFORMANCE_RESULTS
-// (default: a fixed path under the OS temp directory; see resultsPath).
+// test, lane by lane, writes a full report to SONDE_CONFORMANCE_RESULTS
+// (default: a fixed path under the OS temp directory; see resultsPath),
+// and checks the result against the committed manifest
+// (test/conformance/manifest.yaml).
 //
-// It intentionally does not fail the test on individual script mismatches:
-// this harness is report-only until Phase 5 wires a pass-rate gate through
-// SONDE_CONFORMANCE_MIN_SEMANTIC. It does fail on harness-level problems
-// (a server that would not start, a script the classifier could not read,
-// a results.json write error).
+// With SONDE_CONFORMANCE_UPDATE=1 (`make conformance-update`) it instead
+// rewrites the manifest from this run — see updateManifest — and does not
+// gate. Otherwise it gates: any blocking-lane script the manifest marks
+// expect: pass that does not semantically pass — including one that is now
+// merely skipped, e.g. it starts exiting 255 — fails this test, as does any
+// manifest entry whose script no longer exists (see gateConformance);
+// newly-passing scripts and manifest gaps are reported but do not fail the
+// build. It also fails on harness-level problems (a server that would not
+// start, a script the classifier could not read, a results.json or
+// manifest write error).
 func TestConformance(t *testing.T) {
 	if !boolEnv("SONDE_CONFORMANCE") {
 		t.Skip("set SONDE_CONFORMANCE=1 to run the conformance suite (see docs/conformance.md); `make conformance` does this")
@@ -161,6 +169,32 @@ func TestConformance(t *testing.T) {
 	}
 	t.Logf("conformance results written to %s", resultsPath())
 	printSummaryTable(os.Stdout, results)
+
+	mPath := manifestPath(h.root)
+	manifest, err := LoadManifest(mPath)
+	if err != nil {
+		t.Fatalf("loading manifest %s: %v", mPath, err)
+	}
+
+	if boolEnv("SONDE_CONFORMANCE_UPDATE") {
+		updated, report := updateManifest(manifest, scripts, results, boolEnv("CONFORMANCE_ALLOW_DEMOTE"))
+		if err := WriteManifest(mPath, updated); err != nil {
+			t.Fatalf("writing manifest %s: %v", mPath, err)
+		}
+		t.Logf("conformance manifest updated: %s", mPath)
+		printUpdateReport(os.Stdout, report)
+		return
+	}
+
+	printLaneRates(os.Stdout, computeLaneRates(scripts, results, manifest))
+	gr := gateConformance(scripts, results, manifest)
+	printGateReport(os.Stdout, gr)
+	for _, r := range gr.Regressions {
+		t.Error(r)
+	}
+	for _, p := range gr.Stale {
+		t.Errorf("%s: manifest entry has no matching script (renamed, removed, or a typo); fix it or remove the entry", p)
+	}
 
 	enforceMinSemantic(t, results)
 }

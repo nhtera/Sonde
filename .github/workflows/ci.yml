@@ -105,12 +105,12 @@ jobs:
       - run: make headers
 
   conformance:
-    # Report-only: this job measures how much of the reference test suite
-    # passes, it does not gate the pipeline (Phase 5 will tighten that via
-    # SONDE_CONFORMANCE_MIN_SEMANTIC once the engine lands). continue-on-error
-    # keeps a failing or flaky run from blocking other jobs or the merge.
+    # Blocking on the manifest gate (test/conformance/manifest.yaml): the
+    # job fails if a blocking-lane script the manifest marks expect: pass
+    # stops passing semantically. Everything else — the extended lane, the
+    # network lane (skipped here), the timing lane — is report-only; see
+    # docs/conformance.md and test/conformance/gate.go.
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
     steps:

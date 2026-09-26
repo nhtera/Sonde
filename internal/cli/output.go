@@ -5,7 +5,6 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/report"
 	"github.com/nhtera/sonde/internal/runerr"
 	"github.com/nhtera/sonde/internal/syntax"
 )
@@ -20,11 +20,15 @@ import (
 // outputSink is where a run's file output goes: stdout, or a -o/--output
 // file opened lazily on first use so a write failure can be attributed to
 // the entry that triggered it. Once open, the same file is reused for the
-// rest of the invocation (truncated once, appended to after that).
+// rest of the invocation (truncated once, appended to after that). A sink
+// built with newBufferSink instead writes into an in-memory buffer: in
+// parallel mode a job's output is collected there and flushed to the real
+// sink, in completion order, once the job finishes (see run.go).
 type outputSink struct {
 	path   string
 	stdout io.Writer
 	file   *os.File
+	buf    *bytes.Buffer
 }
 
 // newOutputSink returns a sink writing to stdout when path is "" or "-",
@@ -33,9 +37,17 @@ func newOutputSink(path string, stdout io.Writer) *outputSink {
 	return &outputSink{path: path, stdout: stdout}
 }
 
+// newBufferSink returns a sink that always writes to buf, ignoring path.
+func newBufferSink(buf *bytes.Buffer) *outputSink {
+	return &outputSink{buf: buf}
+}
+
 // writer returns the underlying writer, opening (and truncating) path on
 // first use.
 func (s *outputSink) writer() (io.Writer, error) {
+	if s.buf != nil {
+		return s.buf, nil
+	}
 	if s.path == "" || s.path == "-" {
 		return s.stdout, nil
 	}
@@ -114,19 +126,24 @@ func writeFileOutput(rc *runContext, sink *outputSink, runner *engine.Runner, re
 }
 
 // writeJSONLine encodes the upstream-compatible JSON result of res as one
-// line. Every string field goes through runner.Redact, matching the
-// reference implementation's json/result.rs (every *Json::from_* builder
-// redacts its string fields, including curl_cmd, cookie/header/query
-// values and the URL).
+// line, terminated with "\n" (MarshalJSONLine itself returns the bytes
+// with no line ending, so more than one file's line does not run into the
+// next — same-line delimiting is a CLI concern, not the marshaler's).
+// Every string field goes through runner.Redact, matching the reference
+// implementation's json/result.rs (every *Json::from_* builder redacts
+// its string fields, including curl_cmd, cookie/header/query values and
+// the URL).
 func writeJSONLine(sink io.Writer, runner *engine.Runner, res *engine.UnitResult) error {
-	jr := toJSONResult(res, runner.Redact)
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false) // `<`, `>` and `&` are written as is
-	if err := enc.Encode(jr); err != nil {
+	jr, err := report.JSON(res, runner.Redact, nil)
+	if err != nil {
 		return err
 	}
-	_, err := sink.Write(buf.Bytes())
+	line, err := report.MarshalJSONLine(jr)
+	if err != nil {
+		return err
+	}
+	line = append(line, '\n')
+	_, err = sink.Write(line)
 	return err
 }
 

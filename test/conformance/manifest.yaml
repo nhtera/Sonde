@@ -1,0 +1,1116 @@
+# Conformance manifest: the expected outcome for every classified script in
+# the vendored Hurl integration-test corpus (testdata/conformance/hurl).
+#
+# Generated and gated by test/conformance; see docs/conformance.md. Do not
+# hand-edit lane/expect for large swaths at once — run
+# `make conformance-update` and let it promote newly passing scripts,
+# then hand-edit reasons for anything still failing. Demoting an expect:
+# pass entry requires CONFORMANCE_ALLOW_DEMOTE=1, so a regression always
+# fails `make conformance` first rather than being silently absorbed.
+tests_error_parser/base64.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/duplicate_response_section.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/duplicate_section.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/file.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/file_missing_delimiter.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/hexdigit.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_character_at_end.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_cookie.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_cookiepath.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_escape.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_jsonpath.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_option.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_option_duration.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_option_retry.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_option_verbosity.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_regex.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_section.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_error_parser/invalid_url_query_param.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_utf8.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_variable.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/invalid_xpath.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/json.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/json_list_expecting_element.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/json_list_trailing_comma.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/json_object_expecting_element.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/json_object_trailing_comma.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/json_unexpected_eof.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/method.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/missing_quote.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/multiline.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/multipart.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_error_parser/options_cacert.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/options_insecure.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/parallel_parsing_error.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/predicate.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/predicate_equal_value.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/predicate_startwith_value.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/regex.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/section_name.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/space.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/status.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/template_variable.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/typo_option.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/unicode.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/version.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/xml.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_base64/assert_base64.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_bytearray/assert_bytearray.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_content_encoding/assert_content_encoding.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_decompress/assert_decompress.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_file/assert_file.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_header/assert_header_not_found.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_header/assert_header_value.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_http_version/assert_http_version.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_invalid_predicate_type/assert_invalid_predicate_type.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_match_utf8/assert_match_utf8.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_newline/assert_newline.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_query/assert_query_cookie.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_query/assert_query_invalid_regex.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_query/assert_query_invalid_xpath.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_secret/assert_secret.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_status/assert_status.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_template/assert_template_variable_not_found.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_value_error/assert_value_error.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_variable/assert_variable.sh:
+  lane: blocking
+  expect: pass
+tests_failed/assert_xpath/assert_xpath.sh:
+  lane: blocking
+  expect: pass
+tests_failed/aws_sigv4/aws_sigv4_option.sh:
+  lane: blocking
+  expect: skip
+  reason: script exited 255 (the reference runner's own skip signal, e.g. an unmet prerequisite)
+tests_failed/bad_option/bad_option.sh:
+  lane: blocking
+  expect: pass
+tests_failed/body/body_binary.sh:
+  lane: blocking
+  expect: pass
+tests_failed/body/body_json.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_failed/config_file/flag_with_value.sh:
+  lane: blocking
+  expect: pass
+tests_failed/config_file/missing_value.sh:
+  lane: blocking
+  expect: pass
+tests_failed/config_file/unknown_option.sh:
+  lane: blocking
+  expect: pass
+tests_failed/connect_timeout/connect_timeout.sh:
+  lane: timing
+  expect: pass
+tests_failed/connect_timeout/connect_timeout_env_var.sh:
+  lane: timing
+  expect: pass
+tests_failed/continue_on_error/continue_on_error.sh:
+  lane: blocking
+  expect: pass
+tests_failed/continue_on_error/continue_on_error_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_failed/cookies/cookies.sh:
+  lane: blocking
+  expect: pass
+tests_failed/diff/diff.sh:
+  lane: blocking
+  expect: pass
+tests_failed/entry/entry.sh:
+  lane: blocking
+  expect: pass
+tests_failed/error_format_long/error_format_long.sh:
+  lane: blocking
+  expect: pass
+tests_failed/error_format_long/error_format_long_color.sh:
+  lane: blocking
+  expect: pass
+tests_failed/error_format_long/error_format_long_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_failed/file/file_not_found.sh:
+  lane: blocking
+  expect: pass
+tests_failed/file/file_read_access.sh:
+  lane: blocking
+  expect: pass
+tests_failed/file/file_unauthorized.sh:
+  lane: blocking
+  expect: pass
+tests_failed/filter/filter.sh:
+  lane: blocking
+  expect: pass
+tests_failed/filter/filter_charset_decode.sh:
+  lane: blocking
+  expect: pass
+tests_failed/filter/filter_in_capture.sh:
+  lane: blocking
+  expect: pass
+tests_failed/glob/glob_file_not_found.sh:
+  lane: blocking
+  expect: pass
+tests_failed/header/header.sh:
+  lane: blocking
+  expect: pass
+tests_failed/hello_gb2312/hello_gb2312_failed.sh:
+  lane: blocking
+  expect: pass
+tests_failed/html_report_injection/html_report_injection.sh:
+  lane: blocking
+  expect: pass
+tests_failed/http_connection/http_connection.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_failed/http_version_not_supported/http_version_not_supported.sh:
+  lane: blocking
+  expect: pass
+tests_failed/invalid_jsonpath/invalid_jsonpath.sh:
+  lane: blocking
+  expect: pass
+tests_failed/invalid_protocol/invalid_protocol.sh:
+  lane: blocking
+  expect: pass
+tests_failed/invalid_url/invalid_url.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_failed/invalid_url/invalid_url_1.sh:
+  lane: blocking
+  expect: pass
+tests_failed/invalid_variable/invalid_variable.sh:
+  lane: blocking
+  expect: pass
+tests_failed/invalid_xml/invalid_xml.sh:
+  lane: blocking
+  expect: pass
+tests_failed/ipv4/ipv4.sh:
+  lane: blocking
+  expect: pass
+tests_failed/ipv4/ipv4_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_failed/key_template/key_template.sh:
+  lane: blocking
+  expect: pass
+tests_failed/many_glob_not_found/many_glob_not_found.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_filesize/max_filesize.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_filesize/max_filesize_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_redirect/max_redirect.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_redirect/max_redirect_bad_cli.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_redirect/max_redirect_bad_env.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_redirect/max_redirect_config_file.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_redirect/max_redirect_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_redirect/max_redirect_invalid_config_file.sh:
+  lane: blocking
+  expect: pass
+tests_failed/max_redirect/max_redirect_option.sh:
+  lane: blocking
+  expect: pass
+tests_failed/multiline/multiline.sh:
+  lane: blocking
+  expect: pass
+tests_failed/multiline/multiline_color.sh:
+  lane: blocking
+  expect: pass
+tests_failed/multipart_form_data/multipart_form_data.sh:
+  lane: blocking
+  expect: pass
+tests_failed/options_template/options_template.sh:
+  lane: blocking
+  expect: pass
+tests_failed/output/output_decompress.sh:
+  lane: blocking
+  expect: pass
+tests_failed/output/output_directory.sh:
+  lane: blocking
+  expect: pass
+tests_failed/output/output_directory_option.sh:
+  lane: blocking
+  expect: pass
+tests_failed/output/output_file_not_exist.sh:
+  lane: blocking
+  expect: pass
+tests_failed/output/output_unauthorized.sh:
+  lane: blocking
+  expect: pass
+tests_failed/parse_error_tap/parse_error_tap.sh:
+  lane: blocking
+  expect: pass
+tests_failed/predicate/predicate.sh:
+  lane: blocking
+  expect: pass
+tests_failed/proxy/proxy_host.sh:
+  lane: blocking
+  expect: pass
+tests_failed/proxy/proxy_port.sh:
+  lane: blocking
+  expect: pass
+tests_failed/query/query_header_not_found.sh:
+  lane: blocking
+  expect: pass
+tests_failed/query/query_invalid_json.sh:
+  lane: blocking
+  expect: pass
+tests_failed/query/query_invalid_utf8.sh:
+  lane: blocking
+  expect: pass
+tests_failed/query/query_match_none.sh:
+  lane: blocking
+  expect: pass
+tests_failed/retry/retry.sh:
+  lane: timing
+  expect: pass
+tests_failed/retry/retry_option.sh:
+  lane: timing
+  expect: pass
+tests_failed/runner_errors/runner_errors.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_failed/runner_errors/runner_errors_color.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_failed/secret/secret_args.sh:
+  lane: blocking
+  expect: pass
+tests_failed/secret/secret_errors.sh:
+  lane: blocking
+  expect: pass
+tests_failed/streaming/streaming.sh:
+  lane: blocking
+  expect: pass
+tests_failed/template/template_variable_not_found.sh:
+  lane: blocking
+  expect: pass
+tests_failed/template/template_variable_not_renderable.sh:
+  lane: blocking
+  expect: pass
+tests_failed/timeout/timeout.sh:
+  lane: timing
+  expect: pass
+tests_failed/timeout/timeout_env_var.sh:
+  lane: timing
+  expect: pass
+tests_failed_not_linted/parallel_io.sh:
+  lane: blocking
+  expect: pass
+tests_failed_not_linted/tab.sh:
+  lane: blocking
+  expect: pass
+tests_ok/add_header/add_header.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_body.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_body_curl.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_header.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_json.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_match.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_redirects.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_regex.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_status_code.sh:
+  lane: blocking
+  expect: pass
+tests_ok/assert/assert_xpath.sh:
+  lane: blocking
+  expect: pass
+tests_ok/aws_sigv4/aws_sigv4_option.sh:
+  lane: blocking
+  expect: fail
+  reason: 'unsupported auth: AWS SigV4 signing not implemented'
+tests_ok/basic_authentication/basic_authentication.sh:
+  lane: blocking
+  expect: pass
+tests_ok/basic_authentication/basic_authentication_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/basic_authentication/basic_authentication_per_request.sh:
+  lane: blocking
+  expect: pass
+tests_ok/bench/bench.sh:
+  lane: timing
+  expect: pass
+tests_ok/bytes/bytes.sh:
+  lane: blocking
+  expect: pass
+tests_ok/bytes/bytes_empty.sh:
+  lane: blocking
+  expect: pass
+tests_ok/captures/captures.sh:
+  lane: blocking
+  expect: pass
+tests_ok/captures/captures_to_json.sh:
+  lane: blocking
+  expect: pass
+tests_ok/captures/captures_verbose.sh:
+  lane: blocking
+  expect: pass
+tests_ok/charset/charset.sh:
+  lane: blocking
+  expect: pass
+tests_ok/color/color.sh:
+  lane: blocking
+  expect: pass
+tests_ok/color/color_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/completion/completion_bash.sh:
+  lane: unsupported
+  expect: skip
+  reason: needs completions/hurl.bash, which is not vendored
+tests_ok/compressed/compressed.sh:
+  lane: blocking
+  expect: pass
+tests_ok/compressed/compressed_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/compressed/compressed_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/config_file/config_file.sh:
+  lane: blocking
+  expect: pass
+tests_ok/connect_to/connect_to.sh:
+  lane: blocking
+  expect: pass
+tests_ok/connect_to/connect_to_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/content_type/content_type.sh:
+  lane: blocking
+  expect: pass
+tests_ok/cookie/cookie_file.sh:
+  lane: blocking
+  expect: pass
+tests_ok/cookie/cookie_jar.sh:
+  lane: blocking
+  expect: pass
+tests_ok/cookie/cookie_storage.sh:
+  lane: blocking
+  expect: pass
+tests_ok/cookie/cookies.sh:
+  lane: blocking
+  expect: pass
+tests_ok/delay/delay.sh:
+  lane: timing
+  expect: pass
+tests_ok/delay/delay_env_var.sh:
+  lane: timing
+  expect: pass
+tests_ok/delay/delay_option.sh:
+  lane: timing
+  expect: pass
+tests_ok/deprecated/deprecated.sh:
+  lane: blocking
+  expect: pass
+tests_ok/digest/digest.sh:
+  lane: blocking
+  expect: fail
+  reason: 'unsupported auth: Digest authentication not implemented'
+tests_ok/digest/digest_option.sh:
+  lane: blocking
+  expect: fail
+  reason: 'unsupported auth: Digest authentication not implemented'
+tests_ok/empty/empty.sh:
+  lane: blocking
+  expect: pass
+tests_ok/empty/empty_sections.sh:
+  lane: blocking
+  expect: pass
+tests_ok/encoding/encoding.sh:
+  lane: blocking
+  expect: pass
+tests_ok/entry/entry.sh:
+  lane: blocking
+  expect: pass
+tests_ok/env_var/env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/expect/expect.sh:
+  lane: blocking
+  expect: pass
+tests_ok/fileroot/fileroot.sh:
+  lane: blocking
+  expect: pass
+tests_ok/filter/filter.sh:
+  lane: blocking
+  expect: pass
+tests_ok/float/float.sh:
+  lane: blocking
+  expect: pass
+tests_ok/follow_redirect/follow_redirect.sh:
+  lane: blocking
+  expect: pass
+tests_ok/follow_redirect/follow_redirect_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/follow_redirect/follow_redirect_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/follow_redirect/follow_redirect_trusted_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/form_params/form_params.sh:
+  lane: blocking
+  expect: pass
+tests_ok/function/function.sh:
+  lane: blocking
+  expect: pass
+tests_ok/gb2312/gb2312.sh:
+  lane: blocking
+  expect: pass
+tests_ok/get_large/get_large.sh:
+  lane: blocking
+  expect: pass
+tests_ok/graphql/graphql.sh:
+  lane: blocking
+  expect: pass
+tests_ok/head/head.sh:
+  lane: blocking
+  expect: pass
+tests_ok/header/header_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/header/headers.sh:
+  lane: blocking
+  expect: pass
+tests_ok/header/headers_curl.sh:
+  lane: blocking
+  expect: pass
+tests_ok/hello/hello.sh:
+  lane: blocking
+  expect: pass
+tests_ok/hello/hello_gb2312.sh:
+  lane: blocking
+  expect: pass
+tests_ok/html/html.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ok/http_version/http_version_2_option.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ok/http_version/http_version_3_option.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ok/http_version/http_version_10.sh:
+  lane: blocking
+  expect: fail
+  reason: 'http1.0 unsupported: --http1.0 not implemented'
+tests_ok/http_version/http_version_10_env_var.sh:
+  lane: blocking
+  expect: fail
+  reason: 'http1.0 unsupported: --http1.0 not implemented'
+tests_ok/http_version/http_version_11.sh:
+  lane: blocking
+  expect: pass
+tests_ok/http_version/http_version_11_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/http_version/http_version_option.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ok/ignore_asserts/ignore_asserts.sh:
+  lane: blocking
+  expect: pass
+tests_ok/ignore_asserts/ignore_asserts_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/include/include.sh:
+  lane: blocking
+  expect: pass
+tests_ok/include/include_color.sh:
+  lane: blocking
+  expect: pass
+tests_ok/input_dir/input_dir.sh:
+  lane: blocking
+  expect: pass
+tests_ok/insecure/insecure_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/ip_query/ip_query.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ok/ipv6/ipv6.sh:
+  lane: extended
+  expect: pass
+tests_ok/ipv6/ipv6_env_var.sh:
+  lane: extended
+  expect: pass
+tests_ok/json_output/json_output.sh:
+  lane: blocking
+  expect: pass
+tests_ok/jsonpath/jsonpath_adhoc.sh:
+  lane: blocking
+  expect: pass
+tests_ok/jsonpath/jsonpath_function.sh:
+  lane: blocking
+  expect: pass
+tests_ok/jsonpath/jsonpath_store.sh:
+  lane: blocking
+  expect: pass
+tests_ok/jsonpath/jsonpath_types.sh:
+  lane: blocking
+  expect: pass
+tests_ok/junit/junit.sh:
+  lane: blocking
+  expect: pass
+tests_ok/key_template/key_template.sh:
+  lane: blocking
+  expect: pass
+tests_ok/limit_rate/limit_rate.sh:
+  lane: timing
+  expect: pass
+tests_ok/limit_rate/limit_rate_env_var.sh:
+  lane: timing
+  expect: pass
+tests_ok/limit_rate/limit_rate_option.sh:
+  lane: timing
+  expect: pass
+tests_ok/max_redirect/max_redirect_infinite.sh:
+  lane: blocking
+  expect: pass
+tests_ok/max_redirect/max_redirect_infinite_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/method/method.sh:
+  lane: blocking
+  expect: pass
+tests_ok/multilines/multilines.sh:
+  lane: blocking
+  expect: pass
+tests_ok/multilines/multilines_curl.sh:
+  lane: blocking
+  expect: pass
+tests_ok/multipart/multipart_form_data.sh:
+  lane: blocking
+  expect: pass
+tests_ok/multiple/multiple.sh:
+  lane: blocking
+  expect: pass
+tests_ok/netrc/netrc.sh:
+  lane: blocking
+  expect: pass
+tests_ok/netrc/netrc_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/no_cookie_store/no_cookie_store.sh:
+  lane: blocking
+  expect: pass
+tests_ok/no_cookie_store/no_cookie_store_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/no_cookie_store/no_cookie_store_output.sh:
+  lane: blocking
+  expect: pass
+tests_ok/no_entry/no_entry.sh:
+  lane: blocking
+  expect: pass
+tests_ok/no_output/no_output.sh:
+  lane: blocking
+  expect: pass
+tests_ok/no_output/no_output_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/non_utf8/non_utf8.sh:
+  lane: blocking
+  expect: pass
+tests_ok/ntlm/ntlm.sh:
+  lane: blocking
+  expect: fail
+  reason: 'unsupported auth: NTLM not implemented'
+tests_ok/ntlm/ntlm_option.sh:
+  lane: blocking
+  expect: fail
+  reason: 'unsupported auth: NTLM not implemented'
+tests_ok/options_template/options_template.sh:
+  lane: blocking
+  expect: pass
+tests_ok/output/output.sh:
+  lane: blocking
+  expect: pass
+tests_ok/output/output_existing.sh:
+  lane: blocking
+  expect: pass
+tests_ok/output/output_existing_tiny.sh:
+  lane: blocking
+  expect: pass
+tests_ok/output/output_existing_tiny_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/output/output_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/output/output_parallel.sh:
+  lane: blocking
+  expect: pass
+tests_ok/override_header/override_header.sh:
+  lane: blocking
+  expect: pass
+tests_ok/parallel/parallel.sh:
+  lane: blocking
+  expect: pass
+tests_ok/parallel/parallel_all.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ok/parallel/parallel_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/parallel/parallel_json.sh:
+  lane: blocking
+  expect: pass
+tests_ok/parallel/parallel_one_worker.sh:
+  lane: blocking
+  expect: pass
+tests_ok/parallel/parallel_one_worker_test.sh:
+  lane: blocking
+  expect: pass
+tests_ok/parallel/parallel_output_null.sh:
+  lane: blocking
+  expect: pass
+tests_ok/parallel/parallel_tap.sh:
+  lane: blocking
+  expect: pass
+tests_ok/parse_cache/parse_cache.sh:
+  lane: blocking
+  expect: pass
+tests_ok/patch/patch.sh:
+  lane: blocking
+  expect: pass
+tests_ok/path_as_is/path_as_is.sh:
+  lane: blocking
+  expect: pass
+tests_ok/path_as_is/path_as_is_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/post/post_base64.sh:
+  lane: blocking
+  expect: pass
+tests_ok/post/post_bytes.sh:
+  lane: blocking
+  expect: pass
+tests_ok/post/post_file.sh:
+  lane: blocking
+  expect: pass
+tests_ok/post/post_json.sh:
+  lane: blocking
+  expect: pass
+tests_ok/post/post_large.sh:
+  lane: blocking
+  expect: pass
+tests_ok/post/post_multilines.sh:
+  lane: blocking
+  expect: pass
+tests_ok/post/post_xml.sh:
+  lane: blocking
+  expect: pass
+tests_ok/predicates/predicates_number.sh:
+  lane: blocking
+  expect: pass
+tests_ok/predicates/predicates_string.sh:
+  lane: blocking
+  expect: pass
+tests_ok/pretty/pretty.sh:
+  lane: blocking
+  expect: pass
+tests_ok/pretty/pretty_color.sh:
+  lane: blocking
+  expect: pass
+tests_ok/pretty/pretty_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/pretty/pretty_include.sh:
+  lane: blocking
+  expect: pass
+tests_ok/pretty/pretty_truncate.sh:
+  lane: blocking
+  expect: pass
+tests_ok/progress_bar/progress_bar.sh:
+  lane: timing
+  expect: pass
+tests_ok/progress_bar/progress_bar_color.sh:
+  lane: timing
+  expect: pass
+tests_ok/proxy/proxy.sh:
+  lane: extended
+  expect: skip
+  reason: local proxy (squid) is not available on this host
+tests_ok/proxy/proxy_option.sh:
+  lane: extended
+  expect: skip
+  reason: local proxy (squid) is not available on this host
+tests_ok/put/put.sh:
+  lane: blocking
+  expect: pass
+tests_ok/querystring/querystring_params.sh:
+  lane: blocking
+  expect: pass
+tests_ok/rawbytes/rawbytes.sh:
+  lane: blocking
+  expect: pass
+tests_ok/rawbytes/rawbytes_empty.sh:
+  lane: blocking
+  expect: pass
+tests_ok/reason/reason.sh:
+  lane: blocking
+  expect: pass
+tests_ok/redirect/redirect.sh:
+  lane: blocking
+  expect: pass
+tests_ok/repeat/repeat_option.sh:
+  lane: timing
+  expect: pass
+tests_ok/repeat/repeat_par.sh:
+  lane: timing
+  expect: pass
+tests_ok/repeat/repeat_seq.sh:
+  lane: timing
+  expect: pass
+tests_ok/report_json/report_json.sh:
+  lane: blocking
+  expect: pass
+tests_ok/request_content_length/request_content_length.sh:
+  lane: blocking
+  expect: pass
+tests_ok/resolve/resolve.sh:
+  lane: blocking
+  expect: pass
+tests_ok/resolve/resolve_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/retry/retry.sh:
+  lane: timing
+  expect: pass
+tests_ok/retry/retry_env_var.sh:
+  lane: timing
+  expect: pass
+tests_ok/retry/retry_option.sh:
+  lane: timing
+  expect: pass
+tests_ok/retry/retry_until_200.sh:
+  lane: timing
+  expect: pass
+tests_ok/secret/secret.sh:
+  lane: blocking
+  expect: pass
+tests_ok/secret/secret_from_env.sh:
+  lane: blocking
+  expect: pass
+tests_ok/secret/secret_test.sh:
+  lane: blocking
+  expect: pass
+tests_ok/secret/secrets_file.sh:
+  lane: blocking
+  expect: pass
+tests_ok/skip/skip.sh:
+  lane: blocking
+  expect: pass
+tests_ok/sse/sse.sh:
+  lane: blocking
+  expect: pass
+tests_ok/stdin/stdin.sh:
+  lane: blocking
+  expect: pass
+tests_ok/stdout/stdout.sh:
+  lane: blocking
+  expect: pass
+tests_ok/stdout/stdout_parallel.sh:
+  lane: blocking
+  expect: pass
+tests_ok/tap/tap.sh:
+  lane: blocking
+  expect: pass
+tests_ok/test/test.sh:
+  lane: blocking
+  expect: pass
+tests_ok/test/test_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/test/test_repeat.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ok/url/url.sh:
+  lane: blocking
+  expect: pass
+tests_ok/user_agent/user_agent.sh:
+  lane: blocking
+  expect: pass
+tests_ok/user_agent/user_agent_config_file.sh:
+  lane: blocking
+  expect: pass
+tests_ok/user_agent/user_agent_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/utf8/utf8.sh:
+  lane: blocking
+  expect: pass
+tests_ok/variables/variables.sh:
+  lane: blocking
+  expect: pass
+tests_ok/verbose/verbose.sh:
+  lane: blocking
+  expect: pass
+tests_ok/verbose/verbose_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/verbosity/verbosity.sh:
+  lane: blocking
+  expect: pass
+tests_ok/verbosity/verbosity_color.sh:
+  lane: blocking
+  expect: pass
+tests_ok/verbosity/verbosity_env_var.sh:
+  lane: blocking
+  expect: pass
+tests_ok/verbosity/verbosity_option.sh:
+  lane: blocking
+  expect: pass
+tests_ok/version/version.sh:
+  lane: blocking
+  expect: fail
+  reason: 'version text: --version output line count/format does not yet match hurl''s (missing libcurl/built-in feature lines)'
+tests_ok/very_verbose/very_verbose.sh:
+  lane: blocking
+  expect: pass
+tests_ok_not_linted/bom.sh:
+  lane: blocking
+  expect: pass
+tests_ok_not_linted/cookies.sh:
+  lane: blocking
+  expect: pass
+tests_ok_not_linted/empty_section.sh:
+  lane: blocking
+  expect: pass
+tests_ssl/cacert.sh:
+  lane: extended
+  expect: pass
+tests_ssl/cacert_no_revoke.sh:
+  lane: extended
+  expect: skip
+  reason: script exited 255 (the reference runner's own skip signal, e.g. an unmet prerequisite)
+tests_ssl/cacert_no_revoke_to_json.sh:
+  lane: extended
+  expect: skip
+  reason: script exited 255 (the reference runner's own skip signal, e.g. an unmet prerequisite)
+tests_ssl/cacert_selfsigned.sh:
+  lane: extended
+  expect: pass
+tests_ssl/cacert_to_json.sh:
+  lane: extended
+  expect: fail
+  reason: 'reports: --json entry output (certificate/timings fields) does not yet match upstream shape'
+tests_ssl/client_authentication.sh:
+  lane: extended
+  expect: pass
+tests_ssl/client_authentication_password.sh:
+  lane: extended
+  expect: pass
+tests_ssl/error_client_authentication_password.sh:
+  lane: extended
+  expect: pass
+tests_ssl/error_options_pinnedpubkey.sh:
+  lane: extended
+  expect: pass
+tests_ssl/error_pinned_pub_key.sh:
+  lane: extended
+  expect: pass
+tests_ssl/error_self_signed_certificate.sh:
+  lane: extended
+  expect: pass
+tests_ssl/insecure.sh:
+  lane: extended
+  expect: pass
+tests_ssl/insecure_env_var.sh:
+  lane: extended
+  expect: pass
+tests_ssl/keepalive.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ssl/letsencrypt.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ssl/live.sh:
+  lane: network
+  expect: skip
+  reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
+tests_ssl/options.sh:
+  lane: extended
+  expect: pass
+tests_ssl/pinned_pub_key.sh:
+  lane: extended
+  expect: pass
+tests_unix_socket/unix_socket.sh:
+  lane: extended
+  expect: fail
+  reason: 'platform: unix-socket connection succeeds on this OS/TLS backend where the fixture expects a libcurl connection error (see docs/conformance.md Reference-binary validation)'

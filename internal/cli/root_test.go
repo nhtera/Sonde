@@ -143,6 +143,26 @@ func TestInterruptedRun(t *testing.T) {
 	}
 }
 
+// TestInterruptedRunViaStopChannel is the first-Ctrl-C case (code-reviewer
+// finding High #1): closing only the stop channel — never ctx itself, the
+// way Execute's first SIGINT does — must still exit 130, not whatever the
+// run's own outcome was. A stop channel closed before RunAll ever starts
+// schedules zero jobs, so the run "succeeds" (no file failed) by every
+// measure except this one; before the fix, run() only checked ctx.Err()
+// and returned exit 0 here.
+func TestInterruptedRunViaStopChannel(t *testing.T) {
+	stop := make(chan struct{})
+	close(stop)
+	ctx := withStop(context.Background(), stop)
+	file := writeTemp(t, "ok.hurl", "GET http://127.0.0.1:1/hello\nHTTP 200\n")
+
+	var out, errOut bytes.Buffer
+	code := run(ctx, []string{file}, &out, &errOut)
+	if code != ExitInterrupted {
+		t.Errorf("exit code = %d, want %d (stderr=%s)", code, ExitInterrupted, errOut.String())
+	}
+}
+
 func TestResolveBuildInfo(t *testing.T) {
 	embedded := &debug.BuildInfo{
 		Main: debug.Module{Version: "v1.2.3"},

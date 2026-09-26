@@ -35,16 +35,34 @@ type eventLogger struct {
 	// error_format.go prints the richer form itself, once per finished
 	// entry, instead).
 	longErrors bool
+	// pb, when set, is the run's progress bar: every write this logger
+	// makes is wrapped so it never corrupts a bar currently on screen
+	// (erased first, redrawn after), matching Stderr::eprintln/eprint in
+	// the reference implementation. Left nil wherever a bar can never be
+	// showing (buffered/parallel per-job loggers write to an in-memory
+	// buffer, not the live terminal).
+	pb *progressBar
 }
 
 func newEventLogger(stderr io.Writer, color, longErrors bool) *eventLogger {
 	return &eventLogger{stderr: stderr, color: color, longErrors: longErrors}
 }
 
+// withProgress attaches pb so this logger's writes erase and redraw it
+// instead of corrupting it; returns l for chaining at the call site.
+func (l *eventLogger) withProgress(pb *progressBar) *eventLogger {
+	l.pb = pb
+	return l
+}
+
 // handle is passed as engine.Options.OnEvent.
 func (l *eventLogger) handle(ev engine.Event) {
 	log, ok := ev.(engine.Log)
 	if !ok {
+		return
+	}
+	if l.pb != nil {
+		l.pb.eraseAndReprint(l.stderr, func() { l.writeLog(log) })
 		return
 	}
 	l.writeLog(log)

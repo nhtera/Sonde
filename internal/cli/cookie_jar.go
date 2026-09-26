@@ -6,6 +6,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/nhtera/sonde/engine"
@@ -20,6 +21,11 @@ const cookieJarHeader = "# Netscape HTTP Cookie File\n" +
 // through runner's secret registry. forFile is the last input file the
 // run processed, named in the file's header comment.
 func writeCookieJar(path, forFile string, cookies []engine.Cookie, runner *engine.Runner) error {
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return err
+		}
+	}
 	var b strings.Builder
 	b.WriteString(cookieJarHeader)
 	fmt.Fprintf(&b, "# Cookies for file <%s>\n", forFile)

@@ -16,7 +16,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: build test race lint vuln fuzz-smoke conformance snapshot license-check headers licenses docs tools clean
+.PHONY: build test race lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -44,6 +44,9 @@ fuzz-smoke: ## Run every Fuzz target briefly (FUZZTIME=10s)
 
 conformance: ## Run the Hurl conformance suite against SONDE_CONFORMANCE_BIN (default: build ./cmd/sonde)
 	SONDE_CONFORMANCE=1 go test ./test/conformance -count=1 -v -timeout 60m
+
+conformance-update: ## Rerun the conformance suite and rewrite test/conformance/manifest.yaml (CONFORMANCE_ALLOW_DEMOTE=1 to allow demotions)
+	SONDE_CONFORMANCE=1 SONDE_CONFORMANCE_UPDATE=1 CONFORMANCE_ALLOW_DEMOTE=$(CONFORMANCE_ALLOW_DEMOTE) go test ./test/conformance -count=1 -v -timeout 60m
 
 snapshot: ## Local GoReleaser snapshot build into dist/
 	goreleaser release --snapshot --clean

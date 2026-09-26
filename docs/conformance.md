@@ -39,7 +39,9 @@ SONDE_CONFORMANCE_BIN=/path/to/hurl make conformance
 | `SONDE_CONFORMANCE_BIN` | unset | Path to the `hurl`-compatible binary under test. Unset: builds `./cmd/sonde` into a temp dir once per run. |
 | `SONDE_CONFORMANCE_RESULTS` | `$TMPDIR/sonde-conformance-results.json` | Where the full per-script report is written. Deliberately outside `testdata/conformance/hurl`, which is vendored and unchanged from upstream. |
 | `SONDE_CONFORMANCE_NETWORK` | unset | `1` also runs the `network` lane (scripts that reach real internet hosts, e.g. `google.com`, `hurl.dev`). Off by default so the suite works offline and CI stays hermetic. |
-| `SONDE_CONFORMANCE_MIN_SEMANTIC` | unset | A percentage (e.g. `95`). If set, the test fails when the blocking lane's semantic pass rate drops below it. Left unset for now (Phase 5 will set it once the engine lands); until then the suite is report-only. |
+| `SONDE_CONFORMANCE_MIN_SEMANTIC` | unset | A percentage (e.g. `95`). If set, the test additionally fails when the blocking lane's overall semantic pass rate drops below it. This is a coarse floor on top of the manifest gate below; unset by default. |
+| `SONDE_CONFORMANCE_UPDATE` | unset | `1` (set by `make conformance-update`) skips the gate and instead rewrites `test/conformance/manifest.yaml` from this run's results. |
+| `CONFORMANCE_ALLOW_DEMOTE` | unset | `1`, combined with `SONDE_CONFORMANCE_UPDATE=1`, lets the manifest update demote an `expect: pass` script to `fail`/`skip`. Without it, a regressed script keeps its `pass` expectation in the manifest (so the next gated run fails loudly) instead of being silently downgraded. |
 
 ## What it measures
 
@@ -66,8 +68,8 @@ over the script and the `.hurl` files it feeds to `hurl` (including
 `--glob` expansion):
 
 - **blocking** — needs only the plain HTTP server on `:8000`. This is the
-  lane that should be at or near 100% pass rate; it is the one a future
-  `SONDE_CONFORMANCE_MIN_SEMANTIC` gate would watch.
+  lane that should be at or near 100% pass rate; it is the one the manifest
+  gate (below) watches for regressions.
 - **extended** — also needs the TLS servers (`:8001`–`:8003`), the
   Unix-socket server, an IPv6 listener (`::1:8004`), or the local squid
   proxy (`:3128`). The proxy is optional: if `squid` is not on `PATH`, the
@@ -92,6 +94,67 @@ over the script and the `.hurl` files it feeds to `hurl` (including
   no test script needs one.
 - `tests_pty` is not vendored/run at all yet — those scripts need a real
   pseudo-terminal, which is a later phase.
+
+## Manifest and gate
+
+`test/conformance/manifest.yaml` (loaded and validated by
+`test/conformance/manifest.go`) records the outcome the suite currently
+expects for every classified script, keyed by its path relative to
+`testdata/conformance/hurl`:
+
+```yaml
+tests_ok/hello/hello.sh:
+  lane: blocking
+  expect: pass
+tests_error_parser/base64.sh:
+  lane: blocking
+  expect: fail
+  reason: "reports: Phase 5 in progress"
+```
+
+`expect` is `pass`, `fail`, or `skip`; `fail` and `skip` entries must carry a
+`reason` (validated on load and on write). `lane` mirrors what `lanes.go`
+classified the script as at manifest-generation time — it is informational
+(a drift signal if the heuristic later reclassifies the script), not the
+authoritative lane, which is always recomputed by `DiscoverScripts` at run
+time. The manifest is committed at `test/conformance/manifest.yaml`, never
+inside the vendored `testdata/conformance/hurl` tree.
+
+`TestConformance` (`test/conformance/gate.go`) checks every run against it:
+
+- **Regression (fails the test)**: a **blocking**-lane script the manifest
+  marks `expect: pass` that does not semantically pass this run —
+  including one that merely stops running (e.g. it starts exiting 255, the
+  reference runner's own "unmet prerequisite" signal). A skip is not a
+  lesser claim than a failure: the manifest promised a clean pass either
+  way. Listed explicitly in the test output and in `t.Error`.
+- **Stale entry (fails the test)**: a manifest entry whose script the
+  current corpus no longer discovers at all — a rename, a removed fixture,
+  or a typo. Left unflagged, it could never be checked again and would
+  hide whatever it used to guard indefinitely.
+- **Newly passing (reported, non-fatal)**: any script not marked
+  `expect: pass` (including one the manifest has no entry for at all) that
+  semantically passes this run. Run `make conformance-update` to promote it.
+- **Unclassified (reported, non-fatal)**: a blocking-lane script with no
+  manifest entry at all.
+- The extended lane is report-only (never gates), the network lane is
+  skipped by default, and the timing lane is quarantined (run and reported,
+  never gates) — see Lanes above.
+
+Every run also prints semantic and full-oracle pass rates per lane
+alongside the *manifest baseline* (the percentage of that lane's manifest
+entries marked `expect: pass`) and the delta between them, so a drop shows
+up as a number even before reading the regression list.
+
+`make conformance-update` reruns the suite and rewrites the manifest:
+scripts that now pass are promoted to `expect: pass`; scripts that still
+fail or are skipped keep their existing `reason` (a brand-new script gets a
+placeholder reason flagging it as not yet triaged); a script recorded as
+`expect: pass` that fails **or is skipped** this run **keeps its `pass`
+expectation** unless `CONFORMANCE_ALLOW_DEMOTE=1` is also set — a
+regression is never silently absorbed into the manifest as `fail` or
+`skip`, it either fails a subsequent `make conformance`
+or requires an explicit demotion.
 
 ## Servers
 
@@ -142,9 +205,10 @@ expected for plumbing validation only.
 
 ## CI
 
-`.github/workflows/ci.yml` runs the suite in a `conformance` job with
-`continue-on-error: true`: it is report-only until Phase 5 wires
-`SONDE_CONFORMANCE_MIN_SEMANTIC` to actually gate on it. The job uploads
-`SONDE_CONFORMANCE_RESULTS` (`conformance-results.json`) as a build
-artifact so pass rates are visible per run without re-running anything
-locally.
+`.github/workflows/ci.yml` runs the suite in a `conformance` job that
+blocks on the manifest gate described above: it fails if a blocking-lane
+script recorded as `expect: pass` stops passing semantically. The extended,
+network, and timing lanes never fail the job (see Manifest and gate). The
+job uploads `SONDE_CONFORMANCE_RESULTS` (`conformance-results.json`) as a
+build artifact so full per-script results are visible per run without
+re-running anything locally.

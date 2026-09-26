@@ -75,6 +75,8 @@ type runOptions struct {
 	parallel        bool
 	progressBar     bool
 	test            bool
+	env             string
+	config          string
 
 	// Output.
 	include     bool
@@ -164,6 +166,8 @@ func addRunFlags(cmd *cobra.Command, o *runOptions) {
 	f.BoolVar(&o.parallel, "parallel", false, "runs files in parallel (default in test mode)")
 	f.BoolVar(&o.progressBar, "progress-bar", false, "shows a progress bar in test mode")
 	f.BoolVar(&o.test, "test", false, "activates test mode (parallel execution, test-style output)")
+	f.StringVar(&o.env, "env", "", "selects a sonde.yaml environment by name")
+	f.StringVar(&o.config, "config", "", "uses this sonde.yaml for every input file, skipping discovery")
 
 	f.BoolVarP(&o.include, "include", "i", false, "includes the response headers in the output")
 	f.BoolVar(&o.jsonOutput, "json", false, "outputs each file's result as JSON")
@@ -172,11 +176,11 @@ func addRunFlags(cmd *cobra.Command, o *runOptions) {
 	f.BoolVar(&o.pretty, "pretty", false, "pretty-prints JSON response output")
 	f.StringVarP(&o.output, "output", "o", "", "writes to FILE instead of stdout")
 	f.StringVar(&o.errorFormat, "error-format", "", "controls how error messages are rendered (short or long)")
-	f.StringVar(&o.curl, "curl", "", "exports each request as a list of curl commands (not supported by sonde yet)")
-	f.StringVar(&o.reportHTML, "report-html", "", "writes an HTML report to DIR (not supported by sonde yet)")
-	f.StringVar(&o.reportJSON, "report-json", "", "writes a JSON report to DIR (not supported by sonde yet)")
-	f.StringVar(&o.reportJUnit, "report-junit", "", "writes a JUnit XML report to FILE (not supported by sonde yet)")
-	f.StringVar(&o.reportTAP, "report-tap", "", "writes a TAP report to FILE (not supported by sonde yet)")
+	f.StringVar(&o.curl, "curl", "", "exports each request as a list of curl commands")
+	f.StringVar(&o.reportHTML, "report-html", "", "writes an HTML report to DIR")
+	f.StringVar(&o.reportJSON, "report-json", "", "writes a JSON report to DIR")
+	f.StringVar(&o.reportJUnit, "report-junit", "", "writes a JUnit XML report to FILE")
+	f.StringVar(&o.reportTAP, "report-tap", "", "writes a TAP report to FILE")
 
 	f.BoolVarP(&o.verbose, "verbose", "v", false, "turns on verbose output (alias of --verbosity verbose)")
 	f.BoolVar(&o.veryVerbose, "very-verbose", false, "turns on very verbose output, including HTTP and libcurl-style logs")

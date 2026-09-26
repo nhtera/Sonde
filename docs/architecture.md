@@ -43,7 +43,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/filter` | all Hurl filters | syntax, value, jsonpath, template, runerr, xpath, datefmt, charset |
 | `internal/predicate` | all Hurl predicates | syntax, value, template, runerr, datefmt |
 | `internal/httpx` | client/transport builder, options, manual redirect loop, timings, cookie jar, decompression | exchange, sandbox |
-| `internal/report` | incremental terminal, JSON, JUnit, TAP, HTML renderers (consume redacted events/results) | engine |
+| `internal/report` | JSON result (shared by `--json` and `--report-json`), JUnit, TAP, HTML reports; redacted with the final secret union | engine, exchange, value |
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
 | `internal/dataset` | CSV / JSON-array rows for `--data` | value |
 | `internal/openapi` | spec load (owns remote fetch), route match, `engine.ResponseValidator` impl, spec → AST generator | exchange, syntax, engine (interface only) |
@@ -58,13 +58,13 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `editors/vscode` | VS Code extension (TypeScript) — separate npm package | — |
 | `testdata/conformance/hurl` | vendored Hurl 8 test tree + servers + requirements + manifest | — |
 
-**Rules (enforced by `depguard` in `.golangci.yml`):** leaves import nothing internal; nothing imports `internal/cli`; `internal/report` imports only `engine` result/event types; `net/http` allowed only in `httpx`, `stream`, `mock`, `openapi` (remote fetch, opt-in), `grpcx`; `_test.go` files exempt. Go source file names: `snake_case.go`; shell scripts: `kebab-case.sh`. One decision-record series: `docs/decisions/NNNN-*.md` (RFCs are decision records with status `proposed`).
+**Rules (enforced by `depguard` in `.golangci.yml`):** leaves import nothing internal; nothing imports `internal/cli`; `internal/report` imports only `engine`/`exchange` result types and `value` (display); `net/http` allowed only in `httpx`, `stream`, `mock`, `openapi` (remote fetch, opt-in), `grpcx`; `_test.go` files exempt. Go source file names: `snake_case.go`; shell scripts: `kebab-case.sh`. One decision-record series: `docs/decisions/NNNN-*.md` (RFCs are decision records with status `proposed`).
 
 ## 3. Execution Flow
 
 ```mermaid
 flowchart LR
-  S[UnitSource: file × data row × repeat] --> RU[engine.Runner]
+  S[jobs: file × repeat, data rows in Phase 6] --> RU[engine.Runner]
   C[config: vars, secrets, env] --> RU
   RU -->|per unit, isolated| P[syntax.Parse]
   P --> T[template.Render]
@@ -88,37 +88,42 @@ Per entry: render → build → send (retry loop wraps the whole entry) → impl
 
 package engine
 
-// Runner executes units; owns per-run state (secret registry, event dispatcher).
+// Runner runs files with shared options; owns the run's secret registry.
 func NewRunner(opt Options) *Runner
-func (r *Runner) Run(ctx context.Context, src UnitSource) (*RunSummary, error) // error = setup/config only
+func (r *Runner) RunFile(ctx context.Context, path string) (*UnitResult, error)
+func (r *Runner) RunSource(ctx context.Context, name string, src []byte) (*UnitResult, error)
+// RunAll runs jobs, n at a time; closing stop ends scheduling and running
+// units at their next entry boundary (UnitResult.Interrupted, not a
+// success), canceling ctx aborts requests.
+func (r *Runner) RunAll(ctx context.Context, stop <-chan struct{}, jobs iter.Seq[Job], n int, h Hooks)
+func (r *Runner) Redact(s string) string // with every secret known so far
 func (r *Runner) Close() error
 
-// Convenience wrappers (single unit, own Runner).
-func RunFile(ctx context.Context, path string, opt Options) (*UnitResult, error)
-func RunSource(ctx context.Context, name string, src []byte, opt Options) (*UnitResult, error)
-
-type UnitSource interface{ Next() (Unit, bool, error) } // lazy: files × rows × repeats
-type Unit struct {
-	Path   string
-	Source []byte         // nil = read Path through sandbox
-	Row    *DataRow       // nil = no data iteration
-	Repeat int            // 1-based repeat index
+type Job struct {
+	Name      string
+	Source    []byte            // nil = read Name
+	Variables map[string]any    // per job (sonde.yaml), below CLI options
+	Secrets   map[string]string // per job
+	// Phase 6 adds the data row.
+}
+type Hooks struct { // calls never concurrent
+	Started  func(seq int, job Job) (onEvent func(Event), stdout io.Writer)
+	Finished func(seq int, job Job, res *UnitResult, err error) bool // false = schedule no more; running jobs complete
 }
 
 type Options struct {
-	Variables       map[string]any    // typed: string, int64, float64, bool, nil, []any, map[string]any
+	Variables       map[string]any    // typed: string, int, int64, float64, bool, nil
 	Secrets         map[string]string // registered in the run's redact registry
 	FileRoot        string            // CLI-only; default: dir of each file
 	HTTP            HTTPOptions       // global defaults; per-entry [Options] override
-	Validator       ResponseValidator // optional (OpenAPI contract); nil = off
-	OnEvent         func(Event)       // called serially from one dispatcher goroutine; may block briefly
-	Jobs            int               // parallel units; 0 = runtime.NumCPU()
+	Validator       ResponseValidator // Phase 7 (OpenAPI contract); nil = off
+	OnEvent         func(Event)       // RunFile/RunSource; RunAll uses Hooks
 	Retry           int               // -1 = unlimited
 	RetryInterval   time.Duration
 	Delay           time.Duration     // not applied to retries
-	Repeat          int
 	FromEntry, ToEntry int            // 1-based, 0 = unset
 	NoAssert, ContinueOnError bool
+	Verbosity       Verbosity
 }
 
 type HTTPOptions struct { /* all Hurl request options: TLS, proxy, resolve, connect-to, protocols, timeouts, redirects, compression, netrc, limit-rate, max-filesize … (list owned by docs/compat.md) */ }
@@ -129,7 +134,7 @@ type ResponseValidator interface {
 type Violation struct{ SpecPointer, InstancePath, Message string }
 ```
 
-Events (carry unit id, file, entry index, source line): `UnitStarted`, `EntryStarted`, `RequestSent`, `ResponseReceived` (+ `Timings`), `CaptureSet`, `AssertEvaluated`, `ContractEvaluated`, `EntryFinished`, `UnitFinished` (carries redacted `*UnitResult`). Events of an entry with `redact` captures are buffered until its captures ran. Per-unit parse/runtime errors live in `UnitResult`, never cancel other units. `RunSummary` holds counts + failures only (results are streamed, not accumulated).
+Events: `Log` (level, text, colored text), `EntryStarted`, `EntryFinished` (carries the raw `*EntryResult`). Log texts are redacted; results hold raw values, and every sink redacts them with `Runner.Redact` (the final secret union for run-level sinks). Per-unit parse/runtime errors live in `UnitResult` and never cancel other units; results are handed to `Hooks.Finished` and not retained by the runner.
 
 API stability: pre-1.0 may change; from v1.0 `engine` + `exchange` follow semver, checked by `apidiff` in CI (Phase 10).
 
@@ -238,6 +243,13 @@ CI gate: `go-licenses check ./... --allowed_licenses=Apache-2.0,MIT,BSD-2-Clause
 - CI performance jobs are **report-only** (cold start, RSS, binary size, parallel speedup with a latency-injecting server); shared runners are too noisy to gate.
 - Competitor comparisons (`hurl`, `xh`, `newman`, `bru`) via local `scripts/bench.sh`, published with methodology in `docs/benchmarks.md` — supports the "fast, lightweight" pitch.
 - Binary size recorded per release; any dependency adding > 3 MB needs justification in its PR.
+- Memory is flat for a plain run: nothing but the run's own bookkeeping
+  (no per-file `UnitResult` is kept once its sinks are written). When any
+  `--report-*` flag is given, every file's full `UnitResult` (including
+  response bodies) is kept until the run ends so the reports can be
+  written in original file order — the same trade-off upstream Hurl makes.
+  Combined with `--repeat -1`, this grows without bound; there is no
+  streaming report writer today.
 
 ## 9. Security Model
 
