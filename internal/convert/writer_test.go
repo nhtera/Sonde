@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/nhtera/sonde/internal/syntax"
@@ -235,7 +236,9 @@ func TestSanitizeSegment(t *testing.T) {
 		"---":        "request",
 		"CON":        "con-file",
 		"a_b.c":      "a-b-c",
-		"héllo":      "h-llo",
+		"héllo":      "héllo",
+		"Élan Vital": "élan-vital",
+		"日本 API":     "日本-api",
 		"already-ok": "already-ok",
 	}
 	for in, want := range tests {
@@ -245,17 +248,7 @@ func TestSanitizeSegment(t *testing.T) {
 	}
 }
 
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
+func equalStrings(a, b []string) bool { return slices.Equal(a, b) }
 
 func sortedCopy(s []string) []string {
 	out := append([]string(nil), s...)

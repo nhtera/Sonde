@@ -74,3 +74,16 @@ func TestSummarizeProject(t *testing.T) {
 		t.Errorf("summary should say sonde.yaml already exists:\n%s", b.String())
 	}
 }
+
+func TestSummarizeQuotesControlCharacters(t *testing.T) {
+	out := Output{
+		Skipped:  []Skipped{{Name: "evil\x1b[2J", Reason: "multi\nline"}},
+		Warnings: []Warning{{Kind: WarnScript, Message: "bell\a"}},
+	}
+	var b bytes.Buffer
+	Summarize(&b, out, &Result{})
+	got := b.String()
+	if strings.ContainsAny(got, "\x1b\a") || !strings.Contains(got, `evil\x1b[2J: multi\nline`) || !strings.Contains(got, `bell\a`) {
+		t.Errorf("summary:\n%q", got)
+	}
+}

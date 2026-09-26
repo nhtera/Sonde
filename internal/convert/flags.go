@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/nhtera/sonde/internal/syntax"
 )
 
 // Options are the flags every importer command shares.
@@ -34,6 +36,12 @@ func (o Options) extension() (string, error) {
 	default:
 		return "", fmt.Errorf("convert: --ext must be \"hurl\" or \"sonde\", got %q", o.Ext)
 	}
+}
+
+// Dialect is the dialect of the generated files, the one
+// syntax.DialectFor picks for their extension.
+func (o Options) Dialect() syntax.Dialect {
+	return syntax.DialectFor("x." + o.Ext)
 }
 
 // RegisterFlags adds the shared import flags to cmd, bound to o.

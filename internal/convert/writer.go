@@ -9,6 +9,7 @@ package convert
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io/fs"
@@ -17,6 +18,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/nhtera/sonde/internal/syntax"
 )
@@ -33,10 +35,25 @@ type GeneratedFile struct {
 	File *syntax.File
 }
 
+// RawFile is a file other than a request file an importer produced, such
+// as a variables file or a secrets stub. Path is relative and
+// slash-separated, with its extension; Write sanitizes it like a request
+// file's path and keeps it distinct from every other planned file.
+type RawFile struct {
+	Path string
+	Data []byte
+	// Keep marks a file a user goes on to fill in, such as a secrets stub:
+	// it is written 0o600 and, like sonde.yaml, never overwritten, even
+	// with --force.
+	Keep bool
+}
+
 // Output is everything one importer run produces.
 type Output struct {
 	// Files are the generated request files.
 	Files []GeneratedFile
+	// Extra are the other files, written next to the request files.
+	Extra []RawFile
 	// ProjectYAML is an optional sonde.yaml skeleton (config.EmitProject's
 	// output); nil means the importer has nothing to add to a project file.
 	ProjectYAML []byte
@@ -62,6 +79,12 @@ type Result struct {
 	// ProjectSkipped is true when Output.ProjectYAML was set but
 	// DIR/sonde.yaml already existed, so it was left untouched.
 	ProjectSkipped bool
+	// Extra are the relative paths of Output.Extra written (or planned),
+	// sorted.
+	Extra []string
+	// ExtraKept are the Output.Extra files marked Keep that already
+	// existed and were left untouched, sorted.
+	ExtraKept []string
 }
 
 // ErrConflicts is returned by Write when Options.Force is false and one or
@@ -83,7 +106,12 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 		return nil, err
 	}
 
-	planned := planPaths(out.Files, ext)
+	used := map[string]bool{ProjectFileName: true}
+	planned := planPaths(used, out.Files, ext)
+	extra, err := planExtra(used, out.Extra)
+	if err != nil {
+		return nil, err
+	}
 	res := &Result{DryRun: opts.DryRun, Files: append([]string(nil), planned...)}
 	sort.Strings(res.Files)
 	for _, f := range out.Files {
@@ -96,6 +124,7 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 			if out.ProjectYAML != nil {
 				res.Project = ProjectFileName
 			}
+			res.Extra = sorted(extra)
 			return res, nil
 		}
 	}
@@ -120,11 +149,30 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 		}
 	}
 
+	var writeExtra []int
+	for i, rel := range extra {
+		if out.Extra[i].Keep {
+			if _, err := root.Stat(rel); err == nil {
+				res.ExtraKept = append(res.ExtraKept, rel)
+				continue
+			}
+		}
+		writeExtra = append(writeExtra, i)
+		res.Extra = append(res.Extra, rel)
+	}
+	sort.Strings(res.Extra)
+	sort.Strings(res.ExtraKept)
+
 	if !opts.Force {
 		var conflicts []string
 		for _, rel := range planned {
 			if _, err := root.Stat(rel); err == nil {
 				conflicts = append(conflicts, rel)
+			}
+		}
+		for _, i := range writeExtra {
+			if _, err := root.Stat(extra[i]); err == nil {
+				conflicts = append(conflicts, extra[i])
 			}
 		}
 		if len(conflicts) > 0 {
@@ -143,6 +191,15 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 			return nil, fmt.Errorf("convert: %w", err)
 		}
 	}
+	for _, i := range writeExtra {
+		perm := fs.FileMode(0o644)
+		if out.Extra[i].Keep {
+			perm = 0o600
+		}
+		if err := writeFileAtomic(root, extra[i], out.Extra[i].Data, perm); err != nil {
+			return nil, fmt.Errorf("convert: %w", err)
+		}
+	}
 	if out.ProjectYAML != nil && !projectExists {
 		if err := writeFileAtomic(root, ProjectFileName, out.ProjectYAML, 0o644); err != nil {
 			return nil, fmt.Errorf("convert: %w", err)
@@ -153,12 +210,45 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 
 // planPaths sanitizes and de-duplicates the relative output path of every
 // generated file, in order, appending "."+ext to each.
-func planPaths(files []GeneratedFile, ext string) []string {
-	used := make(map[string]bool, len(files))
+func planPaths(used map[string]bool, files []GeneratedFile, ext string) []string {
 	out := make([]string, len(files))
 	for i, f := range files {
 		out[i] = uniquePath(used, sanitizePath(f.Path)+"."+ext)
 	}
+	return out
+}
+
+// planExtra checks the path of every extra file and marks it used. A path
+// must already be in the form Write would give it (StubPath builds one), so
+// that files referring to it, such as sonde.yaml, name the file written.
+func planExtra(used map[string]bool, files []RawFile) ([]string, error) {
+	out := make([]string, len(files))
+	for i, f := range files {
+		ext := path.Ext(f.Path)
+		stem := strings.TrimSuffix(f.Path, ext)
+		canonical := sanitizePath(stem) + "." + sanitizeSegment(strings.TrimPrefix(ext, "."))
+		if ext == "" || canonical != f.Path {
+			return nil, fmt.Errorf("convert: extra file path %q is not canonical (want %q)", f.Path, canonical)
+		}
+		if used[f.Path] {
+			return nil, fmt.Errorf("convert: extra file %q planned twice", f.Path)
+		}
+		used[f.Path] = true
+		out[i] = f.Path
+	}
+	return out, nil
+}
+
+// StubPath returns the path of the secrets stub of environment env,
+// "secrets/<env>.secrets" with env sanitized like a path segment, distinct
+// from every path already in used, which it records.
+func StubPath(env string, used map[string]bool) string {
+	return uniquePath(used, "secrets/"+sanitizeSegment(env)+".secrets")
+}
+
+func sorted(s []string) []string {
+	out := append([]string(nil), s...)
+	sort.Strings(out)
 	return out
 }
 
@@ -209,16 +299,23 @@ func sanitizePath(p string) string {
 	return path.Join(segs...)
 }
 
-// sanitizeSegment converts one path segment to a safe, kebab-case ASCII
-// name: lowercased, every run of characters outside [a-z0-9] becomes one
-// '-', leading/trailing '-' are trimmed, "" becomes "request" and a
-// Windows-reserved device name gets a "-file" suffix.
+// maxSegment is the longest sanitized segment, in bytes: file systems
+// limit a name to 255 bytes, and a segment gets an extension and, while
+// written, a temporary suffix.
+const maxSegment = 100
+
+// sanitizeSegment converts one path segment to a safe, kebab-case name:
+// lowercased, every run of characters other than letters and digits
+// becomes one '-', leading/trailing '-' are trimmed, "" becomes "request"
+// and a Windows-reserved device name gets a "-file" suffix. A segment
+// longer than maxSegment bytes is cut and ends with a short hash of the
+// whole.
 func sanitizeSegment(s string) string {
 	var b strings.Builder
 	dash := true // suppress a leading '-'
 	for _, r := range s {
 		r = unicode.ToLower(r)
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			b.WriteRune(r)
 			dash = false
 			continue
@@ -232,6 +329,14 @@ func sanitizeSegment(s string) string {
 	if out == "" {
 		out = "request"
 	}
+	if len(out) > maxSegment {
+		sum := sha256.Sum256([]byte(out))
+		cut := maxSegment - 9
+		for !utf8.RuneStart(out[cut]) {
+			cut--
+		}
+		out = strings.TrimRight(out[:cut], "-") + "-" + hex.EncodeToString(sum[:4])
+	}
 	if reservedNames[out] {
 		out += "-file"
 	}
@@ -239,13 +344,13 @@ func sanitizeSegment(s string) string {
 }
 
 // tempName returns a random hidden file name for an atomic write's
-// temporary file, in the same directory as base (dir is "." for the root).
-func tempName(dir, base string) (string, error) {
+// temporary file, in dir ("." for the root).
+func tempName(dir string) (string, error) {
 	buf := make([]byte, 6)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
-	name := "." + base + ".tmp." + hex.EncodeToString(buf)
+	name := ".sonde-tmp-" + hex.EncodeToString(buf)
 	if dir == "." {
 		return name, nil
 	}
@@ -256,13 +361,13 @@ func tempName(dir, base string) (string, error) {
 // the same directory, renamed into place, so a reader never sees a partial
 // file; parent directories are created as needed (0o755).
 func writeFileAtomic(root *os.Root, rel string, data []byte, perm fs.FileMode) (err error) {
-	dir, base := path.Dir(rel), path.Base(rel)
+	dir := path.Dir(rel)
 	if dir != "." {
 		if err := root.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // G301: output directories are 0o755, docs/guides/import-export.md
 			return fmt.Errorf("%s: %w", rel, err)
 		}
 	}
-	tmp, err := tempName(dir, base)
+	tmp, err := tempName(dir)
 	if err != nil {
 		return fmt.Errorf("%s: %w", rel, err)
 	}

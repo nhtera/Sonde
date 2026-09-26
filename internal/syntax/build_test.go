@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
+	"time"
 )
 
 // decodedLiteral concatenates the decoded value of every TemplateString
@@ -346,5 +347,151 @@ func TestFileBody(t *testing.T) {
 	}
 	if got := decodedLiteral(t, fr.Filename); got != "data/payload.bin" {
 		t.Errorf("filename decoded = %q", got)
+	}
+}
+
+func TestOptionHelpers(t *testing.T) {
+	f, err := BuildFile([]EntrySpec{{
+		Method: "GET",
+		URL:    PlainText("http://localhost/"),
+		Options: []OptionField{
+			BoolOption("insecure", true),
+			IntOption("max-redirs", 5),
+			DurationOption("connect-timeout", 5*time.Second),
+			DurationOption("max-time", 1500*time.Millisecond),
+			StringOption("proxy", PlainText(" host:3128#x")),
+			StringOption("user", Text{Var("user"), Lit(":"), Var("password")}),
+			FilenameOption("cacert", PlainText("my certs/ca.pem")),
+			VariableOption("name", PlainText(`say "hi" {{x}}`)),
+			VariableOption("n", PlainText("true")),
+		},
+	}}, DialectHurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "GET http://localhost/\n[Options]\ninsecure: true\nmax-redirs: 5\nconnect-timeout: 5s\nmax-time: 1500ms\n" +
+		"proxy: \\u{20}host:3128\\#x\nuser: {{user}}:{{password}}\ncacert: my\\ certs/ca.pem\n" +
+		"variable: name=\"say \\\"hi\\\" \\u{7B}{x}}\"\nvariable: n=\"true\"\n"
+	if got := string(Format(f)); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestGraphQLBody(t *testing.T) {
+	tests := []struct {
+		query Text
+		vars  any
+		want  string
+	}{
+		{PlainText("{ me { id } }"), nil, "```graphql\n{ me { id } }\n```"},
+		{Text{Lit("query($id: ID!) { user(id: $id) { name } }\n")}, Members{{Key: "id", Value: Text{Var("user_id")}}},
+			"```graphql\nquery($id: ID!) { user(id: $id) { name } }\nvariables {\"id\": \"{{user_id}}\"}\n```"},
+		{Text{Lit("{ a(x: \""), Var("v"), Lit("\") }")}, map[string]any{}, "```graphql\n{ a(x: \"{{v}}\") }\nvariables {}\n```"},
+		{PlainText("{ a }\nvariables\n"), nil, "{\"query\": \"{ a }\\nvariables\\n\"}"},
+		{PlainText("{ a(x: \"{{\") }"), Members{{Key: "n", Value: float64(1)}}, "{\"query\": \"{ a(x: \\\"\\u007B{\\\") }\", \"variables\": {\"n\": 1}}"},
+	}
+	for _, tt := range tests {
+		body, err := GraphQLBody(tt.query, tt.vars)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f, err := BuildFile([]EntrySpec{{Method: "POST", URL: PlainText("http://x/graphql"), Body: body}}, DialectHurl)
+		if err != nil {
+			t.Fatalf("%v: %v", tt.query, err)
+		}
+		got := strings.TrimSuffix(strings.TrimPrefix(string(Format(f)), "POST http://x/graphql\n"), "\n")
+		if got != tt.want {
+			t.Errorf("GraphQLBody(%v):\ngot  %s\nwant %s", tt.query, got, tt.want)
+		}
+	}
+	if _, err := GraphQLBody(PlainText("{a}"), []any{1.0}); err == nil {
+		t.Error("array variables: no error")
+	}
+}
+
+func TestTextBody(t *testing.T) {
+	tests := []struct {
+		text Text
+		lang string
+		want string
+	}{
+		{Text{Lit("<a>"), Var("x"), Lit("</a>\n")}, "xml", "```xml\n<a>{{x}}</a>\n```"},
+		{Text{Lit("hello "), Var("name"), Lit("\n")}, "", "```\nhello {{name}}\n```"},
+		{Text{Lit("{ a(x: \""), Var("v"), Lit("\") }\n")}, "graphql", "```graphql\n{ a(x: \"{{v}}\") }\n```"},
+		{Text{Lit("lit {{ "), Var("x")}, "xml", "`lit \\u{7B}{ {{x}}`"},
+		{Text{Lit("{"), Var("x"), Lit("}")}, "", "`\\u{7B}{{x}}}`"},
+		{Text{Lit("q\nvariables {}\n")}, "graphql", "`q\\nvariables {}\\n`"},
+		{Text{Lit("a```b")}, "json", "`a\\`\\`\\`b`"},
+	}
+	for _, tt := range tests {
+		f, err := BuildFile([]EntrySpec{{Method: "POST", URL: PlainText("http://x/"), Body: TextBody(tt.text, tt.lang)}}, DialectHurl)
+		if err != nil {
+			t.Fatalf("%v: %v", tt.text, err)
+		}
+		got := strings.TrimSuffix(strings.TrimPrefix(string(Format(f)), "POST http://x/\n"), "\n")
+		if got != tt.want {
+			t.Errorf("TextBody(%v, %q):\ngot  %s\nwant %s", tt.text, tt.lang, got, tt.want)
+		}
+		body := f.Entries[0].Request.Body
+		if body == nil {
+			t.Fatal("no body")
+		}
+	}
+}
+
+// TestBodyBuildersAdversarial checks that no literal text can break a
+// body out of its string or turn into a live placeholder.
+func TestBodyBuildersAdversarial(t *testing.T) {
+	texts := []Text{
+		{Lit("see `x`")},
+		{Lit("``"), Lit("`x")},
+		{Lit("{"), Lit("{x}}")},
+		{Lit("a{"), Var("v"), Lit("`")},
+		{Lit("line\r\nvariables {}\n"), Var("v")},
+		{Lit("nul\x00byte`")},
+		{Lit("```")},
+		{Lit("`")},
+	}
+	for _, text := range texts {
+		for _, lang := range []string{"", "json", "xml", "graphql"} {
+			bodies := []*BodySpec{TextBody(text, lang)}
+			if g, err := GraphQLBody(text, Members{{Key: "a", Value: Text{Var("w")}}}); err == nil {
+				bodies = append(bodies, g)
+			} else {
+				t.Errorf("GraphQLBody(%v): %v", text, err)
+			}
+			for _, body := range bodies {
+				f, err := BuildFile([]EntrySpec{{Method: "POST", URL: PlainText("http://x/"), Body: body}}, DialectHurl)
+				if err != nil {
+					t.Errorf("%v, %q: %v", text, lang, err)
+					continue
+				}
+				// Only the placeholders of text (and the variables' w)
+				// may be live.
+				src := string(Format(f))
+				for _, name := range []string{"x"} {
+					if strings.Contains(src, "{{"+name+"}}") {
+						t.Errorf("%v, %q: literal became a live placeholder:\n%s", text, lang, src)
+					}
+				}
+			}
+		}
+	}
+	if b := TextBody(Text{Lit("\xff\xfe")}, ""); !strings.HasPrefix(b.src, "base64,") {
+		t.Errorf("invalid UTF-8 body = %s, want base64", b.src)
+	}
+	if b := RawTextBody("ends with `", "xml"); b.src[0] != '`' {
+		t.Errorf("RawTextBody trailing backtick = %s", b.src)
+	}
+}
+
+func TestBuildFileRejectsBadMethod(t *testing.T) {
+	for _, m := range []string{"", "GET x\nGET", "GET x", "PO{ST"} {
+		if _, err := BuildFile([]EntrySpec{{Method: m, URL: PlainText("http://x/")}}, DialectHurl); err == nil {
+			t.Errorf("method %q: no error", m)
+		}
+	}
+	if _, err := BuildFile([]EntrySpec{{Method: "PROPFIND", URL: PlainText("http://x/")}}, DialectHurl); err != nil {
+		t.Errorf("PROPFIND: %v", err)
 	}
 }

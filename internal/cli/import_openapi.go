@@ -12,7 +12,6 @@ import (
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/convert"
 	"github.com/nhtera/sonde/internal/openapi"
-	"github.com/nhtera/sonde/internal/syntax"
 )
 
 func init() {
@@ -33,19 +32,17 @@ func init() {
 // a sonde.yaml whose default environment sets the base URL and the path
 // parameters; it names the spec as the project's contract when the spec
 // lies inside the output directory.
-func importOpenAPI(cmd *cobra.Command, input string) (convert.Output, error) {
+func importOpenAPI(cmd *cobra.Command, input string, opts convert.Options) (convert.Output, error) {
 	f := cmd.Flags()
 	group, _ := f.GetString("group")
 	baseVar, _ := f.GetString("base-url-var")
 	remote, _ := f.GetBool("openapi-allow-remote")
-	ext, _ := f.GetString("ext")
-	dir, _ := f.GetString("output")
 
 	spec, err := openapi.Load(cmd.Context(), input, openapi.LoadOptions{AllowRemote: remote})
 	if err != nil {
 		return convert.Output{}, err
 	}
-	gen, err := spec.Generate(openapi.GenerateOptions{Group: group, BaseURLVar: baseVar, Dialect: syntax.DialectFor("x." + ext)})
+	gen, err := spec.Generate(openapi.GenerateOptions{Group: group, BaseURLVar: baseVar, Dialect: opts.Dialect()})
 	if err != nil {
 		return convert.Output{}, err
 	}
@@ -62,7 +59,7 @@ func importOpenAPI(cmd *cobra.Command, input string) (convert.Output, error) {
 	skeleton := config.ProjectSkeleton{
 		Environments: map[string]config.EnvironmentSkeleton{"default": {Variables: gen.Variables}},
 		DefaultEnv:   "default",
-		OpenAPISpec:  specInside(dir, input),
+		OpenAPISpec:  specInside(opts.Output, input),
 	}
 	if out.ProjectYAML, err = config.EmitProject(skeleton); err != nil {
 		return convert.Output{}, err

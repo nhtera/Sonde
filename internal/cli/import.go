@@ -27,9 +27,10 @@ type importKind struct {
 	// shared convert.Options flags newImportCmd already registers.
 	RegisterFlags func(cmd *cobra.Command)
 	// Run converts input (the command's INPUT argument) to a
-	// convert.Output. Any error it returns is a usage error (unreadable
-	// input, or a bad flag value only this kind understands).
-	Run func(cmd *cobra.Command, input string) (convert.Output, error)
+	// convert.Output; opts are the shared flags. Any error it returns is a
+	// usage error (unreadable input, or a bad flag value only this kind
+	// understands).
+	Run func(cmd *cobra.Command, input string, opts convert.Options) (convert.Output, error)
 }
 
 // importKinds is the registry registerImportKind fills; newImportCmd reads
@@ -114,7 +115,7 @@ func newImportKindCmd(k importKind) *cobra.Command {
 // (ExitUsage) for an unreadable input or a bad flag, or for a write
 // conflict without --force.
 func runImportKind(cmd *cobra.Command, k importKind, input string, opts *convert.Options) error {
-	out, err := k.Run(cmd, input)
+	out, err := k.Run(cmd, input, *opts)
 	if err != nil {
 		return NewExitError(ExitUsage, err)
 	}
@@ -128,4 +129,13 @@ func runImportKind(cmd *cobra.Command, k importKind, input string, opts *convert
 	}
 	convert.Summarize(cmd.ErrOrStderr(), out, res)
 	return nil
+}
+
+// readImportInput reads an importer's INPUT: a file, or stdin for "-", at
+// most convert.MaxInput bytes.
+func readImportInput(cmd *cobra.Command, input string) ([]byte, error) {
+	if input == "-" {
+		return convert.ReadLimited(cmd.InOrStdin(), "standard input", convert.MaxInput)
+	}
+	return convert.ReadInput(input, convert.MaxInput)
 }

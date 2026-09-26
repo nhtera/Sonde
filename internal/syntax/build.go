@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -190,6 +191,11 @@ var (
 		safe: controlSafe(`"`), short: controlShort(map[rune]string{'"': `\"`}),
 		pairBraces: true, unicodeEscape: writeJSONUnicode,
 	}
+	// quotedEscaper is used for quoted strings ("...").
+	quotedEscaper = escaper{
+		safe: controlSafe(`"`), short: controlShort(map[rune]string{'"': `\"`}),
+		pairBraces: true,
+	}
 	// backtickEscaper is used for the oneline backtick body fallback.
 	backtickEscaper = escaper{
 		safe: controlSafe("`"), short: controlShort(map[rune]string{'`': "\\`"}),
@@ -275,10 +281,54 @@ func writeMultipart(b *strings.Builder, m MultipartField) {
 type BasicAuth struct{ User, Password Text }
 
 // OptionField is one line in [Options]. Name is the option's grammar name
-// (e.g. "compressed", "retry", "variable"); RawValue is its already
-// formatted literal (e.g. "true", "3", "500ms", `foo="bar"`) since the
-// option shapes are too varied to model individually here.
+// (e.g. "compressed", "retry", "variable"); RawValue is its source text,
+// written as is. Build one with BoolOption, IntOption, DurationOption,
+// StringOption, FilenameOption or VariableOption, which escape the value.
 type OptionField struct{ Name, RawValue string }
+
+// BoolOption is a boolean option, e.g. `insecure: true`.
+func BoolOption(name string, v bool) OptionField {
+	return OptionField{name, strconv.FormatBool(v)}
+}
+
+// IntOption is an integer option, e.g. `max-redirs: 5`.
+func IntOption(name string, n int64) OptionField {
+	return OptionField{name, strconv.FormatInt(n, 10)}
+}
+
+// DurationOption is a duration option, in seconds when d is whole seconds
+// and in milliseconds otherwise, e.g. `connect-timeout: 5s`.
+func DurationOption(name string, d time.Duration) OptionField {
+	if d%time.Second == 0 {
+		return OptionField{name, strconv.FormatInt(int64(d/time.Second), 10) + "s"}
+	}
+	return OptionField{name, strconv.FormatInt(d.Milliseconds(), 10) + "ms"}
+}
+
+// StringOption is a string option, e.g. `proxy: localhost:3128`.
+func StringOption(name string, v Text) OptionField {
+	var b strings.Builder
+	unquotedEscaper.write(&b, v)
+	return OptionField{name, b.String()}
+}
+
+// FilenameOption is a file name option, e.g. `cacert: ca.pem`.
+func FilenameOption(name string, path Text) OptionField {
+	var b strings.Builder
+	filenameEscaper.write(&b, path)
+	return OptionField{name, b.String()}
+}
+
+// VariableOption is a `variable: name="value"` option; the value is always
+// a string.
+func VariableOption(name string, v Text) OptionField {
+	var b strings.Builder
+	b.WriteString(name)
+	b.WriteString("=\"")
+	quotedEscaper.write(&b, v)
+	b.WriteByte('"')
+	return OptionField{"variable", b.String()}
+}
 
 // BodySpec is a request or response body, already rendered to its literal
 // source form.
@@ -394,30 +444,121 @@ func RawTextBody(text, lang string) *BodySpec {
 	if !utf8.ValidString(text) {
 		return BytesBody([]byte(text))
 	}
-	templated := lang != ""
-	unsafe := strings.Contains(text, "```") ||
-		(templated && strings.Contains(text, "{{")) ||
-		(lang == "graphql" && (text == "variables" || strings.HasPrefix(text, "variables") &&
-			(len(text) == len("variables") || !isNameChar(rune(text[len("variables")]))) ||
-			strings.Contains(text, "\nvariables")))
-	if !unsafe {
+	if !multilineUnsafe(text, lang != "", lang) {
 		hint := lang
 		if hint == "" {
 			hint = "raw"
 		}
-		var b strings.Builder
-		b.WriteString("```")
-		b.WriteString(hint)
-		b.WriteByte('\n')
-		b.WriteString(text)
-		b.WriteString("```")
-		return &BodySpec{src: b.String()}
+		return &BodySpec{src: "```" + hint + "\n" + text + "```"}
 	}
 	var b strings.Builder
 	b.WriteByte('`')
 	backtickEscaper.write(&b, PlainText(text))
 	b.WriteByte('`')
 	return &BodySpec{src: b.String()}
+}
+
+// varMark stands for a placeholder in the flattened text multilineUnsafe
+// checks.
+const varMark = "\x00"
+
+// flatten returns t's literal text with every placeholder replaced by
+// varMark, and its source form with placeholders written as {{name}}.
+func flatten(t Text) (flat, src string) {
+	var f, b strings.Builder
+	for _, e := range t {
+		if e.isVar {
+			f.WriteString(varMark)
+			b.WriteString("{{" + e.name + "}}")
+			continue
+		}
+		f.WriteString(e.lit)
+		b.WriteString(e.lit)
+	}
+	return f.String(), b.String()
+}
+
+// multilineUnsafe reports whether flat, written between ```lang and ```,
+// could be misread: a fence, a trailing backtick (it would join the closing
+// fence), and, when templated, a literal "{{" or a literal '{' right before
+// a placeholder; for graphql, a line starting with "variables". flat holds
+// varMark for each placeholder.
+func multilineUnsafe(flat string, templated bool, lang string) bool {
+	if strings.Contains(flat, "```") || strings.HasSuffix(flat, "`") {
+		return true
+	}
+	if templated && (strings.Contains(flat, "{{") || strings.Contains(flat, "{"+varMark)) {
+		return true
+	}
+	if lang == "graphql" {
+		for line := range strings.SplitSeq(flat, "\n") {
+			if strings.HasPrefix(line, "variables") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// TextBody builds a templated body from t, whose placeholders stay live:
+// a ```lang``` multiline string (lang is "", "json", "xml" or "graphql"),
+// or a oneline backtick string when the literal parts could be misread
+// there. Text that is not valid UTF-8 and holds no placeholder becomes a
+// base64 body.
+func TextBody(t Text, lang string) *BodySpec {
+	flat, src := flatten(t)
+	if !utf8.ValidString(flat) && !strings.Contains(flat, varMark) {
+		return BytesBody([]byte(flat))
+	}
+	if utf8.ValidString(flat) && !multilineUnsafe(flat, true, lang) {
+		return &BodySpec{src: "```" + lang + "\n" + src + "```"}
+	}
+	var b strings.Builder
+	b.WriteByte('`')
+	backtickEscaper.write(&b, t)
+	b.WriteByte('`')
+	return &BodySpec{src: b.String()}
+}
+
+// GraphQLBody builds a ```graphql``` body from query, with a trailing
+// `variables` object when variables is non-nil (Members or map[string]any,
+// nested as JSONBody accepts). When query can't be written in that form,
+// it falls back to the equivalent JSON body {"query": ..., "variables":
+// ...}, which is what a GraphQL body sends.
+func GraphQLBody(query Text, variables any) (*BodySpec, error) {
+	var vars strings.Builder
+	if variables != nil {
+		switch variables.(type) {
+		case Members, map[string]any:
+		default:
+			return nil, fmt.Errorf("syntax: GraphQL variables must be an object, got %T", variables)
+		}
+		if err := writeJSONValue(&vars, variables); err != nil {
+			return nil, err
+		}
+	}
+	flat, src := flatten(query)
+	if flat != "" && !strings.HasSuffix(flat, "\n") {
+		flat += "\n"
+		src += "\n"
+	}
+	if !utf8.ValidString(flat) || multilineUnsafe(flat, true, "graphql") {
+		m := Members{{Key: "query", Value: query}}
+		if variables != nil {
+			m = append(m, Member{Key: "variables", Value: variables})
+		}
+		return JSONBody(m)
+	}
+	var b strings.Builder
+	b.WriteString("```graphql\n")
+	b.WriteString(src)
+	if variables != nil {
+		b.WriteString("variables ")
+		b.WriteString(vars.String())
+		b.WriteByte('\n')
+	}
+	b.WriteString("```")
+	return &BodySpec{src: b.String()}, nil
 }
 
 // FileBody is a `file,path;` body.
@@ -462,18 +603,23 @@ type EntrySpec struct {
 func BuildFile(entries []EntrySpec, d Dialect) (*File, error) {
 	var b strings.Builder
 	for i, e := range entries {
+		if !methodRE.MatchString(e.Method) {
+			return nil, fmt.Errorf("syntax: invalid method %q", e.Method)
+		}
 		if i > 0 {
 			b.WriteByte('\n')
 		}
 		writeEntry(&b, e)
 	}
-	src := b.String()
-	f, err := Parse("<build>", []byte(src), d)
+	f, err := Parse("<build>", []byte(b.String()), d)
 	if err != nil {
-		return nil, fmt.Errorf("syntax: BuildFile produced invalid source: %w\n%s", err, src)
+		return nil, fmt.Errorf("syntax: BuildFile produced invalid source: %w", err)
 	}
 	return f, nil
 }
+
+// methodRE is an HTTP method token.
+var methodRE = regexp.MustCompile("^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 
 func writeEntry(b *strings.Builder, e EntrySpec) {
 	for _, c := range e.Comments {

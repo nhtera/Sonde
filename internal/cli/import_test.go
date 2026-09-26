@@ -33,7 +33,7 @@ func registerFakeImportKind(t *testing.T) {
 			RegisterFlags: func(cmd *cobra.Command) {
 				cmd.Flags().Bool("fail", false, "make Run fail, for testing")
 			},
-			Run: func(cmd *cobra.Command, input string) (convert.Output, error) {
+			Run: func(cmd *cobra.Command, input string, _ convert.Options) (convert.Output, error) {
 				if fail, _ := cmd.Flags().GetBool("fail"); fail {
 					return convert.Output{}, errFakeImport
 				}
@@ -174,5 +174,20 @@ func TestImportDryRun(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "widgets.hurl")); err == nil {
 		t.Error("dry run should not have written widgets.hurl")
+	}
+}
+
+func TestReadImportInput(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader("curl http://x"))
+	if got, err := readImportInput(cmd, "-"); err != nil || string(got) != "curl http://x" {
+		t.Errorf("stdin = %q, %v", got, err)
+	}
+	dir := t.TempDir()
+	if _, err := readImportInput(cmd, dir); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Errorf("directory err = %v", err)
+	}
+	if _, err := readImportInput(cmd, filepath.Join(dir, "missing")); err == nil {
+		t.Error("missing file: no error")
 	}
 }

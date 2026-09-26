@@ -7,14 +7,37 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
+	"strings"
+	"unicode"
 )
 
 // Warning is a non-fatal note about the conversion, grouped by Kind in the
-// summary (e.g. "unsupported-auth", "renamed-file").
+// summary. Importers use the Warn* kinds below where one fits, so users can
+// grep the same kind across formats.
 type Warning struct {
 	Kind    string
 	Message string
 }
+
+// Warning kinds shared by the importers.
+const (
+	// WarnUnsupportedAuth: an auth scheme with no Sonde equivalent.
+	WarnUnsupportedAuth = "unsupported-auth"
+	// WarnUnsupportedBody: a body left out or reduced.
+	WarnUnsupportedBody = "unsupported-body"
+	// WarnUnsupportedOption: an option or flag with no Sonde equivalent.
+	WarnUnsupportedOption = "unsupported-option"
+	// WarnScript: a script kept as a comment, never run.
+	WarnScript = "script"
+	// WarnDynamicVariable: a dynamic variable with no Sonde function.
+	WarnDynamicVariable = "dynamic-variable"
+	// WarnSecret: a secret value left out of the output.
+	WarnSecret = "secret"
+	// WarnUnsupported: any other item that could not be converted
+	// faithfully.
+	WarnUnsupported = "unsupported"
+)
 
 // Skipped is an input item an importer chose not to convert, and why.
 type Skipped struct {
@@ -35,6 +58,12 @@ func Summarize(w io.Writer, out Output, res *Result) {
 	for _, f := range res.Files {
 		fmt.Fprintf(w, "  %s\n", f)
 	}
+	for _, f := range res.Extra {
+		fmt.Fprintf(w, "%s %s\n", verb, f)
+	}
+	for _, f := range res.ExtraKept {
+		fmt.Fprintf(w, "%s: already exists, left untouched\n", f)
+	}
 	switch {
 	case res.Project != "":
 		fmt.Fprintf(w, "%s %s\n", verb, res.Project)
@@ -47,7 +76,7 @@ func Summarize(w io.Writer, out Output, res *Result) {
 		skipped := append([]Skipped(nil), out.Skipped...)
 		sort.Slice(skipped, func(i, j int) bool { return skipped[i].Name < skipped[j].Name })
 		for _, s := range skipped {
-			fmt.Fprintf(w, "  %s: %s\n", s.Name, s.Reason)
+			fmt.Fprintf(w, "  %s: %s\n", printable(s.Name), printable(s.Reason))
 		}
 	}
 
@@ -67,8 +96,18 @@ func Summarize(w io.Writer, out Output, res *Result) {
 			sort.Strings(msgs)
 			fmt.Fprintf(w, "  %s:\n", k)
 			for _, m := range msgs {
-				fmt.Fprintf(w, "    %s\n", m)
+				fmt.Fprintf(w, "    %s\n", printable(m))
 			}
 		}
 	}
+}
+
+// printable quotes the control characters of s, which may come from the
+// input, so they can't drive the terminal.
+func printable(s string) string {
+	if !strings.ContainsFunc(s, unicode.IsControl) {
+		return s
+	}
+	q := strconv.Quote(s)
+	return q[1 : len(q)-1]
 }
