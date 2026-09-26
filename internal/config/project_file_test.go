@@ -213,15 +213,48 @@ func TestLoadProjectPathEscapeSymlink(t *testing.T) {
 	}
 }
 
-func TestLoadProjectOpenAPIReservedIgnored(t *testing.T) {
+func TestLoadProjectOpenAPI(t *testing.T) {
 	dir := t.TempDir()
-	writeProjectFile(t, dir, "version: 1\nopenapi:\n  spec: openapi.yaml\n")
+	writeProjectFile(t, dir, "version: 1\nopenapi:\n  spec: api/openapi.yaml\n  server: http://localhost:3000/v1\n  strict: true\n"+
+		"  exclude_operations: [\"GET /health\"]\n  exclude_files: [\"legacy/**/*.hurl\"]\n")
 	p, err := LoadProject(filepath.Join(dir, ProjectFileName))
 	if err != nil {
-		t.Fatalf("openapi: should be accepted and ignored, got %v", err)
+		t.Fatal(err)
 	}
-	if p.Version != 1 {
-		t.Errorf("Version = %d, want 1", p.Version)
+	o := p.OpenAPI
+	if o == nil || !filepath.IsAbs(o.Spec) || !strings.HasSuffix(o.Spec, filepath.Join("api", "openapi.yaml")) ||
+		o.Server != "http://localhost:3000/v1" || !o.Strict || len(o.ExcludeOperations) != 1 {
+		t.Fatalf("OpenAPI = %+v", o)
+	}
+	for file, want := range map[string]bool{
+		"legacy/a.hurl":        true,
+		"legacy/x/y/b.hurl":    true,
+		"legacy/a.sonde":       false,
+		"api/legacy/a.hurl":    false,
+		"../outside/a.hurl":    false,
+		"legacy/sub/deep.hurl": true,
+	} {
+		if got := o.ExcludesFile(dir, filepath.Join(dir, file)); got != want {
+			t.Errorf("ExcludesFile(%s) = %v", file, got)
+		}
+	}
+}
+
+func TestLoadProjectOpenAPIErrors(t *testing.T) {
+	for _, tc := range []struct{ yaml, want string }{
+		{"openapi:\n  server: x\n", "openapi.spec is required"},
+		{"openapi:\n  spec: https://example.com/openapi.yaml\n", "only be given on the command line"},
+		{"openapi:\n  spec: ../openapi.yaml\n", "openapi.spec"},
+		{"openapi:\n  spec: /etc/openapi.yaml\n", "must be a relative path"},
+		{"openapi:\n  spec: a.yaml\n  exclude_operations: [\"health\"]\n", "must be a method and a path"},
+		{"openapi:\n  spec: a.yaml\n  exclude_files: [\"[\"]\n", "exclude_files"},
+		{"openapi:\n  spec: a.yaml\n  allow_remote: true\n", "allow_remote"},
+	} {
+		dir := t.TempDir()
+		writeProjectFile(t, dir, "version: 1\n"+tc.yaml)
+		if _, err := LoadProject(filepath.Join(dir, ProjectFileName)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%q: error %v, want %q", tc.yaml, err, tc.want)
+		}
 	}
 }
 
@@ -404,4 +437,15 @@ func TestProjectCacheFindProjectConcurrent(t *testing.T) {
 		}
 	}
 	wg.Wait()
+}
+
+func TestOpenAPIExcludesFileRelativeDir(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	o := &OpenAPI{ExcludeFiles: []string{"legacy/*.hurl"}}
+	for _, file := range []string{"legacy/a.hurl", filepath.Join(dir, "legacy/a.hurl")} {
+		if !o.ExcludesFile(".", file) {
+			t.Errorf("ExcludesFile(., %s) = false", file)
+		}
+	}
 }

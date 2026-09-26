@@ -44,6 +44,8 @@ type Project struct {
 	Environments map[string]Environment
 	// Defaults holds "defaults:".
 	Defaults Defaults
+	// OpenAPI holds "openapi:" (nil when absent).
+	OpenAPI *OpenAPI
 }
 
 // Environment is one "environments:<name>:" entry.
@@ -67,13 +69,12 @@ type Defaults struct {
 }
 
 // projectFileYAML is the strict decoding shape of a sonde.yaml document.
-// Every field it does not list is an unknown-key error; "openapi" is
-// listed so it is accepted (and ignored: reserved for Phase 7).
+// Every field it does not list is an unknown-key error.
 type projectFileYAML struct {
 	Version      int                        `yaml:"version"`
 	Environments map[string]environmentYAML `yaml:"environments"`
 	Defaults     defaultsYAML               `yaml:"defaults"`
-	OpenAPI      yaml.Node                  `yaml:"openapi"`
+	OpenAPI      *openAPIYAML               `yaml:"openapi"`
 }
 
 type environmentYAML struct {
@@ -172,12 +173,18 @@ func LoadProject(path string) (*Project, error) {
 		environments[name] = env
 	}
 
+	openAPI, err := buildOpenAPI(root, raw.OpenAPI)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+
 	return &Project{
 		Path:         path,
 		Dir:          dir,
 		Version:      raw.Version,
 		Environments: environments,
 		Defaults:     Defaults{Env: raw.Defaults.Env, Jobs: jobs},
+		OpenAPI:      openAPI,
 	}, nil
 }
 
