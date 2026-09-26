@@ -1,0 +1,7 @@
+== get-pets-id
+GET {{base_url}}/pets/{{id}}
+HTTP 200
+== variables
+base_url=http://localhost/api
+id=1
+warning server: the first server "/api" is relative: base_url is http://localhost/api

@@ -124,7 +124,7 @@ type Options struct {
 	Secrets         map[string]string // registered in the run's redact registry
 	FileRoot        string            // CLI-only; default: dir of each file
 	HTTP            HTTPOptions       // global defaults; per-entry [Options] override
-	Validator       ResponseValidator // Phase 7 (OpenAPI contract); nil = off
+	Validator       ResponseValidator // OpenAPI contract, checked after explicit asserts (skipped by NoAssert); nil = off
 	OnEvent         func(Event)       // RunFile/RunSource; RunAll uses Hooks
 	Retry           int               // -1 = unlimited
 	RetryInterval   time.Duration
@@ -136,13 +136,19 @@ type Options struct {
 
 type HTTPOptions struct { /* all Hurl request options: TLS, proxy, resolve, connect-to, protocols, timeouts, redirects, compression, netrc, limit-rate, max-filesize … (list owned by docs/compat.md) */ }
 
+// One validator serves every unit of a run (safe for concurrent use);
+// Job.Validator replaces Options.Validator for one job (NoContract: none).
 type ResponseValidator interface {
 	ValidateResponse(ctx context.Context, req *exchange.Request, resp *exchange.Response) []Violation
 }
-type Violation struct{ SpecPointer, InstancePath, Message string }
+type Violation struct {
+	Kind ViolationKind // unmatched, status, header, content-type, body, error
+	Operation, SpecPointer, InstancePath, Message string
+	Warning bool // does not fail the entry (unmatched operation outside strict mode)
+}
 ```
 
-Events: `Log` (level, text, colored text), `EntryStarted`, `EntryFinished` (carries the raw `*EntryResult`). Log texts are redacted; results hold raw values, and every sink redacts them with `UnitResult.Redact` (`Runner.Redact` suffices without data rows; the final secret union for run-level sinks). Per-unit parse/runtime errors live in `UnitResult` and never cancel other units; results are handed to `Hooks.Finished` and not retained by the runner.
+Events: `Log` (level, text, colored text), `EntryStarted`, `ContractEvaluated` (entry index, raw violations), `EntryFinished` (carries the raw `*EntryResult`). Log texts are redacted; results hold raw values, and every sink redacts them with `UnitResult.Redact` (`Runner.Redact` suffices without data rows; the final secret union for run-level sinks). Per-unit parse/runtime errors live in `UnitResult` and never cancel other units; results are handed to `Hooks.Finished` and not retained by the runner.
 
 API stability: pre-1.0 may change; from v1.0 `engine` + `exchange` follow semver, checked by `apidiff` in CI (Phase 10).
 
@@ -166,8 +172,9 @@ Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-com
 ### CLI commands (implemented)
 | Command | Behavior | Exit codes |
 |---|---|---|
-| `sonde [options] FILE...`, `sonde run [options] FILE...` | runs request files like `hurl [options] FILE...` (no FILE: stdin; a directory: its `.hurl`/`.sonde` files; `--glob`); stdout = last response body (`-i`, `--pretty`, `-o`, `--no-output`) or one JSON result per file (`--json`); `--test` prints a per-file line and a summary to stderr; runtime errors rendered as Hurl does; `--data FILE` runs each file once per CSV/JSON row (`--data-secret COL`), labeled `<file>#row-N`; a bad data file → 1 | 0; 1 (usage, missing input); 2 (parse error, stops the run); 3 (runtime error in any file); 4 (assert failures only); 127; 130 |
+| `sonde [options] FILE...`, `sonde run [options] FILE...` | runs request files like `hurl [options] FILE...` (no FILE: stdin; a directory: its `.hurl`/`.sonde` files; `--glob`); stdout = last response body (`-i`, `--pretty`, `-o`, `--no-output`) or one JSON result per file (`--json`); `--test` prints a per-file line and a summary to stderr; runtime errors rendered as Hurl does; `--data FILE` runs each file once per CSV/JSON row (`--data-secret COL`), labeled `<file>#row-N`; a bad data file → 1; `--openapi SPEC` (`--openapi-server`, `--openapi-strict`, `--openapi-allow-remote`, or `sonde.yaml` `openapi:`) validates every final response, a violation is an assert failure, an unloadable spec → 1 | 0; 1 (usage, missing input); 2 (parse error, stops the run); 3 (runtime error in any file); 4 (assert failures only); 127; 130 |
 | `sonde version` | version, commit, build date, Go version | 0 |
+| `sonde import openapi SPEC -o DIR` | one request file per operation (`--group tag\|path\|flat`, `--base-url-var`, `--ext`, `--force`, `--dry-run`) and a `sonde.yaml` skeleton (never overwritten); summary on stderr; see `docs/guides/import-export.md` | 0 (warnings included); 1 (unreadable spec, bad flag, existing files without `--force`) |
 | `sonde check FILE...` | parses every file; prints the first syntax error of each invalid file in Hurl's format (`error: Parsing …` snippet with caret) to stderr | 0, 2 (any invalid or unreadable file) |
 | `sonde fmt FILE...` | canonical layout to stdout; `-w/--write` rewrites in place atomically (temp file + rename, mode kept); `--check` lists unformatted files on stdout | 0; 1 (`--check` found unformatted files); 2 (parse/read error, wins over 1); 127 (write failed) |
 
@@ -223,7 +230,7 @@ Owner: `docs/sonde-yaml.md` (Phase 5) — the only place keys are defined; stric
 | YAML (`sonde.yaml`, OpenCollection) | `go.yaml.in/yaml/v3` (yaml/go-yaml) | Apache-2.0 / MIT |
 | Parallelism | `golang.org/x/sync/semaphore` (no errgroup cancel-on-error) | BSD-3 |
 | Public suffix / charsets / rate / term | `golang.org/x/net/publicsuffix`, `x/text`, `x/time/rate`, `x/term` | BSD-3 |
-| OpenAPI (spike decides) | `github.com/pb33f/libopenapi` + `libopenapi-validator` **or** `github.com/getkin/kin-openapi` | MIT |
+| OpenAPI 3.0/3.1, Swagger 2.0 conversion | `github.com/getkin/kin-openapi` ([decision 0001](decisions/0001-openapi-library.md)) | MIT |
 | Shell words (curl import) | `github.com/mattn/go-shellwords` | MIT (`google/shlex` archived — rejected) |
 | LSP types | `go.lsp.dev/protocol` (go-language-server/protocol) | BSD-3 (`tliron/glsp` stale since 2025-06 — rejected) |
 | WebSocket (post-v1) | `github.com/coder/websocket` | ISC |
@@ -276,7 +283,7 @@ Assets: secrets (tokens, passwords), local files, user's ambient credentials (`~
 | Malicious import input | parsers fuzzed; no code execution (scripts → comments); size limits; output confined to `-o DIR` |
 | Decompression bombs / huge bodies | decoded body cap (512 MiB default), stream limits |
 | XSS in HTML report | `html/template`, bodies as escaped text, strict CSP, no remote assets |
-| OpenAPI remote specs / `$ref` (SSRF, local file read) | single opt-in `--openapi-allow-remote`; fetching owned by `internal/openapi` |
+| OpenAPI remote specs / `$ref` (SSRF, local file read) | single CLI-only opt-in `--openapi-allow-remote` (`sonde.yaml` cannot enable it, its `openapi.spec` stays inside its directory); file `$ref`s confined to the spec's directory (`os.Root`, regular files only); schemas validated without the JSON Schema 2020 compiler, so `$schema`/`$dynamicRef` never trigger reads; 64 MiB per document; library panics on malformed specs recovered; loader fuzzed (`FuzzLoad`); fetching owned by `internal/openapi` |
 | MCP agent misuse (post-v1) | `run` off by default, project-root sandbox, host allowlist, redaction, audit log |
 | Supply chain | minimal deps, `govulncheck`, `go-licenses`, Actions pinned by SHA, conformance CI without secrets (`contents: read`), Python deps `--require-hashes`, extension lockfile + `npm audit`, signed releases + SBOM, publish tokens only in protected `release` environment |
 

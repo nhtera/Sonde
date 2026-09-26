@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info: {title: Escaping ref, version: "1"}
+paths:
+  /x:
+    get:
+      responses:
+        "200":
+          description: x
+          content:
+            application/json:
+              schema: {$ref: "../petstore-3.0.yaml#/components/schemas/Pet"}

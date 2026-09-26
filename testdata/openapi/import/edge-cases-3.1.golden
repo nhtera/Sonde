@@ -1,0 +1,20 @@
+== status/get-status
+# getStatus
+# Plain text health check
+GET {{base_url}}/status
+HTTP 200
+== events/get-event
+# getEvent
+# Get an event, polymorphic on kind via discriminator
+GET {{base_url}}/events/{{eventId}}
+HTTP 200
+== orgs/get-repo
+# getRepo
+# Get a repository, demonstrating two path params and mixed schema features
+GET {{base_url}}/orgs/{{org}}/repos/{{repo}}
+HTTP 200
+== variables
+base_url=https://api.example.com/v2
+eventId=00000000-0000-4000-8000-000000000000
+org=string
+repo=string

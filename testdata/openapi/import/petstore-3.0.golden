@@ -1,0 +1,31 @@
+== list-my-pets
+# listMyPets
+# List the caller's own pets (literal path, overlaps /pets/{petId})
+GET {{base_url}}/pets/mine
+Authorization: Bearer {{token}}
+HTTP 200
+== list-pets
+# listPets
+# List pets
+GET {{base_url}}/pets
+HTTP 200
+== create-pet
+# createPet
+# Create a pet
+POST {{base_url}}/pets
+{"id": 1, "name": "string"}
+HTTP 201
+== delete-pet
+# deletePet
+# Delete a pet by id
+DELETE {{base_url}}/pets/{{petId}}
+HTTP 204
+== get-pet
+# getPet
+# Get a pet by id
+GET {{base_url}}/pets/{{petId}}
+HTTP 200
+== variables
+base_url=https://api.example.com/v1
+petId=1
+warning auth: set the token variable (a secret: --secret token=...)

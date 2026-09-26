@@ -67,7 +67,29 @@ type Entry struct {
 	CurlCmd  string    `json:"curl_cmd"`
 	Index    int       `json:"index"`
 	Line     int       `json:"line"`
-	Time     int64     `json:"time"` // milliseconds
+	// Sonde holds data without an upstream equivalent; absent otherwise.
+	Sonde *EntrySonde `json:"sonde,omitempty"`
+	Time  int64       `json:"time"` // milliseconds
+}
+
+// EntrySonde is the `sonde` object of an entry.
+type EntrySonde struct {
+	Contract *Contract `json:"contract,omitempty"`
+}
+
+// Contract holds the contract findings of an attempt's final response.
+type Contract struct {
+	Violations []Violation `json:"violations"`
+}
+
+// Violation is a response not conforming to the contract (--openapi).
+type Violation struct {
+	InstancePath string `json:"instance_path,omitempty"`
+	Kind         string `json:"kind"`
+	Message      string `json:"message"`
+	Operation    string `json:"operation,omitempty"`
+	SpecPointer  string `json:"spec_pointer,omitempty"`
+	Warning      bool   `json:"warning,omitempty"`
 }
 
 // Assert is the outcome of one assert (implicit or explicit).
@@ -221,6 +243,16 @@ func toEntry(res *engine.UnitResult, e *engine.EntryResult, redact func(string) 
 	}
 	if je.Asserts == nil {
 		je.Asserts = []Assert{}
+	}
+	if len(e.Violations) > 0 {
+		c := &Contract{}
+		for _, v := range e.Violations {
+			c.Violations = append(c.Violations, Violation{
+				InstancePath: redact(v.InstancePath), Kind: string(v.Kind), Message: redact(v.Message),
+				Operation: redact(v.Operation), SpecPointer: redact(v.SpecPointer), Warning: v.Warning,
+			})
+		}
+		je.Sonde = &EntrySonde{Contract: c}
 	}
 	return je, nil
 }

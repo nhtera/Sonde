@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info: {title: Split spec, version: "1"}
+paths:
+  /items/{id}:
+    get:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: An item
+          content:
+            application/json:
+              schema: {$ref: "schemas/item.yaml"}

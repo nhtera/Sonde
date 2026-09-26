@@ -94,6 +94,10 @@ type EntryResult struct {
 	Calls    []Call
 	Captures []Capture
 	Asserts  []Assert
+	// Violations are the contract findings of the final response (see
+	// Options.Validator): those that are not warnings also appear in
+	// Asserts, located at the status line.
+	Violations []Violation
 	// Errors are the errors of this attempt; an error with Assert set is an
 	// assert failure.
 	Errors           []*runerr.Error

@@ -86,6 +86,9 @@ const (
 	FileWriteAccess
 	// BinaryOutput: no field.
 	BinaryOutput
+	// ContractViolation: Reason, Name (instance path, optional), Value
+	// (spec pointer, optional).
+	ContractViolation
 )
 
 // Error is a runtime error at a source span. Assert is set when the error
@@ -169,6 +172,8 @@ func (e *Error) Description() string {
 		return "File write access"
 	case BinaryOutput:
 		return "Binary output"
+	case ContractViolation:
+		return "Contract violation"
 	}
 	return "Runtime error"
 }
@@ -240,6 +245,15 @@ func (e *Error) Message() string {
 		return "secret must be string, actual value is <" + e.Actual + ">"
 	case FileWriteAccess:
 		return e.Value + " can not be written (" + e.Reason + ")"
+	case ContractViolation:
+		msg := e.Reason
+		if e.Name != "" {
+			msg += "\nat: " + e.Name
+		}
+		if e.Value != "" {
+			msg += "\nspec: " + e.Value
+		}
+		return msg
 	case BinaryOutput:
 		return `binary output can mess up your terminal. Use "--output -" to tell sonde to output it to your terminal anyway, or consider "--output" to save to a file`
 	}

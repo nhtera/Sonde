@@ -7,10 +7,10 @@ every invocation, to `DIR/report.json`. One schema serves both: see
 
 The base fields below are byte-compatible with Hurl 8.0.1's own `--json`
 export — a Hurl parser or dashboard built against that schema reads a
-Sonde result unchanged. A top-level `sonde` key holds Sonde-only data
-that has no Hurl equivalent (today the data row of a `--data` run; later
-contracts, streams, gRPC); it is additive within a major version and absent
-when empty.
+Sonde result unchanged. A `sonde` key, on a result or on an entry, holds
+Sonde-only data that has no Hurl equivalent (the data row of a `--data`
+run, the contract findings of `--openapi`; later streams, gRPC); it is
+additive within a major version and absent when empty.
 
 Every string value in a result — a URL, header, cookie, capture, assert
 message, curl command, and so on — has already been redacted with the
@@ -50,7 +50,19 @@ the row's secrets: a secret can never appear in a report in the clear.
 | `curl_cmd` | string | The equivalent `curl` command line. |
 | `calls` | `Call[]` | One HTTP exchange per call; a redirect produces more than one. |
 | `captures` | `Capture[]` | Variables captured by this attempt. |
-| `asserts` | `Assert[]` | One per implicit or explicit assert, in source order. |
+| `asserts` | `Assert[]` | One per implicit or explicit assert, in source order; with `--openapi`, each contract violation adds a failed assert at the status line. |
+| `sonde` | object, optional | Sonde-only data, absent when there is none. `sonde.contract.violations` (`Violation[]`) lists the contract findings of the attempt's final response (`--openapi`); absent when it conforms. |
+
+### `Violation`
+
+| Field | Type | Present when |
+|---|---|---|
+| `kind` | string | always: `unmatched`, `status`, `header`, `content-type`, `body`, or `error` (the response could not be checked) |
+| `message` | string | always |
+| `operation` | string | an operation matched, e.g. `"GET /pets/{petId}"` |
+| `spec_pointer` | string | the rule is located in the spec: a JSON pointer fragment, e.g. `"#/paths/~1pets/get/responses/200"` |
+| `instance_path` | string | the finding is located in the response: a JSON pointer into the body (`"/0/name"`) or `"header <Name>"` |
+| `warning` | bool (`true` or omitted) | the finding does not fail the entry (a request no operation matches, without `--openapi-strict`) |
 
 ### `Call`
 

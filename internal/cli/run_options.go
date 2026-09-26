@@ -79,6 +79,7 @@ type runOptions struct {
 	config          string
 	data            string
 	dataSecrets     []string
+	openAPI         openAPIOptions
 
 	// Output.
 	include     bool
@@ -172,6 +173,7 @@ func addRunFlags(cmd *cobra.Command, o *runOptions) {
 	f.StringVar(&o.config, "config", "", "uses this sonde.yaml for every input file, skipping discovery")
 	f.StringVar(&o.data, "data", "", "runs each file once per row of a CSV or JSON data file")
 	f.StringSliceVar(&o.dataSecrets, "data-secret", nil, "marks data file columns as secrets (comma-separated, repeatable)")
+	addOpenAPIFlags(f, &o.openAPI)
 
 	f.BoolVarP(&o.include, "include", "i", false, "includes the response headers in the output")
 	f.BoolVar(&o.jsonOutput, "json", false, "outputs each file's result as JSON")

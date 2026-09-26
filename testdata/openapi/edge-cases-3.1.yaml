@@ -1,0 +1,167 @@
+openapi: 3.1.0
+info:
+  title: Sonde Spike Edge Cases
+  description: Original fixture exercising 3.1-only and rare JSON Schema features for the Sonde OpenAPI-validation library spike. Not derived from any external spec.
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/{version}
+    variables:
+      version:
+        default: v2
+        enum:
+          - v1
+          - v2
+paths:
+  /orgs/{org}/repos/{repo}:
+    get:
+      operationId: getRepo
+      summary: Get a repository, demonstrating two path params and mixed schema features
+      parameters:
+        - name: org
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-zA-Z0-9-]{1,39}$'
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Repository found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '404':
+          description: Not found, as a problem-details document
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /events/{eventId}:
+    get:
+      operationId: getEvent
+      summary: Get an event, polymorphic on kind via discriminator
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: An event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+  /status:
+    get:
+      operationId: getStatus
+      summary: Plain text health check
+      responses:
+        '200':
+          description: OK as text
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    Repository:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/Identifiable'
+        - type: object
+          required:
+            - name
+            - owner
+            - visibility
+            - createdAt
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 100
+              pattern: '^[a-zA-Z0-9._-]+$'
+            owner:
+              type: string
+              format: email
+            visibility:
+              type: string
+              enum:
+                - public
+                - private
+            createdAt:
+              type: string
+              format: date-time
+            homepage:
+              type: string
+              format: uri
+            starCount:
+              type: integer
+              minimum: 0
+              maximum: 1000000
+            topics:
+              type: array
+              minItems: 1
+              items:
+                type: string
+    Identifiable:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+    Problem:
+      type: object
+      required:
+        - title
+        - status
+      properties:
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+    Event:
+      oneOf:
+        - $ref: '#/components/schemas/PushEvent'
+        - $ref: '#/components/schemas/PullRequestEvent'
+      discriminator:
+        propertyName: kind
+        mapping:
+          push: '#/components/schemas/PushEvent'
+          pull_request: '#/components/schemas/PullRequestEvent'
+    PushEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - ref
+      properties:
+        kind:
+          const: push
+        ref:
+          type: string
+    PullRequestEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - number
+      properties:
+        kind:
+          const: pull_request
+        number:
+          type: integer
+          minimum: 1

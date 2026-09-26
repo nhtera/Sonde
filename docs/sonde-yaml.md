@@ -35,9 +35,12 @@ defaults:
   env: local
   jobs: 4
 
-# Reserved for Phase 7 (OpenAPI contracts). Accepted and ignored today.
 openapi:
   spec: openapi.yaml
+  server: http://localhost:3000/v1
+  strict: false
+  exclude_operations: ["GET /health"]
+  exclude_files: ["legacy/**/*.hurl"]
 ```
 
 - `version` (required): must be `1`. Any other value, or a missing key, is
@@ -59,8 +62,26 @@ openapi:
     integer from `0` (unset) to `64`. An untrusted `sonde.yaml` cannot
     size a run's parallelism (and so its goroutines, HTTP clients and file
     descriptors) beyond that cap.
-- `openapi` (reserved): accepted and ignored in v1; Phase 7 gives it a
-  schema for OpenAPI contract validation.
+- `openapi` (optional): validates every response of the project's files
+  against an OpenAPI contract (see [guides/openapi.md](./guides/openapi.md)).
+  - `spec` (required): the OpenAPI file, a relative path inside the
+    `sonde.yaml` directory. A remote (`http(s)://`) spec cannot be set
+    here: remote fetching is enabled only on the command line
+    (`--openapi URL --openapi-allow-remote`).
+  - `server`: a base URL replacing the spec's `servers` for matching
+    request URLs, like `--openapi-server`.
+  - `strict`: a request no operation matches fails (exit 4), like
+    `--openapi-strict`; by default it is a warning.
+  - `exclude_operations`: operations never validated, `METHOD /path` with
+    the path as written in the spec (`GET /pets/{petId}`). A method the spec
+    does not document on a documented path can be excluded too
+    (`DELETE /pets/{petId}`), which silences its unmatched warning (or
+    strict failure).
+  - `exclude_files`: globs of request files never validated, relative to
+    the `sonde.yaml` directory; `**` matches any number of directories.
+
+  Command line flags win over these keys one by one (`--openapi` replaces
+  `spec`); the exclusions still apply.
 
 Any other top-level or nested key is an error naming the offending line.
 There is no `file_root` key and no way to set report options or inline

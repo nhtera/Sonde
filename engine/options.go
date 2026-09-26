@@ -59,6 +59,10 @@ type Options struct {
 	// DefaultUserAgent replaces `sonde/<version>` as the User-Agent sent
 	// when neither the entry nor the options set one.
 	DefaultUserAgent string
+	// Validator checks every final response against a contract, after
+	// the explicit asserts (skipped with NoAssert). Nil: no contract.
+	// Job.Validator replaces it for one job.
+	Validator ResponseValidator
 	// OnEvent receives events serially, in order. Nil: discarded.
 	OnEvent func(Event)
 

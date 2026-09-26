@@ -117,6 +117,9 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 		u.warnDeprecated(resp)
 		res.Asserts = append(res.Asserts, u.asserts(resp, final, qctx)...)
 	}
+	if !noAssert {
+		u.validateContract(ctx, res, e)
+	}
 	res.Errors = assertErrors(res.Asserts)
 	return res
 }

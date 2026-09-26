@@ -11,6 +11,7 @@
 | [guides/go-test.md](guides/go-test.md) | Running request files from `go test` |
 | [guides/ci-github-actions.md](guides/ci-github-actions.md) | Running tests and keeping reports in GitHub Actions |
 | [guides/data-driven.md](guides/data-driven.md) | Running files once per row of a CSV or JSON data file (`--data`) |
+| [guides/openapi.md](guides/openapi.md) | OpenAPI contracts: `--openapi` validation, `sonde.yaml` `openapi:`, `sonde import openapi` |
 | [guides/import-export.md](guides/import-export.md) | `sonde import`: common flags, writer rules, kinds |
 
 Contributor guide: [CONTRIBUTING.md](../CONTRIBUTING.md). Security reports: [SECURITY.md](../SECURITY.md).

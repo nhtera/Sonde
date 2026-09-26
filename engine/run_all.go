@@ -24,6 +24,8 @@ type Job struct {
 	Secrets   map[string]string
 	// Row, when set, runs the job with a data row.
 	Row *Row
+	// Validator, when set, replaces Options.Validator for this job.
+	Validator ResponseValidator
 }
 
 // Label names the job like its result's Label.
@@ -118,7 +120,10 @@ func (r *Runner) RunAll(ctx context.Context, stop <-chan struct{}, jobs iter.Seq
 			onEvent, stdout = h.Started(seq, job)
 		}
 		mu.Unlock()
-		uio := unitIO{stop: stop, vars: job.Variables, secrets: job.Secrets, row: job.Row}
+		uio := unitIO{stop: stop, vars: job.Variables, secrets: job.Secrets, row: job.Row, validator: r.opt.Validator}
+		if job.Validator != nil {
+			uio.validator = job.Validator
+		}
 		if stdout != nil {
 			uio.stdout = lockedWriter{&mu, stdout}
 		}

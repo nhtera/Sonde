@@ -61,7 +61,7 @@ func (r *Runner) RunFile(ctx context.Context, path string) (*UnitResult, error) 
 // RunSource runs the content of a file named name (used for messages and
 // to locate the default file root).
 func (r *Runner) RunSource(ctx context.Context, name string, src []byte) (*UnitResult, error) {
-	return r.runSource(ctx, name, src, unitIO{onEvent: r.opt.OnEvent, stdout: r.opt.Stdout})
+	return r.runSource(ctx, name, src, unitIO{onEvent: r.opt.OnEvent, stdout: r.opt.Stdout, validator: r.opt.Validator})
 }
 
 // unitIO is where a unit sends its events and output, and when it stops.
@@ -75,6 +75,8 @@ type unitIO struct {
 	secrets map[string]string
 	// row, when set, is the data row, above the runner's options.
 	row *Row
+	// validator checks responses against a contract (nil: none).
+	validator ResponseValidator
 }
 
 func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio unitIO) (*UnitResult, error) {

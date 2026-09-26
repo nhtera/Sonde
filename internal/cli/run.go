@@ -98,6 +98,9 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			}
 		}
 	}
+	if err := resolveContracts(cmd, o, rc, extras, files); err != nil {
+		return err
+	}
 	if rc.jobs > 1 && defaultsJobs > 0 && !changed(cmd, "jobs") {
 		if _, _, ok := env.Lookup("JOBS"); !ok {
 			rc.jobs = defaultsJobs
@@ -481,6 +484,33 @@ func writeCurlFile(path string, curlBySeq map[int][]string, runner *engine.Runne
 type jobExtras struct {
 	vars    map[string]any
 	secrets map[string]string
+	// project is the file's sonde.yaml.
+	project *config.Project
+	// validator checks the file's responses against its contract (nil:
+	// the run's, from --openapi).
+	validator engine.ResponseValidator
+}
+
+// resolveContracts loads the OpenAPI specs of the run, once each: the
+// run's (--openapi) and those of the files' sonde.yaml projects.
+func resolveContracts(cmd *cobra.Command, o *runOptions, rc *runContext, extras map[string]jobExtras, files []*inputFile) error {
+	c := newContracts(cmd, o.openAPI)
+	v, err := c.forRun()
+	if err != nil {
+		return err
+	}
+	rc.engine.Validator = v
+	for _, f := range files {
+		e, ok := extras[f.name]
+		if !ok {
+			continue
+		}
+		if e.validator, err = c.forFile(f.name, e.project); err != nil {
+			return err
+		}
+		extras[f.name] = e
+	}
+	return nil
 }
 
 // resolveJobExtras discovers each real (non-stdin) file's sonde.yaml,
@@ -550,10 +580,7 @@ func resolveJobExtras(files []*inputFile, rc *runContext, env config.Env) (extra
 		if rerr != nil {
 			return nil, 0, nil, NewExitError(ExitUsage, rerr)
 		}
-		if len(vars) == 0 && len(secrets) == 0 {
-			continue
-		}
-		e := jobExtras{secrets: secrets}
+		e := jobExtras{secrets: secrets, project: proj}
 		if len(vars) > 0 {
 			e.vars = make(map[string]any, len(vars))
 			for name, v := range vars {
@@ -652,6 +679,7 @@ func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[strin
 				} else if e, ok := extras[f.name]; ok {
 					job.Variables = e.vars
 					job.Secrets = e.secrets
+					job.Validator = e.validator
 				}
 				if data == nil {
 					if !yield(job) {
