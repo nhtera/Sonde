@@ -164,6 +164,6 @@ func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	// wins (see buildRunContext).
 	addRunFlags(root, runOpts)
 
-	root.AddCommand(newVersionCmd(), newCheckCmd(), newFmtCmd(), newImportCmd(), newExportCmd(), newRunCmd(), newTestCmd())
+	root.AddCommand(newVersionCmd(), newCheckCmd(), newFmtCmd(), newImportCmd(), newExportCmd(), newLSPCmd(), newRunCmd(), newTestCmd())
 	return root
 }

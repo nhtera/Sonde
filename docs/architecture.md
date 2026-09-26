@@ -49,7 +49,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/openapi` | spec load (owns remote fetch), route match, `engine.ResponseValidator` impl, spec → AST generator | exchange, syntax, engine (interface only) |
 | `internal/convert` | shared import writer + flags; importers in subpackages `curl`, `postman`, `opencollection`, `httpfile` (curl export uses the engine's renderer, `engine/curl.go`) | syntax, exchange, config (subpackages: + convert) |
 | `internal/docs` | single doc-data source (`table.yaml`) for compat.md, LSP hover | — |
-| `internal/lsp` | language server | syntax, config, docs |
+| `internal/lsp` | language server (`sonde lsp`, stdio): diagnostics, completion, hover, formatting | syntax, config, docs |
 | `internal/cli` | cobra commands, Hurl-compatible root, flag → `engine.Options` mapping, output wiring | everything above |
 | `internal/mock` (post-v1) | OpenAPI mock server | openapi |
 | `internal/stream` (post-v1) | WebSocket + SSE | exchange, httpx |
@@ -244,7 +244,7 @@ Owner: `docs/sonde-yaml.md` (Phase 5) — the only place keys are defined; stric
 | Public suffix / charsets / rate / term | `golang.org/x/net/publicsuffix`, `x/text`, `x/time/rate`, `x/term` | BSD-3 |
 | OpenAPI 3.0/3.1, Swagger 2.0 conversion | `github.com/getkin/kin-openapi` ([decision 0001](decisions/0001-openapi-library.md)) | MIT |
 | Shell words (curl import) | own tokenizer in `internal/convert/curl` (`'…'`, `"…"`, `$'…'`, continuations, `$VAR`) | — (`go-shellwords` can't read `$'…'`, which the curl export writes; `google/shlex` archived) |
-| LSP types | `go.lsp.dev/protocol` (go-language-server/protocol) | BSD-3 (`tliron/glsp` stale since 2025-06 — rejected) |
+| LSP types and JSON-RPC | own minimal LSP 3.17 types and stdio framing in `internal/lsp` (`protocol.go`, `jsonrpc.go`) | — (`go.lsp.dev/protocol` v1 is ~87k lines and pins a pre-release JSON library; `tliron/glsp` stale since 2025-06) |
 | WebSocket (post-v1) | `github.com/coder/websocket` | ISC |
 | gRPC (post-v1) | `google.golang.org/grpc`, `github.com/bufbuild/protocompile` | Apache-2.0 |
 | MCP (post-v1) | `github.com/modelcontextprotocol/go-sdk` | NOASSERTION on GitHub → verify before adopting |
