@@ -116,6 +116,7 @@ func constant(n syntax.Node) (string, bool) {
 var invalidLiterals = map[string]bool{
 	"date:%👻":                    true,
 	"regex:[x":                   true,
+	"regex:{}":                   true,
 	"xpath://":                   true,
 	"xpath:strong(//head/title)": true,
 	"jsonpath:":                  true,

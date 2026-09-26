@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nhtera/sonde/internal/styled"
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
@@ -15,39 +16,99 @@ import (
 // first line of the entry when it is not the error line (entryLine 0 omits
 // it), the source line and the message, all with a line-number gutter.
 func (e *Error) Render(filename, content string, entryLine int) string {
+	return e.render(filename, content, entryLine).String(false)
+}
+
+// RenderColor is Render with ANSI colors: a blue gutter, the entry line
+// in gray and the message in red (a body diff in red and green).
+func (e *Error) RenderColor(filename, content string, entryLine int) string {
+	return e.render(filename, content, entryLine).String(true)
+}
+
+func (e *Error) render(filename, content string, entryLine int) styled.Text {
 	lines := syntax.SourceLines(content)
 	width := max(len(strconv.Itoa(len(lines))), 2)
 	spaces := strings.Repeat(" ", width)
-	prefix := spaces + " |"
+	var prefix styled.Text
+	prefix.Push(spaces+" |", styled.Bold|styled.Blue)
 	line, col := e.Span.Start.Line, e.Span.Start.Col
 
-	var b strings.Builder
-	b.WriteString(e.Description() + "\n")
-	fmt.Fprintf(&b, "%s--> %s:%d:%d\n", spaces, filename, line, col)
-	b.WriteString(prefix)
+	var t styled.Text
+	t.Push(e.Description(), styled.Bold)
+	t.Push("\n"+spaces, styled.Plain)
+	t.Push("-->", styled.Bold|styled.Blue)
+	t.Push(fmt.Sprintf(" %s:%d:%d\n", filename, line, col), styled.Plain)
+	t.Append(prefix)
 	if entryLine > 0 {
 		if entryLine != line {
-			b.WriteString("\n" + prefix + " " + untab(lineAt(lines, entryLine)))
+			t.Push("\n", styled.Plain)
+			t.Append(prefix)
+			t.Push(" ", styled.Plain)
+			t.Push(untab(lineAt(lines, entryLine)), styled.Gray)
 		}
 		if line-entryLine > 1 {
-			b.WriteString("\n" + prefix + " ...")
+			t.Push("\n", styled.Plain)
+			t.Append(prefix)
+			t.Push(" ...", styled.Gray)
 		}
 	}
 
-	text := " " + untab(lineAt(lines, line)) + "\n" + e.fixme(lineAt(lines, line))
-	out := ""
-	for i, l := range strings.Split(text, "\n") {
+	if e.Kind == AssertBodyDiff {
+		t.Append(e.renderDiff(lines, width, prefix))
+		return t
+	}
+	var msg styled.Text
+	msg.Push(" "+untab(lineAt(lines, line))+"\n", styled.Plain)
+	for i, l := range strings.Split(e.fixme(lineAt(lines, line)), "\n") {
+		if i > 0 {
+			msg.Push("\n", styled.Plain)
+		}
+		msg.Push(l, styled.Bold|styled.Red)
+	}
+	var numbered styled.Text
+	numbered.Push(fmt.Sprintf("%*d |", width, line), styled.Bold|styled.Blue)
+	for i, l := range msg.Split("\n") {
+		t.Push("\n", styled.Plain)
 		if i == 0 {
-			out += fmt.Sprintf("\n%*d |%s", width, line, l)
+			t.Append(numbered)
 		} else {
-			out += "\n" + prefix + l
+			t.Append(prefix)
+		}
+		t.Append(l)
+	}
+	if !t.HasSuffix("|") {
+		t.Push("\n", styled.Plain)
+		t.Append(prefix)
+	}
+	return t
+}
+
+// renderDiff shows the first differing body line and the diff hunk, with
+// removed lines in red and added lines in green.
+func (e *Error) renderDiff(lines []string, width int, prefix styled.Text) styled.Text {
+	var t styled.Text
+	line := e.Span.Start.Line
+	t.Push("\n", styled.Plain)
+	t.Push(fmt.Sprintf("%*d | %s\n", width, line, lineAt(lines, line)), styled.Bold|styled.Blue)
+	for i, l := range strings.Split(e.Reason, "\n") {
+		if i > 0 {
+			t.Push("\n", styled.Plain)
+		}
+		t.Append(prefix)
+		if l == "" {
+			continue
+		}
+		t.Push("   ", styled.Plain)
+		switch l[0] {
+		case '-':
+			t.Push(l, styled.Red)
+		case '+':
+			t.Push(l, styled.Green)
+		default:
+			t.Push(l, styled.Plain)
 		}
 	}
-	if !strings.HasSuffix(out, "|") {
-		out += "\n" + prefix
-	}
-	b.WriteString(out)
-	return b.String()
+	return t
 }
 
 // fixme is the message under the source line, pointed by carets except for

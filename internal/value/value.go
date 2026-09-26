@@ -16,10 +16,13 @@
 package value
 
 import (
+	"errors"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nhtera/sonde/internal/regex"
 )
 
 // Value is a typed evaluation value. The set of implementations is closed.
@@ -164,6 +167,9 @@ func (d Date) UTC() time.Time { return time.Time(d).UTC() }
 // NewRegex compiles a pattern with Unicode-aware character classes (see
 // TranslateRegex).
 func NewRegex(pattern string) (Regex, error) {
+	if msg := regex.Check(pattern); msg != "" {
+		return Regex{}, errors.New(msg)
+	}
 	re, err := regexp.Compile(TranslateRegex(pattern))
 	if err != nil {
 		return Regex{}, err

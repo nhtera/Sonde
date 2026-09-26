@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/nhtera/sonde/internal/styled"
 )
 
 // ErrorKind classifies a parse error.
@@ -244,24 +246,40 @@ func (e *Error) Message() string {
 //	   |              ^ expecting ';'
 //	   |
 func (e *Error) Render(filename string, src []byte) string {
+	return e.render(filename, src).String(false)
+}
+
+// RenderColor is Render with ANSI colors: a blue gutter and the message
+// in red.
+func (e *Error) RenderColor(filename string, src []byte) string {
+	return e.render(filename, src).String(true)
+}
+
+func (e *Error) render(filename string, src []byte) styled.Text {
 	lines := SourceLines(string(src))
 	width := max(len(strconv.Itoa(len(lines))), 2)
 	spaces := strings.Repeat(" ", width)
+	gutter := styled.Bold | styled.Blue
 
 	line := ""
 	if e.Pos.Line-1 < len(lines) && e.Pos.Line >= 1 {
 		line = lines[e.Pos.Line-1]
 	}
 
-	var b strings.Builder
-	b.WriteString(e.Description())
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "%s--> %s:%d:%d\n", spaces, filename, e.Pos.Line, e.Pos.Col)
-	fmt.Fprintf(&b, "%s |", spaces)
-	fmt.Fprintf(&b, "\n%*d | %s", width, e.Pos.Line, strings.ReplaceAll(line, "\t", "    "))
-	fmt.Fprintf(&b, "\n%s |%s%s", spaces, carets(line, e.Pos.Col), e.Message())
-	fmt.Fprintf(&b, "\n%s |", spaces)
-	return b.String()
+	var t styled.Text
+	t.Push(e.Description(), styled.Bold)
+	t.Push("\n"+spaces, styled.Plain)
+	t.Push("-->", gutter)
+	t.Push(fmt.Sprintf(" %s:%d:%d\n", filename, e.Pos.Line, e.Pos.Col), styled.Plain)
+	t.Push(spaces+" |", gutter)
+	t.Push("\n", styled.Plain)
+	t.Push(fmt.Sprintf("%*d |", width, e.Pos.Line), gutter)
+	t.Push(" "+strings.ReplaceAll(line, "\t", "    ")+"\n", styled.Plain)
+	t.Push(spaces+" |", gutter)
+	t.Push(carets(line, e.Pos.Col)+e.Message(), styled.Bold|styled.Red)
+	t.Push("\n", styled.Plain)
+	t.Push(spaces+" |", gutter)
+	return t
 }
 
 // carets indents a single caret under column col; each tab before the column

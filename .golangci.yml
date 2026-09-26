@@ -16,6 +16,12 @@ linters:
       - path: internal/syntax/printer\.go
         linters: [gosec]
         text: G104
+      # These error strings reproduce the upstream CLI/config-file messages
+      # verbatim (capitalization and punctuation included), so `sonde`'s
+      # wording matches what conformance oracles expect.
+      - path: internal/config/(assignment|configfile|duration|env|precedence|value)\.go
+        linters: [revive, staticcheck]
+        text: "error-strings|ST1005"
     presets:
       - comments
       - common-false-positives
@@ -84,13 +90,18 @@ linters:
           files: ["**/internal/syntax/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/syntax may import only: no sonde packages (leaf) (architecture §2)"
+              desc: "internal/syntax may import only: internal/regex, internal/styled (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/internal/regex$
+            - github.com/nhtera/sonde/internal/styled$
         pkg-value:
           list-mode: lax
           files: ["**/internal/value/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/value may import only: no sonde packages (leaf) (architecture §2)"
+              desc: "internal/value may import only: internal/regex (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/internal/regex$
         pkg-redact:
           list-mode: lax
           files: ["**/internal/redact/**", "!$test"]
@@ -174,9 +185,10 @@ linters:
           files: ["**/internal/runerr/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/runerr may import only: internal/syntax (architecture §2)"
+              desc: "internal/runerr may import only: internal/syntax, internal/styled (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/syntax$
+            - github.com/nhtera/sonde/internal/styled$
         pkg-xpath:
           list-mode: lax
           files: ["**/internal/xpath/**", "!$test"]
@@ -185,6 +197,18 @@ linters:
               desc: "internal/xpath may import only: internal/value (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/value$
+        pkg-regex:
+          list-mode: lax
+          files: ["**/internal/regex/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/regex may import only: no sonde packages (leaf) (architecture §2)"
+        pkg-styled:
+          list-mode: lax
+          files: ["**/internal/styled/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/styled may import only: no sonde packages (leaf) (architecture §2)"
         pkg-charset:
           list-mode: lax
           files: ["**/internal/charset/**", "!$test"]

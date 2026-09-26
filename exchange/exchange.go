@@ -58,6 +58,9 @@ type Response struct {
 	// Version is "HTTP/1.0", "HTTP/1.1", "HTTP/2" or "HTTP/3".
 	Version string
 	Status  int
+	// Reason is the reason phrase of the status line ("OK"); empty for
+	// HTTP/2 and HTTP/3.
+	Reason  string
 	Headers Headers
 	Body    []byte
 	// URL is the URL this response was received from.

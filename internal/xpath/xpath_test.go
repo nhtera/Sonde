@@ -62,7 +62,7 @@ func TestInvalidDocument(t *testing.T) {
 	for _, in := range []struct {
 		text string
 		f    Format
-	}{{"??", XML}, {"", XML}, {"  \n", HTML}, {"<a>", XML}} {
+	}{{"??", XML}, {"", XML}, {"  \n", HTML}, {"<a>", XML}, {`<?xml version="1.0"`, HTML}, {"<!-- c -->", HTML}} {
 		if _, err := Parse(in.text, in.f); err == nil {
 			t.Errorf("Parse(%q) succeeded", in.text)
 		}
@@ -161,4 +161,13 @@ func TestNamespacesScoping(t *testing.T) {
 		{"//*[name()='book']/*[name()='notes']", value.Nodeset(1)},
 		{"//_:book/_:notes/*[local-name()='p']", value.Nodeset(1)},
 	})
+}
+
+// White space after </body> does not become part of the body.
+func TestTextAfterBody(t *testing.T) {
+	html := "<html>\n<body>你好世界</body>\n</html>\n"
+	check(t, html, HTML, []evalCase{{"string(//body)", value.String("你好世界")}})
+	check(t, "<body>a</body>\n<p>b</p>", HTML, []evalCase{{"count(//p)", value.Float(1)}})
+	check(t, "<p>no body</p>", HTML, []evalCase{{"string(//p)", value.String("no body")}})
+	check(t, "<p>\xff\xff\xff\xff</p></body>\n", HTML, []evalCase{{"count(//p)", value.Float(1)}})
 }

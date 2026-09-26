@@ -5,12 +5,14 @@
 package xpath
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 
 	"github.com/antchfx/htmlquery"
 	"github.com/antchfx/xmlquery"
 	"github.com/antchfx/xpath"
+	"golang.org/x/net/html"
 
 	"github.com/nhtera/sonde/internal/value"
 )
@@ -44,8 +46,8 @@ func Parse(text string, f Format) (*Document, error) {
 		return nil, ErrInvalidDocument
 	}
 	if f == HTML {
-		doc, err := htmlquery.Parse(strings.NewReader(text))
-		if err != nil {
+		doc, err := htmlquery.Parse(strings.NewReader(trimAfterBody(text)))
+		if err != nil || !hasContent(doc) && !hasStartTag(text) {
 			return nil, ErrInvalidDocument
 		}
 		return &Document{nav: htmlquery.CreateXPathNavigator(doc)}, nil
@@ -55,6 +57,66 @@ func Parse(text string, f Format) (*Document, error) {
 		return nil, ErrInvalidDocument
 	}
 	return &Document{nav: xmlquery.CreateXPathNavigator(doc), namespaces: namespaces(doc)}, nil
+}
+
+// hasContent reports whether an HTML document has an element other than
+// the html, head and body elements an HTML5 parser always creates, or some
+// text: input made only of comments or processing instructions has no
+// root element.
+func hasContent(n *html.Node) bool {
+	switch n.Type {
+	case html.ElementNode:
+		if n.Data != "html" && n.Data != "head" && n.Data != "body" {
+			return true
+		}
+	case html.TextNode:
+		if strings.TrimSpace(n.Data) != "" {
+			return true
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if hasContent(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasStartTag reports whether text contains an element start tag.
+func hasStartTag(text string) bool {
+	for i := strings.IndexByte(text, '<'); i >= 0 && i+1 < len(text); {
+		c := text[i+1]
+		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' {
+			return true
+		}
+		j := strings.IndexByte(text[i+1:], '<')
+		if j < 0 {
+			return false
+		}
+		i += 1 + j
+	}
+	return false
+}
+
+// trimAfterBody drops the white space that follows the last </body> tag:
+// an HTML5 parser moves it into the body, which would change its text.
+func trimAfterBody(text string) string {
+	lower := []byte(text) // ASCII only, byte by byte: keeps byte offsets
+	for k, c := range lower {
+		if c >= 'A' && c <= 'Z' {
+			lower[k] = c + 'a' - 'A'
+		}
+	}
+	i := bytes.LastIndex(lower, []byte("</body>"))
+	if i < 0 {
+		return text
+	}
+	i += len("</body>")
+	rest := strings.TrimSpace(text[i:])
+	if rest != "" && !strings.EqualFold(rest, "</html>") {
+		return text
+	}
+	return text[:i] + rest
 }
 
 // namespaces collects the prefixes declared in doc, in document order.

@@ -63,6 +63,29 @@ const (
 	UndefinedVariable
 	// Unrenderable: Value (display of the value).
 	Unrenderable
+	// AssertStatus: Actual (status code).
+	AssertStatus
+	// AssertVersion: Actual (HTTP version).
+	AssertVersion
+	// AssertHeaderValue: Actual (header value).
+	AssertHeaderValue
+	// AssertBodyValue: Actual (body text).
+	AssertBodyValue
+	// AssertBodyDiff: Reason (first diff hunk, one "+"/"-"/" " prefixed
+	// line per body line), Value (line of the body start, decimal).
+	AssertBodyDiff
+	// InvalidOptionValue: Name, Value, Reason.
+	InvalidOptionValue
+	// NoFilterResult: no field.
+	NoFilterResult
+	// PossibleLoggedSecret: no field.
+	PossibleLoggedSecret
+	// UnsupportedSecretType: Actual (kind of the value).
+	UnsupportedSecretType
+	// FileWriteAccess: Value (path), Reason.
+	FileWriteAccess
+	// BinaryOutput: no field.
+	BinaryOutput
 )
 
 // Error is a runtime error at a source span. Assert is set when the error
@@ -73,6 +96,7 @@ type Error struct {
 	Kind   Kind
 	Assert bool
 
+	Name         string
 	Actual       string
 	Expected     string
 	TypeMismatch bool
@@ -125,6 +149,26 @@ func (e *Error) Description() string {
 		return "Undefined variable"
 	case Unrenderable:
 		return "Unrenderable expression"
+	case AssertStatus:
+		return "Assert status code"
+	case AssertVersion:
+		return "Assert HTTP version"
+	case AssertHeaderValue:
+		return "Assert header value"
+	case AssertBodyValue, AssertBodyDiff:
+		return "Assert body value"
+	case InvalidOptionValue:
+		return "Invalid option value"
+	case NoFilterResult:
+		return "Filter error"
+	case PossibleLoggedSecret:
+		return "Invalid redacted secret"
+	case UnsupportedSecretType:
+		return "Invalid secret type"
+	case FileWriteAccess:
+		return "File write access"
+	case BinaryOutput:
+		return "Binary output"
 	}
 	return "Runtime error"
 }
@@ -182,6 +226,22 @@ func (e *Error) Message() string {
 		return "you must set the variable " + e.Value
 	case Unrenderable:
 		return "expression with value " + e.Value + " can not be rendered"
+	case AssertStatus, AssertVersion, AssertHeaderValue, AssertBodyValue:
+		return "actual value is <" + e.Actual + ">"
+	case AssertBodyDiff:
+		return e.Reason
+	case InvalidOptionValue:
+		return "invalid " + e.Name + " option value <" + e.Value + ">: " + e.Reason
+	case NoFilterResult:
+		return "a filter didn't return any result"
+	case PossibleLoggedSecret:
+		return "redacted secret not authorized in verbose"
+	case UnsupportedSecretType:
+		return "secret must be string, actual value is <" + e.Actual + ">"
+	case FileWriteAccess:
+		return e.Value + " can not be written (" + e.Reason + ")"
+	case BinaryOutput:
+		return `binary output can mess up your terminal. Use "--output -" to tell sonde to output it to your terminal anyway, or consider "--output" to save to a file`
 	}
 	return e.Reason
 }

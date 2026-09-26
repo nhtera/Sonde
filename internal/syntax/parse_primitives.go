@@ -4,8 +4,9 @@
 package syntax
 
 import (
-	"regexp"
 	"strings"
+
+	"github.com/nhtera/sonde/internal/regex"
 )
 
 func isSpace(c rune) bool { return c == ' ' || c == '\t' }
@@ -237,80 +238,10 @@ func regexLiteral(r *reader) (*Regex, *Error) {
 		}
 		pattern.WriteRune(c)
 	}
-	if msg := validateRegex(pattern.String()); msg != "" {
+	if msg := regex.Check(pattern.String()); msg != "" {
 		return nil, errAt(start, false, ErrRegexExpr, msg)
 	}
 	return &Regex{Source: r.slice(begin), Pattern: pattern.String()}, nil
-}
-
-var countedRepetition = regexp.MustCompile(`^\{[0-9]+(,[0-9]*)?\}`)
-
-// validateRegex compiles pattern and also rejects a `{` that does not start
-// a valid counted repetition (Go's engine would silently treat it as a
-// literal brace). Braces inside escapes such as \p{L} or \x{4F} and inside
-// character classes are not repetitions. It returns an error message or "".
-func validateRegex(pattern string) string {
-	for i := 0; i < len(pattern); i++ {
-		switch pattern[i] {
-		case '\\':
-			i = skipEscape(pattern, i)
-		case '[':
-			i = skipClass(pattern, i)
-		case '{':
-			if !countedRepetition.MatchString(pattern[i:]) {
-				return "repetition quantifier expects a valid decimal"
-			}
-		}
-	}
-	if _, err := regexp.Compile(pattern); err != nil {
-		return strings.TrimPrefix(err.Error(), "error parsing regexp: ")
-	}
-	return ""
-}
-
-// skipEscape returns the index of the last byte of the escape at p[i].
-func skipEscape(p string, i int) int {
-	if i+1 >= len(p) {
-		return i
-	}
-	switch p[i+1] {
-	case 'p', 'P', 'x':
-		if i+2 < len(p) && p[i+2] == '{' {
-			if j := strings.IndexByte(p[i+2:], '}'); j >= 0 {
-				return i + 2 + j
-			}
-		}
-	}
-	return i + 1
-}
-
-// skipClass returns the index of the `]` closing the class opened at p[i]
-// (a leading `]` is literal; `[:name:]` and nested classes are skipped).
-func skipClass(p string, i int) int {
-	j := i + 1
-	if j < len(p) && p[j] == '^' {
-		j++
-	}
-	if j < len(p) && p[j] == ']' {
-		j++
-	}
-	for ; j < len(p); j++ {
-		switch p[j] {
-		case '\\':
-			j = skipEscape(p, j)
-		case '[':
-			if strings.HasPrefix(p[j:], "[:") {
-				if k := strings.Index(p[j+2:], ":]"); k >= 0 {
-					j += 2 + k + 1
-					continue
-				}
-			}
-			j = skipClass(p, j)
-		case ']':
-			return j
-		}
-	}
-	return len(p) - 1
 }
 
 func null(r *reader) (*Null, *Error) {
