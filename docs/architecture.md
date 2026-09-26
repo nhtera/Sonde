@@ -104,8 +104,16 @@ type Job struct {
 	Source    []byte            // nil = read Name
 	Variables map[string]any    // per job (sonde.yaml), below CLI options
 	Secrets   map[string]string // per job
-	// Phase 6 adds the data row.
+	Row       *Row              // data row (--data), nil = none
 }
+func (j Job) Label() string // Name, or "<Name>#row-<N>"
+type Row struct {
+	Index     int               // 1-based
+	Variables map[string]any    // above Options.Variables
+	Secrets   map[string]string // unit-scoped: see Redaction
+}
+func (u *UnitResult) Label() string         // File, or "<File>#row-<N>"
+func (u *UnitResult) Redact(s string) string // run's + row's secrets, one pass
 type Hooks struct { // calls never concurrent
 	Started  func(seq int, job Job) (onEvent func(Event), stdout io.Writer)
 	Finished func(seq int, job Job, res *UnitResult, err error) bool // false = schedule no more; running jobs complete
@@ -134,7 +142,7 @@ type ResponseValidator interface {
 type Violation struct{ SpecPointer, InstancePath, Message string }
 ```
 
-Events: `Log` (level, text, colored text), `EntryStarted`, `EntryFinished` (carries the raw `*EntryResult`). Log texts are redacted; results hold raw values, and every sink redacts them with `Runner.Redact` (the final secret union for run-level sinks). Per-unit parse/runtime errors live in `UnitResult` and never cancel other units; results are handed to `Hooks.Finished` and not retained by the runner.
+Events: `Log` (level, text, colored text), `EntryStarted`, `EntryFinished` (carries the raw `*EntryResult`). Log texts are redacted; results hold raw values, and every sink redacts them with `UnitResult.Redact` (`Runner.Redact` suffices without data rows; the final secret union for run-level sinks). Per-unit parse/runtime errors live in `UnitResult` and never cancel other units; results are handed to `Hooks.Finished` and not retained by the runner.
 
 API stability: pre-1.0 may change; from v1.0 `engine` + `exchange` follow semver, checked by `apidiff` in CI (Phase 10).
 
@@ -158,7 +166,7 @@ Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-com
 ### CLI commands (implemented)
 | Command | Behavior | Exit codes |
 |---|---|---|
-| `sonde [options] FILE...`, `sonde run [options] FILE...` | runs request files like `hurl [options] FILE...` (no FILE: stdin; a directory: its `.hurl`/`.sonde` files; `--glob`); stdout = last response body (`-i`, `--pretty`, `-o`, `--no-output`) or one JSON result per file (`--json`); `--test` prints a per-file line and a summary to stderr; runtime errors rendered as Hurl does | 0; 1 (usage, missing input); 2 (parse error, stops the run); 3 (runtime error in any file); 4 (assert failures only); 127; 130 |
+| `sonde [options] FILE...`, `sonde run [options] FILE...` | runs request files like `hurl [options] FILE...` (no FILE: stdin; a directory: its `.hurl`/`.sonde` files; `--glob`); stdout = last response body (`-i`, `--pretty`, `-o`, `--no-output`) or one JSON result per file (`--json`); `--test` prints a per-file line and a summary to stderr; runtime errors rendered as Hurl does; `--data FILE` runs each file once per CSV/JSON row (`--data-secret COL`), labeled `<file>#row-N`; a bad data file → 1 | 0; 1 (usage, missing input); 2 (parse error, stops the run); 3 (runtime error in any file); 4 (assert failures only); 127; 130 |
 | `sonde version` | version, commit, build date, Go version | 0 |
 | `sonde check FILE...` | parses every file; prints the first syntax error of each invalid file in Hurl's format (`error: Parsing …` snippet with caret) to stderr | 0, 2 (any invalid or unreadable file) |
 | `sonde fmt FILE...` | canonical layout to stdout; `-w/--write` rewrites in place atomically (temp file + rename, mode kept); `--check` lists unformatted files on stdout | 0; 1 (`--check` found unformatted files); 2 (parse/read error, wins over 1); 127 (write failed) |
@@ -171,18 +179,19 @@ Canonical format (`internal/syntax.Format`): horizontal whitespace and line endi
 1. `sonde.yaml` environment: `variables`, then `variables_files`
 2. `HURL_VARIABLE_*`, then `SONDE_VARIABLE_*` env vars
 3. `--variables-file` (in order given)
-4. data row (`--data`)
+4. data row (`--data`; engine: `Job.Row` above `Options.Variables`, the CLI drops columns named by a `--variable`; built-in `data_row`)
 5. `--variable`
 6. entry `[Options] variable:` (entry-scoped)
 7. captures during the run (unit-scoped)
 
 Environment selection: `--env` > `SONDE_ENV` > `defaults.env`.
-Secrets: `sonde.yaml` `secrets_files`, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secrets-file`, `--secret`, `--data-secret` columns, `redact` captures. Same secret name from two sources → error (Hurl message). Secret vs variable name clash → exit 1. Secrets shorter than 4 chars → warning.
+Secrets: `sonde.yaml` `secrets_files`, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secrets-file`, `--secret`, `--data-secret` columns, `redact` captures. Same secret name from two sources → error (Hurl message). Secret vs variable name clash → exit 1 (a data column named like a command line secret too). Secrets shorter than 4 chars → warning.
 
 Type inference for CLI/env/CSV values (Hurl-compatible): `true`/`false` → bool, `null` → null, integer → int, float → float, else string.
 
 ### Redaction
 One registry per run (`internal/redact`): union of all sources incl. dynamic captures; values never removed. Matches raw, base64, URL-encoded and JSON-escaped forms. Applied inside the engine to events and results; run-level sinks (`--curl`, `--cookie-jar`, report finalization) written after the run with the final union.
+Data rows are the exception, so that rows never grow the run's registry: a row's secrets (`--data-secret` columns, and the `redact` captures and Basic credentials of that row's run) live in a registry of that unit, applied to its events and, through `UnitResult.Redact` (one pass over both registries, so overlapping secrets stay masked whole), by every sink to its result. Another row's output is not scanned for them.
 
 ### File access
 Every path originating from a request file that is read or written — `file,` bodies/parts, `output`, `unix-socket`, cookie files, and the option files `cacert`, `cert`, `key`, `pinnedpubkey`, `netrc-file` — resolves through `internal/sandbox` (`os.Root`) and must stay under the file root. Body, part, output and socket paths are joined to the root and normalized (so `../root/x` stays allowed); option files are relative to the working directory, as curl reads them. Paths given on the command line are trusted and not confined. `--file-root` is CLI-only; `sonde.yaml` has no file-root key. `sonde.yaml` paths resolve relative to its directory and must stay inside it. The user's `~/.netrc` credentials are not sent when `connect-to`/`resolve`/`proxy` (including a proxy from the environment) reroutes the host (unless an explicit flag allows it).
@@ -250,6 +259,9 @@ CI gate: `go-licenses check ./... --allowed_licenses=Apache-2.0,MIT,BSD-2-Clause
   written in original file order — the same trade-off upstream Hurl makes.
   Combined with `--repeat -1`, this grows without bound; there is no
   streaming report writer today.
+- Data rows (`--data`) stream from disk (checked once in full, then read
+  again per input file): 1M rows run with a flat ~20–30 MB peak RSS
+  (docs/benchmarks.md); the same report caveat applies.
 
 ## 9. Security Model
 
@@ -257,7 +269,7 @@ Assets: secrets (tokens, passwords), local files, user's ambient credentials (`~
 
 | Threat | Control |
 |---|---|
-| Secret leakage (terminal, events, reports, `--curl`, `--cookie-jar`, LSP, MCP) | run-wide redact registry incl. dynamic captures and encoded variants; buffered events for `redact` entries; run-level sinks written after run; grep test over all sinks for CLI, env, data-row and dynamic secrets |
+| Secret leakage (terminal, events, reports, `--curl`, `--cookie-jar`, LSP, MCP) | run-wide redact registry incl. dynamic captures and encoded variants; buffered events for `redact` entries; run-level sinks written after run; grep test over all sinks for CLI, env, data-row and dynamic secrets; data-row secrets (and a row run's captures and credentials) are unit-scoped, so one row's output is not scanned for another row's secrets |
 | Untrusted file reads/writes local files (`file,`, `output`, cert/key/netrc/socket paths) | `internal/sandbox` (`os.Root`) for all request-file paths; `--file-root` CLI-only; `sonde.yaml` cannot change file access, its own paths confined to its directory |
 | Ambient credential forwarding | no `~/.netrc` credentials on rerouted hosts (one warning when withheld); redirect credential rule = same host+port+scheme for `Authorization`/`Cookie` headers from any source (`[Cookies]` entries follow redirects, as with curl). Accepted gap: a request file may enable `netrc: true`, and a `default` stanza of the user's `~/.netrc` then applies to any host it calls |
 | Env-var exfiltration via templates | no `getEnv` (not in Hurl 8); any future env access `.sonde`-only, allowlisted, auto-secret |

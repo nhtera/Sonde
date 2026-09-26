@@ -13,6 +13,7 @@ import "github.com/nhtera/sonde/engine"
 // (architecture.md §2), so the error value is only ever used through the
 // engine-declared field/method it came from, never named as a type here.
 func renderErrors(res *engine.UnitResult, redact func(string) string) (failures, errs []string) {
+	redact = forResult(res, redact)
 	for _, e := range res.Entries {
 		if e.Retried {
 			continue
@@ -27,4 +28,14 @@ func renderErrors(res *engine.UnitResult, redact func(string) string) (failures,
 		}
 	}
 	return failures, errs
+}
+
+// forResult extends redact with the secrets of res's data row, which the
+// run-wide redact does not know: res.Redact masks the run's and the row's
+// secrets in one pass, then redact applies as given.
+func forResult(res *engine.UnitResult, redact func(string) string) func(string) string {
+	if res.Row == 0 {
+		return redact
+	}
+	return func(s string) string { return redact(res.Redact(s)) }
 }

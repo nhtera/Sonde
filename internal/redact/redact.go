@@ -103,39 +103,65 @@ func (r *Registry) Len() int {
 // and its encoded variants, replaced by Mask. s is returned unchanged, and
 // without allocating, if nothing matches.
 func (r *Registry) Redact(s string) string {
-	idx := r.getIndex()
-	if idx == nil {
+	return redact(s, r.getIndex(), nil)
+}
+
+// RedactWith is Redact over the secrets of r and of extra together, in
+// one pass, so that overlapping secrets of the two registries are masked
+// as one. extra may be nil.
+func (r *Registry) RedactWith(s string, extra *Registry) string {
+	if extra == nil {
+		return r.Redact(s)
+	}
+	return redact(s, r.getIndex(), extra.getIndex())
+}
+
+// redact masks the patterns of a and b (either may be nil) in s.
+func redact(s string, a, b *patternIndex) string {
+	if a == nil && b == nil {
 		return s
 	}
-	var b strings.Builder
+	var out strings.Builder
 	last := 0            // start of the text not yet copied
 	start, end := -1, -1 // current merged match
 	for i := 0; i < len(s); i++ {
-		for _, p := range idx[s[i]] {
-			if !strings.HasPrefix(s[i:], p) {
-				continue
+		n := max(longestMatch(s[i:], a), longestMatch(s[i:], b))
+		if n == 0 {
+			continue
+		}
+		switch {
+		case start >= 0 && i <= end:
+			end = max(end, i+n)
+		default:
+			if start >= 0 {
+				out.WriteString(s[last:start])
+				out.WriteString(Mask)
+				last = end
 			}
-			switch {
-			case start >= 0 && i <= end:
-				end = max(end, i+len(p))
-			default:
-				if start >= 0 {
-					b.WriteString(s[last:start])
-					b.WriteString(Mask)
-					last = end
-				}
-				start, end = i, i+len(p)
-			}
-			break // patterns are longest first
+			start, end = i, i+n
 		}
 	}
 	if start < 0 {
 		return s
 	}
-	b.WriteString(s[last:start])
-	b.WriteString(Mask)
-	b.WriteString(s[end:])
-	return b.String()
+	out.WriteString(s[last:start])
+	out.WriteString(Mask)
+	out.WriteString(s[end:])
+	return out.String()
+}
+
+// longestMatch returns the length of the longest pattern of idx that s
+// starts with, or 0.
+func longestMatch(s string, idx *patternIndex) int {
+	if idx == nil || s == "" {
+		return 0
+	}
+	for _, p := range idx[s[0]] {
+		if strings.HasPrefix(s, p) {
+			return len(p) // patterns are longest first
+		}
+	}
+	return 0
 }
 
 // RedactBytes is Redact for a byte slice.

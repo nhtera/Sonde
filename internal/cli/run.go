@@ -91,6 +91,13 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	if err != nil {
 		return err
 	}
+	if rc.data != nil {
+		for name, e := range extras {
+			if err := rc.data.checkSecrets(e.secrets); err != nil {
+				return NewExitError(ExitUsage, fmt.Errorf("%s: %w (sonde.yaml)", name, err))
+			}
+		}
+	}
 	if rc.jobs > 1 && defaultsJobs > 0 && !changed(cmd, "jobs") {
 		if _, _, ok := env.Lookup("JOBS"); !ok {
 			rc.jobs = defaultsJobs
@@ -147,6 +154,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	stop, haltSiblings := mergeStop(stopFromContext(ctx))
 
 	worst := ExitOK
+	aborted := false
 	total, succeeded, requests := 0, 0, 0
 	start := time.Now()
 	cookies := &cookieJarAccumulator{}
@@ -168,7 +176,14 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	jobBufs := map[int]*jobBuffer{}
 
 	barMode := newProgressMode(rc.test, rc.progressBar, isTerminalWriter(stderr))
-	pb := newProgressBar(barMode, rc.color, progressMaxWidth(), newJobTotal(len(files), rc.repeat))
+	units := len(files)
+	if rc.data != nil {
+		units *= rc.data.rows
+		if rc.data.rows == 0 {
+			newEventLogger(stderr, rc.color, false).writePrefixedMessage(ansiYellowBold, "warning", rc.data.path+": no data rows")
+		}
+	}
+	pb := newProgressBar(barMode, rc.color, progressMaxWidth(), newJobTotal(units, rc.repeat))
 
 	hooks := engine.Hooks{
 		Started: func(seq int, job engine.Job) (func(engine.Event), io.Writer) {
@@ -189,12 +204,18 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			// display, not part of any one file's output.
 			return func(ev engine.Event) {
 				if es, ok := ev.(engine.EntryStarted); ok {
-					pb.onEntryStarted(stderr, seq, job.Name, es.Index, es.Last, es.Retry)
+					pb.onEntryStarted(stderr, seq, job.Label(), es.Index, es.Last, es.Retry)
 				}
 				handle(ev)
 			}, out
 		},
 		Finished: func(seq int, job engine.Job, res *engine.UnitResult, jobErr error) bool {
+			if aborted {
+				// A parse or read error already ended the run: the jobs
+				// still finishing (other rows of the same file, siblings
+				// stopped early) print nothing, as if the run had exited.
+				return false
+			}
 			total++
 			// Unconditional, whichever branch below this job ends up
 			// taking: the reference CLI's own Completed handler always
@@ -212,7 +233,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			}
 
 			if jobErr != nil {
-				flushBuffer(stderr, jb, runner)
+				flushBuffer(stderr, jb, runner.Redact)
 				if _, isPathErr := jobErr.(*fs.PathError); isPathErr { //nolint:errorlint // deliberately not errors.As: a *fs.PathError wrapped inside a setup error (e.g. a bad --cookie file) must NOT match here
 					// The file itself could not be read: matches the
 					// upstream CLI's own behavior, abort the whole run
@@ -221,6 +242,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 					// boundary too, not just stopping new scheduling.
 					reportReadError(stderr, job.Name, jobErr)
 					worst = worstCode(worst, ExitParse)
+					aborted = true
 					haltSiblings()
 					return false
 				}
@@ -231,8 +253,9 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 				worst = worstCode(worst, ExitRuntime)
 				return true
 			}
+			redact := res.Redact
 			if res.ParseError != nil {
-				flushBuffer(stderr, jb, runner)
+				flushBuffer(stderr, jb, redact)
 				shown := trimBOM(res.Source)
 				if rc.color {
 					writePrefixedError(stderr, res.ParseError.RenderColor(job.Name, shown), true)
@@ -240,6 +263,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 					writePrefixedError(stderr, res.ParseError.Render(job.Name, shown), false)
 				}
 				worst = worstCode(worst, ExitParse)
+				aborted = true
 				// Upstream parity: a parse error aborts the whole run
 				// immediately, with no reports and no summary (see the
 				// worst == ExitParse check after RunAll), so there is
@@ -248,12 +272,12 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 				return false
 			}
 			if rc.errorFormat == "long" {
-				writeLongFormatErrors(errW, runner, res, rc.color)
+				writeLongFormatErrors(errW, res, rc.color)
 			}
 			if resultsBySeq != nil {
 				resultsBySeq[seq] = res
 			}
-			flushBuffer(stderr, jb, runner)
+			flushBuffer(stderr, jb, redact)
 
 			if res.Success {
 				succeeded++
@@ -261,10 +285,10 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			for _, e := range res.Entries {
 				requests += len(e.Calls)
 				if curlBySeq != nil && e.Curl != "" {
-					curlBySeq[seq] = append(curlBySeq[seq], e.Curl)
+					curlBySeq[seq] = append(curlBySeq[seq], res.Redact(e.Curl))
 				}
 			}
-			cookies.add(res.Cookies)
+			cookies.add(res.Cookies, res.Redact)
 
 			outSink := sink
 			if jb != nil {
@@ -296,7 +320,11 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	if buffered && rc.engine.Verbosity >= engine.Verbose {
 		newEventLogger(stderr, rc.color, false).writeStar(fmt.Sprintf("Parallel run using %d workers", rc.jobs), false)
 	}
-	runner.RunAll(ctx, stop, buildJobs(files, stdinSrc, rc.repeat, extras), rc.jobs, hooks)
+	var dataErr error
+	runner.RunAll(ctx, stop, buildJobs(files, stdinSrc, rc.repeat, extras, rc.data, &dataErr), rc.jobs, hooks)
+	if dataErr != nil {
+		return NewExitError(ExitUsage, dataErr)
+	}
 	// Upstream parity: a parse error or unreadable input file aborts the
 	// run right here — no curl export, no reports, no cookie jar, no
 	// --test summary. The Finished hook already printed the error (and
@@ -391,13 +419,13 @@ type jobBuffer struct {
 	logger     *eventLogger
 }
 
-// flushBuffer writes jb's buffered, redacted stderr to w; jb may be nil
+// flushBuffer writes jb's buffered stderr to w, redacted; jb may be nil
 // (sequential mode, already written directly).
-func flushBuffer(w io.Writer, jb *jobBuffer, runner *engine.Runner) {
+func flushBuffer(w io.Writer, jb *jobBuffer, redact func(string) string) {
 	if jb == nil || jb.stderr.Len() == 0 {
 		return
 	}
-	_, _ = w.Write([]byte(runner.Redact(jb.stderr.String())))
+	_, _ = w.Write([]byte(redact(jb.stderr.String())))
 	jb.stderr.Reset()
 }
 
@@ -610,9 +638,13 @@ func logWriting(stderr io.Writer, color, verbose bool, what, path string) {
 // is left nil so RunAll reads it (lazily, once per attempt); stdin's
 // Source is the bytes read once in runMain, reused for every repeat. A
 // non-stdin file's sonde.yaml variables/secrets, if any, come from extras.
-func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[string]jobExtras) iter.Seq[engine.Job] {
+//
+// With a data file, each file runs once per row; a data file that fails
+// to read midway ends the sequence and sets *dataErr.
+func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[string]jobExtras, data *dataRun, dataErr *error) iter.Seq[engine.Job] {
 	return func(yield func(engine.Job) bool) {
 		for pass := 0; repeat < 0 || pass < repeat; pass++ {
+			yielded := false
 			for _, f := range files {
 				job := engine.Job{Name: f.name}
 				if f.stdin {
@@ -621,9 +653,33 @@ func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[strin
 					job.Variables = e.vars
 					job.Secrets = e.secrets
 				}
-				if !yield(job) {
+				if data == nil {
+					if !yield(job) {
+						return
+					}
+					yielded = true
+					continue
+				}
+				if job.Source == nil {
+					// Read once for all the rows; on failure the jobs
+					// read it again and report the error.
+					job.Source = readSourceOnce(f.name)
+				}
+				stopped, err := data.each(func(row *engine.Row) bool {
+					job.Row = row
+					yielded = true
+					return yield(job)
+				})
+				if err != nil {
+					*dataErr = err
 					return
 				}
+				if stopped {
+					return
+				}
+			}
+			if !yielded {
+				return // no rows: another pass would yield nothing either
 			}
 		}
 	}
@@ -638,7 +694,8 @@ type cookieJarAccumulator struct {
 	byKey map[string]engine.Cookie
 }
 
-func (a *cookieJarAccumulator) add(cs []engine.Cookie) {
+// add merges cs, their values redacted with redact.
+func (a *cookieJarAccumulator) add(cs []engine.Cookie, redact func(string) string) {
 	if a.byKey == nil {
 		a.byKey = map[string]engine.Cookie{}
 	}
@@ -647,6 +704,7 @@ func (a *cookieJarAccumulator) add(cs []engine.Cookie) {
 		if _, ok := a.byKey[k]; !ok {
 			a.order = append(a.order, k)
 		}
+		c.Value = redact(c.Value)
 		a.byKey[k] = c
 	}
 }
@@ -726,11 +784,11 @@ func printTestLine(stderr io.Writer, color bool, res *engine.UnitResult) {
 		n += len(e.Calls)
 	}
 	if !color {
-		_, _ = fmt.Fprintf(stderr, "%s %s (%d request(s) in %d ms)\n", status, res.File, n, res.Duration.Milliseconds())
+		_, _ = fmt.Fprintf(stderr, "%s %s (%d request(s) in %d ms)\n", status, res.Label(), n, res.Duration.Milliseconds())
 		return
 	}
 	_, _ = fmt.Fprintf(stderr, "%s%s%s %s%s%s (%d request(s) in %d ms)\n",
-		style, status, ansiReset, ansiBold, res.File, ansiReset, n, res.Duration.Milliseconds())
+		style, status, ansiReset, ansiBold, res.Label(), ansiReset, n, res.Duration.Milliseconds())
 }
 
 // testSummary is --test's final block: the documented wording and number
@@ -844,6 +902,21 @@ func expandInputArg(a string) ([]*inputFile, error) {
 // nothing on disk, matching the upstream CLI's own message.
 func cannotAccessErr(path string) error {
 	return NewExitError(ExitUsage, fmt.Errorf("Cannot access '%s': No such file or directory", path)) //nolint:staticcheck,revive // kept for CLI message-format compatibility
+}
+
+// readSourceOnce reads a request file shared by many jobs; nil when it
+// cannot be read or is too large (each job then reports it).
+func readSourceOnce(name string) []byte {
+	f, err := os.Open(name) //nolint:gosec // G304: an input file named on the command line
+	if err != nil {
+		return nil
+	}
+	defer f.Close() //nolint:errcheck // read-only
+	src, err := readLimitedFrom(f)
+	if err != nil {
+		return nil
+	}
+	return src
 }
 
 // readLimitedFrom reads all of r but stops past syntax.MaxFileSize.

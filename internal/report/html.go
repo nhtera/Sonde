@@ -133,13 +133,14 @@ func WriteHTML(dir string, results []*engine.UnitResult, redact func(string) str
 	}
 
 	for _, res := range results {
-		id := uniqueHTMLID(used, res.File)
-		if err := writeHTMLUnitPage(storeDir, id, res, redact); err != nil {
+		rd := forResult(res, redact)
+		id := uniqueHTMLID(used, res.Label())
+		if err := writeHTMLUnitPage(storeDir, id, res, rd); err != nil {
 			return err
 		}
 		manifest = append(manifest, htmlManifestEntry{
 			ID:        id,
-			Filename:  redact(res.File),
+			Filename:  rd(res.Label()),
 			Success:   res.Success,
 			TimeMS:    res.Duration.Milliseconds(),
 			Timestamp: res.Timestamp,
@@ -182,7 +183,7 @@ func writeHTMLUnitPage(storeDir, id string, res *engine.UnitResult, redact func(
 	}
 
 	data := htmlUnitData{
-		Filename: redact(res.File),
+		Filename: redact(res.Label()),
 		Success:  res.Success,
 		TimeMS:   res.Duration.Milliseconds(),
 		RunAt:    formatRunAt(res.Timestamp),

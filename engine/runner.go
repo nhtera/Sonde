@@ -73,10 +73,19 @@ type unitIO struct {
 	// vars and secrets of the job, below the runner's options.
 	vars    map[string]any
 	secrets map[string]string
+	// row, when set, is the data row, above the runner's options.
+	row *Row
 }
 
 func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio unitIO) (*UnitResult, error) {
-	res := &UnitResult{File: name, Source: src, Timestamp: time.Now()}
+	res := &UnitResult{File: name, Source: src, Timestamp: time.Now(), runSecrets: r.secrets}
+	if uio.row != nil {
+		res.Row = uio.row.Index
+		res.rowSecrets = redact.New()
+		for name, v := range uio.row.Secrets {
+			res.rowSecrets.Add(name, v)
+		}
+	}
 	f, err := syntax.Parse(name, src, syntax.DialectFor(name))
 	if err != nil {
 		var perr *syntax.Error
@@ -95,7 +104,7 @@ func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio uni
 		return nil, err
 	}
 	defer root.Close() //nolint:errcheck // read-only use
-	u := &unit{runner: r, file: f, name: name, src: src, root: root, rootDir: rootDir, io: uio}
+	u := &unit{runner: r, file: f, name: name, src: src, root: root, rootDir: rootDir, io: uio, rowSecrets: res.rowSecrets}
 	client, err := httpx.NewClient(httpx.ClientConfig{
 		Sandbox:       root,
 		CookieFile:    r.opt.CookieFile,
@@ -128,10 +137,15 @@ func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio uni
 	return res, nil
 }
 
-// variables builds the initial variables: options then secrets.
+// variables builds the initial variables: the job's, the runner's
+// options, then the data row's.
 func (r *Runner) variables(uio unitIO) (template.Vars, error) {
 	vars := template.Vars{}
-	for _, src := range []map[string]any{uio.vars, r.opt.Variables} {
+	var rowVars map[string]any
+	if uio.row != nil {
+		rowVars = uio.row.Variables
+	}
+	for _, src := range []map[string]any{uio.vars, r.opt.Variables, rowVars} {
 		for name, v := range src {
 			val, err := toValue(v)
 			if err != nil {
@@ -146,6 +160,11 @@ func (r *Runner) variables(uio unitIO) (template.Vars, error) {
 			if _, ok := r.opt.Variables[name]; i == 0 && ok {
 				continue // the runner's variable wins over a job secret
 			}
+			vars.SetSecret(name, v)
+		}
+	}
+	if uio.row != nil {
+		for name, v := range uio.row.Secrets {
 			vars.SetSecret(name, v)
 		}
 	}
@@ -168,6 +187,27 @@ func toValue(v any) (value.Value, error) {
 		return value.Int(v), nil
 	case float64:
 		return value.Float(v), nil
+	case []any:
+		list := make(value.List, len(v))
+		for i, e := range v {
+			ev, err := toValue(e)
+			if err != nil {
+				return nil, err
+			}
+			list[i] = ev
+		}
+		return list, nil
+	case map[string]any:
+		obj := make(value.Object, 0, len(v))
+		for k, e := range v {
+			ev, err := toValue(e)
+			if err != nil {
+				return nil, err
+			}
+			obj = append(obj, value.Member{Key: k, Value: ev})
+		}
+		slices.SortFunc(obj, func(a, b value.Member) int { return strings.Compare(a.Key, b.Key) })
+		return obj, nil
 	}
 	return nil, fmt.Errorf("unsupported type %T", v)
 }
@@ -188,6 +228,24 @@ type unit struct {
 	// last is the index of the last entry to run.
 	last int
 	io   unitIO
+	// rowSecrets are the data row's secrets (nil without a row).
+	rowSecrets *redact.Registry
+}
+
+// addSecret registers a secret found while running: with the row's
+// secrets when the unit runs a data row, so that rows never grow the
+// run's secrets, else with the run's.
+func (u *unit) addSecret(name, v string) {
+	if u.rowSecrets != nil {
+		u.rowSecrets.Add(name, v)
+		return
+	}
+	u.runner.secrets.Add(name, v)
+}
+
+// redact masks the run's secrets and the row's.
+func (u *unit) redact(s string) string {
+	return u.runner.secrets.RedactWith(s, u.rowSecrets)
 }
 
 func (u *unit) emit(ev Event) {
@@ -210,7 +268,7 @@ func (u *unit) stopped(ctx context.Context) bool {
 }
 
 func (u *unit) log(level LogLevel, text string) {
-	u.emit(Log{Level: level, Text: u.runner.Redact(text)})
+	u.emit(Log{Level: level, Text: u.redact(text)})
 }
 
 // debug logs verbose detail when the running entry is verbose.
@@ -239,8 +297,8 @@ func (u *unit) readFile(name string) ([]byte, error) {
 // contains one, so that its Base64 form in an Authorization header is
 // redacted too.
 func (u *unit) protectCredentials(userPass string) {
-	if userPass != "" && u.runner.Redact(userPass) != userPass {
-		u.runner.secrets.Add("credentials", userPass)
+	if userPass != "" && u.redact(userPass) != userPass {
+		u.addSecret("credentials", userPass)
 	}
 }
 
@@ -251,8 +309,8 @@ func (u *unit) logError(level LogLevel, err *runerr.Error, entryLine int) {
 	lf := strings.NewReplacer("\r\n", "\n")
 	u.emit(Log{
 		Level: level,
-		Text:  u.runner.Redact(lf.Replace(err.Render(u.name, string(u.src), entryLine))),
-		Color: u.runner.Redact(lf.Replace(err.RenderColor(u.name, string(u.src), entryLine))),
+		Text:  u.redact(lf.Replace(err.Render(u.name, string(u.src), entryLine))),
+		Color: u.redact(lf.Replace(err.RenderColor(u.name, string(u.src), entryLine))),
 	})
 }
 

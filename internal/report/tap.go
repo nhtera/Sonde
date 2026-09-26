@@ -47,7 +47,7 @@ func WriteTAP(path string, results []*engine.UnitResult, redact func(string) str
 			// interrupted unit (both leave it false), so neither needs
 			// special-casing here the way JUnit's empty-testcase shape
 			// does.
-			description: escapeTAPDescription(redact(res.File)),
+			description: escapeTAPDescription(forResult(res, redact)(res.Label())),
 			success:     res.Success,
 		})
 	}

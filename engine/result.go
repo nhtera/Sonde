@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/redact"
 	"github.com/nhtera/sonde/internal/runerr"
 	"github.com/nhtera/sonde/internal/syntax"
 	"github.com/nhtera/sonde/internal/value"
@@ -32,6 +33,45 @@ type UnitResult struct {
 	Cookies []Cookie
 	// Timestamp is the start of the run.
 	Timestamp time.Time
+	// Row is the 1-based index of the data row the file ran with (0:
+	// none).
+	Row int
+
+	// runSecrets and rowSecrets are the registries Redact masks.
+	runSecrets, rowSecrets *redact.Registry
+}
+
+// Label names the run in output and reports: the file, and its data row
+// as "#row-N".
+func (u *UnitResult) Label() string {
+	if u.Row > 0 {
+		return rowLabel(u.File, u.Row)
+	}
+	return u.File
+}
+
+func rowLabel(file string, row int) string { return file + "#row-" + strconv.Itoa(row) }
+
+// Redact masks in s every secret known for this result, in one pass: the
+// runner's (as of the call: sinks written after the run get the final
+// union) and those of its data row (Row.Secrets, and the `redact`
+// captures and credentials of the row's run), which Runner.Redact does
+// not know. Sinks showing a result redact with it. Row secrets exist only
+// in a run with data rows; a UnitResult not produced by a Runner redacts
+// nothing.
+func (u *UnitResult) Redact(s string) string {
+	switch {
+	case u.runSecrets != nil:
+		return u.runSecrets.RedactWith(s, u.rowSecrets)
+	case u.rowSecrets != nil:
+		return u.rowSecrets.Redact(s)
+	}
+	return s
+}
+
+// HasSecrets reports whether Redact knows any secret.
+func (u *UnitResult) HasSecrets() bool {
+	return (u.runSecrets != nil && u.runSecrets.Len() > 0) || (u.rowSecrets != nil && u.rowSecrets.Len() > 0)
 }
 
 // Errors returns the errors that decided the outcome: those of every

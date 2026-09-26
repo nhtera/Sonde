@@ -48,11 +48,12 @@ func WriteJSON(dir string, results []*engine.UnitResult, redact func(string) str
 		return err
 	}
 
-	store := func(body []byte, contentType string) (string, error) {
-		return saveResponseBody(storeDir, body, contentType, redact)
-	}
 	for _, res := range results {
-		r, err := JSON(res, redact, store)
+		rd := forResult(res, redact)
+		store := func(body []byte, contentType string) (string, error) {
+			return saveResponseBody(storeDir, body, contentType, rd)
+		}
+		r, err := JSON(res, rd, store)
 		if err != nil {
 			return err
 		}

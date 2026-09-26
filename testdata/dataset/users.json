@@ -1,0 +1,4 @@
+[
+  {"user": "alice", "password": "s3cret-1", "age": 30, "admin": true, "tags": ["a", "b"]},
+  {"user": "bob", "password": "s3cret-2", "age": 12345678901234567890, "admin": false, "meta": {"k": null}}
+]

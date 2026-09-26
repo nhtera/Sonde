@@ -6,7 +6,8 @@ package engine
 // Event is something a front end may show while a unit runs. Events are
 // delivered serially. Log texts are redacted; results carried by events
 // (and returned by the runner) hold raw values, to be passed through
-// Runner.Redact before they are shown.
+// UnitResult.Redact (or Runner.Redact, for a run without data rows)
+// before they are shown.
 type Event interface{ isEvent() }
 
 // LogLevel tells how a log line is presented.

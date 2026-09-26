@@ -49,3 +49,19 @@ hooks retaining results and reports the heap after a GC.
 
 Targets: `--jobs 8` at least 3× faster than `--jobs 1`; memory independent of
 the number of files.
+
+## Data rows (`--data`)
+
+A one-entry file whose entry is skipped (`[Options] skip: true`, so no
+connection is made) runs once per row of a generated data file with a
+secret column (`--data-secret password`); peak RSS from `/usr/bin/time -l`.
+
+| Date | Version | Platform | Rows | Plain run | `--test --jobs 8` |
+|---|---|---|---|---|---|
+| 2026-09-26 | dev (Phase 6) | darwin/arm64, Apple M4 Pro, go1.27.1 | 1,000 CSV | 0.03 s, 18.6 MB | 0.02 s, 20.2 MB |
+| 2026-09-26 | dev (Phase 6) | darwin/arm64, Apple M4 Pro, go1.27.1 | 1,000,000 CSV (35 MB) | 31 s, 21.8 MB | 29 s, 25.3 MB |
+| 2026-09-26 | dev (Phase 6) | darwin/arm64, Apple M4 Pro, go1.27.1 | 1,000,000 JSON (68 MB) | 34 s, 22.5 MB | 31 s, 24.6 MB |
+
+Target: memory independent of the number of rows (without `--report-*`,
+which keeps every result for the reports). The time is the per-unit setup
+(about 30 µs a row); with real requests, each row's new connection dominates.

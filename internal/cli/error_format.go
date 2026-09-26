@@ -26,7 +26,9 @@ const maxLongFormatBytes = 64
 // "error: ..." block the short form prints. It replaces the engine's own
 // LogError events for the run (see eventLogger.longErrors), so every
 // error still gets rendered exactly once.
-func writeLongFormatErrors(stderr io.Writer, runner *engine.Runner, res *engine.UnitResult, color bool) {
+func writeLongFormatErrors(stderr io.Writer, res *engine.UnitResult, color bool) {
+	redact := res.Redact
+	hasSecrets := res.HasSecrets()
 	for _, e := range res.Entries {
 		if e.Retried {
 			continue // not the decisive attempt
@@ -36,11 +38,11 @@ func writeLongFormatErrors(stderr io.Writer, runner *engine.Runner, res *engine.
 		}
 		if len(e.Calls) > 0 {
 			call := e.Calls[len(e.Calls)-1]
-			writeCurlHint(stderr, runner.Redact(e.Curl), color)
+			writeCurlHint(stderr, redact(e.Curl), color)
 			fmt.Fprintln(stderr)
 			if call.Response != nil {
-				writeStatusAndHeaders(stderr, call.Response, color, runner.Redact)
-				writeLongFormatBody(stderr, call.Response, runner.Redact, runner.HasSecrets())
+				writeStatusAndHeaders(stderr, call.Response, color, redact)
+				writeLongFormatBody(stderr, call.Response, redact, hasSecrets)
 				fmt.Fprintln(stderr)
 			}
 		}
@@ -49,7 +51,7 @@ func writeLongFormatErrors(stderr io.Writer, runner *engine.Runner, res *engine.
 			if color {
 				rendered = err.RenderColor(res.File, string(res.Source), e.Line)
 			}
-			writePrefixedError(stderr, runner.Redact(strings.ReplaceAll(rendered, "\r\n", "\n")), color)
+			writePrefixedError(stderr, redact(strings.ReplaceAll(rendered, "\r\n", "\n")), color)
 		}
 	}
 }

@@ -279,3 +279,18 @@ func TestRedactOverlappingSecrets(t *testing.T) {
 		t.Errorf("repeated overlapping = %q", got)
 	}
 }
+
+func TestRedactWithOverlap(t *testing.T) {
+	run, row := New(), New()
+	run.Add("a", "xxxxYYYYzzzz")
+	row.Add("b", "YYYY")
+	if got := run.RedactWith("id=xxxxYYYYzzzz;k=YYYY.", row); got != "id=***;k=***." {
+		t.Errorf("RedactWith = %q", got)
+	}
+	if got := run.RedactWith("xxxxYYYYzzzz", nil); got != "***" {
+		t.Errorf("RedactWith(nil) = %q", got)
+	}
+	if got := New().RedactWith("k=YYYY", row); got != "k=***" {
+		t.Errorf("empty run registry: %q", got)
+	}
+}

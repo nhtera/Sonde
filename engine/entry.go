@@ -202,7 +202,7 @@ func (u *unit) captures(r *syntax.Response, qctx *query.Context) ([]Capture, *ru
 				return caps, e
 			}
 			u.env.Vars.SetSecret(name, string(s))
-			u.runner.secrets.Add(name, string(s))
+			u.addSecret(name, string(s))
 		} else {
 			u.env.Vars.Set(name, v)
 		}

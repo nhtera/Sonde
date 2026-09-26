@@ -85,9 +85,10 @@ func buildJUnitTestsuite(results []*engine.UnitResult, redact func(string) strin
 // upstream identifier), time is its duration in seconds with millisecond
 // precision.
 func buildJUnitTestcase(res *engine.UnitResult, redact func(string) string) (tc *xmlNode, errCount, failCount int) {
+	redact = forResult(res, redact)
 	tc = newXMLElement("testcase",
-		xmlAttr{Name: "id", Value: res.File},
-		xmlAttr{Name: "name", Value: res.File},
+		xmlAttr{Name: "id", Value: res.Label()},
+		xmlAttr{Name: "name", Value: res.Label()},
 		xmlAttr{Name: "time", Value: fmt.Sprintf("%.3f", res.Duration.Seconds())},
 	)
 

@@ -1,0 +1,5 @@
+﻿user,password,note
+alice,s3cret-1,"hello, ""world"""
+bob,s3cret-2,"multi
+line"
+carol,,

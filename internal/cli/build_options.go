@@ -52,6 +52,8 @@ type runContext struct {
 	// each file's nearest project's defaults.env).
 	env        string
 	configFile string
+	// data is the --data file, checked in full (nil: none).
+	data *dataRun
 }
 
 // hasReport reports whether any --report-* flag was given: results are
@@ -129,6 +131,9 @@ func buildRunContext(cmd *cobra.Command, o *runOptions, env config.Env, stdout i
 		return nil, NewExitError(ExitUsage, err)
 	}
 	if err := config.CheckNoClash(variables, secrets); err != nil {
+		return nil, NewExitError(ExitUsage, err)
+	}
+	if rc.data, err = newDataRun(o.data, o.dataSecrets, o.variables, secrets); err != nil {
 		return nil, NewExitError(ExitUsage, err)
 	}
 	engineVars := make(map[string]any, len(variables))

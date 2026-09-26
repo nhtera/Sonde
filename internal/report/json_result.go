@@ -25,8 +25,20 @@ type Result struct {
 	Cookies  []Cookie `json:"cookies"`
 	Entries  []Entry  `json:"entries"`
 	Filename string   `json:"filename"`
-	Success  bool     `json:"success"`
-	Time     int64    `json:"time"` // milliseconds
+	// Sonde holds data without an upstream equivalent; absent otherwise.
+	Sonde   *Sonde `json:"sonde,omitempty"`
+	Success bool   `json:"success"`
+	Time    int64  `json:"time"` // milliseconds
+}
+
+// Sonde is the `sonde` object of a result.
+type Sonde struct {
+	Iteration *Iteration `json:"iteration,omitempty"`
+}
+
+// Iteration identifies the data row a file ran with (`--data`).
+type Iteration struct {
+	Row int `json:"row"` // 1-based
 }
 
 // Cookie is one entry of the cookie store at the end of a run.
@@ -146,10 +158,14 @@ type BodyStore func(body []byte, contentType string) (path string, err error)
 // for --json; WriteJSON supplies one that saves each call's response body
 // under a report's store/ directory.
 func JSON(res *engine.UnitResult, redact func(string) string, store BodyStore) (Result, error) {
+	redact = forResult(res, redact)
 	jr := Result{
 		Filename: res.File,
 		Success:  res.Success,
 		Time:     res.Duration.Milliseconds(),
+	}
+	if res.Row > 0 {
+		jr.Sonde = &Sonde{Iteration: &Iteration{Row: res.Row}}
 	}
 	for _, c := range res.Cookies {
 		jr.Cookies = append(jr.Cookies, Cookie{

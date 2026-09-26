@@ -6,11 +6,14 @@ package engine
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"fmt"
 	"io"
 	"iter"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -258,5 +261,113 @@ func TestEntryStartedLast(t *testing.T) {
 	})
 	if !slices.Equal(lasts, []int{2, 2}) {
 		t.Errorf("EntryStarted.Last = %v, want [2 2]", lasts)
+	}
+}
+
+func TestRunAllRow(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, r.URL.Query().Get("u")+" "+r.Header.Get("X-Token")) //nolint:gosec // G705: test server echoing its input
+	}))
+	t.Cleanup(srv.Close)
+	src := []byte("GET " + srv.URL + "?u={{user}}\nX-Token: {{token}}\nHTTP 200\n" +
+		"[Captures]\nsession: body redact\n[Asserts]\nbody == \"{{expect}}\"\n")
+	job := Job{Name: "a.hurl", Source: src, Row: &Row{
+		Index:     3,
+		Variables: map[string]any{"user": "bob", "expect": "nobody"},
+		Secrets:   map[string]string{"token": "row-token-1"},
+	}}
+	r := NewRunner(Options{Variables: map[string]any{"user": "alice", "expect": "bob row-token-1"}, Verbosity: Verbose})
+	var logs strings.Builder
+	var res *UnitResult
+	r.RunAll(context.Background(), nil, slices.Values([]Job{job}), 1, Hooks{
+		Started: func(int, Job) (func(Event), io.Writer) {
+			return func(ev Event) {
+				if l, ok := ev.(Log); ok {
+					logs.WriteString(l.Text + "\n")
+				}
+			}, nil
+		},
+		Finished: func(_ int, _ Job, got *UnitResult, _ error) bool { res = got; return true },
+	})
+	if res.Label() != "a.hurl#row-3" || res.Row != 3 {
+		t.Errorf("label = %q", res.Label())
+	}
+	// The row's "expect" wins over the runner's, so the assert fails and
+	// its message holds the actual body.
+	if res.Success {
+		t.Fatal("row variable did not override the runner's variable")
+	}
+	for _, secret := range []string{"row-token-1", "bob row-token-1"} {
+		if strings.Contains(logs.String(), secret) {
+			t.Errorf("events leak %q", secret)
+		}
+	}
+	actual := res.Entries[0].Errors[0].Actual
+	if got := res.Redact(actual); strings.Contains(got, "row-token-1") {
+		t.Errorf("Redact(%q) = %q", actual, got)
+	}
+	if r.HasSecrets() || r.Redact("row-token-1") != "row-token-1" {
+		t.Error("row secrets leaked into the run's secrets")
+	}
+	if (&UnitResult{File: "b.hurl"}).Label() != "b.hurl" {
+		t.Error("label of a result without a row")
+	}
+}
+
+// TestRunAllRowCredentialsStayInRow checks that Basic credentials built
+// from a run secret and a row value are the row's secret, not the run's.
+func TestRunAllRowCredentialsStayInRow(t *testing.T) {
+	srv, _ := slowServer(t, 0)
+	src := []byte("GET " + srv.URL + "/ok\n[BasicAuth]\n{{user}}: {{pw}}\nHTTP 200\n")
+	var jobs []Job
+	for i := range 3 {
+		jobs = append(jobs, Job{Name: "a.hurl", Source: src, Row: &Row{Index: i + 1, Variables: map[string]any{"user": fmt.Sprint("user-", i)}}})
+	}
+	r := NewRunner(Options{Secrets: map[string]string{"pw": "run-password"}})
+	var results []*UnitResult
+	r.RunAll(context.Background(), nil, slices.Values(jobs), 1, Hooks{
+		Finished: func(_ int, _ Job, res *UnitResult, _ error) bool { results = append(results, res); return true },
+	})
+	encoded := base64.StdEncoding.EncodeToString([]byte("user-1:run-password"))
+	if r.Redact(encoded) != encoded {
+		t.Error("a row's credentials were added to the run's secrets")
+	}
+	if got := results[1].Redact("Basic " + encoded); got != "Basic ***" {
+		t.Errorf("row result Redact = %q", got)
+	}
+}
+
+// TestUnitResultRedactOverlap checks that a run secret containing a row
+// secret is masked whole.
+func TestUnitResultRedactOverlap(t *testing.T) {
+	srv, _ := slowServer(t, 0)
+	src := []byte("GET " + srv.URL + "/ok\nHTTP 200\n")
+	r := NewRunner(Options{Secrets: map[string]string{"a": "xxxxYYYYzzzz"}})
+	var res *UnitResult
+	r.RunAll(context.Background(), nil, slices.Values([]Job{{Name: "a.hurl", Source: src, Row: &Row{Index: 1, Secrets: map[string]string{"b": "YYYY"}}}}), 1, Hooks{
+		Finished: func(_ int, _ Job, got *UnitResult, _ error) bool { res = got; return true },
+	})
+	if got := res.Redact("k=xxxxYYYYzzzz"); got != "k=***" {
+		t.Errorf("Redact = %q", got)
+	}
+}
+
+func TestRowVariablesJSONShapes(t *testing.T) {
+	srv, _ := slowServer(t, 0)
+	src := []byte("GET " + srv.URL + "/ok\nHTTP 200\n[Asserts]\nvariable \"o\" isCollection\n")
+	r := NewRunner(Options{})
+	var res *UnitResult
+	row := &Row{Index: 1, Variables: map[string]any{"o": map[string]any{"k": []any{1, int64(2)}}}}
+	r.RunAll(context.Background(), nil, slices.Values([]Job{{Name: "a.hurl", Source: src, Row: row}}), 1, Hooks{
+		Finished: func(_ int, _ Job, got *UnitResult, err error) bool {
+			if err != nil {
+				t.Fatal(err)
+			}
+			res = got
+			return true
+		},
+	})
+	if !res.Success {
+		t.Errorf("object row variable: %v", res.Errors())
 	}
 }

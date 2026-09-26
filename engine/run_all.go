@@ -22,6 +22,32 @@ type Job struct {
 	// project file); the runner's Options take precedence over them.
 	Variables map[string]any
 	Secrets   map[string]string
+	// Row, when set, runs the job with a data row.
+	Row *Row
+}
+
+// Label names the job like its result's Label.
+func (j Job) Label() string {
+	if j.Row != nil {
+		return rowLabel(j.Name, j.Row.Index)
+	}
+	return j.Name
+}
+
+// Row is a data row a job runs with. Its variables and secrets take
+// precedence over the runner's Options.Variables; a caller wanting some
+// options to win over rows (the CLI's --variable) leaves those names out
+// of the row.
+type Row struct {
+	// Index is the 1-based position of the row; results are labeled
+	// "<file>#row-<Index>".
+	Index     int
+	Variables map[string]any
+	// Secrets, and the secrets the job finds while running (`redact`
+	// captures, credentials), are redacted from the job's events and by
+	// UnitResult.Redact, not by Runner.Redact: rows never grow the run's
+	// secrets.
+	Secrets map[string]string
 }
 
 // Hooks connect the jobs of RunAll to their output. Calls to the hooks and
@@ -92,7 +118,7 @@ func (r *Runner) RunAll(ctx context.Context, stop <-chan struct{}, jobs iter.Seq
 			onEvent, stdout = h.Started(seq, job)
 		}
 		mu.Unlock()
-		uio := unitIO{stop: stop, vars: job.Variables, secrets: job.Secrets}
+		uio := unitIO{stop: stop, vars: job.Variables, secrets: job.Secrets, row: job.Row}
 		if stdout != nil {
 			uio.stdout = lockedWriter{&mu, stdout}
 		}

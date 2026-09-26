@@ -7,14 +7,15 @@ every invocation, to `DIR/report.json`. One schema serves both: see
 
 The base fields below are byte-compatible with Hurl 8.0.1's own `--json`
 export — a Hurl parser or dashboard built against that schema reads a
-Sonde result unchanged. A future top-level `sonde` key is reserved for
-Sonde-only data (contracts, iterations, streams, gRPC) that has no Hurl
-equivalent; it is additive within a major version and not yet populated.
+Sonde result unchanged. A top-level `sonde` key holds Sonde-only data
+that has no Hurl equivalent (today the data row of a `--data` run; later
+contracts, streams, gRPC); it is additive within a major version and absent
+when empty.
 
 Every string value in a result — a URL, header, cookie, capture, assert
 message, curl command, and so on — has already been redacted with the
-run's final secret union (`internal/redact`): a secret can never appear in
-a report in the clear.
+run's final secret union (`internal/redact`) and, for a `--data` run, with
+the row's secrets: a secret can never appear in a report in the clear.
 
 ## `Result` (one file)
 
@@ -25,6 +26,7 @@ a report in the clear.
 | `time` | integer | Total duration, in milliseconds. |
 | `cookies` | `Cookie[]` | The cookie jar at the end of the run. |
 | `entries` | `Entry[]` | One object per attempt: a retried entry appears once per attempt, a repeated entry once per repetition. |
+| `sonde` | object, optional | Sonde-only data, absent when there is none. `sonde.iteration.row` (integer, 1-based) is the data row of a `--data` run; `filename` stays the file path. |
 
 ### `Cookie`
 
