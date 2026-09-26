@@ -1,0 +1,184 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sonde",
+  "scopeName": "source.sonde",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#request-line" },
+    { "include": "#response-line" },
+    { "include": "#section-header" },
+    { "include": "#fenced-body" },
+    { "include": "#key-value-line" },
+    { "include": "#query-name" },
+    { "include": "#backtick-string" },
+    { "include": "#literal-body" },
+    { "include": "#value-tokens" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "(^|\\s)(#.*)$",
+      "captures": {
+        "2": { "name": "comment.line.number-sign.sonde" }
+      }
+    },
+
+    "request-line": {
+      "match": "^\\s*(GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH)\\b\\s+(\\S+)",
+      "captures": {
+        "1": { "name": "keyword.control.method.sonde" },
+        "2": {
+          "name": "string.unquoted.url.sonde",
+          "patterns": [{ "include": "#placeholder" }]
+        }
+      }
+    },
+
+    "response-line": {
+      "match": "^\\s*(HTTP)(/(1\\.0|1\\.1|2|3))?\\s+(\\*|[1-5]\\d\\d)",
+      "captures": {
+        "1": { "name": "keyword.control.version.sonde" },
+        "3": { "name": "constant.numeric.http-version.sonde" },
+        "4": { "name": "constant.numeric.status.sonde" }
+      }
+    },
+
+    "section-header": {
+      "match": "^\\s*(\\[)(Query|QueryStringParams|Form|FormParams|Multipart|MultipartFormData|Cookies|BasicAuth|Options|Captures|Asserts)(\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.section.begin.sonde" },
+        "2": { "name": "entity.name.section.sonde" },
+        "3": { "name": "punctuation.definition.section.end.sonde" }
+      }
+    },
+
+    "fenced-body": {
+      "begin": "^\\s*(```)(json|xml|raw)?\\s*$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.sonde" },
+        "2": { "name": "entity.name.tag.language-hint.sonde" }
+      },
+      "end": "^\\s*(```)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.string.end.sonde" }
+      },
+      "name": "string.quoted.multiline.sonde",
+      "patterns": [{ "include": "#placeholder" }]
+    },
+
+    "backtick-string": {
+      "match": "(`)((?:[^`\\\\\\n]|\\\\.)*)(`)",
+      "captures": {
+        "1": { "name": "punctuation.definition.string.begin.sonde" },
+        "2": {
+          "name": "string.quoted.other.backtick.sonde",
+          "patterns": [{ "include": "#placeholder" }]
+        },
+        "3": { "name": "punctuation.definition.string.end.sonde" }
+      }
+    },
+
+    "literal-body": {
+      "match": "^\\s*(base64|hex|file)(,)([^;]*)(;)",
+      "captures": {
+        "1": { "name": "storage.type.literal.sonde" },
+        "2": { "name": "punctuation.separator.sonde" },
+        "3": { "name": "string.unquoted.literal-body.sonde" },
+        "4": { "name": "punctuation.terminator.sonde" }
+      }
+    },
+
+    "key-value-line": {
+      "comment": "A header (`Name: value`) or a section entry (`key: value`, including [Multipart] file params and [Options] `variable: name=value`).",
+      "match": "^\\s*([A-Za-z][\\w.-]*)\\s*(:)",
+      "captures": {
+        "1": { "name": "entity.name.tag.header-or-key.sonde" },
+        "2": { "name": "punctuation.separator.key-value.sonde" }
+      }
+    },
+
+    "query-name": {
+      "comment": "A query keyword, as used inside [Captures] (`name: query [filters...] [redact]`) and [Asserts] (`query [filters...] [not] predicate [value]`).",
+      "match": "\\b(body|bytes|certificate|cookie|duration|header|ip|jsonpath|md5|rawbytes|redirects|regex|sha256|status|url|variable|version|xpath)\\b",
+      "name": "support.function.query.sonde"
+    },
+
+    "filter-name": {
+      "match": "\\b(base64Decode|base64Encode|base64UrlSafeDecode|base64UrlSafeEncode|charsetDecode|count|dateFormat|daysAfterNow|daysBeforeNow|decode|first|format|htmlEscape|htmlUnescape|jsonpath|last|nth|regex|replace|replaceRegex|split|toDate|toFloat|toHex|toInt|toString|urlDecode|urlEncode|xpath)\\b",
+      "name": "support.function.filter.sonde"
+    },
+
+    "predicate": {
+      "match": "(==|!=|<=|>=|<|>)|\\b(contains|endsWith|equals|exists|includes|isBoolean|isCollection|isDate|isEmpty|isFloat|isInteger|isIpv4|isIpv6|isIsoDate|isList|isNumber|isObject|isString|isUuid|matches|startsWith|not)\\b",
+      "name": "keyword.operator.predicate.sonde"
+    },
+
+    "modifier": {
+      "match": "\\b(redact)\\b",
+      "name": "keyword.other.modifier.sonde"
+    },
+
+    "function-call": {
+      "match": "\\b(newDate|newUuid)\\b",
+      "name": "support.function.builtin.sonde"
+    },
+
+    "placeholder": {
+      "begin": "\\{\\{",
+      "beginCaptures": { "0": { "name": "punctuation.definition.template-expression.begin.sonde" } },
+      "end": "\\}\\}",
+      "endCaptures": { "0": { "name": "punctuation.definition.template-expression.end.sonde" } },
+      "name": "meta.embedded.line.placeholder.sonde",
+      "patterns": [
+        { "include": "#function-call" },
+        { "match": "[A-Za-z_][\\w-]*", "name": "variable.other.readwrite.sonde" }
+      ]
+    },
+
+    "regex-literal": {
+      "match": "/(?:[^/\\\\\\n]|\\\\.)+/",
+      "name": "string.regexp.sonde"
+    },
+
+    "double-quoted-string": {
+      "begin": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.sonde" } },
+      "end": "\"",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.sonde" } },
+      "name": "string.quoted.double.sonde",
+      "patterns": [
+        { "match": "\\\\.", "name": "constant.character.escape.sonde" },
+        { "include": "#placeholder" }
+      ]
+    },
+
+    "number": {
+      "match": "\\b\\d+(\\.\\d+)?(ms|s|m|h|d|kb|mb|gb)?\\b",
+      "name": "constant.numeric.sonde"
+    },
+
+    "constant": {
+      "match": "\\b(true|false|null)\\b",
+      "name": "constant.language.sonde"
+    },
+
+    "punctuation": {
+      "match": "[{}\\[\\],]",
+      "name": "punctuation.sonde"
+    },
+
+    "value-tokens": {
+      "patterns": [
+        { "include": "#filter-name" },
+        { "include": "#predicate" },
+        { "include": "#modifier" },
+        { "include": "#function-call" },
+        { "include": "#regex-literal" },
+        { "include": "#double-quoted-string" },
+        { "include": "#placeholder" },
+        { "include": "#constant" },
+        { "include": "#number" },
+        { "include": "#punctuation" }
+      ]
+    }
+  }
+}

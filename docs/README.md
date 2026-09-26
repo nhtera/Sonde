@@ -15,5 +15,6 @@
 | [guides/import-export.md](guides/import-export.md) | `sonde import` and `sonde export curl`: common flags, writer rules, kinds |
 | [guides/migrate-from-hurl.md](guides/migrate-from-hurl.md) | Switching from Hurl: commands, flags, differences, what Sonde adds |
 | [guides/migrate-from-postman.md](guides/migrate-from-postman.md) | Importing Postman collections and environments |
+| [guides/editors.md](guides/editors.md) | `sonde lsp`: VS Code extension, Neovim, and any other LSP client |
 
 Contributor guide: [CONTRIBUTING.md](../CONTRIBUTING.md). Security reports: [SECURITY.md](../SECURITY.md).

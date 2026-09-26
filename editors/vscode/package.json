@@ -1,0 +1,117 @@
+{
+  "name": "sonde",
+  "displayName": "Sonde",
+  "description": "Language support for Sonde (.sonde) and Hurl-compatible (.hurl) request files: diagnostics, completion, hover and formatting.",
+  "version": "0.1.0",
+  "publisher": "nhtera",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nhtera/sonde.git",
+    "directory": "editors/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/nhtera/sonde/issues"
+  },
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters"
+  ],
+  "keywords": [
+    "sonde",
+    "hurl",
+    "http",
+    "rest",
+    "api testing"
+  ],
+  "activationEvents": [
+    "onLanguage:sonde",
+    "onLanguage:hurl",
+    "workspaceContains:**/*.sonde"
+  ],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "sonde",
+        "aliases": [
+          "Sonde",
+          "sonde"
+        ],
+        "extensions": [
+          ".sonde"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sonde",
+        "scopeName": "source.sonde",
+        "path": "./syntaxes/sonde.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "sonde.restartLanguageServer",
+        "title": "Sonde: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "title": "Sonde",
+      "properties": {
+        "sonde.path": {
+          "type": "string",
+          "default": "sonde",
+          "markdownDescription": "Path to the `sonde` binary, or a command found on `PATH`. Changing this restarts the language server."
+        },
+        "sonde.env": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "markdownDescription": "The `sonde.yaml` environment whose variables are active, passed to the server as `initializationOptions.env` and kept in sync afterwards. Leave unset to use the server's default."
+        },
+        "sonde.associateHurlFiles": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Also run the Sonde language server on `.hurl` files that another extension has claimed under the `hurl` language id. If nothing else has already mapped `.hurl`, don't use this setting — instead map `\"files.associations\": {\"*.hurl\": \"sonde\"}`, which alone gives full diagnostics, completion, hover and formatting (not just highlighting). Changing this restarts the language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "lint": "eslint src test",
+    "pretest": "npm run compile && node ./test/setup-vscode-settings.mjs",
+    "test": "vscode-test",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.20.4",
+    "@types/vscode": "1.91.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.0.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "mocha": "^12.0.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.1"
+  },
+  "overrides": {
+    "diff": "^9.0.0",
+    "serialize-javascript": "^7.1.2"
+  }
+}

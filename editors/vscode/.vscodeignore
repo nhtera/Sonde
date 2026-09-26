@@ -1,0 +1,15 @@
+.vscode-test/**
+.vscode-test.mjs
+.vscode/**
+src/**
+test/**
+out/test/**
+.gitignore
+.eslintrc*
+eslint.config.mjs
+tsconfig.json
+tsconfig.tsbuildinfo
+*.vsix
+**/*.map
+**/.gitkeep
+CONTRIBUTING.md

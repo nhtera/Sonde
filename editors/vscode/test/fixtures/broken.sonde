@@ -1,0 +1,3 @@
+GET https://example.org/orders
+[Asserts]
+status ==

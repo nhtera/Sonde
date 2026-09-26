@@ -15,6 +15,8 @@ concurrency:
 env:
   # Keep in sync with the toolchain directive in go.mod.
   GO_VERSION: "1.27.1"
+  # Keep in sync with editors/vscode/package.json engines (Node, not vscode).
+  NODE_VERSION: "22"
 
 jobs:
   lint:
@@ -103,6 +105,48 @@ jobs:
         with:
           persist-credentials: false
       - run: make headers
+
+  vscode:
+    # Builds and tests the VS Code extension (editors/vscode) against a real
+    # `sonde lsp` binary. The extension host has no display on a CI runner,
+    # so the smoke test runs under Xvfb.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build sonde and put it on PATH
+        run: |
+          mkdir -p "$HOME/bin"
+          go build -o "$HOME/bin/sonde" ./cmd/sonde
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+        env:
+          CGO_ENABLED: "0"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - run: npm ci
+        working-directory: editors/vscode
+      - run: npm run lint
+        working-directory: editors/vscode
+      - run: npm run compile
+        working-directory: editors/vscode
+      - run: npm audit --audit-level=high
+        working-directory: editors/vscode
+      - run: xvfb-run -a npm test
+        working-directory: editors/vscode
+      - run: npx vsce package -o sonde.vsix
+        working-directory: editors/vscode
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sonde-vscode-extension
+          path: editors/vscode/sonde.vsix
+          if-no-files-found: error
 
   conformance:
     # Blocking on the manifest gate (test/conformance/manifest.yaml): the
