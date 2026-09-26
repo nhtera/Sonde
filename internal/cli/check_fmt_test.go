@@ -124,9 +124,16 @@ func TestFmtWrite(t *testing.T) {
 	}
 }
 
+// TestNoCompletionCommand checks that `completion` is not a generated
+// cobra command: `sonde completion bash` is upstream-style dispatch, so it is
+// read as two input files named "completion" and "bash", both missing.
 func TestNoCompletionCommand(t *testing.T) {
-	if code, _, _ := runArgs(t, "completion", "bash"); code != ExitUsage {
-		t.Errorf("completion: code %d, want %d (unknown command)", code, ExitUsage)
+	code, _, errOut := runArgs(t, "completion", "bash")
+	if code != ExitUsage {
+		t.Errorf("completion: code %d, want %d (treated as missing input files)", code, ExitUsage)
+	}
+	if !strings.Contains(errOut, "Cannot access 'completion'") {
+		t.Errorf("stderr = %q, want it to report completion as a missing file", errOut)
 	}
 }
 

@@ -7,8 +7,12 @@ coverage.*
 # OS
 .DS_Store
 
-# Hurl conformance servers (Python venv)
+# Conformance harness runtime output: server logs, sockets, __pycache__,
+# and whatever the vendored scripts themselves write (build/ is where they
+# expect to). The venv itself lives under the user cache dir, not here.
 testdata/conformance/hurl/.venv/
+testdata/conformance/hurl/build/
+testdata/conformance/hurl/**/__pycache__/
 
 # Plans and research stay private; public design lives in docs/
 /plans/

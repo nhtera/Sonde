@@ -97,13 +97,40 @@ func TestHelpListsCommands(t *testing.T) {
 
 func TestUsageErrors(t *testing.T) {
 	for _, args := range [][]string{
-		{"no-such-command"},
 		{"--no-such-flag"},
-		{"--color", "--no-color", "version"},
 	} {
 		if code, _, _ := runArgs(t, args...); code != ExitUsage {
 			t.Errorf("run(%q) exit code = %d, want %d", args, code, ExitUsage)
 		}
+	}
+}
+
+// TestColorNoColorTogetherIsNotAUsageError checks upstream-style silent
+// priority: giving both --color and --no-color is not a usage error, and
+// --no-color wins regardless of argument order.
+func TestColorNoColorTogetherIsNotAUsageError(t *testing.T) {
+	for _, args := range [][]string{
+		{"--color", "--no-color", "version"},
+		{"--no-color", "--color", "version"},
+	} {
+		code, _, errOut := runArgs(t, args...)
+		if code != ExitOK {
+			t.Errorf("run(%q) exit code = %d, want %d; stderr=%s", args, code, ExitOK, errOut)
+		}
+	}
+}
+
+// TestUnknownFirstArgIsAFile checks upstream-style dispatch: an arg that is
+// not one of check/fmt/version/run is treated as an input FILE, not an
+// unknown command, so it fails as a missing file (ExitUsage, "Cannot
+// access") rather than an unknown-command error.
+func TestUnknownFirstArgIsAFile(t *testing.T) {
+	code, _, errOut := runArgs(t, "no-such-command")
+	if code != ExitUsage {
+		t.Errorf("run([no-such-command]) exit code = %d, want %d", code, ExitUsage)
+	}
+	if !strings.Contains(errOut, "Cannot access 'no-such-command'") {
+		t.Errorf("stderr = %q, want it to report the missing file", errOut)
 	}
 }
 

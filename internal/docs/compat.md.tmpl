@@ -53,6 +53,18 @@ Regexes (`matches`, `regex`, `replaceRegex`, JSONPath `match`/`search`) run
 on Go's RE2 engine with `\d`, `\w` and `\s` translated to their Unicode
 meaning, as in Hurl.
 
+## HTTP and command line (`sonde FILE...`, `sonde run`)
+
+Measured with the conformance harness (`make conformance`, see
+`docs/conformance.md`). Differences:
+
+| Input | Hurl 8.0.1 | Sonde |
+|---|---|---|
+{{ range .Differences -}}
+{{ if eq .Area "HTTP" -}}
+| {{ .Input }} | {{ .Hurl }} | {{ .Sonde }} |
+{{ end -}}
+{{ end }}
 ## Queries
 
 | Query | Status | Description |

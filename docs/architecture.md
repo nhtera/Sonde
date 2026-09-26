@@ -27,9 +27,11 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `cmd/sonde` | `main` → `cli.Execute()` | `internal/cli` |
 | `engine` (**public**) | `Runner`, `Unit`, `RunFile`, `RunSource`, `Options`, `HTTPOptions`, events, results, `ResponseValidator`, `Violation` | syntax, value, redact, template, query, filter, predicate, runerr, exchange, httpx, sandbox |
 | `exchange` (**public**) | transport-neutral `Request`/`Response`/`Timings`/`CertInfo`/`Cookie` model; decoded body (br/gzip/deflate/zstd), charset-decoded text, `Set-Cookie` parsing | charset |
-| `internal/syntax` | reader, parser, AST, lossless printer, canonical formatter, diagnostics, dialect gate | — (leaf) |
-| `internal/value` | typed `Value` (null/bool/int/bigint/float/string/bytes/list/object/date/nodeset/unit/regex/http response); equality, ordering, display/repr/render; JSON decoding; Unicode-aware regex classes | — (leaf) |
-| `internal/runerr` | runtime error (span, kind, assert flag, messages) shared by evaluation packages | syntax |
+| `internal/syntax` | reader, parser, AST, lossless printer, canonical formatter, diagnostics, dialect gate | regex, styled |
+| `internal/regex` | regex validity rules shared by parser and evaluation | — (leaf) |
+| `internal/styled` | styled text runs printed plain or with ANSI colors (error snippets) | — (leaf) |
+| `internal/value` | typed `Value` (null/bool/int/bigint/float/string/bytes/list/object/date/nodeset/unit/regex/http response); equality, ordering, display/repr/render; JSON decoding; Unicode-aware regex classes | regex |
+| `internal/runerr` | runtime error (span, kind, assert flag, messages, plain and colored rendering) shared by evaluation packages | syntax, styled |
 | `internal/charset` | WHATWG encoding labels, strict decoding | — (leaf) |
 | `internal/datefmt` | strftime-style date formatting and parsing (`dateFormat`, `toDate`, cookie dates) | — (leaf) |
 | `internal/xpath` | XPath 1.0 on HTML (lenient) and XML (namespaces) documents | value |
@@ -151,6 +153,7 @@ Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-com
 ### CLI commands (implemented)
 | Command | Behavior | Exit codes |
 |---|---|---|
+| `sonde [options] FILE...`, `sonde run [options] FILE...` | runs request files like `hurl [options] FILE...` (no FILE: stdin; a directory: its `.hurl`/`.sonde` files; `--glob`); stdout = last response body (`-i`, `--pretty`, `-o`, `--no-output`) or one JSON result per file (`--json`); `--test` prints a per-file line and a summary to stderr; runtime errors rendered as Hurl does | 0; 1 (usage, missing input); 2 (parse error, stops the run); 3 (runtime error in any file); 4 (assert failures only); 127; 130 |
 | `sonde version` | version, commit, build date, Go version | 0 |
 | `sonde check FILE...` | parses every file; prints the first syntax error of each invalid file in Hurl's format (`error: Parsing …` snippet with caret) to stderr | 0, 2 (any invalid or unreadable file) |
 | `sonde fmt FILE...` | canonical layout to stdout; `-w/--write` rewrites in place atomically (temp file + rename, mode kept); `--check` lists unformatted files on stdout | 0; 1 (`--check` found unformatted files); 2 (parse/read error, wins over 1); 127 (write failed) |
@@ -177,7 +180,7 @@ Type inference for CLI/env/CSV values (Hurl-compatible): `true`/`false` → bool
 One registry per run (`internal/redact`): union of all sources incl. dynamic captures; values never removed. Matches raw, base64, URL-encoded and JSON-escaped forms. Applied inside the engine to events and results; run-level sinks (`--curl`, `--cookie-jar`, report finalization) written after the run with the final union.
 
 ### File access
-Every path originating from a request file — `file,` bodies/parts, `output`, `cacert`, `cert`, `key`, `netrc-file`, `unix-socket`, cookie files — resolves through `internal/sandbox` (`os.Root`) under the file root. `--file-root` is CLI-only; `sonde.yaml` has no file-root key. `sonde.yaml` paths resolve relative to its directory and must stay inside it. The user's `~/.netrc` credentials are not sent when `connect-to`/`resolve`/`proxy` reroutes the host (unless an explicit flag allows it).
+Every path originating from a request file that is read or written — `file,` bodies/parts, `output`, `unix-socket`, cookie files, and the option files `cacert`, `cert`, `key`, `pinnedpubkey`, `netrc-file` — resolves through `internal/sandbox` (`os.Root`) and must stay under the file root. Body, part, output and socket paths are joined to the root and normalized (so `../root/x` stays allowed); option files are relative to the working directory, as curl reads them. Paths given on the command line are trusted and not confined. `--file-root` is CLI-only; `sonde.yaml` has no file-root key. `sonde.yaml` paths resolve relative to its directory and must stay inside it. The user's `~/.netrc` credentials are not sent when `connect-to`/`resolve`/`proxy` (including a proxy from the environment) reroutes the host (unless an explicit flag allows it).
 
 ### HTTP semantics
 Body queries (`body`, `bytes`, `sha256`, `jsonpath`, …) see decoded content; `rawbytes` sees raw; `compressed` only adds `Accept-Encoding` and decodes stdout. Redirects: manual loop, one RoundTrip per hop, per-hop timings, credentials forwarded only on same host + port + scheme unless `location-trusted`. Header names are canonicalized by Go (documented). `http2` on `http://` stays HTTP/1.1 (h2c upgrade unsupported). Decoded body cap 512 MiB default (`max-filesize` overrides).
@@ -244,7 +247,7 @@ Assets: secrets (tokens, passwords), local files, user's ambient credentials (`~
 |---|---|
 | Secret leakage (terminal, events, reports, `--curl`, `--cookie-jar`, LSP, MCP) | run-wide redact registry incl. dynamic captures and encoded variants; buffered events for `redact` entries; run-level sinks written after run; grep test over all sinks for CLI, env, data-row and dynamic secrets |
 | Untrusted file reads/writes local files (`file,`, `output`, cert/key/netrc/socket paths) | `internal/sandbox` (`os.Root`) for all request-file paths; `--file-root` CLI-only; `sonde.yaml` cannot change file access, its own paths confined to its directory |
-| Ambient credential forwarding | no `~/.netrc` credentials on rerouted hosts; redirect credential rule = same host+port+scheme |
+| Ambient credential forwarding | no `~/.netrc` credentials on rerouted hosts (one warning when withheld); redirect credential rule = same host+port+scheme for `Authorization`/`Cookie` headers from any source (`[Cookies]` entries follow redirects, as with curl). Accepted gap: a request file may enable `netrc: true`, and a `default` stanza of the user's `~/.netrc` then applies to any host it calls |
 | Env-var exfiltration via templates | no `getEnv` (not in Hurl 8); any future env access `.sonde`-only, allowlisted, auto-secret |
 | Malicious import input | parsers fuzzed; no code execution (scripts → comments); size limits; output confined to `-o DIR` |
 | Decompression bombs / huge bodies | decoded body cap (512 MiB default), stream limits |

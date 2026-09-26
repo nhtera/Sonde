@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Copyright 2026 The Sonde Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Conformance shim: vendored integration scripts invoke `hurl` by name. This
+# script sits first on PATH during a conformance run and execs the binary
+# under test (built by the harness, or SONDE_CONFORMANCE_BIN) in its place.
+# There is no `hurlfmt` shim; scripts that need it are classified
+# "unsupported" by the harness and are not run.
+set -euo pipefail
+
+if [ -z "${SONDE_CONFORMANCE_TARGET:-}" ]; then
+  echo "hurl shim: SONDE_CONFORMANCE_TARGET is not set" >&2
+  exit 1
+fi
+
+# The oracles expect the default User-Agent of the tool they were recorded
+# with (`hurl/<version>`); an explicit -A/--user-agent in a script still wins.
+# Only the sonde binary reads SONDE_DEFAULT_USER_AGENT, so the reference binary is
+# unaffected when it runs through this shim.
+export SONDE_DEFAULT_USER_AGENT="hurl/8.0.1 (sonde conformance)"
+
+exec "${SONDE_CONFORMANCE_TARGET}" "$@"

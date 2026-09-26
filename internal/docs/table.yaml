@@ -265,33 +265,27 @@ options:
     reason: "stretch goal; not scheduled (low conformance weight)"
     usage: 1
   - name: "cacert"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "CA certificate bundle used to verify the server (PEM)"
     usage: 5
   - name: "cert"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "client certificate file, optionally with :PASSWORD"
     usage: 2
   - name: "compressed"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "requests a compressed response and decodes it"
     usage: 1
   - name: "connect-timeout"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum time allowed to establish the connection"
     usage: 0
   - name: "connect-to"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "redirects connections for HOST1:PORT1 to HOST2:PORT2"
     usage: 1
   - name: "delay"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sleep before sending this entry's request"
     usage: 10
   - name: "digest"
@@ -300,8 +294,7 @@ options:
     reason: "HTTP Digest authentication not implemented (low conformance weight)"
     usage: 1
   - name: "header"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "adds a custom header to the request"
     usage: 2
   - name: "http1.0"
@@ -310,63 +303,52 @@ options:
     reason: "Go's net/http cannot send a literal HTTP/1.0 request (Request.Proto is ignored)"
     usage: 1
   - name: "http1.1"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "forces HTTP/1.1"
     usage: 2
   - name: "http2"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "forces HTTP/2"
     usage: 2
   - name: "http3"
-    status: "planned"
-    phase: 4
+    status: "unsupported"
+    reason: "HTTP/3 transport not implemented yet"
     doc: "forces HTTP/3"
     usage: 1
   - name: "insecure"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "skips TLS certificate verification"
     usage: 3
   - name: "ipv4"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "resolves hostnames to IPv4 addresses only"
     usage: 0
   - name: "ipv6"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "resolves hostnames to IPv6 addresses only"
     usage: 0
   - name: "key"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "private key file matching --cert"
     usage: 2
   - name: "limit-rate"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "caps the transfer rate in bytes per second"
     usage: 0
   - name: "location"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "follows HTTP redirects"
     usage: 10
   - name: "location-trusted"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "follows redirects and forwards credentials to every host"
     usage: 1
   - name: "max-redirs"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum number of redirects to follow, -1 for unlimited"
     usage: 4
   - name: "max-time"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum time allowed for the whole transfer"
     usage: 0
   - name: "negotiate"
@@ -375,18 +357,15 @@ options:
     reason: "SPNEGO authentication not implemented (low conformance weight)"
     usage: 0
   - name: "netrc"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "reads credentials from ~/.netrc, failing if absent"
     usage: 0
   - name: "netrc-file"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "reads credentials from the given netrc-format file"
     usage: 1
   - name: "netrc-optional"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "reads credentials from ~/.netrc if present, else the URL"
     usage: 0
   - name: "ntlm"
@@ -395,78 +374,63 @@ options:
     reason: "NTLM authentication not implemented (low conformance weight)"
     usage: 1
   - name: "output"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "writes the response body to a file instead of stdout"
     usage: 10
   - name: "path-as-is"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sends the URL path without normalizing /../ or /./"
     usage: 1
   - name: "pinnedpubkey"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "verifies the server's public key against pinned hashes"
     usage: 2
   - name: "proxy"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "routes the request through the given proxy"
     usage: 1
   - name: "repeat"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "repeats this entry's request N times, -1 for infinite"
     usage: 3
   - name: "resolve"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "provides a custom address for a HOST:PORT pair"
     usage: 2
   - name: "retry"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum retries on entry error, -1 for unlimited"
     usage: 6
   - name: "retry-interval"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "delay between retries"
     usage: 3
   - name: "skip"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "skips this entry without executing it"
     usage: 1
   - name: "unix-socket"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "connects through a Unix domain socket instead of the network"
     usage: 0
   - name: "user"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "adds Basic authentication with USER:PASSWORD"
     usage: 6
   - name: "variable"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "defines a variable local to this entry"
     usage: 19
   - name: "verbose"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "turns on verbose output for this entry"
     usage: 6
   - name: "verbosity"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sets the verbosity level (brief, verbose, debug) for this entry"
     usage: 2
   - name: "very-verbose"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "turns on very verbose output, including libcurl-style logs"
     usage: 1
 
@@ -479,59 +443,50 @@ flags:
     usage: 4
   - name: "--cacert"
     arg: "FILE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "CA certificate bundle used to verify the server (PEM)"
     usage: 8
   - name: "--cert"
     short: "-E"
     arg: "CERTIFICATE[:PASSWORD]"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "client certificate file, optionally with :PASSWORD"
     usage: 1
   - name: "--color"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "forces colorized output"
     usage: 12
   - name: "--compressed"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "requests a compressed response and decodes it"
     usage: 3
   - name: "--connect-timeout"
     arg: "SECONDS"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum time allowed to establish the connection"
     usage: 1
   - name: "--connect-to"
     arg: "HOST1:PORT1:HOST2:PORT2"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "redirects connections for HOST1:PORT1 to HOST2:PORT2"
     usage: 3
   - name: "--continue-on-error"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "keeps running remaining files after a failure"
     usage: 18
   - name: "--cookie"
     short: "-b"
     arg: "FILE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "reads cookies from a Netscape-format FILE"
     usage: 1
   - name: "--cookie-jar"
     short: "-c"
     arg: "FILE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "writes cookies to FILE after the run"
     usage: 5
   - name: "--curl"
@@ -542,8 +497,7 @@ flags:
     usage: 5
   - name: "--delay"
     arg: "MILLISECONDS"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sleep before each request"
     usage: 2
   - name: "--digest"
@@ -554,20 +508,17 @@ flags:
     usage: 1
   - name: "--error-format"
     arg: "FORMAT"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "controls how error messages are rendered (short or long)"
     usage: 3
   - name: "--file-root"
     arg: "DIR"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sets the root directory used to resolve file paths"
     usage: 5
   - name: "--from-entry"
     arg: "ENTRY_NUMBER"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "starts execution at the given entry number"
     usage: 2
   - name: "--glob"
@@ -579,8 +530,7 @@ flags:
   - name: "--header"
     short: "-H"
     arg: "NAME:VALUE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "adds a custom header to every request"
     usage: 7
   - name: "--http1.0"
@@ -592,48 +542,42 @@ flags:
     usage: 1
   - name: "--http1.1"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "forces HTTP/1.1"
     usage: 1
   - name: "--http2"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "forces HTTP/2"
     usage: 0
   - name: "--http3"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "unsupported"
+    reason: "HTTP/3 transport not implemented yet"
     doc: "forces HTTP/3"
     usage: 1
   - name: "--include"
     short: "-i"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "includes the response headers in the output"
     usage: 6
   - name: "--insecure"
     short: "-k"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "skips TLS certificate verification"
     usage: 1
   - name: "--ipv4"
     short: "-4"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "resolves hostnames to IPv4 addresses only"
     usage: 7
   - name: "--ipv6"
     short: "-6"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "resolves hostnames to IPv6 addresses only"
     usage: 1
   - name: "--jobs"
@@ -644,52 +588,44 @@ flags:
     usage: 13
   - name: "--json"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "outputs each file's result as JSON"
     usage: 15
   - name: "--key"
     arg: "KEY"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "private key file matching --cert"
     usage: 1
   - name: "--limit-rate"
     arg: "SPEED"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "caps the transfer rate in bytes per second"
     usage: 1
   - name: "--location"
     short: "-L"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "follows HTTP redirects"
     usage: 8
   - name: "--location-trusted"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "follows redirects and forwards credentials to every host"
     usage: 0
   - name: "--max-filesize"
     arg: "BYTES"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "caps the size of a downloaded file"
     usage: 1
   - name: "--max-redirs"
     arg: "NUM"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum number of redirects to follow, -1 for unlimited"
     usage: 3
   - name: "--max-time"
     short: "-m"
     arg: "SECONDS"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum time allowed for the whole transfer"
     usage: 4
   - name: "--negotiate"
@@ -701,56 +637,47 @@ flags:
   - name: "--netrc"
     short: "-n"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "reads credentials from ~/.netrc, failing if absent"
     usage: 0
   - name: "--netrc-file"
     arg: "FILE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "reads credentials from the given netrc-format file"
     usage: 1
   - name: "--netrc-optional"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "reads credentials from ~/.netrc if present, else the URL"
     usage: 0
   - name: "--no-assert"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "ignores asserts defined in the file"
     usage: 1
   - name: "--no-color"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "disables colorized output"
     usage: 8
   - name: "--no-cookie-store"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "disables the cookie store between requests"
     usage: 2
   - name: "--no-output"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "suppresses the default last-response-body output"
     usage: 18
   - name: "--no-pretty"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "disables pretty-printing of response output"
     usage: 1
   - name: "--no-proxy"
     arg: "HOST(S)"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "lists hosts that bypass the proxy"
     usage: 0
   - name: "--ntlm"
@@ -762,8 +689,7 @@ flags:
   - name: "--output"
     short: "-o"
     arg: "FILE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "writes to FILE instead of stdout"
     usage: 14
   - name: "--parallel"
@@ -774,20 +700,17 @@ flags:
     usage: 12
   - name: "--path-as-is"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sends the URL path without normalizing /../ or /./"
     usage: 1
   - name: "--pinnedpubkey"
     arg: "HASHES"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "verifies the server's public key against pinned hashes"
     usage: 2
   - name: "--pretty"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "pretty-prints JSON response output"
     usage: 4
   - name: "--progress-bar"
@@ -799,14 +722,12 @@ flags:
   - name: "--proxy"
     short: "-x"
     arg: "[PROTOCOL://]HOST[:PORT]"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "routes the request through the given proxy"
     usage: 4
   - name: "--repeat"
     arg: "NUM"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "repeats the input file sequence N times, -1 for infinite"
     usage: 4
   - name: "--report-html"
@@ -835,32 +756,27 @@ flags:
     usage: 6
   - name: "--resolve"
     arg: "HOST:PORT:ADDR"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "provides a custom address for a HOST:PORT pair"
     usage: 3
   - name: "--retry"
     arg: "NUM"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum retries on entry error, -1 for unlimited"
     usage: 2
   - name: "--retry-interval"
     arg: "MILLISECONDS"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "delay between retries"
     usage: 2
   - name: "--secret"
     arg: "NAME=VALUE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "defines a variable whose value is treated as a secret"
     usage: 11
   - name: "--secrets-file"
     arg: "FILE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "defines secrets from a file"
     usage: 1
   - name: "--ssl-no-revoke"
@@ -877,101 +793,84 @@ flags:
     usage: 20
   - name: "--to-entry"
     arg: "ENTRY_NUMBER"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "stops execution at the given entry number"
     usage: 2
   - name: "--unix-socket"
     arg: "PATH"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "connects through a Unix domain socket instead of the network"
     usage: 1
   - name: "--user"
     short: "-u"
     arg: "USER:PASSWORD"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "adds Basic authentication with USER:PASSWORD"
     usage: 4
   - name: "--user-agent"
     short: "-A"
     arg: "NAME"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sets the User-Agent header sent to the server"
     usage: 1
   - name: "--variable"
     arg: "NAME=VALUE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "defines a variable"
     usage: 16
   - name: "--variables-file"
     arg: "FILE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "defines variables from a properties file"
     usage: 2
   - name: "--verbose"
     short: "-v"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "turns on verbose output (alias of --verbosity verbose)"
     usage: 43
   - name: "--verbosity"
     arg: "LEVEL"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sets the verbosity level for debug logging"
     usage: 2
   - name: "--very-verbose"
     arg: ""
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "turns on very verbose output, including HTTP and libcurl-style logs"
     usage: 6
 
 env:
   - name: "CI"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "presence signals a CI environment (affects color/progress defaults)"
     usage: 4
   - name: "HURL_COLOR"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --color when set truthy, --no-color when falsy"
     usage: 5
   - name: "HURL_COMPRESSED"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --compressed"
     usage: 1
   - name: "HURL_CONNECT_TIMEOUT"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --connect-timeout"
     usage: 1
   - name: "HURL_CONTINUE_ON_ERROR"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --continue-on-error"
     usage: 1
   - name: "HURL_DELAY"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --delay"
     usage: 2
   - name: "HURL_ERROR_FORMAT"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --error-format"
     usage: 1
   - name: "HURL_HEADER"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "adds one or more `|`-separated custom headers"
     usage: 1
   - name: "HURL_HTTP10"
@@ -980,33 +879,28 @@ env:
     reason: "mirrors --http1.0; Go's net/http cannot send a literal HTTP/1.0 request"
     usage: 1
   - name: "HURL_HTTP11"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --http1.1"
     usage: 1
   - name: "HURL_HTTP2"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --http2"
     usage: 0
   - name: "HURL_HTTP3"
-    status: "planned"
-    phase: 4
+    status: "unsupported"
+    reason: "HTTP/3 transport not implemented yet"
     doc: "same as --http3"
     usage: 0
   - name: "HURL_INSECURE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --insecure"
     usage: 1
   - name: "HURL_IPV4"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --ipv4"
     usage: 1
   - name: "HURL_IPV6"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --ipv6"
     usage: 1
   - name: "HURL_JOBS"
@@ -1015,78 +909,63 @@ env:
     doc: "same as --jobs"
     usage: 1
   - name: "HURL_LIMIT_RATE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --limit-rate"
     usage: 1
   - name: "HURL_LOCATION"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --location"
     usage: 1
   - name: "HURL_LOCATION_TRUSTED"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --location-trusted"
     usage: 1
   - name: "HURL_MAX_FILESIZE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --max-filesize"
     usage: 1
   - name: "HURL_MAX_REDIRS"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --max-redirs"
     usage: 2
   - name: "HURL_MAX_TIME"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --max-time"
     usage: 3
   - name: "HURL_NO_ASSERT"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --no-assert"
     usage: 1
   - name: "HURL_NO_COLOR"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --no-color"
     usage: 6
   - name: "HURL_NO_COOKIE_STORE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --no-cookie-store"
     usage: 1
   - name: "HURL_NO_OUTPUT"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --no-output"
     usage: 1
   - name: "HURL_NO_PRETTY"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --no-pretty"
     usage: 0
   - name: "HURL_PRETTY"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --pretty"
     usage: 1
   - name: "HURL_RETRY"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --retry"
     usage: 1
   - name: "HURL_RETRY_INTERVAL"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --retry-interval"
     usage: 1
   - name: "HURL_SECRET_name"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "defines a secret variable named `name` from its value"
     usage: 3
   - name: "HURL_TEST"
@@ -1095,67 +974,54 @@ env:
     doc: "same as --test"
     usage: 1
   - name: "HURL_USER"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --user"
     usage: 1
   - name: "HURL_USER_AGENT"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --user-agent"
     usage: 1
   - name: "HURL_VARIABLE_name"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "defines a variable named `name` from its value"
     usage: 1
   - name: "HURL_VERBOSE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --verbose"
     usage: 4
   - name: "HURL_VERBOSITY"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --verbosity"
     usage: 4
   - name: "HURL_VERY_VERBOSE"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --very-verbose"
     usage: 2
   - name: "NO_COLOR"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "disables colorized output when set to any value"
     usage: 3
   - name: "TF_BUILD"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "presence signals an Azure Pipelines CI environment"
     usage: 0
   - name: "XDG_CONFIG_HOME"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "base directory used to locate the config file at $XDG_CONFIG_HOME/hurl/config"
     usage: 16
 
 config:
   - name: "header"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "adds a custom header to every request"
   - name: "max-redirs"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "maximum number of redirects to follow, -1 for unlimited"
   - name: "user-agent"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "sets the User-Agent header sent to the server"
   - name: "verbose"
-    status: "planned"
-    phase: 4
+    status: "supported"
     doc: "same as --verbose"
 
 differences:
@@ -1255,3 +1121,71 @@ differences:
     input: "Regex syntax outside the common subset: `(?x)`, `\\u{…}`, repetitions over 1000, class set operations `&&` `--`; `\\Q…\\E`"
     hurl: "first group accepted, `\\Q…\\E` rejected"
     sonde: "first group rejected (`Invalid regex`), `\\Q…\\E` accepted"
+  - area: "HTTP"
+    input: "`http2` option on an `http://` URL"
+    hurl: "tries an h2c upgrade"
+    sonde: "HTTP/1.1"
+  - area: "HTTP"
+    input: "`http3` option or `--http3`"
+    hurl: "HTTP/3 when libcurl supports it"
+    sonde: "`Unsupported HTTP version` error"
+  - area: "HTTP"
+    input: "Order of response headers with different names"
+    hurl: "as received"
+    sonde: "grouped by name, names sorted (values of one name keep their order)"
+  - area: "HTTP"
+    input: "Default User-Agent"
+    hurl: "`hurl/<version>`"
+    sonde: "`sonde/<version>` (`SONDE_DEFAULT_USER_AGENT` replaces it)"
+  - area: "HTTP"
+    input: "`--version` output"
+    hurl: "Hurl and libcurl versions and features"
+    sonde: "sonde version, commit, build date, Go version"
+  - area: "HTTP"
+    input: "Request-file path escaping the file root through a symbolic link"
+    hurl: "allowed (lexical check)"
+    sonde: "denied"
+  - area: "HTTP"
+    input: "`cacert`, `cert`, `key`, `pinnedpubkey`, `netrc-file` in `[Options]`"
+    hurl: "any path, relative to the working directory"
+    sonde: "relative to the working directory, confined to the file root (command line values are not confined)"
+  - area: "HTTP"
+    input: "`unix-socket` in `[Options]`"
+    hurl: "any path"
+    sonde: "confined to the file root"
+  - area: "HTTP"
+    input: "A failing `repeat` iteration followed by a passing one (`--continue-on-error`)"
+    hurl: "file reported as successful"
+    sonde: "file fails; only retried attempts are discounted"
+  - area: "HTTP"
+    input: "Proxy environment variables"
+    hurl: "`http_proxy`, `https_proxy`, `no_proxy`, `ALL_PROXY` (libcurl)"
+    sonde: "`http_proxy`, `https_proxy`, `no_proxy` (and uppercase forms); `ALL_PROXY` ignored; netrc credentials are not sent through an environment proxy unless `--netrc-allow-reroute`"
+  - area: "HTTP"
+    input: "Response body size without `--max-filesize`"
+    hurl: "unlimited"
+    sonde: "512 MiB (raw and decoded)"
+  - area: "HTTP"
+    input: "Cookie domain matching"
+    hurl: "suffix match (`evilexample.com` matches a cookie of `example.com`)"
+    sonde: "dot-boundary match"
+  - area: "HTTP"
+    input: "`--very-verbose` and verbose connection lines (`* Connected to…`, `** …`)"
+    hurl: "libcurl debug lines"
+    sonde: "not printed"
+  - area: "HTTP"
+    input: "`--cookie-jar` file header"
+    hurl: "`# This file was generated by Hurl`"
+    sonde: "`# This file was generated by sonde`"
+  - area: "HTTP"
+    input: "Secrets in `--json` output"
+    hurl: "printed as is"
+    sonde: "redacted (`***`), as in every other output"
+  - area: "HTTP"
+    input: "Parallel runs (`--parallel`, `--jobs`)"
+    hurl: "parallel"
+    sonde: "sequential (Phase 5)"
+  - area: "HTTP"
+    input: "Reports (`--report-*`), `--curl`"
+    hurl: "supported"
+    sonde: "`option … is not supported by sonde yet` (Phases 5 and 8)"

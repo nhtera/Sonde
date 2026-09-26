@@ -1,0 +1,542 @@
+// Copyright 2026 The Sonde Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package engine
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io/fs"
+	"strconv"
+	"strings"
+
+	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/filter"
+	"github.com/nhtera/sonde/internal/httpx"
+	"github.com/nhtera/sonde/internal/predicate"
+	"github.com/nhtera/sonde/internal/query"
+	"github.com/nhtera/sonde/internal/runerr"
+	"github.com/nhtera/sonde/internal/sandbox"
+	"github.com/nhtera/sonde/internal/syntax"
+	"github.com/nhtera/sonde/internal/value"
+)
+
+// asRunErr converts an evaluation error to a runtime error.
+func asRunErr(err error, span syntax.Span) *runerr.Error {
+	var re *runerr.Error
+	if errors.As(err, &re) {
+		return re
+	}
+	e := runerr.New(span, runerr.HTTP, false)
+	e.Value, e.Reason = "Runtime error", err.Error()
+	return e
+}
+
+// runEntry runs one attempt of an entry.
+func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *entryOptions) *EntryResult {
+	res := &EntryResult{Index: index, Line: e.Request.Method.Span.Start.Line, Compressed: eo.http.Compressed}
+	fail := func(err error, span syntax.Span) *EntryResult {
+		res.Errors = append(res.Errors, asRunErr(err, span))
+		return res
+	}
+	resp := e.Response
+	if resp != nil && u.verbosity >= Brief {
+		for _, c := range captures(resp) {
+			if c.Redact {
+				// The entry is located at the capture, as the reference does.
+				res.Line = c.Name.Span.Start.Line
+				return fail(runerr.New(c.Name.Span, runerr.PossibleLoggedSecret, false), c.Name.Span)
+			}
+		}
+	}
+	spec, err := u.buildRequest(e.Request)
+	if err != nil {
+		return fail(err, e.Request.URL.Span)
+	}
+	set, clearAll := cookieCommands(e.Request)
+	for _, s := range set {
+		if err := u.client.AddCookie(s); err != nil {
+			u.log(LogWarning, fmt.Sprintf("Cookie string can not be parsed: '%s'", s))
+		}
+	}
+	if clearAll {
+		u.client.ClearCookies()
+	}
+	opts := eo.http
+	opts.Verbose = u.verbosity >= Verbose
+	res.Curl = u.curlCommand(spec, &opts, eo.output)
+	u.logRequest(spec, res.Curl)
+
+	calls, err := u.client.Execute(ctx, spec, &opts)
+	for _, c := range calls {
+		res.Calls = append(res.Calls, Call(c))
+		res.TransferDuration += c.Timings.Total
+	}
+	if err != nil {
+		e := runerr.New(e.Request.URL.Span, runerr.HTTP, false)
+		var he *httpx.Error
+		if errors.As(err, &he) {
+			e.Value, e.Reason = he.Description, he.Msg
+		} else {
+			e.Value, e.Reason = "HTTP connection", err.Error()
+		}
+		res.Errors = append(res.Errors, e)
+		return res
+	}
+	u.logResponses(res.Calls)
+	responses := make([]*exchange.Response, len(calls))
+	for i, c := range calls {
+		responses[i] = c.Response
+	}
+	final := responses[len(responses)-1]
+	noAssert := u.runner.opt.NoAssert
+
+	if !noAssert && resp != nil {
+		res.Asserts = append(res.Asserts, versionStatusAsserts(resp, final)...)
+		if errs := assertErrors(res.Asserts); len(errs) > 0 {
+			res.Errors = errs
+			u.debug("")
+			return res
+		}
+	}
+	qctx := query.NewContext(responses, u.env)
+	if resp != nil {
+		caps, err := u.captures(resp, qctx)
+		res.Captures = caps
+		u.logCaptures(caps)
+		if err != nil {
+			res.Errors = append(res.Errors, err)
+			return res
+		}
+	}
+	u.debug("")
+	if !noAssert && resp != nil {
+		u.warnDeprecated(resp)
+		res.Asserts = append(res.Asserts, u.asserts(resp, final, qctx)...)
+	}
+	res.Errors = assertErrors(res.Asserts)
+	return res
+}
+
+// assertErrors returns the failures of asserts, as assert errors.
+func assertErrors(asserts []Assert) []*runerr.Error {
+	var errs []*runerr.Error
+	for _, a := range asserts {
+		if a.Err != nil {
+			e := *a.Err
+			e.Assert = true
+			errs = append(errs, &e)
+		}
+	}
+	return errs
+}
+
+func captures(r *syntax.Response) []*syntax.Capture {
+	var cs []*syntax.Capture
+	for _, s := range r.Sections {
+		cs = append(cs, s.Captures...)
+	}
+	return cs
+}
+
+func explicitAsserts(r *syntax.Response) []*syntax.Assert {
+	var as []*syntax.Assert
+	for _, s := range r.Sections {
+		as = append(as, s.Asserts...)
+	}
+	return as
+}
+
+// versionStatusAsserts checks the version and status line of the response.
+func versionStatusAsserts(r *syntax.Response, final *exchange.Response) []Assert {
+	v := Assert{Line: r.Version.Span.Start.Line}
+	if r.Version.Value != "HTTP" && final.Version != r.Version.Value {
+		v.Err = runerr.New(r.Version.Span, runerr.AssertVersion, false)
+		v.Err.Actual = final.Version
+	}
+	asserts := []Assert{v}
+	if r.Status.Value != "*" {
+		s := Assert{Line: r.Status.Span.Start.Line}
+		if want, _ := strconv.Atoi(r.Status.Value); want != final.Status {
+			s.Err = runerr.New(r.Status.Span, runerr.AssertStatus, false)
+			s.Err.Actual = strconv.Itoa(final.Status)
+		}
+		asserts = append(asserts, s)
+	}
+	return asserts
+}
+
+// captures evaluates the captures of a response and defines their
+// variables; `redact` captures become secrets.
+func (u *unit) captures(r *syntax.Response, qctx *query.Context) ([]Capture, *runerr.Error) {
+	var caps []Capture
+	for _, c := range captures(r) {
+		name, err := u.env.Render(c.Name)
+		if err != nil {
+			return caps, asRunErr(err, c.Name.Span)
+		}
+		v, err := qctx.Eval(c.Query)
+		if err != nil {
+			return caps, asRunErr(err, c.Query.Span)
+		}
+		if v == nil {
+			return caps, runerr.New(c.Query.Span, runerr.NoQueryResult, false)
+		}
+		if len(c.Filters) > 0 {
+			if v, err = filter.Apply(c.Filters, v, u.env, false); err != nil {
+				return caps, asRunErr(err, c.Query.Span)
+			}
+			if v == nil {
+				span := syntax.Span{Start: c.Filters[0].Filter.Span.Start, End: c.Filters[len(c.Filters)-1].Filter.Span.End}
+				return caps, runerr.New(span, runerr.NoFilterResult, false)
+			}
+		}
+		if c.Redact {
+			s, ok := v.(value.String)
+			if !ok {
+				e := runerr.New(c.Name.Span, runerr.UnsupportedSecretType, false)
+				e.Actual = v.Kind().String()
+				return caps, e
+			}
+			u.env.Vars.SetSecret(name, string(s))
+			u.runner.secrets.Add(name, string(s))
+		} else {
+			u.env.Vars.Set(name, v)
+		}
+		caps = append(caps, Capture{Name: name, Value: v})
+	}
+	return caps, nil
+}
+
+// asserts evaluates the implicit header and body asserts, then the explicit
+// asserts.
+func (u *unit) asserts(r *syntax.Response, final *exchange.Response, qctx *query.Context) []Assert {
+	var asserts []Assert
+	for _, h := range r.Headers {
+		asserts = append(asserts, u.headerAssert(h, final))
+	}
+	if r.Body != nil {
+		asserts = append(asserts, u.bodyAssert(r.Body, final))
+	}
+	for _, a := range explicitAsserts(r) {
+		as := Assert{Line: a.Predicate.Func.Span.Start.Line}
+		if err := u.explicitAssert(a, qctx); err != nil {
+			as.Err = asRunErr(err, a.Query.Span)
+		}
+		asserts = append(asserts, as)
+	}
+	return asserts
+}
+
+func (u *unit) explicitAssert(a *syntax.Assert, qctx *query.Context) error {
+	v, err := qctx.Eval(a.Query)
+	if err != nil {
+		return err
+	}
+	if len(a.Filters) > 0 {
+		if v == nil {
+			return runerr.New(a.Filters[0].Filter.Span, runerr.FilterMissingInput, true)
+		}
+		if v, err = filter.Apply(a.Filters, v, u.env, true); err != nil {
+			return err
+		}
+	}
+	return predicate.Eval(a.Predicate, v, u.env)
+}
+
+// headerAssert checks a response header written in the entry.
+func (u *unit) headerAssert(h *syntax.KeyValue, final *exchange.Response) Assert {
+	as := Assert{Line: h.Key.Span.Start.Line}
+	expected, err := u.env.Render(h.Value)
+	if err != nil {
+		as.Err = asRunErr(err, h.Key.Span)
+		return as
+	}
+	name, err := u.env.Render(h.Key)
+	if err != nil {
+		as.Line, as.Err = h.Value.Span.Start.Line, asRunErr(err, h.Value.Span)
+		return as
+	}
+	actuals := final.Headers.Values(name)
+	if len(actuals) == 0 {
+		as.Err = runerr.New(h.Key.Span, runerr.QueryHeaderNotFound, false)
+		return as
+	}
+	as.Line = h.Value.Span.Start.Line
+	actual := actuals[0]
+	if len(actuals) > 1 {
+		quoted := make([]string, len(actuals))
+		for i, a := range actuals {
+			quoted[i] = `"` + a + `"`
+		}
+		actual = "[" + strings.Join(quoted, ", ") + "]"
+		for _, a := range actuals {
+			if a == expected {
+				actual = a
+				break
+			}
+		}
+	}
+	if actual != expected {
+		as.Err = runerr.New(h.Value.Span, runerr.AssertHeaderValue, false)
+		as.Err.Actual = actual
+	}
+	return as
+}
+
+// bodyAssert compares the response body with the body written in the entry.
+func (u *unit) bodyAssert(b *syntax.Body, final *exchange.Response) Assert {
+	point := syntax.Span{Start: b.Space0.Span.End, End: b.Space0.Span.End}
+	span := b.Space0.Span
+	var expected value.Value
+	var err error
+	text := true
+	switch v := b.Value.(type) {
+	case *syntax.Template:
+		var s string
+		if v.Delimiter == '"' { // a JSON string
+			s, err = u.env.RenderJSON(v, true)
+		} else {
+			span = v.Span
+			s, err = u.env.Render(v)
+		}
+		expected = value.String(s)
+	case *syntax.MultilineString:
+		span = v.Value.Span
+		var s string
+		s, err = u.env.RenderMultiline(v)
+		expected = value.String(s)
+	case *syntax.XML:
+		expected = value.String(v.Value)
+	case *syntax.Base64:
+		span, text = syntax.Span{Start: v.Space0.Span.End, End: v.Space1.Span.Start}, false
+		expected = value.Bytes(v.Value)
+	case *syntax.Hex:
+		span, text = syntax.Span{Start: v.Space0.Span.End, End: v.Space1.Span.Start}, false
+		expected = value.Bytes(v.Value)
+	case *syntax.FileRef:
+		text = false
+		var data []byte
+		data, err = u.env.File(v.Filename)
+		expected = value.Bytes(data)
+	case syntax.JSONValue:
+		var s string
+		s, err = u.env.RenderJSON(v, true)
+		expected = value.String(s)
+	}
+	as := Assert{Line: span.Start.Line}
+	if err != nil {
+		as.Err = asRunErr(err, span)
+		return as
+	}
+	var actual value.Value
+	if text {
+		s, terr := final.Text()
+		actual, err = value.String(s), terr
+	} else {
+		data, derr := final.DecodedBody()
+		actual, err = value.Bytes(data), derr
+	}
+	if err != nil {
+		e := runerr.New(point, runerr.HTTP, true)
+		var be *exchange.BodyError
+		if errors.As(err, &be) {
+			e.Value, e.Reason = be.Description(), be.Message()
+		}
+		as.Err = e
+		return as
+	}
+	if value.Equal(actual, expected) {
+		return as
+	}
+	es, eok := expected.(value.String)
+	as2, aok := actual.(value.String)
+	if eok && aok && (strings.Contains(string(es), "\n") || strings.Contains(string(as2), "\n")) {
+		hunk, line := firstHunk(string(es), string(as2))
+		at := syntax.Pos{Line: span.Start.Line + line, Col: 1}
+		as.Err = runerr.New(syntax.Span{Start: at, End: at}, runerr.AssertBodyDiff, false)
+		as.Err.Reason = hunk
+		return as
+	}
+	as.Err = runerr.New(span, runerr.AssertBodyValue, false)
+	as.Err.Actual = value.Display(actual)
+	return as
+}
+
+// warnDeprecated warns about deprecated predicates and filters.
+func (u *unit) warnDeprecated(r *syntax.Response) {
+	var includes, fmtCapture, decodeCapture, fmtAssert, decodeAssert bool
+	has := func(items []*syntax.FilterItem, k syntax.FilterKind) bool {
+		for _, it := range items {
+			if it.Filter.Kind == k {
+				return true
+			}
+		}
+		return false
+	}
+	for _, a := range explicitAsserts(r) {
+		includes = includes || a.Predicate.Func.Kind == syntax.PredicateInclude
+		fmtAssert = fmtAssert || has(a.Filters, syntax.FilterFormat)
+		decodeAssert = decodeAssert || has(a.Filters, syntax.FilterDecode)
+	}
+	for _, c := range captures(r) {
+		fmtCapture = fmtCapture || has(c.Filters, syntax.FilterFormat)
+		decodeCapture = decodeCapture || has(c.Filters, syntax.FilterDecode)
+	}
+	if includes {
+		u.log(LogWarning, "<includes> predicate is now deprecated in favor of <contains> predicate")
+	}
+	if fmtCapture {
+		u.log(LogWarning, "<format> filter in captures is now deprecated in favor of <dateFormat> filter")
+	}
+	if decodeCapture {
+		u.log(LogWarning, "<decode> filter in captures is now deprecated in favor of <charsetDecode> filter")
+	}
+	if fmtAssert {
+		u.log(LogWarning, "<format> filter in asserts is now deprecated in favor of <dateFormat> filter")
+	}
+	if decodeAssert {
+		u.log(LogWarning, "<decode> filter in asserts is now deprecated in favor of <charsetDecode> filter")
+	}
+}
+
+// logRequest logs the rendered request in verbose mode.
+func (u *unit) logRequest(spec *httpx.RequestSpec, curl string) {
+	if u.verbosity < Verbose {
+		return
+	}
+	u.debug("")
+	u.debugImportant("Cookie store:")
+	for _, c := range u.client.Cookies() {
+		u.debug(Cookie(c).Netscape())
+	}
+	u.debug("")
+	u.debugImportant("Request:")
+	u.debug(spec.Method + " " + spec.URL)
+	for _, h := range spec.Headers {
+		u.debug(h.Name + ": " + h.Value)
+	}
+	section := func(name string, params []httpx.Param) {
+		if len(params) == 0 {
+			return
+		}
+		u.debug("[" + name + "]")
+		for _, p := range params {
+			u.debug(p.Name + ": " + p.Value)
+		}
+	}
+	section("Query", spec.Query)
+	section("Form", spec.Form)
+	if len(spec.Multipart) > 0 {
+		u.debug("[Multipart]")
+		for _, p := range spec.Multipart {
+			if p.Param != nil {
+				u.debug(p.Param.Name + ": " + p.Param.Value)
+			} else {
+				u.debug(fmt.Sprintf("%s: file,%s; %s", p.File.Name, p.File.Filename, p.File.ContentType))
+			}
+		}
+	}
+	if len(spec.Cookies) > 0 {
+		u.debug("[Cookies]")
+		for _, c := range spec.Cookies {
+			u.debug(c.Name + "=" + c.Value)
+		}
+	}
+	u.debug("")
+	u.debug("Request can be run with the following curl command:")
+	u.debug(curl)
+	u.debug("")
+}
+
+// logResponses logs the request and response headers of every call.
+func (u *unit) logResponses(calls []Call) {
+	if u.verbosity < Brief {
+		return
+	}
+	for i, c := range calls {
+		if i > 0 {
+			u.debug("")
+			u.debug("=> Redirect to " + c.Request.URL)
+			u.debug("")
+		}
+		target := c.Request.URL
+		if i := strings.Index(target, "://"); i >= 0 {
+			if j := strings.IndexByte(target[i+3:], '/'); j >= 0 {
+				target = target[i+3+j:]
+			} else {
+				target = "/"
+			}
+		}
+		u.log(LogRequestLine, fmt.Sprintf("%s %s %s", c.Request.Method, target, c.Response.Version))
+		for _, h := range c.Request.Headers {
+			u.log(LogRequest, h.Name+": "+h.Value)
+		}
+		u.log(LogRequest, "")
+		u.debugImportant(fmt.Sprintf("Response: (received %d bytes in %d ms)", len(c.Response.Body), c.Timings.Total.Milliseconds()))
+		u.debug("")
+		status := fmt.Sprintf("%s %d", c.Response.Version, c.Response.Status)
+		if c.Response.Reason != "" {
+			status += " " + c.Response.Reason
+		}
+		u.log(LogResponseLine, status)
+		for _, h := range c.Response.Headers {
+			u.log(LogResponse, h.Name+": "+h.Value)
+		}
+		u.log(LogResponse, "")
+	}
+}
+
+func (u *unit) logCaptures(caps []Capture) {
+	if u.verbosity < Verbose || len(caps) == 0 {
+		return
+	}
+	u.debugImportant("Captures:")
+	for _, c := range caps {
+		u.log(LogCapture, c.Name+": "+value.Display(c.Value))
+	}
+}
+
+// writeOutput writes the last response of a successful entry to its
+// `output` target.
+func (u *unit) writeOutput(res *EntryResult, eo *entryOptions) {
+	if len(res.Calls) == 0 {
+		return
+	}
+	resp := res.Calls[len(res.Calls)-1].Response
+	body := resp.Body
+	if res.Compressed {
+		var err error
+		if body, err = resp.DecodedBody(); err != nil {
+			re := runerr.New(eo.output.span, runerr.HTTP, false)
+			var be *exchange.BodyError
+			if errors.As(err, &be) {
+				re.Value, re.Reason = be.Description(), be.Message()
+			}
+			res.Errors = append(res.Errors, re)
+			u.logError(LogError, re, res.Line)
+			return
+		}
+	}
+	if eo.output.name == "-" {
+		if u.runner.opt.Stdout != nil {
+			_, _ = u.runner.opt.Stdout.Write(body)
+		}
+		return
+	}
+	if err := u.root.WriteFile(eo.output.name, body); err != nil {
+		kind := runerr.FileWriteAccess
+		if errors.Is(err, sandbox.ErrDenied) {
+			kind = runerr.UnauthorizedFileAccess
+		}
+		re := runerr.New(eo.output.span, kind, false)
+		re.Value, re.Reason = eo.output.name, err.Error()
+		var pe *fs.PathError
+		if kind == runerr.FileWriteAccess && errors.As(err, &pe) {
+			re.Value, re.Reason = u.resolvedPath(eo.output.name), pe.Err.Error()
+		}
+		res.Errors = append(res.Errors, re)
+		u.logError(LogError, re, res.Line)
+	}
+}

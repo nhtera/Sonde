@@ -42,8 +42,8 @@ fuzz-smoke: ## Run every Fuzz target briefly (FUZZTIME=10s)
 	  done; \
 	done
 
-conformance: ## Hurl conformance suite (lands in Phase 5)
-	@echo "conformance: not implemented yet (Phase 5)" >&2; exit 1
+conformance: ## Run the Hurl conformance suite against SONDE_CONFORMANCE_BIN (default: build ./cmd/sonde)
+	SONDE_CONFORMANCE=1 go test ./test/conformance -count=1 -v -timeout 60m
 
 snapshot: ## Local GoReleaser snapshot build into dist/
 	goreleaser release --snapshot --clean

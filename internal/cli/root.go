@@ -41,19 +41,26 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 
 // rootOptions holds persistent flags shared by all commands.
 type rootOptions struct {
-	// color and noColor are reserved for the output renderers (Phase 4).
 	color   bool
 	noColor bool
 }
 
 func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	opts := &rootOptions{}
+	runOpts := &runOptions{}
 	root := &cobra.Command{
-		Use:           "sonde",
-		Short:         "Run and test HTTP requests written in plain text",
-		Long:          "Sonde runs and tests HTTP requests written in plain text (.hurl / .sonde files).",
+		Use:   "sonde [options] FILE...",
+		Short: "Run and test HTTP requests written in plain text",
+		Long: "Sonde runs and tests HTTP requests written in plain text (.hurl / .sonde files).\n" +
+			"Any argument that is not one of the commands below is treated as\n" +
+			"`sonde run [options] FILE...`: `sonde a.hurl b.hurl` runs both files, and\n" +
+			"`sonde` with no FILE reads a single input from standard input.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Args:          cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runMain(cmd, runOpts, args)
+		},
 	}
 	root.SetOut(stdout)
 	root.SetErr(stderr)
@@ -66,8 +73,11 @@ func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	flags := root.PersistentFlags()
 	flags.BoolVar(&opts.color, "color", false, "colorize output")
 	flags.BoolVar(&opts.noColor, "no-color", false, "do not colorize output")
-	root.MarkFlagsMutuallyExclusive("color", "no-color")
+	// --color and --no-color are not mutually exclusive here: like the
+	// upstream CLI, giving both is not a usage error; --no-color simply
+	// wins (see buildRunContext).
+	addRunFlags(root, runOpts)
 
-	root.AddCommand(newVersionCmd(), newCheckCmd(), newFmtCmd())
+	root.AddCommand(newVersionCmd(), newCheckCmd(), newFmtCmd(), newRunCmd())
 	return root
 }

@@ -20,3 +20,19 @@ Target: < 50 ms per MiB. Parse time stays linear but depends on content:
 files dominated by blank and comment lines between entries measured about
 165 ms/MiB (2026-09-25 review), because those lines are re-read while
 optional parts of the previous entry are tried.
+
+## Engine overhead (`BenchmarkRunSource` vs `BenchmarkRawHTTP`)
+
+Both in `engine/bench_test.go`; each iteration opens one new connection to
+a local server (a run of a file uses its own connections). Raw: `GET` with
+a fresh `http.Transport`, body read. Engine: `Runner.RunSource` on a
+one-entry file (parse, request, implicit status assert, one JSONPath
+assert).
+
+| Date | Version | Platform | Raw (ns/op, B/op, allocs) | Engine (ns/op, B/op, allocs) | Method |
+|---|---|---|---|---|---|
+| 2026-09-26 | dev (Phase 4) | darwin/arm64, Apple M4 Pro, go1.27.1 | 150k–174k, 23.1 kB, 152 | 130k–136k, 43 kB, 370 | `go test ./engine -run '^$' -bench . -benchmem -benchtime=200x`, 5 runs (range) |
+
+Target: ≤ 5 ms overhead per request. The engine's overhead is below the
+noise of connection setup. Keep `-benchtime` low: at thousands of
+iterations macOS runs out of ephemeral ports (`TIME_WAIT`).
