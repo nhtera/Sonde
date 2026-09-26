@@ -167,7 +167,7 @@ Measured with the conformance harness (`make conformance`, see
 | `contains` | supported | a string, bytes or list value contains the expected element |
 | `endsWith` | supported | a string or bytes value ends with the expected suffix |
 | `exists` | supported | the query produced a value |
-| `includes` | supported | a list contains the expected element (alias family of contains) |
+| `includes` | supported | a list contains the expected element (deprecated alias of contains) |
 | `isBoolean` | supported | the value is a boolean |
 | `isCollection` | supported | the value is a list or object |
 | `isDate` | supported | the value is a date |

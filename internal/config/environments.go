@@ -32,6 +32,61 @@ func SelectEnv(flagEnv, sondeEnvVar, defaultEnv string) string {
 	return defaultEnv
 }
 
+// walkEnvironment reads env's variable sources in Resolve's precedence
+// order (variables, then variables_files in order, then secrets_files in
+// order), calling onVariable for each inline "variables:" entry and
+// onVariablesFile/onSecretsFile once per file with its raw bytes (nil,
+// readErr when it could not be read; parsing is each callback's own job,
+// since Resolve and VariableNames report a read failure and a parse
+// failure with different wording).
+//
+// When stopOnError, a non-nil error from a callback ends the walk
+// immediately and is returned, matching Resolve's abort-on-first-file-
+// error contract. Otherwise every entry is visited regardless of earlier
+// callback errors, letting a caller such as VariableNames collect a
+// partial result across every file that did work, alongside whatever
+// errors it wants to report.
+//
+// An empty env or an unknown one behaves exactly as Resolve documents: an
+// empty env visits nothing and returns nil, an unknown one returns an
+// error listing the environments that do exist before visiting anything.
+func (p *Project) walkEnvironment(env string, stopOnError bool,
+	onVariable func(name string, v value.Value),
+	onVariablesFile func(rel string, data []byte, readErr error) error,
+	onSecretsFile func(rel string, data []byte, readErr error) error,
+) error {
+	if env == "" {
+		return nil
+	}
+	e, ok := p.Environments[env]
+	if !ok {
+		return fmt.Errorf("%s: unknown environment %q (available: %s)", p.Path, env, strings.Join(p.envNames(), ", "))
+	}
+
+	root, err := newProjectSandbox(p.Dir)
+	if err != nil {
+		return fmt.Errorf("%s: %w", p.Path, err)
+	}
+	defer root.Close()
+
+	for name, v := range e.Variables {
+		onVariable(name, v)
+	}
+	for _, rel := range e.VariablesFiles {
+		data, rerr := root.ReadFile(rel)
+		if cbErr := onVariablesFile(rel, data, rerr); cbErr != nil && stopOnError {
+			return cbErr
+		}
+	}
+	for _, rel := range e.SecretsFiles {
+		data, rerr := root.ReadFile(rel)
+		if cbErr := onSecretsFile(rel, data, rerr); cbErr != nil && stopOnError {
+			return cbErr
+		}
+	}
+	return nil
+}
+
 // Resolve returns the typed variables and secrets of env: its "variables"
 // map, then its "variables_files" applied in order on top (a name in a
 // later file wins), giving the sonde.yaml precedence tier described by
@@ -45,50 +100,40 @@ func SelectEnv(flagEnv, sondeEnvVar, defaultEnv string) string {
 func (p *Project) Resolve(env string) (variables map[string]value.Value, secrets map[string]string, err error) {
 	variables = map[string]value.Value{}
 	secrets = map[string]string{}
-	if env == "" {
-		return variables, secrets, nil
-	}
-	e, ok := p.Environments[env]
-	if !ok {
-		return nil, nil, fmt.Errorf("%s: unknown environment %q (available: %s)", p.Path, env, strings.Join(p.envNames(), ", "))
-	}
 
-	root, err := newProjectSandbox(p.Dir)
-	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", p.Path, err)
-	}
-	defer root.Close()
-
-	for name, v := range e.Variables {
-		variables[name] = v
-	}
-	for _, rel := range e.VariablesFiles {
-		data, err := root.ReadFile(rel)
-		if err != nil {
-			return nil, nil, fmt.Errorf("%s: variables_files: %w", p.Path, err)
-		}
-		assigns, err := ParseProperties(data, Inferred)
-		if err != nil {
-			return nil, nil, fmt.Errorf("%s: variables_files %s: %w", p.Path, rel, err)
-		}
-		for _, a := range assigns {
-			variables[a.Name] = a.Value
-		}
-	}
-	for _, rel := range e.SecretsFiles {
-		data, err := root.ReadFile(rel)
-		if err != nil {
-			return nil, nil, fmt.Errorf("%s: secrets_files: %w", p.Path, err)
-		}
-		assigns, err := ParseProperties(data, Forced)
-		if err != nil {
-			return nil, nil, fmt.Errorf("%s: secrets_files %s: %w", p.Path, rel, err)
-		}
-		for _, a := range assigns {
-			if err := AddSecret(secrets, a.Name, a.Value); err != nil {
-				return nil, nil, fmt.Errorf("%s: secrets_files %s: %w", p.Path, rel, err)
+	werr := p.walkEnvironment(env, true,
+		func(name string, v value.Value) { variables[name] = v },
+		func(rel string, data []byte, readErr error) error {
+			if readErr != nil {
+				return fmt.Errorf("%s: variables_files: %w", p.Path, readErr)
 			}
-		}
+			assigns, perr := ParseProperties(data, Inferred)
+			if perr != nil {
+				return fmt.Errorf("%s: variables_files %s: %w", p.Path, rel, perr)
+			}
+			for _, a := range assigns {
+				variables[a.Name] = a.Value
+			}
+			return nil
+		},
+		func(rel string, data []byte, readErr error) error {
+			if readErr != nil {
+				return fmt.Errorf("%s: secrets_files: %w", p.Path, readErr)
+			}
+			assigns, perr := ParseProperties(data, Forced)
+			if perr != nil {
+				return fmt.Errorf("%s: secrets_files %s: %w", p.Path, rel, perr)
+			}
+			for _, a := range assigns {
+				if err := AddSecret(secrets, a.Name, a.Value); err != nil {
+					return fmt.Errorf("%s: secrets_files %s: %w", p.Path, rel, err)
+				}
+			}
+			return nil
+		},
+	)
+	if werr != nil {
+		return nil, nil, werr
 	}
 	return variables, secrets, nil
 }

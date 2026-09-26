@@ -51,6 +51,8 @@ type Entry struct {
 	Usage  int    `yaml:"usage,omitempty"`
 	Short  string `yaml:"short,omitempty"`
 	Arg    string `yaml:"arg,omitempty"`
+	// Deprecated names the replacement of a deprecated entry.
+	Deprecated string `yaml:"deprecated,omitempty"`
 }
 
 // Difference is one row of documented behavior that differs from the
@@ -113,6 +115,12 @@ func validate(t *Table) error {
 				return fmt.Errorf("docs: %s: duplicate name %q", kind, e.Name)
 			}
 			seen[e.Name] = true
+			if e.Deprecated != "" {
+				repl, ok := t.Lookup(kind, e.Deprecated)
+				if !ok || repl.Deprecated != "" || repl.Name == e.Name {
+					return fmt.Errorf("docs: %s %q: deprecated in favor of %q, which must be another, current entry", kind, e.Name, e.Deprecated)
+				}
+			}
 			if !e.Status.valid() {
 				return fmt.Errorf("docs: %s %q: invalid status %q", kind, e.Name, e.Status)
 			}
