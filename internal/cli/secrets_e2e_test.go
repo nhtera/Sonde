@@ -120,7 +120,7 @@ func TestE2EFileRootEscape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, body := range map[string]string{"dotdot": "file," + rel + ";", "symlink": "file,link.txt;"} {
+	for name, body := range map[string]string{"dotdot": "file," + filepath.ToSlash(rel) + ";", "symlink": "file,link.txt;"} {
 		t.Run(name, func(t *testing.T) {
 			file := writeTemp(t, "escape.hurl", "POST "+srv.URL+"/hello\n"+body+"\nHTTP 200\n")
 			code, _, errOut := runArgs(t, file, "--file-root", root)

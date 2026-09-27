@@ -113,7 +113,7 @@ func (m *serverManager) start(s serverSpec) error {
 	}
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = groupAttr()
 
 	if err := cmd.Start(); err != nil {
 		logFile.Close() //nolint:errcheck,gosec // best-effort; Start already failed.
@@ -156,7 +156,7 @@ func (m *serverManager) startSquid(log func(string)) error {
 	}
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = groupAttr()
 
 	if err := cmd.Start(); err != nil {
 		log(fmt.Sprintf("squid found but failed to start (%v); proxy-dependent scripts will be skipped", err))
@@ -187,11 +187,6 @@ func (m *serverManager) Stop() {
 		_, _ = p.Wait() //nolint:errcheck // reaping zombies; the exit status is not interesting here.
 	}
 	m.procs = nil
-}
-
-func killGroup(pid int, sig syscall.Signal) {
-	// Negative pid signals the whole process group created by Setpgid.
-	_ = syscall.Kill(-pid, sig) //nolint:errcheck // best-effort teardown.
 }
 
 // waitReady polls the server's TCP port (or, for the Unix-socket server,

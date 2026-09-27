@@ -5,12 +5,15 @@ package openapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -141,12 +144,16 @@ func TestLoadRefs(t *testing.T) {
 	for name, want := range map[string]string{
 		"refs/escape.yaml":        "must stay inside the directory of the spec",
 		"refs/remote.yaml":        "use --openapi-allow-remote",
-		"missing.yaml":            "no such file",
 		"refs/schemas/item.yaml":  "not an OpenAPI document",
-		"../../../../etc/passwd0": "no such file",
+		"missing.yaml":            "",
+		"../../../../etc/passwd0": "",
 	} {
 		_, err := Load(context.Background(), "../../testdata/openapi/"+name, LoadOptions{})
-		if err == nil || !strings.Contains(err.Error(), want) {
+		if want == "" {
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("%s: error %v, want a missing file", name, err)
+			}
+		} else if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: error %v, want %q", name, err, want)
 		}
 	}
@@ -223,7 +230,11 @@ paths:
 	if err := os.WriteFile(specFile, []byte(specWithAbsRef), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Load(context.Background(), specFile, LoadOptions{}); err == nil || !strings.Contains(err.Error(), "must stay inside") {
+	// On Windows, the drive letter reads as a URL scheme: the reference is
+	// rejected as unsupported.
+	_, err := Load(context.Background(), specFile, LoadOptions{})
+	driveAsScheme := runtime.GOOS == "windows" && err != nil && strings.Contains(err.Error(), "unsupported reference")
+	if err == nil || !strings.Contains(err.Error(), "must stay inside") && !driveAsScheme {
 		t.Errorf("absolute path $ref outside spec dir should be blocked: %v", err)
 	}
 
@@ -244,7 +255,10 @@ paths:
 	if err := os.WriteFile(fileRefFile, []byte(fileRefSpec), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Load(context.Background(), fileRefFile, LoadOptions{}); err == nil || !strings.Contains(err.Error(), "must stay inside") {
+	// On Windows, a path without a drive is resolved inside the directory
+	// of the spec, where etc\passwd does not exist.
+	if _, err := Load(context.Background(), fileRefFile, LoadOptions{}); err == nil ||
+		!strings.Contains(err.Error(), "must stay inside") && runtime.GOOS != "windows" {
 		t.Errorf("file:// $ref to /etc/passwd should be blocked: %v", err)
 	}
 }

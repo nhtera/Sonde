@@ -135,7 +135,7 @@ func runScript(shimDir, target, hurlRoot, scriptRelPath string) (processResult, 
 		"PATH="+shimDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"SONDE_CONFORMANCE_TARGET="+target,
 	)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = groupAttr()
 
 	start := time.Now()
 	if err := cmd.Start(); err != nil {

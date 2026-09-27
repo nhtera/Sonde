@@ -412,13 +412,15 @@ func TestConfigCacheEmptyEnvSettingFallsBackToDefault(t *testing.T) {
 	}
 }
 
-// TestFolderContainingRoot checks "/" contains everything, since it
-// already ends in a separator and the old prefix check ("/" + separator =
-// "//") never matched anything (L16).
+// TestFolderContainingRoot checks "/" (or a drive root) contains
+// everything, since it already ends in a separator and the old prefix check
+// ("/" + separator = "//") never matched anything (L16).
 func TestFolderContainingRoot(t *testing.T) {
-	s := &Server{folders: []string{"/"}}
-	folder, ok := s.folderContaining("/some/deep/path")
-	if !ok || folder != "/" {
-		t.Errorf(`folderContaining("/some/deep/path") = %q, %v, want "/", true`, folder, ok)
+	dir := t.TempDir()
+	root := filepath.VolumeName(dir) + string(filepath.Separator)
+	s := &Server{folders: []string{root}}
+	folder, ok := s.folderContaining(dir)
+	if !ok || folder != root {
+		t.Errorf("folderContaining(%q) = %q, %v, want %q, true", dir, folder, ok, root)
 	}
 }
