@@ -2,7 +2,7 @@
   "name": "sonde",
   "displayName": "Sonde",
   "description": "Language support for Sonde (.sonde) and Hurl-compatible (.hurl) request files: diagnostics, completion, hover and formatting.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "nhtera",
   "license": "Apache-2.0",
   "icon": "images/icon.png",
