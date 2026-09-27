@@ -6,6 +6,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -169,11 +170,18 @@ func newProjectSandbox(dir string) (*projectSandbox, error) {
 
 func (s *projectSandbox) Close() error { return s.root.Close() }
 
+// isRooted reports whether p is absolute or, on Windows, rooted without
+// being absolute (`\etc`, "/etc" or "C:etc"): none of them is relative to
+// the project directory.
+func isRooted(p string) bool {
+	return filepath.IsAbs(p) || path.IsAbs(filepath.ToSlash(p)) || filepath.VolumeName(p) != ""
+}
+
 // checkPath validates rel without requiring the file to exist: only an
 // absolute path or an escape (via ".." or, for any existing ancestor
 // component, a symbolic link) is rejected.
 func (s *projectSandbox) checkPath(rel string) error {
-	if filepath.IsAbs(rel) {
+	if isRooted(rel) {
 		return fmt.Errorf("%q must be a relative path", rel)
 	}
 	if _, err := s.root.Path(rel); err != nil {
@@ -188,7 +196,7 @@ func (s *projectSandbox) checkPath(rel string) error {
 // (opening a FIFO with no writer would hang the run forever), and its
 // content must not exceed maxProjectFileBytes.
 func (s *projectSandbox) ReadFile(rel string) ([]byte, error) {
-	if filepath.IsAbs(rel) {
+	if isRooted(rel) {
 		return nil, fmt.Errorf("%q must be a relative path", rel)
 	}
 	// s.root.Path already confines abs inside the sandbox, following the

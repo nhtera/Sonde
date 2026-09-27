@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -477,5 +478,28 @@ func TestEnvironmentProxy(t *testing.T) {
 	}
 	if isRerouted(u, &Options{NoProxy: "origin.test"}) {
 		t.Error("isRerouted = true for a --noproxy host")
+	}
+}
+
+func TestSplitCertPassword(t *testing.T) {
+	windows := runtime.GOOS == "windows"
+	for _, tc := range []struct {
+		spec, file, password string
+		onlyWindows          bool
+	}{
+		{spec: "client.pem", file: "client.pem"},
+		{spec: "client.pem:secret", file: "client.pem", password: "secret"},
+		{spec: `a\:b.pem:secret`, file: "a:b.pem", password: "secret"},
+		{spec: `C:\certs\client.pem`, file: `C:\certs\client.pem`, onlyWindows: true},
+		{spec: "c:/certs/client.pem:secret", file: "c:/certs/client.pem", password: "secret", onlyWindows: true},
+		{spec: "C:secret", file: "C", password: "secret"},
+	} {
+		file, password := splitCertPassword(tc.spec)
+		if tc.onlyWindows && !windows {
+			continue
+		}
+		if file != tc.file || password != tc.password {
+			t.Errorf("splitCertPassword(%q) = %q, %q, want %q, %q", tc.spec, file, password, tc.file, tc.password)
+		}
 	}
 }

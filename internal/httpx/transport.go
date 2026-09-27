@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/nhtera/sonde/internal/sandbox"
@@ -218,10 +219,16 @@ func constrainsNames(chains [][]*x509.Certificate) bool {
 }
 
 // splitCertPassword splits `file:password` at the first colon not escaped
-// with a backslash.
+// with a backslash. On Windows, the colon of a leading drive letter
+// (`C:\` or `C:/`) belongs to the file.
 func splitCertPassword(spec string) (file, password string) {
 	var b strings.Builder
-	for i := 0; i < len(spec); i++ {
+	start := 0
+	if runtime.GOOS == "windows" && hasDriveLetter(spec) {
+		b.WriteString(spec[:2])
+		start = 2
+	}
+	for i := start; i < len(spec); i++ {
 		switch {
 		case spec[i] == '\\' && i+1 < len(spec) && spec[i+1] == ':':
 			b.WriteByte(':')
@@ -233,6 +240,16 @@ func splitCertPassword(spec string) (file, password string) {
 		}
 	}
 	return b.String(), ""
+}
+
+// hasDriveLetter reports whether s starts with a drive letter and a colon
+// followed by a separator.
+func hasDriveLetter(s string) bool {
+	if len(s) < 3 || s[1] != ':' || (s[2] != '\\' && s[2] != '/') {
+		return false
+	}
+	c := s[0] | 0x20
+	return c >= 'a' && c <= 'z'
 }
 
 // withLocal returns a copy of opts where name is also a command line path.

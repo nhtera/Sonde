@@ -449,3 +449,21 @@ func TestOpenAPIExcludesFileRelativeDir(t *testing.T) {
 		}
 	}
 }
+
+func TestIsRooted(t *testing.T) {
+	windows := runtime.GOOS == "windows"
+	for p, want := range map[string]bool{
+		"secrets.env":     false,
+		"dir/secrets.env": false,
+		"../secrets.env":  false, // an escape, which the sandbox rejects
+		"/etc/passwd":     true,
+		`\etc\passwd`:     windows,
+		`C:\etc\passwd`:   windows,
+		"C:etc":           windows,
+		`\\host\share\x`:  windows,
+	} {
+		if got := isRooted(p); got != want {
+			t.Errorf("isRooted(%q) = %v, want %v", p, got, want)
+		}
+	}
+}
