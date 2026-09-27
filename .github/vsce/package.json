@@ -1,0 +1,8 @@
+{
+  "name": "sonde-vsce-publish",
+  "private": true,
+  "description": "Locked @vscode/vsce for release-vscode.yml's publish job; keep in step with editors/vscode's devDependency.",
+  "dependencies": {
+    "@vscode/vsce": "4.0.0"
+  }
+}

@@ -12,3 +12,9 @@ updates:
       interval: weekly
     commit-message:
       prefix: "ci(deps)"
+  - package-ecosystem: npm
+    directory: /.github/vsce
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci(deps)"

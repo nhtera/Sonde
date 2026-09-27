@@ -74,13 +74,21 @@ jobs:
     runs-on: ubuntu-latest
     # VSCE_PAT and the release GITHUB_TOKEN live only in this protected
     # environment; this job does nothing but publish the artifact the
-    # build-test job already produced and tested — no checkout, no
-    # `npm ci`, no Actions cache (M5: a job with secrets must never restore
-    # a cache another job could have poisoned).
+    # build-test job already produced and tested — it never installs the
+    # extension's own dependencies, and uses no Actions cache (M5: a job with
+    # secrets must never restore a cache another job could have poisoned).
+    # Its only install is vsce itself, from the lockfile in .github/vsce,
+    # with install scripts disabled.
     environment: release
     permissions:
       contents: write # to attach the .vsix to a GitHub release
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/vsce
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sonde-vsix
@@ -88,14 +96,15 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-          # No `cache:` (npm cache) and no node_modules install in this
-          # job at all — see the job comment above (M5).
+          # No `cache:` (npm cache): see the job comment above (M5).
+
+      # The lockfile pins every package vsce pulls in. Publishing without
+      # a signature needs none of their install scripts.
+      - name: Install vsce
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix .github/vsce
 
       - name: Publish to the VS Code Marketplace
-        # Pinned to the same @vscode/vsce version as editors/vscode's
-        # devDependency; run standalone via npx so this job never installs
-        # the extension's own node_modules.
-        run: npx --yes @vscode/vsce@4.0.0 publish --packagePath sonde.vsix --pat "$VSCE_PAT"
+        run: .github/vsce/node_modules/.bin/vsce publish --packagePath sonde.vsix --pat "$VSCE_PAT"
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 

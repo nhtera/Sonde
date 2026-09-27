@@ -195,6 +195,8 @@ that artifact, publishes it to the Marketplace under publisher `nhtera`, and
 attaches the `.vsix` to a GitHub release named after the tag — created with
 `--latest=false`, so an extension release never becomes the repo's "Latest"
 release (that should always be the most recent CLI tag). Splitting the jobs
-this way means the job holding `VSCE_PAT` never runs `npm ci` or anything
-else from the extension's own dependency tree — it only uploads a file
-`build-test` already built and tested.
+this way means the job holding `VSCE_PAT` never installs anything from the
+extension's own dependency tree — it only uploads a file `build-test`
+already built and tested. Its one install is `vsce` itself, from the
+lockfile in `.github/vsce/` with install scripts disabled; keep that
+version in step with `editors/vscode`'s devDependency.
