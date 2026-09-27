@@ -12,7 +12,9 @@
 #          v1.0.0-rc.1. The tap and bucket hold the latest tag, pre-release
 #          or not: verify right after publishing.
 # Env:
-#   SONDE_VERIFY_REPO         "owner/repo" (default: nhtera/sonde)
+#   SONDE_VERIFY_REPO         "owner/repo" as GitHub spells it (default:
+#                             nhtera/Sonde): the release signature names it
+#                             with this exact case
 #   SONDE_VERIFY_SKIP_BREW    set to skip the brew step
 #   SONDE_VERIFY_SKIP_SCOOP   set to skip the scoop step
 #   SONDE_VERIFY_SKIP_GO      set to skip the `go install` step
@@ -28,7 +30,9 @@ if [ -z "$VERSION" ]; then
   echo "usage: $0 VERSION   (e.g. v1.0.0 or v1.0.0-rc.1)" >&2
   exit 1
 fi
-REPO="${SONDE_VERIFY_REPO:-nhtera/sonde}"
+REPO="${SONDE_VERIFY_REPO:-nhtera/Sonde}"
+# The Go module path is lowercase whatever the repository's case.
+MODULE="github.com/nhtera/sonde"
 # .Version in the GoReleaser templates: the tag without its leading "v".
 PLAIN_VERSION="${VERSION#v}"
 
@@ -173,14 +177,14 @@ if [ -n "${SONDE_VERIFY_SKIP_GO:-}" ]; then
 elif ! command -v go >/dev/null 2>&1; then
   skip "go install (no go toolchain on this machine)"
 else
-  note "go install github.com/$REPO/cmd/sonde@$VERSION"
+  note "go install $MODULE/cmd/sonde@$VERSION"
   gobin="$(mktemp -d)"
-  if GOBIN="$gobin" go install "github.com/$REPO/cmd/sonde@$VERSION"; then
+  if GOBIN="$gobin" go install "$MODULE/cmd/sonde@$VERSION"; then
     bin="$gobin/sonde"
     [ "$PLATFORM" = windows ] && bin="$bin.exe"
     check_version_output "go install" "$bin"
   else
-    fail_step "go install github.com/$REPO/cmd/sonde@$VERSION failed"
+    fail_step "go install $MODULE/cmd/sonde@$VERSION failed"
   fi
   rm -rf "$gobin"
 fi

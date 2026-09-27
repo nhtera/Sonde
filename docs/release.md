@@ -98,12 +98,13 @@ cosign bundle), and an SBOM per archive. Verify a release yourself:
 ```sh
 cosign verify-blob \
   --bundle checksums.txt.sigstore.json \
-  --certificate-identity-regexp '^https://github\.com/nhtera/sonde/\.github/workflows/release\.yml@refs/tags/v[0-9].*$' \
+  --certificate-identity-regexp '^https://github\.com/nhtera/Sonde/\.github/workflows/release\.yml@refs/tags/v[0-9].*$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt
 ```
 
-The regexp is anchored (`^`/`$`) with its literal dots escaped: unanchored,
+The repository name is case-sensitive here: the signature names it as
+GitHub spells it, `nhtera/Sonde`. The regexp is anchored (`^`/`$`) with its literal dots escaped: unanchored,
 or with unescaped dots (which match any character), it would also accept
 certificates this release never produced.
 
