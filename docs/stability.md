@@ -56,9 +56,11 @@ Fixed: they are part of scripts and CI pipelines.
   Non-run subcommands have their own narrower set: `sonde check` uses `0`/`2`;
   `sonde fmt --check` adds `1` for unformatted files; `sonde import`/`sonde
   export` use `0`/`1` (usage) with `export curl` also using `2`/`3` (parse,
-  render). See each command's page under [cli/](cli/README.md) and
-  [architecture.md](architecture.md#5-contracts) for the exact table and the
-  multi-file aggregation rule.
+  render); `sonde mock` uses `0` (stopped by SIGTERM), `1` (usage or
+  unloadable spec), `3` (address cannot be bound) and `130` (Ctrl-C). See
+  each command's page under [cli/](cli/README.md) and
+  [architecture.md](architecture.md#5-contracts) for the exact table and
+  the multi-file aggregation rule.
 
 ## JSON result schema
 

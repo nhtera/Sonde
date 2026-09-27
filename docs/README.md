@@ -18,6 +18,7 @@
 | [guides/ci-github-actions.md](guides/ci-github-actions.md) | Running tests and keeping reports in GitHub Actions |
 | [guides/data-driven.md](guides/data-driven.md) | Running files once per row of a CSV or JSON data file (`--data`) |
 | [guides/openapi.md](guides/openapi.md) | OpenAPI contracts: `--openapi` validation, `sonde.yaml` `openapi:`, `sonde import openapi` |
+| [guides/mock-server.md](guides/mock-server.md) | `sonde mock`: serve an OpenAPI spec's examples and generated responses |
 | [guides/import-export.md](guides/import-export.md) | `sonde import` and `sonde export curl`: common flags, writer rules, kinds |
 | [guides/migrate-from-hurl.md](guides/migrate-from-hurl.md) | Switching from Hurl: commands, flags, differences, what Sonde adds |
 | [guides/migrate-from-postman.md](guides/migrate-from-postman.md) | Importing Postman collections and environments |

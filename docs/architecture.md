@@ -47,12 +47,12 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/report` | JSON result (shared by `--json` and `--report-json`), JUnit, TAP, HTML reports; redacted with the final secret union | engine, exchange |
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
 | `internal/dataset` | CSV / JSON-array rows for `--data` | value |
-| `internal/openapi` | spec load (owns remote fetch), route match, `engine.ResponseValidator` impl, spec → AST generator | exchange, syntax, engine (interface only) |
+| `internal/openapi` | spec load (owns remote fetch), route match, `engine.ResponseValidator` impl, spec → AST generator, mock response selection and request validation | exchange, syntax, engine (interface only) |
 | `internal/convert` | shared import writer + flags; importers in subpackages `curl`, `postman`, `opencollection`, `httpfile` (curl export uses the engine's renderer, `engine/curl.go`) | syntax, exchange, config (subpackages: + convert) |
 | `internal/docs` | single doc-data source (`table.yaml`) for compat.md, LSP hover | — |
 | `internal/lsp` | language server (`sonde lsp`, stdio): diagnostics, completion, hover, formatting | syntax, config, docs |
 | `internal/cli` | cobra commands, Hurl-compatible root, flag → `engine.Options` mapping, output wiring | everything above |
-| `internal/mock` (post-v1) | OpenAPI mock server | openapi |
+| `internal/mock` | OpenAPI mock server (`sonde mock`): net/http plumbing around `openapi.Mock` | openapi |
 | `internal/stream` (post-v1) | WebSocket + SSE | exchange, httpx |
 | `internal/grpcx` (post-v1) | gRPC dynamic client | exchange |
 | `internal/mcp` (post-v1) | MCP server | engine, syntax, config |
@@ -180,7 +180,7 @@ API stability: from v1.0 `engine` + `exchange` follow semver, checked by `make a
 | 127 | undefined error (e.g. report cannot be written) — Hurl parity |
 | 130 | interrupted (Ctrl-C) — Sonde addition, documented |
 
-Multi-unit aggregation: 1 and 127 abort; otherwise the most severe of 2 > 3 > 4 > 0 (as Hurl's `main.rs`). Non-run subcommands: `fmt --check` → 1 if unformatted; `import` → 1 on unreadable input, 0 with warnings.
+Multi-unit aggregation: 1 and 127 abort; otherwise the most severe of 2 > 3 > 4 > 0 (as Hurl's `main.rs`). Non-run subcommands: `fmt --check` → 1 if unformatted; `import` → 1 on unreadable input, 0 with warnings; `mock` → 1 unloadable spec, 3 bind failure, 0 on SIGTERM, 130 on Ctrl-C.
 
 Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-command errors → 1; any other untyped error from a command body → 127 (`typed` wrapper); commands that print their own diagnostics end with a silent exit (code only, no extra `error:` line).
 

@@ -14,6 +14,9 @@ $EDITOR api/pets/get-pet.hurl                 # add captures, asserts, real valu
 sonde test --openapi openapi.yaml api         # every response checked against the spec
 ```
 
+No backend yet? `sonde mock openapi.yaml` serves the spec's examples to
+run against: see [mock-server.md](mock-server.md).
+
 ## Validating responses
 
 ```sh

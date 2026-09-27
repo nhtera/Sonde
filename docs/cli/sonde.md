@@ -108,6 +108,7 @@ Any argument that is not one of the commands below is treated as
 - [sonde fmt](sonde_fmt.md) — Format request files canonically
 - [sonde import](sonde_import.md) — Import request files from another format
 - [sonde lsp](sonde_lsp.md) — Run the language server over stdio
+- [sonde mock](sonde_mock.md) — Serve a mock of an OpenAPI spec
 - [sonde run](sonde_run.md) — Run request files (same as `sonde FILE...`)
 - [sonde test](sonde_test.md) — Run request files in test mode (same as `sonde --test FILE...`)
 - [sonde version](sonde_version.md) — Print version, commit, build date and Go version

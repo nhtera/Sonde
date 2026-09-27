@@ -16,6 +16,7 @@ Every `sonde` command, generated from its cobra definition (`internal/cli/cli_re
     - [sonde import opencollection](sonde_import_opencollection.md) — Import a Bruno OpenCollection YAML collection (a file or a directory)
     - [sonde import postman](sonde_import_postman.md) — Convert a Postman v2.1 collection to request files
   - [sonde lsp](sonde_lsp.md) — Run the language server over stdio
+  - [sonde mock](sonde_mock.md) — Serve a mock of an OpenAPI spec
   - [sonde run](sonde_run.md) — Run request files (same as `sonde FILE...`)
   - [sonde test](sonde_test.md) — Run request files in test mode (same as `sonde --test FILE...`)
   - [sonde version](sonde_version.md) — Print version, commit, build date and Go version

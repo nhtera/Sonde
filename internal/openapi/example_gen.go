@@ -6,7 +6,6 @@ package openapi
 import (
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -23,7 +22,12 @@ const (
 )
 
 // exampler builds one example within the node budget.
-type exampler struct{ nodes int }
+type exampler struct {
+	nodes int
+	// response builds a response body: writeOnly properties are left out
+	// instead of readOnly ones.
+	response bool
+}
 
 // Example returns a deterministic instance of the schema: its example
 // (or first `examples` entry, const, default or first enum value), else a
@@ -32,6 +36,12 @@ type exampler struct{ nodes int }
 // string formats honored.
 func Example(ref *openapi3.SchemaRef) any {
 	return (&exampler{}).example(ref, 0)
+}
+
+// ResponseExample is Example for a response body: readOnly properties
+// are kept and writeOnly ones left out.
+func ResponseExample(ref *openapi3.SchemaRef) any {
+	return (&exampler{response: true}).example(ref, 0)
 }
 
 func (x *exampler) example(ref *openapi3.SchemaRef, depth int) any {
@@ -105,7 +115,7 @@ func (x *exampler) objectExample(s *openapi3.Schema, depth int) any {
 	sort.Strings(names)
 	for _, name := range names {
 		if p, ok := s.Properties[name]; ok {
-			if p.Value != nil && p.Value.ReadOnly {
+			if p.Value != nil && ((!x.response && p.Value.ReadOnly) || (x.response && p.Value.WriteOnly)) {
 				continue
 			}
 			obj[name] = x.example(p, depth+1)
@@ -220,44 +230,4 @@ func numberExample(s *openapi3.Schema, def float64) float64 {
 		}
 	}
 	return v
-}
-
-// ExampleResponse returns an example response of the operation matching
-// method and rawURL: the lowest documented 2xx status (or the first
-// documented one), its required headers and an example body of its first
-// media type. ok is false when no operation matches.
-func (s *Spec) ExampleResponse(method, rawURL string) (status int, header map[string]string, body any, contentType string, ok bool) {
-	method = strings.ToUpper(method)
-	rt, ok := s.router.Match(rawURL, func(t string) bool { return s.doc.Paths.Value(t).GetOperation(method) != nil })
-	if !ok {
-		return 0, nil, nil, "", false
-	}
-	op := s.doc.Paths.Value(rt.Template).GetOperation(method)
-	if op == nil || op.Responses == nil {
-		return 0, nil, nil, "", false
-	}
-	code := successStatus(op)
-	resp := op.Responses.Value(code)
-	if resp == nil || resp.Value == nil {
-		return 0, nil, nil, "", false
-	}
-	status, _ = strconv.Atoi(code)
-	header = map[string]string{}
-	for name, h := range resp.Value.Headers {
-		if h != nil && h.Value != nil && h.Value.Required {
-			header[name] = scalarText(Example(h.Value.Schema))
-		}
-	}
-	types := make([]string, 0, len(resp.Value.Content))
-	for mt := range resp.Value.Content {
-		types = append(types, mt)
-	}
-	sort.Slice(types, func(i, j int) bool {
-		return mediaRank(types[i]) < mediaRank(types[j]) || (mediaRank(types[i]) == mediaRank(types[j]) && types[i] < types[j])
-	})
-	if len(types) > 0 {
-		contentType = types[0]
-		body = mediaExample(resp.Value.Content[contentType])
-	}
-	return status, header, body, contentType, true
 }

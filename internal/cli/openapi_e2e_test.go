@@ -5,7 +5,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nhtera/sonde/internal/mock"
 	"github.com/nhtera/sonde/internal/openapi"
 )
 
@@ -185,37 +185,17 @@ func TestE2EOpenAPISecretsAndReport(t *testing.T) {
 	}
 }
 
-// specServer answers every operation of spec with its example response.
+// specServer serves a mock of spec (sonde mock's handler).
 func specServer(t *testing.T, spec *openapi.Spec) *httptest.Server {
 	t.Helper()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		status, header, body, ct, ok := spec.ExampleResponse(r.Method, "http://x"+r.URL.RequestURI())
-		if !ok {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		for k, v := range header {
-			w.Header().Set(k, v)
-		}
-		if ct != "" {
-			w.Header().Set("Content-Type", ct)
-		}
-		w.WriteHeader(status)
-		if ct != "" {
-			b, err := json.Marshal(body)
-			if err != nil {
-				t.Error(err)
-			}
-			_, _ = w.Write(b)
-		}
-	}))
+	srv := httptest.NewServer(mock.Handler(spec.Mock(""), mock.Options{ValidateRequests: true}))
 	t.Cleanup(srv.Close)
 	return srv
 }
 
 // TestE2EImportOpenAPIRunsGreen imports a spec, checks the files and runs
-// them against a server answering the spec's examples, validated by the
-// same spec.
+// them against a mock of the spec (sonde mock), validated by the same
+// spec.
 func TestE2EImportOpenAPIRunsGreen(t *testing.T) {
 	specPath := petSpec(t)
 	spec, err := openapi.Load(context.Background(), specPath, openapi.LoadOptions{})
