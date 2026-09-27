@@ -129,10 +129,21 @@ add_row() {
 bench_tool() {
   local label="$1" startup_cmd="$2" request_cmd="$3" version_cmd="$4"
   local startup req rss version
+  version="$(eval "$version_cmd" 2>&1 | head -1 | tr -d '\r')"
+  # A command that fails would be timed as an error (or stop hyperfine):
+  # check both once and report the tool as failed instead.
+  local cmd
+  for cmd in "$startup_cmd" "$request_cmd"; do
+    if ! bash -c "$cmd" >"$WORK/check.out" 2>&1; then
+      echo "fail: $label: $cmd" >&2
+      tail -5 "$WORK/check.out" >&2
+      add_row "$label" "failed" "failed" "n/a" "$version"
+      return 0
+    fi
+  done
   startup="$(time_case "$startup_cmd")"
   req="$(time_case "$request_cmd")"
   rss="$(rss_case "$request_cmd")"
-  version="$(eval "$version_cmd" 2>&1 | head -1 | tr -d '\r')"
   add_row "$label" "${startup% *}/${startup#* }" "${req% *}/${req#* }" "${rss:-n/a}" "$version"
 }
 
@@ -141,7 +152,7 @@ SONDE_REQ="$WORK/req.hurl"
 printf 'GET %s\nHTTP 200\n' "$BASE_URL" >"$SONDE_REQ"
 bench_tool "sonde" \
   "$SONDE_BIN version" \
-  "$SONDE_BIN run $SONDE_REQ" \
+  "$SONDE_BIN --test $SONDE_REQ" \
   "echo '$sonde_version'"
 
 # --- hurl ------------------------------------------------------------------
@@ -190,7 +201,8 @@ get {
   url: $BASE_URL
 }
 BRU
-  bench_tool "bru" "bru --version" "bru run req.bru --cwd $BRU_DIR" "bru --version"
+  # bru runs from the collection's own directory.
+  bench_tool "bru" "bru --version" "cd $BRU_DIR && bru run req.bru" "bru --version"
 else
   echo "skip: bru not installed" >&2
 fi

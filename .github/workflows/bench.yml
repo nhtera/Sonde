@@ -21,7 +21,6 @@ env:
 jobs:
   bench:
     runs-on: ubuntu-latest
-    continue-on-error: true # numbers only; a comparison tool install hiccup must not go red
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -33,7 +32,10 @@ jobs:
         with:
           node-version: "22"
 
+      # A comparison tool that fails to install is skipped by bench.sh with
+      # a note; only a failure of the benchmark itself turns the run red.
       - name: Install hyperfine
+        continue-on-error: true
         run: |
           curl -fsSL -o /tmp/hyperfine.tar.gz \
             "https://github.com/sharkdp/hyperfine/releases/download/v${HYPERFINE_VERSION}/hyperfine-v${HYPERFINE_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
@@ -41,13 +43,15 @@ jobs:
           install -m 0755 "/tmp/hyperfine-v${HYPERFINE_VERSION}-x86_64-unknown-linux-gnu/hyperfine" /usr/local/bin/hyperfine
 
       - name: Install hurl
+        continue-on-error: true
         run: |
           curl -fsSL -o /tmp/hurl.tar.gz \
             "https://github.com/Orange-OpenSource/hurl/releases/download/${HURL_VERSION}/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
           tar -xzf /tmp/hurl.tar.gz -C /tmp
-          install -m 0755 "/tmp/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu/hurl" /usr/local/bin/hurl
+          install -m 0755 "/tmp/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu/bin/hurl" /usr/local/bin/hurl
 
       - name: Install xh
+        continue-on-error: true
         run: |
           curl -fsSL -o /tmp/xh.tar.gz \
             "https://github.com/ducaale/xh/releases/download/v${XH_VERSION}/xh-v${XH_VERSION}-x86_64-unknown-linux-musl.tar.gz"
@@ -55,11 +59,15 @@ jobs:
           install -m 0755 "/tmp/xh-v${XH_VERSION}-x86_64-unknown-linux-musl/xh" /usr/local/bin/xh
 
       - name: Install newman and bru (Bruno CLI)
+        continue-on-error: true
         run: |
           npm install -g "newman@${NEWMAN_VERSION}" "@usebruno/cli@${BRUNO_CLI_VERSION}"
 
       - name: Run scripts/bench.sh
         id: bench
+        env:
+          SONDE_BENCH_WARMUP: "10"
+          SONDE_BENCH_RUNS: "50"
         run: |
           scripts/bench.sh bench-results.md
           {
