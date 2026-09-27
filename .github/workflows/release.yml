@@ -24,6 +24,17 @@ jobs:
           cache: false
       - run: go test ./...
       - run: make lint apicheck
+      # Checks the whole module (go.mod included) against the previous CLI
+      # tag and fails if the tag is not a valid next version.
+      - name: gorelease
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$TAG^" 2>/dev/null); then
+            go run golang.org/x/exp/cmd/gorelease@v0.0.0-20260908205506-85c1c2202aba -base="$base" -version="$TAG"
+          else
+            echo "gorelease: no earlier tag to compare with"
+          fi
 
   release:
     needs: check
