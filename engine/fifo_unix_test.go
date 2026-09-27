@@ -27,7 +27,7 @@ func TestRenderCurlNeverHangsOnFIFO(t *testing.T) {
 
 	done := make(chan []CurlEntry, 1)
 	go func() {
-		entries, err := RenderCurl(context.Background(), f, Options{FileRoot: dir})
+		entries, err := NewRunner(Options{FileRoot: dir}).RenderCurl(context.Background(), "test.hurl", f)
 		if err != nil {
 			t.Errorf("RenderCurl: %v", err)
 			done <- nil
@@ -57,7 +57,7 @@ func TestRenderCurlNeverHangsOnFIFOMultipart(t *testing.T) {
 
 	done := make(chan []CurlEntry, 1)
 	go func() {
-		entries, err := RenderCurl(context.Background(), f, Options{FileRoot: dir})
+		entries, err := NewRunner(Options{FileRoot: dir}).RenderCurl(context.Background(), "test.hurl", f)
 		if err != nil {
 			t.Errorf("RenderCurl: %v", err)
 			done <- nil

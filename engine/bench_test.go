@@ -74,7 +74,7 @@ func BenchmarkRunAll(b *testing.B) {
 		b.Run(fmt.Sprintf("jobs=%d", n), func(b *testing.B) {
 			r := NewRunner(Options{})
 			for b.Loop() {
-				r.RunAll(context.Background(), nil, jobs, n, Hooks{})
+				r.RunAll(context.Background(), jobs, RunAllOptions{Parallel: n})
 			}
 		})
 	}
@@ -94,7 +94,7 @@ func BenchmarkRunAllMemory(b *testing.B) {
 	}
 	r := NewRunner(Options{})
 	for b.Loop() {
-		r.RunAll(context.Background(), nil, jobs, 8, Hooks{})
+		r.RunAll(context.Background(), jobs, RunAllOptions{Parallel: 8})
 		runtime.GC()
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)

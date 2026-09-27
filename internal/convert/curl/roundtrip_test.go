@@ -55,7 +55,7 @@ func runEntry(t *testing.T, src []byte) {
 		var msgs []string
 		for _, e := range res.Entries {
 			for _, er := range e.Errors {
-				msgs = append(msgs, er.Reason)
+				msgs = append(msgs, er.Message())
 			}
 		}
 		t.Fatalf("run failed: %v\n%s", msgs, src)
@@ -146,13 +146,12 @@ func TestRoundtrip(t *testing.T) {
 			var want, got capturedRequest
 			srv := captureServer(t, &want)
 			original := []byte(fmt.Sprintf(tc.body, srv.URL))
-			f, err := syntax.Parse("<roundtrip>", original, syntax.DialectHurl)
-			if err != nil {
+			if _, err := syntax.Parse("<roundtrip>", original, syntax.DialectHurl); err != nil {
 				t.Fatalf("original does not parse: %v\n%s", err, original)
 			}
 			runEntry(t, original)
 
-			entries, err := engine.RenderCurl(context.Background(), f, engine.Options{})
+			entries, err := engine.NewRunner(engine.Options{}).RenderCurl(context.Background(), "roundtrip.hurl", original)
 			if err != nil {
 				t.Fatalf("RenderCurl: %v", err)
 			}

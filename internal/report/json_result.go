@@ -9,10 +9,10 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/exchange"
-	"github.com/nhtera/sonde/internal/value"
 )
 
 // Result is one file's JSON result: the schema shared by `--json` and
@@ -146,10 +146,23 @@ type ResponseCookie struct {
 // (see Result's doc comment) — "body" sorts before "cookies".
 type Response struct {
 	Body        string           `json:"body,omitempty"`
+	Certificate *Certificate     `json:"certificate,omitempty"`
 	Cookies     []ResponseCookie `json:"cookies"`
 	Headers     []NameValue      `json:"headers"`
 	HTTPVersion string           `json:"http_version"`
 	Status      int              `json:"status"`
+}
+
+// Certificate is the server certificate of an HTTPS response; dates are
+// "2006-01-02 15:04:05 UTC" and the value is PEM.
+type Certificate struct {
+	ExpireDate     string `json:"expire_date,omitempty"`
+	Issuer         string `json:"issuer,omitempty"`
+	SerialNumber   string `json:"serial_number,omitempty"`
+	StartDate      string `json:"start_date,omitempty"`
+	Subject        string `json:"subject,omitempty"`
+	SubjectAltName string `json:"subject_alt_name,omitempty"`
+	Value          string `json:"value,omitempty"`
 }
 
 // Timings are the phases of a transfer, in milliseconds (except the two
@@ -199,7 +212,7 @@ func JSON(res *engine.UnitResult, redact func(string) string, store BodyStore) (
 		jr.Cookies = []Cookie{}
 	}
 	for _, e := range res.Entries {
-		je, err := toEntry(res, e, redact, store)
+		je, err := toEntry(e, redact, store)
 		if err != nil {
 			return Result{}, err
 		}
@@ -211,7 +224,7 @@ func JSON(res *engine.UnitResult, redact func(string) string, store BodyStore) (
 	return jr, nil
 }
 
-func toEntry(res *engine.UnitResult, e *engine.EntryResult, redact func(string) string, store BodyStore) (Entry, error) {
+func toEntry(e *engine.EntryResult, redact func(string) string, store BodyStore) (Entry, error) {
 	je := Entry{Index: e.Index, Line: e.Line, Time: e.TransferDuration.Milliseconds()}
 	for _, c := range e.Calls {
 		jc, err := toCall(c, redact, store)
@@ -237,7 +250,7 @@ func toEntry(res *engine.UnitResult, e *engine.EntryResult, redact func(string) 
 	for _, a := range e.Asserts {
 		ja := Assert{Line: a.Line, Success: a.Err == nil}
 		if a.Err != nil {
-			ja.Message = redact(a.Err.Render(res.File, string(res.Source), e.Line))
+			ja.Message = redact(a.Err.Render())
 		}
 		je.Asserts = append(je.Asserts, ja)
 	}
@@ -282,6 +295,9 @@ func toCall(c engine.Call, redact func(string) string, store BodyStore) (Call, e
 		for _, ck := range c.Response.Cookies() {
 			resp.Cookies = append(resp.Cookies, toResponseCookie(ck, redact))
 		}
+		if cert := c.Response.Certificate; cert != nil {
+			resp.Certificate = toCertificate(cert, redact)
+		}
 		if store != nil {
 			ct, _ := c.Response.ContentType()
 			path, err := store(c.Response.Body, ct)
@@ -309,69 +325,97 @@ func toCall(c engine.Call, redact func(string) string, store BodyStore) (Call, e
 	}, nil
 }
 
-// toValue projects a captured value.Value the way the upstream CLI's own
-// JSON capture serializer does (json/value.rs's to_json): a natural JSON
-// type where one exists, base64 for bytes, a big integer as a bare
-// (unquoted) JSON number, and a small `{"type": "<kind>", ...}` fallback
-// object for nodeset/unit/http-response, which have no natural JSON form.
-func toValue(v value.Value, redact func(string) string) any {
-	switch v := v.(type) {
-	case value.Null:
+// toCertificate projects a server certificate.
+func toCertificate(c *exchange.CertInfo, redact func(string) string) *Certificate {
+	date := func(t time.Time) string {
+		if t.IsZero() {
+			return ""
+		}
+		return t.UTC().Format("2006-01-02 15:04:05 UTC")
+	}
+	return &Certificate{
+		ExpireDate:     date(c.ExpireDate),
+		Issuer:         redact(c.Issuer),
+		SerialNumber:   redact(c.SerialNumber),
+		StartDate:      date(c.StartDate),
+		Subject:        redact(c.Subject),
+		SubjectAltName: redact(c.SubjectAltName),
+		Value:          redact(c.Value),
+	}
+}
+
+// toValue projects a captured value the way the upstream CLI's own JSON
+// capture serializer does (json/value.rs's to_json): a natural JSON type
+// where one exists, base64 for bytes, a big integer as a bare (unquoted)
+// JSON number, and a small `{"type": "<kind>", ...}` fallback object for
+// nodeset/unit/http-response, which have no natural JSON form.
+func toValue(v engine.Value, redact func(string) string) any {
+	switch v.Kind() {
+	case engine.ValueNull:
 		return nil
-	case value.Bool:
-		return bool(v)
-	case value.Int:
-		return int64(v)
-	case value.BigInt:
-		return json.Number(string(v))
-	case value.Float:
-		return float64(v)
-	case value.String:
-		return redact(string(v))
-	case value.Bytes:
-		return redact(base64.StdEncoding.EncodeToString(v))
-	case value.Date:
-		// Same textual form as everywhere else a Date is displayed
-		// (internal/value.Display), matching the upstream chrono
-		// DateTime Display trait this serializer's to_string() uses.
-		return value.Display(v)
-	case value.Regex:
-		return v.Source
-	case value.List:
-		out := make([]any, len(v))
-		for i, e := range v {
+	case engine.ValueBool:
+		b, _ := v.Bool()
+		return b
+	case engine.ValueInteger:
+		if i, ok := v.Int(); ok {
+			return i
+		}
+		return json.Number(v.String())
+	case engine.ValueFloat:
+		f, _ := v.Float()
+		return f
+	case engine.ValueString:
+		s, _ := v.Text()
+		return redact(s)
+	case engine.ValueBytes:
+		b, _ := v.Bytes()
+		return redact(base64.StdEncoding.EncodeToString(b))
+	case engine.ValueDate:
+		// Same textual form as everywhere else a date is displayed,
+		// matching the upstream chrono DateTime Display trait this
+		// serializer's to_string() uses.
+		return v.String()
+	case engine.ValueRegex:
+		src, _ := v.Regex()
+		return src
+	case engine.ValueList:
+		l := v.List()
+		out := make([]any, len(l))
+		for i, e := range l {
 			out[i] = toValue(e, redact)
 		}
 		return out
-	case value.Object:
-		out := make(orderedObject, len(v))
-		for i, m := range v {
-			out[i] = objectMember{Key: m.Key, Value: toValue(m.Value, redact)}
+	case engine.ValueObject:
+		fields := v.Fields()
+		out := make(orderedObject, len(fields))
+		for i, f := range fields {
+			out[i] = objectMember{Key: f.Key, Value: toValue(f.Value, redact)}
 		}
 		return out
-	case value.Nodeset:
+	case engine.ValueNodeset:
 		// serde_json serializes an ad-hoc map with keys in alphabetical
 		// order (it is a BTreeMap without the preserve_order feature),
 		// regardless of insertion order, the same rule
 		// docs/architecture.md and this file's own struct field order
 		// already follow for every other object.
 		return orderedObject{
-			{Key: "size", Value: int64(v)},
+			{Key: "size", Value: int64(v.Len())},
 			{Key: "type", Value: "nodeset"},
 		}
-	case value.Unit:
+	case engine.ValueUnit:
 		return orderedObject{{Key: "type", Value: "unit"}}
-	case value.HTTPResponse:
+	case engine.ValueRedirect:
+		r, _ := v.Redirect()
 		location := "None"
-		if v.HasLocation {
-			location = v.Location
+		if r.HasLocation {
+			location = r.Location
 		}
 		return orderedObject{
 			{Key: "location", Value: location},
-			{Key: "status", Value: int64(v.Status)},
+			{Key: "status", Value: int64(r.Status)},
 		}
 	}
-	return redact(value.Display(v))
+	return redact(v.String())
 }
 
 // orderedObject is a JSON object that marshals its members in the given

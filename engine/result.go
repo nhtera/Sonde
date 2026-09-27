@@ -10,17 +10,15 @@ import (
 
 	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/redact"
-	"github.com/nhtera/sonde/internal/runerr"
-	"github.com/nhtera/sonde/internal/syntax"
-	"github.com/nhtera/sonde/internal/value"
 )
 
 // UnitResult is the result of running one file.
 type UnitResult struct {
 	File   string
 	Source []byte
-	// ParseError is set when the file does not parse; nothing ran.
-	ParseError *syntax.Error
+	// ParseError is set when the file does not parse; nothing ran. Its
+	// kind is ErrorParse.
+	ParseError *Error
 	// Entries has one result per attempt: a retried entry appears once per
 	// attempt, repeated entries once per repetition.
 	Entries []*EntryResult
@@ -75,9 +73,9 @@ func (u *UnitResult) HasSecrets() bool {
 }
 
 // Errors returns the errors that decided the outcome: those of every
-// attempt that was not retried.
-func (u *UnitResult) Errors() []*runerr.Error {
-	var errs []*runerr.Error
+// attempt that was not retried. It does not include ParseError.
+func (u *UnitResult) Errors() []*Error {
+	var errs []*Error
 	for _, e := range u.Entries {
 		if !e.Retried {
 			errs = append(errs, e.Errors...)
@@ -98,9 +96,9 @@ type EntryResult struct {
 	// Options.Validator): those that are not warnings also appear in
 	// Asserts, located at the status line.
 	Violations []Violation
-	// Errors are the errors of this attempt; an error with Assert set is an
-	// assert failure.
-	Errors           []*runerr.Error
+	// Errors are the errors of this attempt; an error whose Assert method
+	// reports true is an assert failure.
+	Errors           []*Error
 	TransferDuration time.Duration
 	Compressed       bool
 	// Curl is the equivalent curl command line of the request.
@@ -114,20 +112,21 @@ type EntryResult struct {
 type Call struct {
 	Request  exchange.Request
 	Response *exchange.Response
-	Timings  exchange.Timings
+	// Timings are the timings of Response (the same as Response.Timings).
+	Timings exchange.Timings
 }
 
 // Capture is a captured variable.
 type Capture struct {
 	Name  string
-	Value value.Value
+	Value Value
 }
 
 // Assert is the outcome of one assert (implicit or explicit); Err is nil
 // when it holds.
 type Assert struct {
 	Line int
-	Err  *runerr.Error
+	Err  *Error
 }
 
 // Cookie is a cookie of the cookie store (Netscape fields).
@@ -136,10 +135,12 @@ type Cookie struct {
 	IncludeSubdomain bool
 	Path             string
 	HTTPS            bool
-	Expires          int64
-	Name             string
-	Value            string
-	HTTPOnly         bool
+	// Expires is a Unix time in seconds; 0 for a session cookie, 1 for a
+	// cookie the server expired.
+	Expires  int64
+	Name     string
+	Value    string
+	HTTPOnly bool
 }
 
 // Netscape formats the cookie as a line of a Netscape cookie file, without

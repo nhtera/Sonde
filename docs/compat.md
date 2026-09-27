@@ -3,7 +3,7 @@
 # Hurl Compatibility
 
 Sonde targets Hurl 8.0.1 files and CLI behavior. This page lists every known
-difference. Phase 5 extends it with runtime and CLI gaps.
+difference: syntax, runtime and command line.
 
 ## Syntax (`sonde check`, `sonde fmt`, all commands that read files)
 

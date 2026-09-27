@@ -64,8 +64,9 @@ linters:
           files: ["**/engine/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/sandbox (architecture §2)"
+              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/sandbox, internal/enginex (architecture §2)"
           allow:
+            - github.com/nhtera/sonde/internal/enginex$
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/value$
             - github.com/nhtera/sonde/internal/redact$
@@ -180,6 +181,16 @@ linters:
             - github.com/nhtera/sonde/internal/template$
             - github.com/nhtera/sonde/internal/runerr$
             - github.com/nhtera/sonde/internal/datefmt$
+        pkg-enginex:
+          list-mode: lax
+          files: ["**/internal/enginex/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/enginex may import only: internal/runerr, internal/syntax, internal/value (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/internal/runerr$
+            - github.com/nhtera/sonde/internal/syntax$
+            - github.com/nhtera/sonde/internal/value$
         pkg-runerr:
           list-mode: lax
           files: ["**/internal/runerr/**", "!$test"]
@@ -235,11 +246,10 @@ linters:
           files: ["**/internal/report/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/report may import only: engine, exchange, internal/value (architecture §2)"
+              desc: "internal/report may import only: engine, exchange (architecture §2)"
           allow:
             - github.com/nhtera/sonde/engine$
             - github.com/nhtera/sonde/exchange$
-            - github.com/nhtera/sonde/internal/value$
         pkg-config:
           list-mode: lax
           files: ["**/internal/config/**", "!$test"]

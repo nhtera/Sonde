@@ -6,12 +6,9 @@ package report
 import "github.com/nhtera/sonde/engine"
 
 // renderErrors renders every decisive error of res (those of every
-// attempt that was not retried; mirrors engine.UnitResult.Errors) through
-// runerr.Error.Render, redacting the result, and splits them into assert
-// failures and runtime errors — the grouping JUnit's <failure>/<error>
-// children use. internal/report may not import internal/runerr directly
-// (architecture.md §2), so the error value is only ever used through the
-// engine-declared field/method it came from, never named as a type here.
+// attempt that was not retried; mirrors engine.UnitResult.Errors),
+// redacting the result, and splits them into assert failures and runtime
+// errors — the grouping JUnit's <failure>/<error> children use.
 func renderErrors(res *engine.UnitResult, redact func(string) string) (failures, errs []string) {
 	redact = forResult(res, redact)
 	for _, e := range res.Entries {
@@ -19,8 +16,8 @@ func renderErrors(res *engine.UnitResult, redact func(string) string) (failures,
 			continue
 		}
 		for _, err := range e.Errors {
-			msg := redact(err.Render(res.File, string(res.Source), e.Line))
-			if err.Assert {
+			msg := redact(err.Render())
+			if err.Assert() {
 				failures = append(failures, msg)
 			} else {
 				errs = append(errs, msg)

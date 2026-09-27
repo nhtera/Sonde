@@ -70,7 +70,8 @@ func TestRunAllIsolationAndParallelism(t *testing.T) {
 	var order []int
 	success := map[int]bool{}
 	outputs := map[int]*bytes.Buffer{}
-	r.RunAll(context.Background(), nil, jobsOf(t, srv, "/ok", "/fail", "/ok", "/ok"), 2, Hooks{
+	r.RunAll(context.Background(), jobsOf(t, srv, "/ok", "/fail", "/ok", "/ok"), RunAllOptions{
+		Parallel: 2,
 		Started: func(seq int, _ Job) (func(Event), io.Writer) {
 			enter()
 			outputs[seq] = &bytes.Buffer{}
@@ -108,7 +109,7 @@ func TestRunAllFinishedStops(t *testing.T) {
 	srv, _ := slowServer(t, 0)
 	r := NewRunner(Options{})
 	ran := 0
-	r.RunAll(context.Background(), nil, jobsOf(t, srv, "/ok", "/ok", "/ok"), 1, Hooks{
+	r.RunAll(context.Background(), jobsOf(t, srv, "/ok", "/ok", "/ok"), RunAllOptions{
 		Finished: func(int, Job, *UnitResult, error) bool { ran++; return false },
 	})
 	if ran != 1 {
@@ -122,7 +123,8 @@ func TestRunAllStop(t *testing.T) {
 	close(stop)
 	r := NewRunner(Options{})
 	ran := 0
-	r.RunAll(context.Background(), stop, jobsOf(t, srv, "/ok", "/ok"), 1, Hooks{
+	r.RunAll(context.Background(), jobsOf(t, srv, "/ok", "/ok"), RunAllOptions{
+		Stop:     stop,
 		Finished: func(int, Job, *UnitResult, error) bool { ran++; return true },
 	})
 	if ran != 0 {
@@ -133,7 +135,7 @@ func TestRunAllStop(t *testing.T) {
 func TestRunAllUnreadableJob(t *testing.T) {
 	r := NewRunner(Options{})
 	var gotErr error
-	r.RunAll(context.Background(), nil, slices.Values([]Job{{Name: t.TempDir() + "/missing.hurl"}}), 1, Hooks{
+	r.RunAll(context.Background(), slices.Values([]Job{{Name: t.TempDir() + "/missing.hurl"}}), RunAllOptions{
 		Finished: func(_ int, _ Job, _ *UnitResult, err error) bool { gotErr = err; return true },
 	})
 	if gotErr == nil {
@@ -152,7 +154,7 @@ func TestRunAllJobVariables(t *testing.T) {
 		Secrets:   map[string]string{"token": "job-secret-5d2e"}, //nolint:gosec // G101: fake test value
 	}
 	var res *UnitResult
-	r.RunAll(context.Background(), nil, slices.Values([]Job{job}), 1, Hooks{
+	r.RunAll(context.Background(), slices.Values([]Job{job}), RunAllOptions{
 		Finished: func(_ int, _ Job, got *UnitResult, _ error) bool { res = got; return true },
 	})
 	if res == nil || !res.Success {
@@ -173,7 +175,8 @@ func TestRunAllFinishedFalseLetsRunningJobsComplete(t *testing.T) {
 	})
 	r := NewRunner(Options{})
 	got := map[string]*UnitResult{}
-	r.RunAll(context.Background(), nil, jobs, 2, Hooks{
+	r.RunAll(context.Background(), jobs, RunAllOptions{
+		Parallel: 2,
 		Finished: func(_ int, job Job, res *UnitResult, _ error) bool {
 			got[job.Name] = res
 			return res.ParseError == nil
@@ -190,11 +193,12 @@ func TestRunAllFinishedFalseLetsRunningJobsComplete(t *testing.T) {
 	}
 }
 
-// stopAfterFirstEntry returns hooks closing stop when the first entry of a
-// job finishes, and the results they receive.
-func stopAfterFirstEntry(stop chan struct{}) (Hooks, *[]*UnitResult) {
+// stopAfterFirstEntry returns options closing stop when the first entry
+// of a job finishes, and the results they receive.
+func stopAfterFirstEntry(stop chan struct{}) (RunAllOptions, *[]*UnitResult) {
 	var results []*UnitResult
-	return Hooks{
+	return RunAllOptions{
+		Stop: stop,
 		Started: func(int, Job) (func(Event), io.Writer) {
 			return func(ev Event) {
 				if _, ok := ev.(EntryFinished); ok {
@@ -218,7 +222,7 @@ func TestRunAllStopInterruptsRun(t *testing.T) {
 	stop := make(chan struct{})
 	hooks, results := stopAfterFirstEntry(stop)
 	src := []byte("GET " + srv.URL + "/ok\nHTTP 200\nGET " + srv.URL + "/fail\nHTTP 200\n")
-	NewRunner(Options{}).RunAll(context.Background(), stop, slices.Values([]Job{{Name: "a.hurl", Source: src}}), 1, hooks)
+	NewRunner(Options{}).RunAll(context.Background(), slices.Values([]Job{{Name: "a.hurl", Source: src}}), hooks)
 	if len(*results) != 1 {
 		t.Fatalf("got %d results", len(*results))
 	}
@@ -235,7 +239,7 @@ func TestRunAllStopDuringRetryInterval(t *testing.T) {
 	hooks, results := stopAfterFirstEntry(stop)
 	src := []byte("GET " + srv.URL + "/fail\n[Options]\nretry: 3\nretry-interval: 10s\nHTTP 200\n")
 	start := time.Now()
-	NewRunner(Options{}).RunAll(context.Background(), stop, slices.Values([]Job{{Name: "a.hurl", Source: src}}), 1, hooks)
+	NewRunner(Options{}).RunAll(context.Background(), slices.Values([]Job{{Name: "a.hurl", Source: src}}), hooks)
 	if time.Since(start) > 5*time.Second {
 		t.Error("stop did not end the retry interval")
 	}
@@ -250,7 +254,7 @@ func TestEntryStartedLast(t *testing.T) {
 	src := []byte("GET " + srv.URL + "/ok\nGET " + srv.URL + "/ok\nGET " + srv.URL + "/ok\n")
 	var lasts []int
 	r := NewRunner(Options{ToEntry: 2})
-	r.RunAll(context.Background(), nil, slices.Values([]Job{{Name: "a.hurl", Source: src}}), 1, Hooks{
+	r.RunAll(context.Background(), slices.Values([]Job{{Name: "a.hurl", Source: src}}), RunAllOptions{
 		Started: func(int, Job) (func(Event), io.Writer) {
 			return func(ev Event) {
 				if es, ok := ev.(EntryStarted); ok {
@@ -279,7 +283,7 @@ func TestRunAllRow(t *testing.T) {
 	r := NewRunner(Options{Variables: map[string]any{"user": "alice", "expect": "bob row-token-1"}, Verbosity: Verbose})
 	var logs strings.Builder
 	var res *UnitResult
-	r.RunAll(context.Background(), nil, slices.Values([]Job{job}), 1, Hooks{
+	r.RunAll(context.Background(), slices.Values([]Job{job}), RunAllOptions{
 		Started: func(int, Job) (func(Event), io.Writer) {
 			return func(ev Event) {
 				if l, ok := ev.(Log); ok {
@@ -302,7 +306,7 @@ func TestRunAllRow(t *testing.T) {
 			t.Errorf("events leak %q", secret)
 		}
 	}
-	actual := res.Entries[0].Errors[0].Actual
+	actual := res.Entries[0].Errors[0].Actual()
 	if got := res.Redact(actual); strings.Contains(got, "row-token-1") {
 		t.Errorf("Redact(%q) = %q", actual, got)
 	}
@@ -325,7 +329,7 @@ func TestRunAllRowCredentialsStayInRow(t *testing.T) {
 	}
 	r := NewRunner(Options{Secrets: map[string]string{"pw": "run-password"}})
 	var results []*UnitResult
-	r.RunAll(context.Background(), nil, slices.Values(jobs), 1, Hooks{
+	r.RunAll(context.Background(), slices.Values(jobs), RunAllOptions{
 		Finished: func(_ int, _ Job, res *UnitResult, _ error) bool { results = append(results, res); return true },
 	})
 	encoded := base64.StdEncoding.EncodeToString([]byte("user-1:run-password"))
@@ -344,7 +348,7 @@ func TestUnitResultRedactOverlap(t *testing.T) {
 	src := []byte("GET " + srv.URL + "/ok\nHTTP 200\n")
 	r := NewRunner(Options{Secrets: map[string]string{"a": "xxxxYYYYzzzz"}})
 	var res *UnitResult
-	r.RunAll(context.Background(), nil, slices.Values([]Job{{Name: "a.hurl", Source: src, Row: &Row{Index: 1, Secrets: map[string]string{"b": "YYYY"}}}}), 1, Hooks{
+	r.RunAll(context.Background(), slices.Values([]Job{{Name: "a.hurl", Source: src, Row: &Row{Index: 1, Secrets: map[string]string{"b": "YYYY"}}}}), RunAllOptions{
 		Finished: func(_ int, _ Job, got *UnitResult, _ error) bool { res = got; return true },
 	})
 	if got := res.Redact("k=xxxxYYYYzzzz"); got != "k=***" {
@@ -358,7 +362,7 @@ func TestRowVariablesJSONShapes(t *testing.T) {
 	r := NewRunner(Options{})
 	var res *UnitResult
 	row := &Row{Index: 1, Variables: map[string]any{"o": map[string]any{"k": []any{1, int64(2)}}}}
-	r.RunAll(context.Background(), nil, slices.Values([]Job{{Name: "a.hurl", Source: src, Row: row}}), 1, Hooks{
+	r.RunAll(context.Background(), slices.Values([]Job{{Name: "a.hurl", Source: src, Row: row}}), RunAllOptions{
 		Finished: func(_ int, _ Job, got *UnitResult, err error) bool {
 			if err != nil {
 				t.Fatal(err)

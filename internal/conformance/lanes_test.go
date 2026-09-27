@@ -180,6 +180,6 @@ func repoRootHurlDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// This file lives at <root>/test/conformance/lanes_test.go.
+	// This file lives at <root>/internal/conformance/lanes_test.go.
 	return filepath.Join(wd, "..", "..", "testdata", "conformance", "hurl")
 }

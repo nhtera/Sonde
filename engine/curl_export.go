@@ -5,9 +5,12 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/nhtera/sonde/internal/httpx"
+	"github.com/nhtera/sonde/internal/runerr"
 	"github.com/nhtera/sonde/internal/sandbox"
 	"github.com/nhtera/sonde/internal/syntax"
 	"github.com/nhtera/sonde/internal/template"
@@ -17,7 +20,7 @@ import (
 // CurlEntry is one entry rendered to its curl command line by RenderCurl,
 // without sending anything.
 type CurlEntry struct {
-	// Index is the entry's 1-based position in file.Entries, exactly as
+	// Index is the entry's 1-based position in the file, exactly as
 	// Options.FromEntry/ToEntry address it; RenderCurl never renumbers.
 	Index int
 	// Command is the curl command line, secrets redacted exactly like a
@@ -36,7 +39,10 @@ type CurlEntry struct {
 	// [Options] repeat/skip/max-redirs/... expecting a number or
 	// boolean, not a bare {{name}} it has no source for) or a body file
 	// this call's FileRoot cannot supply (missing, unreadable, or not a
-	// regular file). Every other entry is still attempted.
+	// regular file). It is an *Error for an evaluation error (an invalid
+	// option value, an undefined variable where no placeholder fits);
+	// other failures, such as a body file that can't be read, are plain
+	// errors. Every other entry is still attempted.
 	Err error
 }
 
@@ -46,42 +52,52 @@ type CurlEntry struct {
 // bound; a real file never comes close.
 const maxUndefinedVariables = 1000
 
-// RenderCurl renders every entry of file selected by opt.FromEntry/
-// ToEntry (1-based, as in a run; both zero selects every entry) to its
-// curl command line, without sending anything. ctx may cancel the call
-// between entries.
+// RenderCurl renders the entries of the file named name, with content
+// src, to their curl command lines without sending anything: those
+// selected by Options.FromEntry/ToEntry (1-based, as in a run; both zero
+// select every entry). ctx may cancel the call between entries. A file
+// that does not parse is returned as an *Error of kind ErrorParse.
 //
-// Variables, secrets and every HTTP option come from opt exactly as a run
-// would use them (the caller merges a project's environment into
-// opt.Variables/opt.Secrets first, the way a run's own job/runner tiers
-// do — see internal/cli/export.go); opt's run-only fields (Retry, Jobs,
-// Delay, ...) are simply never read. opt.FileRoot confines file bodies
-// and multipart files exactly like a run, except it defaults to "." (the
-// process's working directory) when empty: unlike RunFile, RenderCurl has
-// no file name of its own to default FileRoot from, so a caller that
-// wants "this file's own directory" — matching what a run of that same
-// file would default to — must set opt.FileRoot itself.
+// Variables, secrets and every HTTP option come from the runner's options
+// exactly as a run would use them; its run-only fields (Retry, Delay,
+// ...) are never read. Options.FileRoot confines file bodies and
+// multipart files exactly like a run (empty: the directory of name).
+// Secrets found while rendering (credentials) are added to the runner's.
 //
 // Every entry is isolated: an invalid FromEntry/ToEntry range is the only
-// error RenderCurl itself returns; a problem specific to one entry (an
-// undefined variable in a value with its own strict syntax, a body file
-// RenderCurl can't supply) is reported in that entry's own Err, and every
-// other entry is still rendered. A body file that exists but is not a
-// regular one (a FIFO, a device, a directory) is never opened at all —
+// other error RenderCurl itself returns; a problem specific to one entry
+// (an undefined variable in a value with its own strict syntax, a body
+// file RenderCurl can't supply) is reported in that entry's own Err, and
+// every other entry is still rendered. A body file that exists but is not
+// a regular one (a FIFO, a device, a directory) is never opened at all —
 // only Stat, which cannot block, checks it — so it reports the same
 // error a missing file would rather than hanging forever, since a caller
 // has no way to cancel a blocking read once it has started.
 //
 // A variable no source defines is not an error by itself: it stays a
-// literal {{name}} in the rendered command (Undefined names it) via
-// template.Env's Missing hook, evaluated once per entry — never written
-// back to the shared variables, so one entry's undefined name is never
-// mistaken for defined by another. The literal placeholder works in any
-// plain-text value (a header, the URL, a JSON or form-urlencoded body,
-// ...); it does not work where the file syntax requires a real number or
-// boolean ([Options] repeat/skip/max-redirs/limit-rate/...), which is
-// reported through that entry's Err instead.
-func RenderCurl(ctx context.Context, file *syntax.File, opt Options) ([]CurlEntry, error) {
+// literal {{name}} in the rendered command (Undefined names it),
+// evaluated once per entry — never written back to the shared variables,
+// so one entry's undefined name is never mistaken for defined by another.
+// The literal placeholder works in any plain-text value (a header, the
+// URL, a JSON or form-urlencoded body, ...); it does not work where the
+// file syntax requires a real number or boolean ([Options]
+// repeat/skip/max-redirs/limit-rate/...), which is reported through that
+// entry's Err instead.
+func (r *Runner) RenderCurl(ctx context.Context, name string, src []byte) ([]CurlEntry, error) {
+	file, err := syntax.Parse(name, src, syntax.DialectFor(name))
+	if err != nil {
+		var perr *syntax.Error
+		if errors.As(err, &perr) {
+			return nil, &Error{parse: perr, file: name, src: src}
+		}
+		return nil, err
+	}
+	return r.renderCurl(ctx, name, src, file)
+}
+
+// renderCurl is RenderCurl on a parsed file.
+func (r *Runner) renderCurl(ctx context.Context, name string, src []byte, file *syntax.File) ([]CurlEntry, error) {
+	opt := r.opt
 	entries := file.Entries
 	if opt.FromEntry < 0 || opt.ToEntry < 0 {
 		return nil, fmt.Errorf("engine: FromEntry/ToEntry must not be negative (got %d, %d)", opt.FromEntry, opt.ToEntry)
@@ -97,14 +113,13 @@ func RenderCurl(ctx context.Context, file *syntax.File, opt Options) ([]CurlEntr
 		last = opt.ToEntry
 	}
 
-	r := NewRunner(opt)
 	vars, err := r.variables(unitIO{})
 	if err != nil {
 		return nil, err
 	}
 	rootDir := opt.FileRoot
 	if rootDir == "" {
-		rootDir = "."
+		rootDir = filepath.Dir(name)
 	}
 	root, err := sandbox.Open(rootDir)
 	if err != nil {
@@ -112,14 +127,14 @@ func RenderCurl(ctx context.Context, file *syntax.File, opt Options) ([]CurlEntr
 	}
 	defer func() { _ = root.Close() }()
 	client, err := httpx.NewClient(httpx.ClientConfig{
-		Sandbox: root, NoCookieStore: opt.NoCookieStore, Version: opt.Version, UserAgent: opt.DefaultUserAgent,
+		Sandbox: root, NoCookieStore: opt.NoCookieStore, Version: moduleVersion(), UserAgent: opt.DefaultUserAgent,
 	})
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = client.Close() }()
 
-	u := &unit{runner: r, file: file, name: "<export>", root: root, rootDir: rootDir, client: client, forExport: true}
+	u := &unit{runner: r, file: file, name: name, src: src, root: root, rootDir: rootDir, client: client, forExport: true}
 	u.env = &template.Env{Vars: vars, Now: opt.Now, UUID: opt.UUID, ReadFile: u.readFile}
 
 	var out []CurlEntry
@@ -137,6 +152,9 @@ func RenderCurl(ctx context.Context, file *syntax.File, opt Options) ([]CurlEntr
 		}
 		eo, spec, undefined, err := u.renderForExport(entry)
 		if err != nil {
+			if re, ok := err.(*runerr.Error); ok {
+				err = &Error{run: re, file: name, src: src, entry: entry.Request.Method.Span.Start.Line}
+			}
 			out = append(out, CurlEntry{Index: i, Undefined: undefined, Err: err})
 			continue
 		}

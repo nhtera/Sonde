@@ -173,9 +173,8 @@ func writeHTMLUnitPage(storeDir, id string, res *engine.UnitResult, redact func(
 		}
 		if i < len(res.Entries) {
 			for _, e := range res.Entries[i].Errors {
-				if !e.Assert {
-					he.RuntimeErrors = append(he.RuntimeErrors,
-						redact(e.Render(res.File, string(res.Source), res.Entries[i].Line)))
+				if !e.Assert() {
+					he.RuntimeErrors = append(he.RuntimeErrors, redact(e.Render()))
 				}
 			}
 		}
@@ -191,7 +190,7 @@ func writeHTMLUnitPage(storeDir, id string, res *engine.UnitResult, redact func(
 		Entries:  entries,
 	}
 	if res.ParseError != nil {
-		data.ParseError = redact(res.ParseError.Render(res.File, res.Source))
+		data.ParseError = redact(res.ParseError.Render())
 	}
 
 	var buf bytes.Buffer

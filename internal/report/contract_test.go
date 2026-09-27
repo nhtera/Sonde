@@ -35,7 +35,7 @@ func TestJSONContract(t *testing.T) {
 	jobs := func(yield func(engine.Job) bool) {
 		yield(engine.Job{Name: "a.hurl", Source: []byte("GET " + srv.URL + "\n"), Row: &engine.Row{Index: 1, Secrets: map[string]string{"s": "row-secret"}}})
 	}
-	r.RunAll(context.Background(), nil, jobs, 1, engine.Hooks{Finished: func(_ int, _ engine.Job, u *engine.UnitResult, err error) bool {
+	r.RunAll(context.Background(), jobs, engine.RunAllOptions{Finished: func(_ int, _ engine.Job, u *engine.UnitResult, err error) bool {
 		if err != nil {
 			t.Fatal(err)
 		}

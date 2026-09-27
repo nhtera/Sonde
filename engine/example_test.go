@@ -67,7 +67,8 @@ func ExampleRunner_RunAll() {
 	r := engine.NewRunner(engine.Options{})
 	defer r.Close() //nolint:errcheck // example cleanup
 	failed := map[string]bool{}
-	r.RunAll(context.Background(), nil, slices.Values(jobs), 2, engine.Hooks{
+	r.RunAll(context.Background(), slices.Values(jobs), engine.RunAllOptions{
+		Parallel: 2,
 		Finished: func(_ int, job engine.Job, res *engine.UnitResult, err error) bool {
 			failed[job.Name] = err != nil || !res.Success
 			return true

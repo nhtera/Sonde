@@ -67,7 +67,7 @@ func newExportCurlCmd() *cobra.Command {
 
 // runExportCurl exports every FILE in turn: each entry's curl command
 // line goes to stdout, one per line; an unresolved variable warns on
-// stderr instead of failing that entry (see engine.RenderCurl). A
+// stderr instead of failing that entry (see engine.Runner.RenderCurl). A
 // problem with one FILE (parse error, out-of-range --entry, a render
 // error) is reported and that file contributes nothing further, but
 // every other FILE is still attempted; the command's own exit code
@@ -94,7 +94,7 @@ func runExportCurl(cmd *cobra.Command, o *exportCurlOptions, files []string) err
 		cliVars[name] = v
 	}
 
-	base := engine.Options{Version: currentBuildInfo().Version}
+	base := engine.Options{DefaultUserAgent: defaultUserAgent(env)}
 	if o.entry > 0 {
 		base.FromEntry, base.ToEntry = o.entry, o.entry
 	}
@@ -146,7 +146,9 @@ func exportCurlFile(ctx context.Context, stdout, stderr io.Writer, file string, 
 		opt.FileRoot = filepath.Dir(file)
 	}
 
-	entries, err := engine.RenderCurl(ctx, pf.file, opt)
+	runner := engine.NewRunner(opt)
+	defer func() { _ = runner.Close() }()
+	entries, err := runner.RenderCurl(ctx, file, pf.src)
 	if err != nil {
 		return NewExitError(ExitRuntime, fmt.Errorf("%s: %w", file, err))
 	}

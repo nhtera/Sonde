@@ -91,6 +91,19 @@ the row's secrets: a secret can never appear in a report in the clear.
 | `headers` | `NameValue[]` | |
 | `cookies` | `ResponseCookie[]` | Every `Set-Cookie` header, parsed. |
 | `body` | string, omitted for `--json` | Present only in a `--report-json` report: the response body's path, relative to `report.json` (see "Response bodies" below). |
+| `certificate` | `Certificate`, optional | The server certificate of an HTTPS response. |
+
+### `Certificate`
+
+| Field | Type | Description |
+|---|---|---|
+| `expire_date` | string | `"2028-03-16 05:18:48 UTC"` |
+| `issuer` | string | e.g. `"C = US, O = Example, CN = Example CA"` |
+| `serial_number` | string | lowercase hex bytes separated by `:` |
+| `start_date` | string | same form as `expire_date` |
+| `subject` | string | same form as `issuer` |
+| `subject_alt_name` | string | e.g. `"DNS:localhost, IP Address:127.0.0.1"` |
+| `value` | string | the certificate in PEM format |
 
 ### `ResponseCookie`
 

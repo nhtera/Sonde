@@ -71,7 +71,7 @@ func (c *contracts) forFile(file string, proj *config.Project) (engine.ResponseV
 	}
 	o := proj.OpenAPI
 	if o.ExcludesFile(proj.Dir, file) {
-		return engine.NoContract, nil
+		return engine.NoContract(), nil
 	}
 	spec, origin := o.Spec, proj.Path+": openapi.spec"
 	if c.flags.spec != "" {

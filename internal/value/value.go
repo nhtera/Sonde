@@ -49,6 +49,9 @@ const (
 	KindUnit
 	KindRegex
 	KindHTTPResponse
+
+	// KindCount is the number of kinds; new kinds go above it.
+	KindCount
 )
 
 var kindNames = [...]string{

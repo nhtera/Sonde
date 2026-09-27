@@ -52,9 +52,16 @@ type Row struct {
 	Secrets map[string]string
 }
 
-// Hooks connect the jobs of RunAll to their output. Calls to the hooks and
-// to the event handlers they return are never concurrent.
-type Hooks struct {
+// RunAllOptions configure RunAll. Calls to the hooks and to the event
+// handlers they return are never concurrent.
+type RunAllOptions struct {
+	// Parallel is the number of jobs run at a time; < 1 runs one at a
+	// time.
+	Parallel int
+	// Stop, when closed, schedules no more jobs and ends running jobs at
+	// their next entry boundary (their results are Interrupted).
+	// Canceling the context of RunAll also aborts requests in flight.
+	Stop <-chan struct{}
 	// Started is called when a job starts, seq being its 0-based position
 	// in the sequence of jobs; it returns where the job sends its events
 	// and its standard output (nil: nowhere).
@@ -65,15 +72,12 @@ type Hooks struct {
 	Finished func(seq int, job Job, res *UnitResult, err error) bool
 }
 
-// RunAll runs jobs, at most n at a time (n < 1 runs one at a time). Jobs
-// are isolated: a failing job does not affect the others.
-//
-// Closing stop schedules no more jobs and ends running jobs at their next
-// entry boundary (their results are Interrupted); canceling ctx also
-// aborts requests in flight. A Finished hook returning false only stops
-// the scheduling: running jobs complete.
-func (r *Runner) RunAll(ctx context.Context, stop <-chan struct{}, jobs iter.Seq[Job], n int, h Hooks) {
-	n = max(n, 1)
+// RunAll runs jobs, opt.Parallel at a time. Jobs are isolated: a failing
+// job does not affect the others. Jobs send their events and output where
+// opt.Started says, never to Options.OnEvent or Options.Stdout. A Finished
+// hook returning false only stops the scheduling: running jobs complete.
+func (r *Runner) RunAll(ctx context.Context, jobs iter.Seq[Job], opt RunAllOptions) {
+	n, stop, h := max(opt.Parallel, 1), opt.Stop, opt
 	var (
 		mu     sync.Mutex // serializes the hooks and event handlers
 		wg     sync.WaitGroup

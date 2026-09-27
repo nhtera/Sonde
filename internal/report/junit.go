@@ -95,7 +95,7 @@ func buildJUnitTestcase(res *engine.UnitResult, redact func(string) string) (tc 
 	// A file that never parsed has no entries for renderErrors to walk:
 	// without this, it would render as an empty, passing <testcase/>.
 	if res.ParseError != nil {
-		tc.addChild(newXMLElement("error").addText(redact(res.ParseError.Render(res.File, res.Source))))
+		tc.addChild(newXMLElement("error").addText(redact(res.ParseError.Render())))
 		return tc, 1, 0
 	}
 

@@ -89,6 +89,9 @@ const (
 	// ContractViolation: Reason, Name (instance path, optional), Value
 	// (spec pointer, optional).
 	ContractViolation
+
+	// KindCount is the number of kinds; new kinds go above it.
+	KindCount
 )
 
 // Error is a runtime error at a source span. Assert is set when the error

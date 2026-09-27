@@ -24,7 +24,8 @@ import (
 
 // Runner runs files with shared options. Secrets known to a runner
 // (options and `redact` captures of every file it ran) are redacted from
-// the log events it sends and by Redact. A Runner runs one file at a time.
+// the log events it sends and by Redact. RunFile and RunSource run one
+// file; RunAll runs several in parallel.
 type Runner struct {
 	opt     Options
 	secrets *redact.Registry
@@ -94,7 +95,7 @@ func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio uni
 		if !errors.As(err, &perr) {
 			return nil, err
 		}
-		res.ParseError = perr
+		res.ParseError = &Error{parse: perr, file: name, src: src}
 		return res, nil
 	}
 	rootDir := r.opt.FileRoot
@@ -111,7 +112,7 @@ func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio uni
 		Sandbox:       root,
 		CookieFile:    r.opt.CookieFile,
 		NoCookieStore: r.opt.NoCookieStore,
-		Version:       r.opt.Version,
+		Version:       moduleVersion(),
 		UserAgent:     r.opt.DefaultUserAgent,
 		Debug: func(line string) {
 			if u.verbosity >= VeryVerbose {
@@ -177,6 +178,11 @@ func toValue(v any) (value.Value, error) {
 	switch v := v.(type) {
 	case nil:
 		return value.Null{}, nil
+	case Value:
+		if v.v == nil {
+			return value.Null{}, nil
+		}
+		return v.v, nil
 	case value.Value:
 		return v, nil
 	case string:
@@ -356,7 +362,8 @@ func (u *unit) run(ctx context.Context, res *UnitResult) {
 		}
 		if err != nil {
 			re := asRunErr(err, entry.Request.Span)
-			er := &EntryResult{Index: current, Line: entry.Request.Method.Span.Start.Line, Errors: []*runerr.Error{re}}
+			er := &EntryResult{Index: current, Line: entry.Request.Method.Span.Start.Line, Errors: []*Error{{run: re}}}
+			u.finish(er)
 			u.logError(LogError, re, er.Line)
 			res.Entries = append(res.Entries, er)
 			if opt.ContinueOnError {
@@ -441,13 +448,14 @@ func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int,
 			u.writeOutput(res, eo)
 		case hasError && again:
 			for _, err := range res.Errors {
-				u.logError(LogDebugError, err, res.Line)
+				u.logError(LogDebugError, err.run, res.Line)
 			}
 		case hasError:
 			for _, err := range res.Errors {
-				u.logError(LogError, err, res.Line)
+				u.logError(LogError, err.run, res.Line)
 			}
 		}
+		u.finish(res)
 		u.emit(EntryFinished{Result: res})
 		results = append(results, res)
 		if !again {

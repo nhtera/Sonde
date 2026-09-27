@@ -94,7 +94,7 @@ func TestRoundtripConformance(t *testing.T) {
 			total++
 			entry := f.Entries[i-1]
 
-			aEntries, errA := engine.RenderCurl(context.Background(), f, engine.Options{FileRoot: dir, FromEntry: i, ToEntry: i})
+			aEntries, errA := engine.NewRunner(engine.Options{FileRoot: dir, FromEntry: i, ToEntry: i}).RenderCurl(context.Background(), path, data)
 			if failOrExcluded(t, path, i, entry, "", excluded, errA) {
 				continue
 			}
@@ -125,7 +125,7 @@ func TestRoundtripConformance(t *testing.T) {
 				continue
 			}
 
-			bEntries, errB := engine.RenderCurl(context.Background(), res.File, engine.Options{FileRoot: dir, FromEntry: 1, ToEntry: 1})
+			bEntries, errB := engine.NewRunner(engine.Options{FileRoot: dir, FromEntry: 1, ToEntry: 1}).RenderCurl(context.Background(), "reimported.hurl", syntax.Print(res.File))
 			if failOrExcluded(t, path, i, entry, a, excluded, errB) {
 				continue
 			}

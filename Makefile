@@ -3,6 +3,7 @@
 GOLANGCI_LINT_VERSION := v2.14.0
 GOVULNCHECK_VERSION   := v1.8.0
 GO_LICENSES_VERSION   := v2.0.1
+APIDIFF_VERSION       := v0.0.0-20260908205506-85c1c2202aba
 ALLOWED_LICENSES      := Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC
 
 BIN      := $(CURDIR)/bin
@@ -16,7 +17,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: build test race lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean
+.PHONY: apicheck build test race lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -43,10 +44,10 @@ fuzz-smoke: ## Run every Fuzz target briefly (FUZZTIME=10s)
 	done
 
 conformance: ## Run the Hurl conformance suite against SONDE_CONFORMANCE_BIN (default: build ./cmd/sonde)
-	SONDE_CONFORMANCE=1 go test ./test/conformance -count=1 -v -timeout 60m
+	SONDE_CONFORMANCE=1 go test ./internal/conformance -count=1 -v -timeout 60m
 
-conformance-update: ## Rerun the conformance suite and rewrite test/conformance/manifest.yaml (CONFORMANCE_ALLOW_DEMOTE=1 to allow demotions)
-	SONDE_CONFORMANCE=1 SONDE_CONFORMANCE_UPDATE=1 CONFORMANCE_ALLOW_DEMOTE=$(CONFORMANCE_ALLOW_DEMOTE) go test ./test/conformance -count=1 -v -timeout 60m
+conformance-update: ## Rerun the conformance suite and rewrite internal/conformance/manifest.yaml (CONFORMANCE_ALLOW_DEMOTE=1 to allow demotions)
+	SONDE_CONFORMANCE=1 SONDE_CONFORMANCE_UPDATE=1 CONFORMANCE_ALLOW_DEMOTE=$(CONFORMANCE_ALLOW_DEMOTE) go test ./internal/conformance -count=1 -v -timeout 60m
 
 snapshot: ## Local GoReleaser snapshot build into dist/
 	goreleaser release --snapshot --clean
@@ -60,16 +61,23 @@ headers: ## Check SPDX headers (and self-test the checker)
 licenses: $(BIN)/go-licenses ## Check dependency licenses against the allowlist
 	$(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES)
 
-docs: ## Regenerate docs/compat.md from internal/docs/table.yaml
+docs: ## Regenerate docs/compat.md and docs/cli from the command tree
 	go test ./internal/docs -run TestCompatUpToDate -update
+	go test ./internal/cli -run TestCLIReferenceUpToDate -update
 
-tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses ## Install pinned tools into ./bin
+apicheck: $(BIN)/apidiff ## Fail on incompatible public API changes since .api-baseline (BASE=ref to override)
+	scripts/apicheck.sh $(BASE)
+
+tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses $(BIN)/apidiff ## Install pinned tools into ./bin
 
 $(BIN)/golangci-lint:
 	$(GO_INSTALL) github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 $(BIN)/govulncheck:
 	$(GO_INSTALL) golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+
+$(BIN)/apidiff:
+	$(GO_INSTALL) golang.org/x/exp/cmd/apidiff@$(APIDIFF_VERSION)
 
 $(BIN)/go-licenses:
 	$(GO_INSTALL) github.com/google/go-licenses/v2@$(GO_LICENSES_VERSION)

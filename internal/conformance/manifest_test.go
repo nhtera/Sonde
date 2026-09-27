@@ -131,9 +131,9 @@ func indexOf(t *testing.T, s, substr string) int {
 	return -1
 }
 
-func TestManifestPathIsUnderTestConformanceNotVendoredTree(t *testing.T) {
+func TestManifestPathIsUnderHarnessNotVendoredTree(t *testing.T) {
 	got := manifestPath("/repo")
-	want := filepath.Join("/repo", "test", "conformance", "manifest.yaml")
+	want := filepath.Join("/repo", "internal", "conformance", "manifest.yaml")
 	if got != want {
 		t.Errorf("manifestPath = %q, want %q", got, want)
 	}

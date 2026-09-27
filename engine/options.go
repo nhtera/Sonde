@@ -25,7 +25,9 @@ const (
 // Options configure a run. Command line options map to these fields; an
 // entry's [Options] section overrides them for that entry.
 type Options struct {
-	// Variables are typed: string, bool, nil, int, int64 or float64.
+	// Variables are typed: nil, bool, int, int64, float64, string, Value,
+	// []any or map[string]any of those (a map becomes an object with its
+	// keys sorted).
 	Variables map[string]any
 	// Secrets are string variables whose values are redacted everywhere.
 	Secrets map[string]string
@@ -54,10 +56,9 @@ type Options struct {
 
 	// Stdout receives responses written with `output: -`. Nil: discarded.
 	Stdout io.Writer
-	// Version is the sonde version, for the default User-Agent.
-	Version string
-	// DefaultUserAgent replaces `sonde/<version>` as the User-Agent sent
-	// when neither the entry nor the options set one.
+	// DefaultUserAgent replaces `sonde/<version>` (the version of this
+	// module) as the User-Agent sent when neither the entry nor the
+	// options set one.
 	DefaultUserAgent string
 	// Validator checks every final response against a contract, after
 	// the explicit asserts (skipped with NoAssert). Nil: no contract.

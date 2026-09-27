@@ -36,7 +36,7 @@ func TestRenderCurlRedactsEverywhere(t *testing.T) {
 	for name, src := range positions {
 		for _, secret := range secrets {
 			f := parseEntries(t, src)
-			entries, err := RenderCurl(context.Background(), f, Options{Secrets: map[string]string{"pw": secret}})
+			entries, err := NewRunner(Options{Secrets: map[string]string{"pw": secret}}).RenderCurl(context.Background(), "test.hurl", f)
 			if err != nil {
 				t.Fatalf("%s: %v", name, err)
 			}

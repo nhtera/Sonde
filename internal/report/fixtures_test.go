@@ -9,6 +9,7 @@ import (
 
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/enginex"
 	"github.com/nhtera/sonde/internal/runerr"
 	"github.com/nhtera/sonde/internal/syntax"
 	"github.com/nhtera/sonde/internal/value"
@@ -25,6 +26,17 @@ func redactTestSecret(s string) string {
 
 func span(line, startCol, endCol int) syntax.Span {
 	return syntax.Span{Start: syntax.Pos{Line: line, Col: startCol}, End: syntax.Pos{Line: line, Col: endCol}}
+}
+
+// runErr is err raised by the entry at line 1 of file, with content
+// src.
+func runErr(err *runerr.Error, file, src string) *engine.Error {
+	return enginex.RunError(err, file, []byte(src), 1).(*engine.Error)
+}
+
+// valueOf is v as a capture value.
+func valueOf(v value.Value) engine.Value {
+	return enginex.Value(v).(engine.Value)
 }
 
 // fixedTime is used for every fixture's Timestamp so goldens are stable.
@@ -67,7 +79,7 @@ func successResult(file string) *engine.UnitResult {
 					Body: []byte("hello, " + testSecret),
 				},
 			}},
-			Captures: []engine.Capture{{Name: "id", Value: value.String("abc123")}},
+			Captures: []engine.Capture{{Name: "id", Value: valueOf(value.String("abc123"))}},
 			Asserts:  []engine.Assert{{Line: 2}},
 		}},
 	}
@@ -83,6 +95,7 @@ func failureResult(file string) *engine.UnitResult {
 	err := runerr.New(span(4, 1, 14), runerr.AssertBodyValue, true)
 	err.Actual = "hello, " + testSecret
 	err.Expected = "Hello World"
+	e := runErr(err, file, content)
 	return &engine.UnitResult{
 		File:      file,
 		Source:    []byte(content),
@@ -96,8 +109,8 @@ func failureResult(file string) *engine.UnitResult {
 				Request:  exchange.Request{Method: "GET", URL: "http://example.com/hello"},
 				Response: &exchange.Response{Status: 200, Version: "HTTP/1.1", Body: []byte("hello, " + testSecret)},
 			}},
-			Asserts: []engine.Assert{{Line: 4, Err: err}},
-			Errors:  []*runerr.Error{err},
+			Asserts: []engine.Assert{{Line: 4, Err: e}},
+			Errors:  []*engine.Error{e},
 		}},
 	}
 }
@@ -116,7 +129,7 @@ func errorResult(file string) *engine.UnitResult {
 		Timestamp: fixedTime,
 		Entries: []*engine.EntryResult{{
 			Index: 1, Line: 1,
-			Errors: []*runerr.Error{err},
+			Errors: []*engine.Error{runErr(err, file, content)},
 		}},
 	}
 }
@@ -130,7 +143,7 @@ func parseErrorResult(file string) *engine.UnitResult {
 		Success:    false,
 		Duration:   0,
 		Timestamp:  fixedTime,
-		ParseError: &syntax.Error{Pos: syntax.Pos{Line: 3, Col: 8}, Kind: syntax.ErrExpecting, Arg: ";"},
+		ParseError: enginex.ParseError(&syntax.Error{Pos: syntax.Pos{Line: 3, Col: 8}, Kind: syntax.ErrExpecting, Arg: ";"}, file, []byte(content)).(*engine.Error),
 	}
 }
 
@@ -166,6 +179,7 @@ func invalidXMLCharResult(file string) *engine.UnitResult {
 	err := runerr.New(span(4, 1, 14), runerr.AssertBodyValue, true)
 	err.Actual = actual
 	err.Expected = "Hello World"
+	e := runErr(err, file, content)
 	return &engine.UnitResult{
 		File:      file,
 		Source:    []byte(content),
@@ -175,8 +189,8 @@ func invalidXMLCharResult(file string) *engine.UnitResult {
 		Entries: []*engine.EntryResult{{
 			Index: 1, Line: 1,
 			Curl:    "curl 'http://example.com/hello'",
-			Asserts: []engine.Assert{{Line: 4, Err: err}},
-			Errors:  []*runerr.Error{err},
+			Asserts: []engine.Assert{{Line: 4, Err: e}},
+			Errors:  []*engine.Error{e},
 		}},
 	}
 }

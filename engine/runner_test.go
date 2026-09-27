@@ -124,7 +124,7 @@ jsonpath "$.id" == 42
 		t.Fatalf("success=%v entries=%d errors=%v", res.Success, len(res.Entries), res.Errors())
 	}
 	e := res.Entries[0]
-	if len(e.Captures) != 1 || e.Captures[0].Value != value.String("Hello World!") {
+	if len(e.Captures) != 1 || e.Captures[0].Value.v != value.String("Hello World!") {
 		t.Errorf("captures = %#v", e.Captures)
 	}
 	if len(e.Asserts) != 7 {
@@ -140,7 +140,7 @@ func TestRunAssertFailures(t *testing.T) {
 HTTP 201
 `, Options{})
 	errs := res.Errors()
-	if res.Success || len(errs) != 1 || errs[0].Kind != runerr.AssertStatus || !errs[0].Assert {
+	if res.Success || len(errs) != 1 || errs[0].run.Kind != runerr.AssertStatus || !errs[0].Assert() {
 		t.Fatalf("errors = %v", errs)
 	}
 	if !strings.Contains(rec.text(LogError), "Assert status code\n  --> ") ||
@@ -157,7 +157,7 @@ line 3
 `+"```"+`
 `, Options{})
 	errs = res.Errors()
-	if len(errs) != 1 || errs[0].Kind != runerr.AssertBodyDiff || errs[0].Span.Start.Line != 5 {
+	if len(errs) != 1 || errs[0].run.Kind != runerr.AssertBodyDiff || errs[0].run.Span.Start.Line != 5 {
 		t.Fatalf("diff errors = %#v", errs)
 	}
 	if !strings.Contains(rec.text(LogError), "   |   -line 2\n   |   +line two\n") {
@@ -172,8 +172,8 @@ X-None: x
 header "X-Multi" count == 3
 `, Options{})
 	errs = res.Errors()
-	if len(errs) != 3 || errs[0].Kind != runerr.AssertHeaderValue || errs[0].Actual != `["a", "b"]` ||
-		errs[1].Kind != runerr.QueryHeaderNotFound || errs[2].Kind != runerr.AssertFailure {
+	if len(errs) != 3 || errs[0].run.Kind != runerr.AssertHeaderValue || errs[0].Actual() != `["a", "b"]` ||
+		errs[1].run.Kind != runerr.QueryHeaderNotFound || errs[2].run.Kind != runerr.AssertFailure {
 		t.Fatalf("header errors = %#v", errs)
 	}
 }
@@ -181,17 +181,17 @@ header "X-Multi" count == 3
 func TestRunRuntimeErrors(t *testing.T) {
 	res, _ := run(t, `GET {{missing}}/x
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.UndefinedVariable || errs[0].Assert {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.UndefinedVariable || errs[0].Assert() {
 		t.Fatalf("errors = %#v", errs)
 	}
 	res, _ = run(t, `GET ftp://x
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.InvalidURL {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.InvalidURL {
 		t.Fatalf("errors = %#v", errs)
 	}
 	res, _ = run(t, `GET http://127.0.0.1:1/
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.HTTP {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.HTTP {
 		t.Fatalf("errors = %#v", errs)
 	}
 	res, _ = run(t, `GET {{base}}/hello
@@ -199,7 +199,7 @@ HTTP 200
 [Captures]
 x: jsonpath "$.a"
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.QueryInvalidJSON {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.QueryInvalidJSON {
 		t.Fatalf("capture errors = %#v", errs)
 	}
 	res, _ = run(t, `GET {{base}}/json
@@ -207,7 +207,7 @@ HTTP 200
 [Captures]
 x: jsonpath "$.nope"
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.NoQueryResult {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.NoQueryResult {
 		t.Fatalf("no result = %#v", errs)
 	}
 }
@@ -267,7 +267,7 @@ body contains "q=who=Bob3"
 delay: {{bad}}
 HTTP 200
 `, Options{Variables: map[string]any{"bad": "x"}})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.ExpressionInvalidType {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.ExpressionInvalidType {
 		t.Fatalf("errors = %#v", errs)
 	}
 }
@@ -300,7 +300,7 @@ body contains "body={\"name\": \"a\\\"b\", \"n\": 1}"
 `, Options{Variables: map[string]any{"who": `a"b`, "n": 1}})
 	if !res.Success {
 		for _, e := range res.Errors() {
-			t.Error(e.Render("test.hurl", string(res.Source), 0))
+			t.Error(e.Render())
 		}
 	}
 }
@@ -325,7 +325,7 @@ HTTP 200
 [Captures]
 id: jsonpath "$.id" redact
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.UnsupportedSecretType {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.UnsupportedSecretType {
 		t.Fatalf("errors = %#v", errs)
 	}
 	res, _ = run(t, `GET {{base}}/json
@@ -333,7 +333,7 @@ HTTP 200
 [Captures]
 token: jsonpath "$.token" redact
 `, Options{Verbosity: Verbose})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.PossibleLoggedSecret {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.PossibleLoggedSecret {
 		t.Fatalf("verbose errors = %#v", errs)
 	}
 }
@@ -362,14 +362,14 @@ HTTP 200
 	if b, err := os.ReadFile(filepath.Join(dir, "out", "hello.txt")); err != nil || string(b) != "Hello World!" {
 		t.Errorf("output = %q, %v", b, err)
 	}
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.UnauthorizedFileAccess {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.UnauthorizedFileAccess {
 		t.Fatalf("errors = %#v", errs)
 	}
 	res, _ = run(t, `POST {{base}}/echo
 file,../../etc/passwd;
 HTTP 200
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.UnauthorizedFileAccess {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.UnauthorizedFileAccess {
 		t.Fatalf("body file errors = %#v", errs)
 	}
 }
@@ -454,7 +454,7 @@ func TestRunBasicAuthSecretRedacted(t *testing.T) {
 func TestRunRedactCaptureVerbose(t *testing.T) {
 	const src = "GET {{base}}/json\nHTTP 200\n[Captures]\ntoken: jsonpath \"$.token\" redact\n"
 	res, _ := run(t, src, Options{Verbosity: Verbose})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.PossibleLoggedSecret {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.PossibleLoggedSecret {
 		t.Errorf("immediate logs: errors = %v", errs)
 	}
 	res, _ = run(t, src, Options{Verbosity: Verbose, BufferedLogs: true})

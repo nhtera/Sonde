@@ -47,9 +47,9 @@ func writeLongFormatErrors(stderr io.Writer, res *engine.UnitResult, color bool)
 			}
 		}
 		for _, err := range e.Errors {
-			rendered := err.Render(res.File, string(res.Source), e.Line)
+			rendered := err.Render()
 			if color {
-				rendered = err.RenderColor(res.File, string(res.Source), e.Line)
+				rendered = err.RenderColor()
 			}
 			writePrefixedError(stderr, redact(strings.ReplaceAll(rendered, "\r\n", "\n")), color)
 		}

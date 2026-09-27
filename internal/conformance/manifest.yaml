@@ -1,7 +1,7 @@
 # Conformance manifest: the expected outcome for every classified script in
 # the vendored Hurl integration-test corpus (testdata/conformance/hurl).
 #
-# Generated and gated by test/conformance; see docs/conformance.md. Do not
+# Generated and gated by internal/conformance; see docs/conformance.md. Do not
 # hand-edit lane/expect for large swaths at once — run
 # `make conformance-update` and let it promote newly passing scripts,
 # then hand-edit reasons for anything still failing. Demoting an expect:
@@ -661,11 +661,11 @@ tests_ok/http_version/http_version_3_option.sh:
 tests_ok/http_version/http_version_10.sh:
   lane: blocking
   expect: fail
-  reason: 'http1.0 unsupported: --http1.0 not implemented'
+  reason: 'http1.0 unsupported: Go''s net/http always writes the HTTP/1.1 request line regardless of Request.Proto, so a literal HTTP/1.0 wire request cannot be sent through it (see docs/compat.md)'
 tests_ok/http_version/http_version_10_env_var.sh:
   lane: blocking
   expect: fail
-  reason: 'http1.0 unsupported: --http1.0 not implemented'
+  reason: 'http1.0 unsupported: Go''s net/http always writes the HTTP/1.1 request line regardless of Request.Proto, so a literal HTTP/1.0 wire request cannot be sent through it (see docs/compat.md)'
 tests_ok/http_version/http_version_11.sh:
   lane: blocking
   expect: pass
@@ -1037,7 +1037,7 @@ tests_ok/verbosity/verbosity_option.sh:
 tests_ok/version/version.sh:
   lane: blocking
   expect: fail
-  reason: 'version text: --version output line count/format does not yet match hurl''s (missing libcurl/built-in feature lines)'
+  reason: 'version text: the reference tool''s --version prints its own program name plus ''Features (libcurl)''/''Features (built-in)'' lines describing its libcurl backend; sonde has no libcurl backend to report and prints its own name, so the 3-line shape is not reproduced (see docs/conformance.md)'
 tests_ok/very_verbose/very_verbose.sh:
   lane: blocking
   expect: pass
@@ -1067,7 +1067,7 @@ tests_ssl/cacert_selfsigned.sh:
 tests_ssl/cacert_to_json.sh:
   lane: extended
   expect: fail
-  reason: 'reports: --json entry output (certificate/timings fields) does not yet match upstream shape'
+  reason: 'reports: --json lists response headers sorted, not in the order the server sent them (net/http does not keep wire order)'
 tests_ssl/client_authentication.sh:
   lane: extended
   expect: pass

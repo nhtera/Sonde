@@ -37,7 +37,7 @@ func asRunErr(err error, span syntax.Span) *runerr.Error {
 func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *entryOptions) *EntryResult {
 	res := &EntryResult{Index: index, Line: e.Request.Method.Span.Start.Line, Compressed: eo.http.Compressed}
 	fail := func(err error, span syntax.Span) *EntryResult {
-		res.Errors = append(res.Errors, asRunErr(err, span))
+		res.Errors = append(res.Errors, &Error{run: asRunErr(err, span)})
 		return res
 	}
 	resp := e.Response
@@ -83,7 +83,7 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 		} else {
 			e.Value, e.Reason = "HTTP connection", err.Error()
 		}
-		res.Errors = append(res.Errors, e)
+		res.Errors = append(res.Errors, &Error{run: e})
 		return res
 	}
 	u.logResponses(res.Calls)
@@ -108,7 +108,7 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 		res.Captures = caps
 		u.logCaptures(caps)
 		if err != nil {
-			res.Errors = append(res.Errors, err)
+			res.Errors = append(res.Errors, &Error{run: err})
 			return res
 		}
 	}
@@ -125,13 +125,13 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 }
 
 // assertErrors returns the failures of asserts, as assert errors.
-func assertErrors(asserts []Assert) []*runerr.Error {
-	var errs []*runerr.Error
+func assertErrors(asserts []Assert) []*Error {
+	var errs []*Error
 	for _, a := range asserts {
 		if a.Err != nil {
-			e := *a.Err
+			e := *a.Err.run
 			e.Assert = true
-			errs = append(errs, &e)
+			errs = append(errs, &Error{run: &e})
 		}
 	}
 	return errs
@@ -157,15 +157,17 @@ func explicitAsserts(r *syntax.Response) []*syntax.Assert {
 func versionStatusAsserts(r *syntax.Response, final *exchange.Response) []Assert {
 	v := Assert{Line: r.Version.Span.Start.Line}
 	if r.Version.Value != "HTTP" && final.Version != r.Version.Value {
-		v.Err = runerr.New(r.Version.Span, runerr.AssertVersion, false)
-		v.Err.Actual = final.Version
+		e := runerr.New(r.Version.Span, runerr.AssertVersion, false)
+		e.Actual = final.Version
+		v.Err = &Error{run: e}
 	}
 	asserts := []Assert{v}
 	if r.Status.Value != "*" {
 		s := Assert{Line: r.Status.Span.Start.Line}
 		if want, _ := strconv.Atoi(r.Status.Value); want != final.Status {
-			s.Err = runerr.New(r.Status.Span, runerr.AssertStatus, false)
-			s.Err.Actual = strconv.Itoa(final.Status)
+			e := runerr.New(r.Status.Span, runerr.AssertStatus, false)
+			e.Actual = strconv.Itoa(final.Status)
+			s.Err = &Error{run: e}
 		}
 		asserts = append(asserts, s)
 	}
@@ -209,7 +211,7 @@ func (u *unit) captures(r *syntax.Response, qctx *query.Context) ([]Capture, *ru
 		} else {
 			u.env.Vars.Set(name, v)
 		}
-		caps = append(caps, Capture{Name: name, Value: v})
+		caps = append(caps, Capture{Name: name, Value: Value{v: v}})
 	}
 	return caps, nil
 }
@@ -227,7 +229,7 @@ func (u *unit) asserts(r *syntax.Response, final *exchange.Response, qctx *query
 	for _, a := range explicitAsserts(r) {
 		as := Assert{Line: a.Predicate.Func.Span.Start.Line}
 		if err := u.explicitAssert(a, qctx); err != nil {
-			as.Err = asRunErr(err, a.Query.Span)
+			as.Err = &Error{run: asRunErr(err, a.Query.Span)}
 		}
 		asserts = append(asserts, as)
 	}
@@ -255,17 +257,17 @@ func (u *unit) headerAssert(h *syntax.KeyValue, final *exchange.Response) Assert
 	as := Assert{Line: h.Key.Span.Start.Line}
 	expected, err := u.env.Render(h.Value)
 	if err != nil {
-		as.Err = asRunErr(err, h.Key.Span)
+		as.Err = &Error{run: asRunErr(err, h.Key.Span)}
 		return as
 	}
 	name, err := u.env.Render(h.Key)
 	if err != nil {
-		as.Line, as.Err = h.Value.Span.Start.Line, asRunErr(err, h.Value.Span)
+		as.Line, as.Err = h.Value.Span.Start.Line, &Error{run: asRunErr(err, h.Value.Span)}
 		return as
 	}
 	actuals := final.Headers.Values(name)
 	if len(actuals) == 0 {
-		as.Err = runerr.New(h.Key.Span, runerr.QueryHeaderNotFound, false)
+		as.Err = &Error{run: runerr.New(h.Key.Span, runerr.QueryHeaderNotFound, false)}
 		return as
 	}
 	as.Line = h.Value.Span.Start.Line
@@ -284,8 +286,9 @@ func (u *unit) headerAssert(h *syntax.KeyValue, final *exchange.Response) Assert
 		}
 	}
 	if actual != expected {
-		as.Err = runerr.New(h.Value.Span, runerr.AssertHeaderValue, false)
-		as.Err.Actual = actual
+		e := runerr.New(h.Value.Span, runerr.AssertHeaderValue, false)
+		e.Actual = actual
+		as.Err = &Error{run: e}
 	}
 	return as
 }
@@ -332,7 +335,7 @@ func (u *unit) bodyAssert(b *syntax.Body, final *exchange.Response) Assert {
 	}
 	as := Assert{Line: span.Start.Line}
 	if err != nil {
-		as.Err = asRunErr(err, span)
+		as.Err = &Error{run: asRunErr(err, span)}
 		return as
 	}
 	var actual value.Value
@@ -349,7 +352,7 @@ func (u *unit) bodyAssert(b *syntax.Body, final *exchange.Response) Assert {
 		if errors.As(err, &be) {
 			e.Value, e.Reason = be.Description(), be.Message()
 		}
-		as.Err = e
+		as.Err = &Error{run: e}
 		return as
 	}
 	if value.Equal(actual, expected) {
@@ -360,12 +363,14 @@ func (u *unit) bodyAssert(b *syntax.Body, final *exchange.Response) Assert {
 	if eok && aok && (strings.Contains(string(es), "\n") || strings.Contains(string(as2), "\n")) {
 		hunk, line := firstHunk(string(es), string(as2))
 		at := syntax.Pos{Line: span.Start.Line + line, Col: 1}
-		as.Err = runerr.New(syntax.Span{Start: at, End: at}, runerr.AssertBodyDiff, false)
-		as.Err.Reason = hunk
+		e := runerr.New(syntax.Span{Start: at, End: at}, runerr.AssertBodyDiff, false)
+		e.Reason = hunk
+		as.Err = &Error{run: e}
 		return as
 	}
-	as.Err = runerr.New(span, runerr.AssertBodyValue, false)
-	as.Err.Actual = value.Display(actual)
+	e := runerr.New(span, runerr.AssertBodyValue, false)
+	e.Actual = value.Display(actual)
+	as.Err = &Error{run: e}
 	return as
 }
 
@@ -499,7 +504,7 @@ func (u *unit) logCaptures(caps []Capture) {
 	}
 	u.debugImportant("Captures:")
 	for _, c := range caps {
-		u.log(LogCapture, c.Name+": "+value.Display(c.Value))
+		u.log(LogCapture, c.Name+": "+value.Display(c.Value.v))
 	}
 }
 
@@ -519,7 +524,7 @@ func (u *unit) writeOutput(res *EntryResult, eo *entryOptions) {
 			if errors.As(err, &be) {
 				re.Value, re.Reason = be.Description(), be.Message()
 			}
-			res.Errors = append(res.Errors, re)
+			res.Errors = append(res.Errors, &Error{run: re})
 			u.logError(LogError, re, res.Line)
 			return
 		}
@@ -541,7 +546,7 @@ func (u *unit) writeOutput(res *EntryResult, eo *entryOptions) {
 		if kind == runerr.FileWriteAccess && errors.As(err, &pe) {
 			re.Value, re.Reason = u.resolvedPath(eo.output.name), pe.Err.Error()
 		}
-		res.Errors = append(res.Errors, re)
+		res.Errors = append(res.Errors, &Error{run: re})
 		u.logError(LogError, re, res.Line)
 	}
 }

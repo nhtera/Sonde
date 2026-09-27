@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/nhtera/sonde/engine"
+	"github.com/nhtera/sonde/internal/runerr"
 )
 
 // TestWriteHTML_Cumulative checks a report grown over two invocations
@@ -146,7 +147,10 @@ func TestWriteHTML_NoScriptInjection(t *testing.T) {
 	dir := t.TempDir()
 	res := failureResult("html_report_injection.hurl")
 	res.Entries[0].Calls[0].Response.Body = []byte("<script>alert('Hi')</script>")
-	res.Entries[0].Errors[0].Actual = "<script>alert('Hi')</script>"
+	err := runerr.New(span(4, 1, 14), runerr.AssertBodyValue, true)
+	err.Actual, err.Expected = "<script>alert('Hi')</script>", "Hello World"
+	e := runErr(err, res.File, string(res.Source))
+	res.Entries[0].Errors[0], res.Entries[0].Asserts[0].Err = e, e
 
 	if err := WriteHTML(dir, []*engine.UnitResult{res}, redactTestSecret); err != nil {
 		t.Fatal(err)

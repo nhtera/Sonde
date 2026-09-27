@@ -45,7 +45,7 @@ type ManifestEntry struct {
 
 // Manifest maps a script path (relative to testdata/conformance/hurl,
 // forward-slash separated, e.g. "tests_ok/hello/hello.sh") to its recorded
-// expectation. It is committed at test/conformance/manifest.yaml — never
+// expectation. It is committed at internal/conformance/manifest.yaml — never
 // inside the vendored testdata/conformance/hurl tree.
 type Manifest map[string]ManifestEntry
 
@@ -102,7 +102,7 @@ func LoadManifest(path string) (Manifest, error) {
 const manifestHeader = `# Conformance manifest: the expected outcome for every classified script in
 # the vendored Hurl integration-test corpus (testdata/conformance/hurl).
 #
-# Generated and gated by test/conformance; see docs/conformance.md. Do not
+# Generated and gated by internal/conformance; see docs/conformance.md. Do not
 # hand-edit lane/expect for large swaths at once — run
 # ` + "`make conformance-update`" + ` and let it promote newly passing scripts,
 # then hand-edit reasons for anything still failing. Demoting an expect:
@@ -133,5 +133,5 @@ func WriteManifest(path string, m Manifest) error {
 // manifestPath returns the fixed, committed location of the conformance
 // manifest given the repository root.
 func manifestPath(root string) string {
-	return filepath.Join(root, "test", "conformance", "manifest.yaml")
+	return filepath.Join(root, "internal", "conformance", "manifest.yaml")
 }

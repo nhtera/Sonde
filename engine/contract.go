@@ -40,9 +40,9 @@ const (
 	ViolationError ViolationKind = "error"
 )
 
-// NoContract is a ResponseValidator checking nothing: as Job.Validator,
-// it turns the run's contract off for one job.
-var NoContract ResponseValidator = noContract{}
+// NoContract returns a ResponseValidator checking nothing: as
+// Job.Validator, it turns the run's contract off for one job.
+func NoContract() ResponseValidator { return noContract{} }
 
 type noContract struct{}
 
@@ -106,7 +106,7 @@ func (u *unit) validateContract(ctx context.Context, res *EntryResult, e *syntax
 		}
 		err := runerr.New(span, runerr.ContractViolation, true)
 		err.Name, err.Value, err.Reason = vi.InstancePath, vi.SpecPointer, vi.Message
-		res.Asserts = append(res.Asserts, Assert{Line: span.Start.Line, Err: err})
+		res.Asserts = append(res.Asserts, Assert{Line: span.Start.Line, Err: &Error{run: err}})
 	}
 }
 

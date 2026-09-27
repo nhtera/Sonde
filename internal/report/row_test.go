@@ -36,7 +36,7 @@ func runRows(t *testing.T) (*engine.Runner, []*engine.UnitResult) {
 	}
 	r := engine.NewRunner(engine.Options{})
 	results := make([]*engine.UnitResult, len(jobs))
-	r.RunAll(context.Background(), nil, slices.Values(jobs), 1, engine.Hooks{
+	r.RunAll(context.Background(), slices.Values(jobs), engine.RunAllOptions{
 		Finished: func(seq int, _ engine.Job, res *engine.UnitResult, err error) bool {
 			if err != nil {
 				t.Fatal(err)

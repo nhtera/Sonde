@@ -37,10 +37,10 @@ func TestContractViolations(t *testing.T) {
 		t.Fatalf("validator saw %v", v.seen)
 	}
 	e1, e2 := res.Entries[0], res.Entries[1]
-	if len(e1.Errors) != 1 || e1.Errors[0].Kind != runerr.ContractViolation || !e1.Errors[0].Assert || e1.Errors[0].Span.Start.Line != 2 {
+	if len(e1.Errors) != 1 || e1.Errors[0].run.Kind != runerr.ContractViolation || !e1.Errors[0].Assert() || e1.Errors[0].run.Span.Start.Line != 2 {
 		t.Fatalf("entry 1 errors = %+v", e1.Errors)
 	}
-	msg := res.Redact(e1.Errors[0].Render(res.File, string(res.Source), 1))
+	msg := res.Redact(e1.Errors[0].Render())
 	for _, want := range []string{"Contract violation", "expected string, got integer ***", "at: /id", "spec: #/paths/~1json/get", " 2 | HTTP 200\n   | ^^^^^^^^"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("rendered error lacks %q:\n%s", want, msg)
@@ -74,7 +74,7 @@ func TestContractJobValidator(t *testing.T) {
 			yield(Job{Name: t.TempDir() + "/b.hurl", Source: []byte("GET " + srv.URL + "/lines\n"), Validator: job})
 		}
 	}
-	r.RunAll(context.Background(), nil, jobs, 1, Hooks{})
+	r.RunAll(context.Background(), jobs, RunAllOptions{})
 	if len(run.seen) != 1 || len(job.seen) != 1 {
 		t.Errorf("run validator saw %v, job validator saw %v", run.seen, job.seen)
 	}

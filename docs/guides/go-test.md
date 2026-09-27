@@ -31,14 +31,10 @@ func TestHealth(t *testing.T) {
 		t.Fatal(err) // unreadable file or setup failure
 	}
 	if res.ParseError != nil {
-		t.Fatal(res.ParseError.Render(res.File, res.Source))
+		t.Fatal(res.ParseError.Render())
 	}
-	for _, e := range res.Entries {
-		for _, err := range e.Errors {
-			if !e.Retried {
-				t.Error(r.Redact(err.Render(res.File, string(res.Source), e.Line)))
-			}
-		}
+	for _, err := range res.Errors() { // the errors that decided the outcome
+		t.Error(res.Redact(err.Render()))
 	}
 }
 ```
@@ -57,8 +53,12 @@ Notes:
 - File paths in the request file (`file,` bodies, `output`) are confined to
   the file's directory unless `Options.FileRoot` says otherwise.
 - `Options.Secrets` values are redacted from log events and by
-  `Runner.Redact`; results hold raw values, so pass any text you print
+  `UnitResult.Redact`; results hold raw values, so pass any text you print
   through `Redact`.
+- An `*engine.Error` tells an assert failure (`Assert()`) from a runtime
+  error, classifies itself with `Kind()` (`engine.ErrorAssertStatus`, ...)
+  and locates itself with `Span()`. Captured values are `engine.Value`s
+  with typed accessors (`Int()`, `Text()`, `List()`, ...).
 - `Options.OnEvent` receives log events (for example verbose output) while
   the file runs.
 - To run many files, `Runner.RunAll` runs them in parallel with isolated

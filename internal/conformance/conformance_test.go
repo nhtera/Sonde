@@ -84,7 +84,7 @@ func setupHarness() (*harness, error) {
 		return nil, err
 	}
 	hurlRoot := filepath.Join(root, "testdata", "conformance", "hurl")
-	shimDir := filepath.Join(root, "test", "conformance", "shim")
+	shimDir := filepath.Join(root, "internal", "conformance", "shim")
 
 	if err := os.MkdirAll(filepath.Join(hurlRoot, "build"), 0o750); err != nil {
 		return nil, fmt.Errorf("preparing build dir: %w", err)
@@ -130,7 +130,7 @@ func (h *harness) teardown() {
 // test, lane by lane, writes a full report to SONDE_CONFORMANCE_RESULTS
 // (default: a fixed path under the OS temp directory; see resultsPath),
 // and checks the result against the committed manifest
-// (test/conformance/manifest.yaml).
+// (internal/conformance/manifest.yaml).
 //
 // With SONDE_CONFORMANCE_UPDATE=1 (`make conformance-update`) it instead
 // rewrites the manifest from this run — see updateManifest — and does not

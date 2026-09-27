@@ -19,7 +19,7 @@ func requireSuccess(t *testing.T, res *UnitResult) {
 	t.Helper()
 	if !res.Success {
 		for _, e := range res.Errors() {
-			t.Error(e.Render("test.hurl", string(res.Source), 0))
+			t.Error(e.Render())
 		}
 	}
 }
@@ -129,21 +129,21 @@ HTTP 200
 HTTP 200
 hex,00;
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.AssertBodyValue || errs[0].Actual != "48656c6c6f20576f726c6421" {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.AssertBodyValue || errs[0].Actual() != "48656c6c6f20576f726c6421" {
 		t.Fatalf("errors = %#v", errs)
 	}
 	res, _ = run(t, `GET {{base}}/hello
 HTTP 200
 `+"`Hello`"+`
 `, Options{})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.AssertBodyValue || errs[0].Span.Start.Col != 1 {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.AssertBodyValue || errs[0].run.Span.Start.Col != 1 {
 		t.Fatalf("errors = %#v", errs)
 	}
 	res, _ = run(t, `GET {{base}}/hello
 HTTP 200
 file,missing.txt;
 `, Options{FileRoot: root})
-	if errs := res.Errors(); len(errs) != 1 || errs[0].Kind != runerr.FileReadAccess {
+	if errs := res.Errors(); len(errs) != 1 || errs[0].run.Kind != runerr.FileReadAccess {
 		t.Fatalf("errors = %#v", errs)
 	}
 }
@@ -197,7 +197,7 @@ body contains "auth=Basic Ym9iOnB3"
 		res, _ := run(t, src, Options{Variables: map[string]any{"s": "x", "neg": int64(-5), "zero": int64(0)}})
 		errs := res.Errors()
 		if len(errs) != 1 || !strings.HasPrefix(errs[0].Description(), strings.Split(tt.kind, ":")[0]) &&
-			errs[0].Value != tt.kind {
+			errs[0].run.Value != tt.kind {
 			var got []string
 			for _, e := range errs {
 				got = append(got, e.Error())

@@ -204,10 +204,10 @@ func buildRunContext(cmd *cobra.Command, o *runOptions, env config.Env, stdout i
 		ContinueOnError: continueOnError,
 		Verbosity:       verbosity,
 		Stdout:          stdout,
-		Version:         currentBuildInfo().Version,
-		// A default User-Agent (used by the conformance shim to present
-		// the reference tool's default); -A and user-agent still win.
-		DefaultUserAgent: env["SONDE_DEFAULT_USER_AGENT"],
+		// The default User-Agent; SONDE_DEFAULT_USER_AGENT replaces it
+		// (the conformance shim presents the reference tool's default).
+		// -A and user-agent still win.
+		DefaultUserAgent: defaultUserAgent(env),
 	}
 	return rc, nil
 }
@@ -471,4 +471,13 @@ func isTerminalWriter(w io.Writer) bool {
 		return false
 	}
 	return info.Mode()&os.ModeCharDevice != 0
+}
+
+// defaultUserAgent is the User-Agent sent when neither the command line
+// nor the entry sets one: SONDE_DEFAULT_USER_AGENT, else sonde/<version>.
+func defaultUserAgent(env config.Env) string {
+	if ua := env["SONDE_DEFAULT_USER_AGENT"]; ua != "" {
+		return ua
+	}
+	return "sonde/" + currentBuildInfo().Version
 }

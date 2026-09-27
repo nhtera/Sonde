@@ -54,6 +54,20 @@ jobs:
         env:
           CGO_ENABLED: "0"
 
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # the baseline tag
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      # Public API (engine, exchange) against .api-baseline; skipped until
+      # that tag exists.
+      - run: make apicheck
+
   race:
     runs-on: ubuntu-latest
     steps:
@@ -149,11 +163,11 @@ jobs:
           if-no-files-found: error
 
   conformance:
-    # Blocking on the manifest gate (test/conformance/manifest.yaml): the
+    # Blocking on the manifest gate (internal/conformance/manifest.yaml): the
     # job fails if a blocking-lane script the manifest marks expect: pass
     # stops passing semantically. Everything else — the extended lane, the
     # network lane (skipped here), the timing lane — is report-only; see
-    # docs/conformance.md and test/conformance/gate.go.
+    # docs/conformance.md and internal/conformance/gate.go.
     runs-on: ubuntu-latest
     permissions:
       contents: read

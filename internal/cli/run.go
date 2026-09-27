@@ -188,7 +188,9 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	}
 	pb := newProgressBar(barMode, rc.color, progressMaxWidth(), newJobTotal(units, rc.repeat))
 
-	hooks := engine.Hooks{
+	opt := engine.RunAllOptions{
+		Parallel: rc.jobs,
+		Stop:     stop,
 		Started: func(seq int, job engine.Job) (func(engine.Event), io.Writer) {
 			var handle func(engine.Event)
 			var out io.Writer
@@ -259,11 +261,10 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			redact := res.Redact
 			if res.ParseError != nil {
 				flushBuffer(stderr, jb, redact)
-				shown := trimBOM(res.Source)
 				if rc.color {
-					writePrefixedError(stderr, res.ParseError.RenderColor(job.Name, shown), true)
+					writePrefixedError(stderr, res.ParseError.RenderColor(), true)
 				} else {
-					writePrefixedError(stderr, res.ParseError.Render(job.Name, shown), false)
+					writePrefixedError(stderr, res.ParseError.Render(), false)
 				}
 				worst = worstCode(worst, ExitParse)
 				aborted = true
@@ -324,7 +325,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 		newEventLogger(stderr, rc.color, false).writeStar(fmt.Sprintf("Parallel run using %d workers", rc.jobs), false)
 	}
 	var dataErr error
-	runner.RunAll(ctx, stop, buildJobs(files, stdinSrc, rc.repeat, extras, rc.data, &dataErr), rc.jobs, hooks)
+	runner.RunAll(ctx, buildJobs(files, stdinSrc, rc.repeat, extras, rc.data, &dataErr), opt)
 	if dataErr != nil {
 		return NewExitError(ExitUsage, dataErr)
 	}
@@ -776,20 +777,11 @@ func classifyResult(res *engine.UnitResult) int {
 		return ExitOK
 	}
 	for _, e := range res.Errors() {
-		if !e.Assert {
+		if !e.Assert() {
 			return ExitRuntime
 		}
 	}
 	return ExitAssert
-}
-
-// trimBOM drops a leading UTF-8 BOM, matching the position skipped by the
-// parser (see internal/cli/input.go).
-func trimBOM(src []byte) []byte {
-	if len(src) >= 3 && src[0] == 0xEF && src[1] == 0xBB && src[2] == 0xBF {
-		return src[3:]
-	}
-	return src
 }
 
 func outputName(output string) string {

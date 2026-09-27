@@ -11,14 +11,14 @@ import (
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
-// parseEntries parses src for a RenderCurl test.
-func parseEntries(t *testing.T, src string) *syntax.File {
+// parseEntries checks that src parses, for a RenderCurl test, and
+// returns it.
+func parseEntries(t *testing.T, src string) []byte {
 	t.Helper()
-	f, err := syntax.Parse("<test>", []byte(src), syntax.DialectHurl)
-	if err != nil {
+	if _, err := syntax.Parse("test.hurl", []byte(src), syntax.DialectHurl); err != nil {
 		t.Fatalf("parse: %v\n%s", err, src)
 	}
-	return f
+	return []byte(src)
 }
 
 // TestRenderCurlPerEntryIsolation checks that one entry's failure (an
@@ -29,7 +29,7 @@ func TestRenderCurlPerEntryIsolation(t *testing.T) {
 	f := parseEntries(t, "GET http://a/one\n\n"+
 		"GET http://a/two\n[Options]\nmax-redirs: {{n}}\n\n"+
 		"GET http://a/three\n")
-	entries, err := RenderCurl(context.Background(), f, Options{})
+	entries, err := NewRunner(Options{}).RenderCurl(context.Background(), "test.hurl", f)
 	if err != nil {
 		t.Fatalf("RenderCurl: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestRenderCurlPerEntryIsolation(t *testing.T) {
 // list.
 func TestRenderCurlMissingDoesNotLeak(t *testing.T) {
 	f := parseEntries(t, "GET http://a/one\nX-Token: {{token}}\n\nGET http://a/two\nX-Token: {{token}}\n")
-	entries, err := RenderCurl(context.Background(), f, Options{})
+	entries, err := NewRunner(Options{}).RenderCurl(context.Background(), "test.hurl", f)
 	if err != nil {
 		t.Fatalf("RenderCurl: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestRenderCurlMissingDoesNotLeak(t *testing.T) {
 // aborting the entry (checkURL is skipped for export).
 func TestRenderCurlUndefinedURLRenders(t *testing.T) {
 	f := parseEntries(t, "GET {{base_url}}/c\n")
-	entries, err := RenderCurl(context.Background(), f, Options{})
+	entries, err := NewRunner(Options{}).RenderCurl(context.Background(), "test.hurl", f)
 	if err != nil {
 		t.Fatalf("RenderCurl: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestRenderCurlEntryRangeValidation(t *testing.T) {
 		{"FromEntry after ToEntry", Options{FromEntry: 3, ToEntry: 1}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := RenderCurl(context.Background(), f, tc.opt); err == nil {
+			if _, err := NewRunner(tc.opt).RenderCurl(context.Background(), "test.hurl", f); err == nil {
 				t.Error("RenderCurl returned no error for an invalid entry range")
 			}
 		})
@@ -123,7 +123,7 @@ func TestRenderCurlContextCanceled(t *testing.T) {
 	f := parseEntries(t, "GET http://a/one\n\nGET http://a/two\n")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	entries, err := RenderCurl(ctx, f, Options{})
+	entries, err := NewRunner(Options{}).RenderCurl(ctx, "test.hurl", f)
 	if err == nil {
 		t.Error("RenderCurl with a canceled context returned no error")
 	}
@@ -137,7 +137,7 @@ func TestRenderCurlContextCanceled(t *testing.T) {
 // reported as an error.
 func TestRenderCurlSkippedEntryOmitted(t *testing.T) {
 	f := parseEntries(t, "GET http://a/one\n[Options]\nskip: true\n\nGET http://a/two\n")
-	entries, err := RenderCurl(context.Background(), f, Options{})
+	entries, err := NewRunner(Options{}).RenderCurl(context.Background(), "test.hurl", f)
 	if err != nil {
 		t.Fatalf("RenderCurl: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestRenderCurlSkippedEntryOmitted(t *testing.T) {
 // registered secret in every entry's command.
 func TestRenderCurlRedactsSecrets(t *testing.T) {
 	f := parseEntries(t, "GET http://a/\nAuthorization: Bearer {{tok}}\n")
-	entries, err := RenderCurl(context.Background(), f, Options{Secrets: map[string]string{"tok": "s3cr3t-value"}})
+	entries, err := NewRunner(Options{Secrets: map[string]string{"tok": "s3cr3t-value"}}).RenderCurl(context.Background(), "test.hurl", f)
 	if err != nil {
 		t.Fatalf("RenderCurl: %v", err)
 	}

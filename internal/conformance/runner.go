@@ -24,7 +24,7 @@ func repoRoot() (string, error) {
 	if !ok {
 		return "", fmt.Errorf("conformance: could not determine source file location")
 	}
-	// This file lives at <root>/test/conformance/runner.go.
+	// This file lives at <root>/internal/conformance/runner.go.
 	return filepath.Abs(filepath.Join(filepath.Dir(file), "..", ".."))
 }
 
