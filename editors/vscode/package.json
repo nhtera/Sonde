@@ -2,7 +2,7 @@
   "name": "sonde",
   "displayName": "Sonde",
   "description": "Language support for Sonde (.sonde) and Hurl-compatible (.hurl) request files: diagnostics, completion, hover and formatting.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "nhtera",
   "license": "Apache-2.0",
   "icon": "images/icon.png",
@@ -21,7 +21,9 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "restrictedConfigurations": ["sonde.path"],
+      "restrictedConfigurations": [
+        "sonde.path"
+      ],
       "description": "In an untrusted workspace, `sonde.path` is ignored (a workspace-provided binary path would run arbitrary code); the language server still runs using the default `sonde` from `PATH`."
     },
     "virtualWorkspaces": false
