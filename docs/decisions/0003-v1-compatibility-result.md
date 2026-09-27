@@ -22,8 +22,8 @@ The target was met, so the fallback was not used.
 | timing | 22 | 22 pass semantically, 77.3% full oracle (quarantined) |
 | network | 17 | not run by default (needs internet hosts) |
 
-"Semantic" compares exit codes and what each script asserts; "full oracle"
-also compares the exact output (`docs/conformance.md`).
+"Semantic" compares the exit code and stdout with the reference; "full
+oracle" compares stderr too (`docs/stability.md`).
 
 ## Permanent gaps
 
