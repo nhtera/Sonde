@@ -87,14 +87,25 @@ usage comment for env vars.
 | Date | Tool | Version | Platform | Startup median/mean | Single request median/mean | Peak RSS | Method |
 |---|---|---|---|---|---|---|---|
 | 2026-09-26 | sonde | dev (Phase 10) | darwin/arm64, Apple M4 Pro, go1.27.1 | 9.90 ms / 9.96 ms | 10.92 ms / 10.98 ms | 17.7 MB | `scripts/bench.sh`, `SONDE_BENCH_WARMUP=10 SONDE_BENCH_RUNS=50`, python3 fallback (hyperfine not installed) |
+| 2026-09-27 | sonde | 1.0.0 (`5af437d`, no code change since the tag) | linux/amd64, GitHub `ubuntu-latest` (AMD EPYC 9V74) | 6.56 ms / 6.63 ms | 8.65 ms / 8.59 ms | 19.2 MB | `bench.yml` run 36335047021, hyperfine 1.20.0, 10 warm-up + 50 runs |
+| 2026-09-27 | hurl | 8.0.1 (libcurl 8.5.0) | linux/amd64, GitHub `ubuntu-latest` (AMD EPYC 9V74) | 7.19 ms / 7.21 ms | 8.55 ms / 8.53 ms | 17.2 MB | `bench.yml` run 36335047021, hyperfine 1.20.0, 10 warm-up + 50 runs |
+| 2026-09-27 | xh | 0.26.2 | linux/amd64, GitHub `ubuntu-latest` (AMD EPYC 9V74) | 1.17 ms / 1.17 ms | 10.87 ms / 10.87 ms | 8.9 MB | `bench.yml` run 36335047021, hyperfine 1.20.0, 10 warm-up + 50 runs |
+| 2026-09-27 | newman | 6.2.2 (Node 22) | linux/amd64, GitHub `ubuntu-latest` (AMD EPYC 9V74) | 475.09 ms / 475.03 ms | 679.40 ms / 679.64 ms | 142.8 MB | `bench.yml` run 36335047021, hyperfine 1.20.0, 10 warm-up + 50 runs |
+| 2026-09-27 | bru | 4.2.0 (Node 22) | linux/amd64, GitHub `ubuntu-latest` (AMD EPYC 9V74) | 1,246.94 ms / 1,245.26 ms | 1,374.62 ms / 1,372.52 ms | 230.8 MB | `bench.yml` run 36335047021, hyperfine 1.20.0, 10 warm-up + 50 runs |
 
-`hurl`, `xh`, `newman` and `bru` rows are pending: none of the four are
-installed on this machine, and the fallback loop is a fair stand-in for
-`sonde` alone but not a substitute for `hyperfine` across tools (its
-outlier handling matters more the more tools are compared). **User
-action:** install `hyperfine` plus whichever of `hurl`/`xh`/`newman`/`bru`
-should be compared, then rerun `scripts/bench.sh` and append the new rows
-here (never edit the row above).
+The single request is `sonde --test` and `hurl --test` on the same
+one-entry file, `xh GET` (one request, no file), `newman run` on a
+one-request collection and `bru run` on a one-request collection. The
+`bench` workflow (`.github/workflows/bench.yml`) installs every tool at a
+pinned version and runs this weekly and on demand; its job summary has the
+table. Compare rows within one run: the 2026-09-26 row is a different
+machine and method. Since 2026-09-27 the `sonde` request runs in `--test`
+mode (before: `sonde run`).
+
+On this run Sonde and Hurl are close: Hurl starts slightly slower, and
+their single-request medians are 0.1 ms apart. `xh`, which reads no file,
+starts fastest. `newman` and `bru` start a Node.js runtime and are one to
+two orders of magnitude slower with 7–12× the memory.
 
 ## LSP diagnostics (`BenchmarkDiagnostics`)
 
