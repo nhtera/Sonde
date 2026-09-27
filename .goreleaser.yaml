@@ -65,9 +65,11 @@ changelog:
       order: 999
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
+      - '^docs(\([[:word:]]+\))?!?:'
+      - '^test(\([[:word:]]+\))?!?:'
+      - '^chore!?:'
+      # The extension has its own releases (editors/vscode/v*).
+      - '^[[:word:]]+\(vscode\)!?:'
 
 release:
   # Only a version with a semver prerelease part (e.g. v1.0.0-rc.1) is
