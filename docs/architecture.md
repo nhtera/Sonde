@@ -25,7 +25,8 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | Package | Role | Allowed internal deps |
 |---|---|---|
 | `cmd/sonde` | `main` → `cli.Execute()` | `internal/cli` |
-| `engine` (**public**) | `Runner`, `Unit`, `RunFile`, `RunSource`, `Options`, `HTTPOptions`, events, results, `ResponseValidator`, `Violation` | syntax, value, redact, template, query, filter, predicate, runerr, exchange, httpx, sandbox |
+| `engine` (**public**) | `Runner` (`RunFile`, `RunSource`, `RunAll`, `RenderCurl`), `Options`, `HTTPOptions`, events, results (`Error`, `Value`), `ResponseValidator`, `Violation` | syntax, value, redact, template, query, filter, predicate, runerr, exchange, httpx, sandbox, enginex |
+| `internal/enginex` | constructors of engine result values for internal tests, set by `engine` | runerr, syntax, value |
 | `exchange` (**public**) | transport-neutral `Request`/`Response`/`Timings`/`CertInfo`/`Cookie` model; decoded body (br/gzip/deflate/zstd), charset-decoded text, `Set-Cookie` parsing | charset |
 | `internal/syntax` | reader, parser, AST, lossless printer, canonical formatter, diagnostics, dialect gate | regex, styled |
 | `internal/regex` | regex validity rules shared by parser and evaluation | — (leaf) |
@@ -43,7 +44,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/filter` | all Hurl filters | syntax, value, jsonpath, template, runerr, xpath, datefmt, charset |
 | `internal/predicate` | all Hurl predicates | syntax, value, template, runerr, datefmt |
 | `internal/httpx` | client/transport builder, options, manual redirect loop, timings, cookie jar, decompression | exchange, sandbox |
-| `internal/report` | JSON result (shared by `--json` and `--report-json`), JUnit, TAP, HTML reports; redacted with the final secret union | engine, exchange, value |
+| `internal/report` | JSON result (shared by `--json` and `--report-json`), JUnit, TAP, HTML reports; redacted with the final secret union | engine, exchange |
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
 | `internal/dataset` | CSV / JSON-array rows for `--data` | value |
 | `internal/openapi` | spec load (owns remote fetch), route match, `engine.ResponseValidator` impl, spec → AST generator | exchange, syntax, engine (interface only) |
@@ -58,13 +59,13 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `editors/vscode` | VS Code extension (TypeScript) — separate npm package | — |
 | `testdata/conformance/hurl` | vendored Hurl 8 test tree + servers + requirements + manifest | — |
 
-**Rules (enforced by `depguard` in `.golangci.yml`):** leaves import nothing internal; nothing imports `internal/cli`; `internal/report` imports only `engine`/`exchange` result types and `value` (display); `net/http` allowed only in `httpx`, `stream`, `mock`, `openapi` (remote fetch, opt-in), `grpcx`; `_test.go` files exempt. Go source file names: `snake_case.go`; shell scripts: `kebab-case.sh`. One decision-record series: `docs/decisions/NNNN-*.md` (RFCs are decision records with status `proposed`).
+**Rules (enforced by `depguard` in `.golangci.yml`):** leaves import nothing internal; nothing imports `internal/cli`; `internal/report` imports only `engine`/`exchange` (the public API); `net/http` allowed only in `httpx`, `stream`, `mock`, `openapi` (remote fetch, opt-in), `grpcx`; `_test.go` files exempt. Go source file names: `snake_case.go`; shell scripts: `kebab-case.sh`. One decision-record series: `docs/decisions/NNNN-*.md` (RFCs are decision records with status `proposed`).
 
 ## 3. Execution Flow
 
 ```mermaid
 flowchart LR
-  S[jobs: file × repeat, data rows in Phase 6] --> RU[engine.Runner]
+  S[jobs: file × repeat × data rows] --> RU[engine.Runner]
   C[config: vars, secrets, env] --> RU
   RU -->|per unit, isolated| P[syntax.Parse]
   P --> T[template.Render]
@@ -83,59 +84,66 @@ Per entry: render → build → send (retry loop wraps the whole entry) → impl
 ## 4. Public API Sketch (`engine`, `exchange`)
 
 ```go
-// Copyright 2026 The Sonde Authors
-// SPDX-License-Identifier: Apache-2.0
-
 package engine
 
 // Runner runs files with shared options; owns the run's secret registry.
 func NewRunner(opt Options) *Runner
 func (r *Runner) RunFile(ctx context.Context, path string) (*UnitResult, error)
 func (r *Runner) RunSource(ctx context.Context, name string, src []byte) (*UnitResult, error)
-// RunAll runs jobs, n at a time; closing stop ends scheduling and running
-// units at their next entry boundary (UnitResult.Interrupted, not a
-// success), canceling ctx aborts requests.
-func (r *Runner) RunAll(ctx context.Context, stop <-chan struct{}, jobs iter.Seq[Job], n int, h Hooks)
+// RunAll runs jobs, opt.Parallel at a time; closing opt.Stop ends
+// scheduling and running units at their next entry boundary
+// (UnitResult.Interrupted, not a success), canceling ctx aborts requests.
+func (r *Runner) RunAll(ctx context.Context, jobs iter.Seq[Job], opt RunAllOptions)
+// RenderCurl renders each entry as a curl command without sending
+// anything; an undefined variable stays {{name}} and is listed per entry.
+func (r *Runner) RenderCurl(ctx context.Context, name string, src []byte) ([]CurlEntry, error)
 func (r *Runner) Redact(s string) string // with every secret known so far
 func (r *Runner) Close() error
 
-// RenderCurl renders each entry of file as a curl command without sending
-// anything; an undefined variable stays {{name}} and is listed per entry.
-func RenderCurl(ctx context.Context, file *syntax.File, opt Options) ([]CurlEntry, error)
-type CurlEntry struct {
-	Index     int      // 1-based
-	Command   string   // redacted like --curl
-	Undefined []string // variables left as {{name}}
-	Err       error    // this entry could not be rendered
+type RunAllOptions struct { // hook calls never concurrent
+	Parallel int
+	Stop     <-chan struct{}
+	Started  func(seq int, job Job) (onEvent func(Event), stdout io.Writer)
+	Finished func(seq int, job Job, res *UnitResult, err error) bool // false = schedule no more
 }
-
 type Job struct {
 	Name      string
 	Source    []byte            // nil = read Name
 	Variables map[string]any    // per job (sonde.yaml), below CLI options
 	Secrets   map[string]string // per job
 	Row       *Row              // data row (--data), nil = none
-}
-func (j Job) Label() string // Name, or "<Name>#row-<N>"
-type Row struct {
-	Index     int               // 1-based
-	Variables map[string]any    // above Options.Variables
-	Secrets   map[string]string // unit-scoped: see Redaction
-}
-func (u *UnitResult) Label() string         // File, or "<File>#row-<N>"
-func (u *UnitResult) Redact(s string) string // run's + row's secrets, one pass
-type Hooks struct { // calls never concurrent
-	Started  func(seq int, job Job) (onEvent func(Event), stdout io.Writer)
-	Finished func(seq int, job Job, res *UnitResult, err error) bool // false = schedule no more; running jobs complete
+	Validator ResponseValidator // replaces Options.Validator (NoContract(): none)
 }
 
+type UnitResult struct {
+	File       string
+	Source     []byte
+	ParseError *Error // kind ErrorParse; nothing ran
+	Entries    []*EntryResult
+	Interrupted, Success bool
+	// Duration, Cookies, Timestamp, Row
+}
+func (u *UnitResult) Errors() []*Error        // of attempts not retried
+func (u *UnitResult) Label() string          // File, or "<File>#row-<N>"
+func (u *UnitResult) Redact(s string) string // run's + row's secrets, one pass
+
+// Error is opaque: Kind() ErrorKind (string constants Error*), Assert(),
+// Span(), Description(), Message(), Actual(), Expected(), Render(),
+// RenderColor() (no arguments: it knows its file and entry).
+type Error struct{ /* unexported */ }
+// Value is opaque: Kind() ValueKind (string constants Value*), String(),
+// typed accessors Bool/Int/Float/Text/Bytes/Time/Regex/Redirect/List/
+// Fields/Get/Len. Also accepted as a variable.
+type Value struct{ /* unexported */ }
+
 type Options struct {
-	Variables       map[string]any    // typed: string, int, int64, float64, bool, nil
+	Variables       map[string]any    // nil, bool, int, int64, float64, string, Value, []any, map[string]any
 	Secrets         map[string]string // registered in the run's redact registry
 	FileRoot        string            // CLI-only; default: dir of each file
 	HTTP            HTTPOptions       // global defaults; per-entry [Options] override
 	Validator       ResponseValidator // OpenAPI contract, checked after explicit asserts (skipped by NoAssert); nil = off
-	OnEvent         func(Event)       // RunFile/RunSource; RunAll uses Hooks
+	OnEvent         func(Event)       // RunFile/RunSource; RunAll uses RunAllOptions.Started
+	DefaultUserAgent string           // replaces sonde/<module version>
 	Retry           int               // -1 = unlimited
 	RetryInterval   time.Duration
 	Delay           time.Duration     // not applied to retries
@@ -144,23 +152,20 @@ type Options struct {
 	Verbosity       Verbosity
 }
 
-type HTTPOptions struct { /* all Hurl request options: TLS, proxy, resolve, connect-to, protocols, timeouts, redirects, compression, netrc, limit-rate, max-filesize … (list owned by docs/compat.md) */ }
-
-// One validator serves every unit of a run (safe for concurrent use);
-// Job.Validator replaces Options.Validator for one job (NoContract: none).
+// One validator serves every unit of a run (safe for concurrent use).
 type ResponseValidator interface {
 	ValidateResponse(ctx context.Context, req *exchange.Request, resp *exchange.Response) []Violation
 }
-type Violation struct {
-	Kind ViolationKind // unmatched, status, header, content-type, body, error
-	Operation, SpecPointer, InstancePath, Message string
-	Warning bool // does not fail the entry (unmatched operation outside strict mode)
-}
 ```
 
-Events: `Log` (level, text, colored text), `EntryStarted`, `ContractEvaluated` (entry index, raw violations), `EntryFinished` (carries the raw `*EntryResult`). Log texts are redacted; results hold raw values, and every sink redacts them with `UnitResult.Redact` (`Runner.Redact` suffices without data rows; the final secret union for run-level sinks). Per-unit parse/runtime errors live in `UnitResult` and never cancel other units; results are handed to `Hooks.Finished` and not retained by the runner.
+Internal packages never leak into this surface. `internal/report` consumes
+results through it alone (enforced by depguard), which proves it suffices
+for a front end. `internal/enginex` builds result values for internal tests.
 
-API stability: pre-1.0 may change; from v1.0 `engine` + `exchange` follow semver, checked by `apidiff` in CI (Phase 10).
+
+Events: `Log` (level, text, colored text), `EntryStarted`, `ContractEvaluated` (entry index, raw violations), `EntryFinished` (carries the raw `*EntryResult`). Log texts are redacted; results hold raw values, and every sink redacts them with `UnitResult.Redact` (`Runner.Redact` suffices without data rows; the final secret union for run-level sinks). Per-unit parse/runtime errors live in `UnitResult` and never cancel other units; results are handed to `RunAllOptions.Finished` and not retained by the runner.
+
+API stability: from v1.0 `engine` + `exchange` follow semver, checked by `make apicheck` (apidiff) in CI; see [stability.md](stability.md).
 
 ## 5. Contracts
 
@@ -175,7 +180,7 @@ API stability: pre-1.0 may change; from v1.0 `engine` + `exchange` follow semver
 | 127 | undefined error (e.g. report cannot be written) — Hurl parity |
 | 130 | interrupted (Ctrl-C) — Sonde addition, documented |
 
-Multi-unit aggregation: 1 and 127 abort; otherwise the most severe of 2 > 3 > 4 > 0 (verify against Hurl `main.rs` in Phase 5). Non-run subcommands: `fmt --check` → 1 if unformatted; `import` → 1 on unreadable input, 0 with warnings.
+Multi-unit aggregation: 1 and 127 abort; otherwise the most severe of 2 > 3 > 4 > 0 (as Hurl's `main.rs`). Non-run subcommands: `fmt --check` → 1 if unformatted; `import` → 1 on unreadable input, 0 with warnings.
 
 Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-command errors → 1; any other untyped error from a command body → 127 (`typed` wrapper); commands that print their own diagnostics end with a silent exit (code only, no extra `error:` line).
 
@@ -225,7 +230,7 @@ Parser accepts the **full** Hurl 8 grammar (parser-level differences: `docs/comp
 One schema for `--json` and `--report-json`: **Hurl-compatible base** (Hurl 8.0.1 JSON result shape, so Hurl's `--json` conformance tests and existing tooling work) with all Sonde-only data (contracts, iterations, streams, gRPC) under a top-level `sonde` key per object; additive changes only within a major version; documented in `docs/report-json.md`; covered by `docs/stability.md`. JUnit/TAP/HTML layouts follow Hurl's where its conformance tests compare them.
 
 ### `sonde.yaml`
-Owner: `docs/sonde-yaml.md` (Phase 5) — the only place keys are defined; strict (unknown key → error); discovered per input file (nearest ancestor, cached per directory); listed in `docs/stability.md`.
+Owner: `docs/sonde-yaml.md` — the only place keys are defined; strict (unknown key → error); discovered per input file (nearest ancestor, cached per directory); listed in `docs/stability.md`.
 
 ## 6. Library Choices (licenses verified 2026-09-23)
 
@@ -261,7 +266,7 @@ CI gate: `go-licenses check ./... --allowed_licenses=Apache-2.0,MIT,BSD-2-Clause
 | Determinism | `-count=100` on JSONPath, report ordering, mock generation | jsonpath, report, mock |
 | Fuzz | `FuzzParse`, `FuzzCurlImport`, `FuzzHTTPFile`, `FuzzPostman`, `FuzzSSEParser` (post-v1) | CI smoke 30 s each; nightly 10 min |
 | Integration | `httptest` servers (TLS, h2, redirects, cookies, gzip, proxy) | engine, httpx |
-| Conformance | Hurl 8.0.1 test scripts run **unchanged** under bash with a `hurl` → `sonde` shim; oracles `.exit`/`.out`/`.out.pattern`/`.err`/`.err.pattern` (255 = skip); sequential; server lifecycle owned by `TestMain`; lanes **blocking** / extended (SSL, IPv6, unix, proxy) / network (skipped in CI) / timing (quarantine); metrics **semantic** (exit + stdout) and **full-oracle**; manifest + no-regression gate on blocking lane | `test/conformance` (build tag `conformance`) |
+| Conformance | Hurl 8.0.1 test scripts run **unchanged** under bash with a `hurl` → `sonde` shim; oracles `.exit`/`.out`/`.out.pattern`/`.err`/`.err.pattern` (255 = skip); sequential; server lifecycle owned by `TestMain`; lanes **blocking** / extended (SSL, IPv6, unix, proxy) / network (skipped in CI) / timing (quarantine); metrics **semantic** (exit + stdout) and **full-oracle**; manifest + no-regression gate on blocking lane | `internal/conformance` (build tag `conformance`) |
 | Differential (local) | same file through real `hurl` and `sonde`, compare exit code + JSON via documented projection | `scripts/diff-hurl.sh` |
 | Coverage | ≥85% for syntax, value, template, jsonpath, query, filter, predicate; ≥75% overall | CI report |
 
@@ -301,10 +306,11 @@ Assets: secrets (tokens, passwords), local files, user's ambient credentials (`~
 
 ## 10. GUI-Readiness Checklist (for the future Wails plan)
 
-- [ ] `engine.Runner` with `Close()`, serial events, cancel, redacted JSON-serializable results (Phases 4–5)
-- [ ] public `exchange` types → GUI can render requests/responses (Phase 3)
-- [ ] lossless AST + formatter → GUI edit/save keeps comments (Phase 2)
-- [ ] diagnostics with byte-offset spans → GUI inline errors (Phase 2, reused by LSP Phase 9)
-- [ ] stable JSON result schema (Phase 5)
-- [ ] `sonde.yaml` environments → GUI env switcher (Phase 5)
+- [x] `engine.Runner` with `Close()`, serial events, cancel, redacted JSON-serializable results
+- [x] public `exchange` types → GUI can render requests/responses
+- [x] public `engine.Error`/`engine.Value` → GUI shows errors and captures without internal packages
+- [x] lossless AST + formatter → GUI edit/save keeps comments
+- [x] diagnostics with byte-offset spans → GUI inline errors (reused by `sonde lsp`)
+- [x] stable JSON result schema
+- [x] `sonde.yaml` environments → GUI env switcher
 - Note: nested module `github.com/nhtera/sonde/gui` can import `github.com/nhtera/sonde/internal/...` (path-based rule, verified via gopls precedent) but internal packages are outside apidiff → GUI pins exact commits or needed APIs get promoted to public packages.

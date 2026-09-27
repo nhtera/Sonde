@@ -19,7 +19,7 @@ and `github.com/pb33f/libopenapi` + `github.com/pb33f/libopenapi-validator`.
 
 ## Measurements
 
-Spike code: see report `plans/reports/ak-engineer:researcher-260926-1542-openapi-library-spike.md`.
+Spike code: not kept in the repository.
 Fixtures: `testdata/openapi/{petstore-3.0,petstore-3.1,edge-cases-3.1}.yaml`.
 Large spec: github/rest-api-description `api.github.com.yaml` (9.9 MB, 810 paths), scratchpad-only.
 

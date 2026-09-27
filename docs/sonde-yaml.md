@@ -1,6 +1,6 @@
 # `sonde.yaml`
 
-Owner: this file (`internal/config`, Phase 5). `sonde.yaml` is the only
+Owner: this file (`internal/config`). `sonde.yaml` is the only
 project file Sonde reads on its own; it selects environments for a test run
 and nothing else. It never widens file access and never changes what a
 request file can read or write — that stays a CLI-only concern
