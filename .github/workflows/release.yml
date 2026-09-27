@@ -64,6 +64,9 @@ jobs:
           version: v2.18.2
           args: release --clean
         env:
+          # The pushed tag, not whichever tag on HEAD sorts first: the same
+          # commit may also carry an editors/vscode/v* tag.
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
 
