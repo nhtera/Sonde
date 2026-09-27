@@ -25,9 +25,12 @@ or bad release.
   `homebrew_casks` and `scoops` (`.goreleaser.yaml`); the workflow's own
   `GITHUB_TOKEN` cannot push to a different repository, which is why this
   separate credential exists at all.
-- **`VSCE_PAT` secret**, in the same `release` environment: a VS Code
-  Marketplace personal access token for the `nhtera` publisher, used only by
-  `release-vscode.yml`.
+- **`VSCE_PAT` secret**, in the same `release` environment: an Azure DevOps
+  personal access token for the `nhtera` publisher, used only by
+  `release-vscode.yml`. Scope it to one organization with only
+  **Marketplace (Manage)**; tokens for "All accessible organizations" stop
+  working on 1 December 2026. A token lasts at most a year: regenerate it in
+  Azure DevOps and update the secret before it expires.
 - **Marketplace publisher** `nhtera` created at
   [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage).
 - **Trademark check** confirmed (see [TRADEMARKS.md](../TRADEMARKS.md)) —
