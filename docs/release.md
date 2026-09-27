@@ -65,8 +65,7 @@ surface, not on the real tag.
 ### API check before every tag
 
 `make apicheck` (also a CI job) compares the public Go API with the ref in
-`.api-baseline` and fails on an incompatible change. It is a no-op until
-`v1.0.0-rc.1` exists. `release.yml` also runs `gorelease` against the
+`.api-baseline` (`v1.0.0`) and fails on an incompatible change. `release.yml` also runs `gorelease` against the
 previous CLI tag and stops before publishing if the new tag is not a valid
 next version. It checks the whole module, including `go.mod`. To check a
 version before tagging:

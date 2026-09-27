@@ -88,8 +88,7 @@ including a patch release, without notice. `engine` and `exchange` follow
 semver from `v1.0.0`: a breaking change to an exported type, function or
 method signature is a major version bump. This is checked in CI with
 [`apidiff`](https://pkg.go.dev/golang.org/x/exp/cmd/apidiff) (`make
-apicheck`) against the ref in `.api-baseline`: `v1.0.0-rc.1`, the first
-release candidate, from the day it is tagged.
+apicheck`) against the ref in `.api-baseline`, `v1.0.0`.
 
 What the contract covers:
 
