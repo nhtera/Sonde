@@ -1,6 +1,6 @@
 # Sonde
 
-![status: v1.0 release candidate](https://img.shields.io/badge/status-v1.0%20release%20candidate-blue)
+![status: stable](https://img.shields.io/badge/status-stable-brightgreen)
 
 **Sonde** (pronounced "sond") is a fast, single-binary CLI that runs and
 tests HTTP requests written in plain text. It reads [Hurl](https://hurl.dev)
