@@ -9,6 +9,8 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/nhtera/sonde/exchange"
@@ -29,7 +31,8 @@ func certInfo(state tls.ConnectionState) *exchange.CertInfo {
 		ExpireDate:     cert.NotAfter,
 		SerialNumber:   formatSerial(cert),
 		SubjectAltName: formatSAN(cert),
-		Value:          string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
+		// PEM without the final line break, as libcurl reports it.
+		Value: strings.TrimSuffix(string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})), "\n"),
 	}
 }
 
@@ -77,15 +80,15 @@ func formatSerial(cert *x509.Certificate) string {
 	return strings.Join(parts, ":")
 }
 
-// formatSAN renders the certificate's subject alternative names, one per
-// line as "DNS:name" / "IP Address:addr", matching libcurl's rendering.
+// formatSAN renders the certificate's subject alternative names as
+// "DNS:name, IP Address:addr, ...", matching libcurl's rendering.
 func formatSAN(cert *x509.Certificate) string {
 	var lines []string
 	for _, d := range cert.DNSNames {
 		lines = append(lines, "DNS:"+d)
 	}
 	for _, ip := range cert.IPAddresses {
-		lines = append(lines, "IP Address:"+ip.String())
+		lines = append(lines, "IP Address:"+formatSANIP(ip))
 	}
 	for _, u := range cert.URIs {
 		lines = append(lines, "URI:"+u.String())
@@ -94,4 +97,19 @@ func formatSAN(cert *x509.Certificate) string {
 		lines = append(lines, "email:"+e)
 	}
 	return strings.Join(lines, ", ")
+}
+
+// formatSANIP writes an IPv4 address dotted and an IPv6 address (even an
+// IPv4-mapped one) as eight uncompressed groups of uppercase hex
+// ("0:0:0:0:0:0:0:1"), as OpenSSL prints them. x509 keeps the length the
+// certificate encodes.
+func formatSANIP(ip net.IP) string {
+	if len(ip) != net.IPv6len {
+		return ip.String()
+	}
+	groups := make([]string, 8)
+	for i := range groups {
+		groups[i] = strings.ToUpper(strconv.FormatUint(uint64(ip[2*i])<<8|uint64(ip[2*i+1]), 16))
+	}
+	return strings.Join(groups, ":")
 }
