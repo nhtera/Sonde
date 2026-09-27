@@ -13,11 +13,12 @@ or bad release.
   nhtera tools, and GoReleaser only ever writes `Casks/sonde.rb` and
   `sonde.json`. There are no staging copies: a rehearsal publishes to them too.
 - **`release` environment** on `nhtera/sonde` (Settings → Environments):
-  required reviewers, and a deployment branch/tag rule restricting it to tag
-  pushes. Both `.github/workflows/release.yml` and
+  a deployment tag rule restricting it to `v*` and `editors/vscode/v*` tag
+  pushes, and no required reviewers: pushing the tag is the release decision.
+  Both `.github/workflows/release.yml` and
   `.github/workflows/release-vscode.yml` run their publish job under
-  `environment: release`, so nothing in this list can run without that
-  approval gate.
+  `environment: release`, so the secrets below never reach a branch or pull
+  request run.
 - **`TAP_GITHUB_TOKEN` secret**, in the `release` environment only: a
   fine-grained PAT or GitHub App installation token with `contents: write`
   on exactly those 2 repositories, nothing else. GoReleaser uses it for both
