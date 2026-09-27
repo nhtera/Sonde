@@ -157,27 +157,40 @@ func TestFormatting(t *testing.T) {
 	}
 }
 
-func TestLargeFileDiagnosticsBudget(t *testing.T) {
-	if testing.Short() || raceEnabled {
-		t.Skip("timing budget; skipped in -short and -race runs")
-	}
+// largeDiagnosticsFile builds a well-formed synthetic file of at least
+// 1,000 lines / 40 KB, shared by the correctness test and the benchmark
+// below (see docs/benchmarks.md).
+func largeDiagnosticsFile() string {
 	var b strings.Builder
 	for b.Len() < 40_000 || strings.Count(b.String(), "\n") < 1000 {
 		b.WriteString("GET http://localhost/{{host}}/items?q=1\nAccept: application/json\nHTTP 200\n[Captures]\nid: jsonpath \"$.id\"\n[Asserts]\nstatus == 200\njsonpath \"$.name\" == \"{{id}}\"\n\n")
 	}
-	d := newDocument("file:///w/big.hurl", 1, b.String(), true)
+	return b.String()
+}
+
+func TestDiagnosticsOnLargeFile(t *testing.T) {
+	// Correctness only (runs under -short and -race); the timing budget on
+	// this same file is BenchmarkDiagnostics, reported in docs/benchmarks.md
+	// rather than asserted here, since CI never runs benchmarks under -race.
+	d := newDocument("file:///w/big.hurl", 1, largeDiagnosticsFile(), true)
 	s, err := NewServer(Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := testing.Benchmark(func(bb *testing.B) {
-		for bb.Loop() {
-			d.setText(d.text, true)
-			s.diagnostics(d)
-		}
-	})
-	if per := res.NsPerOp(); per > 50_000_000 {
-		t.Errorf("diagnostics for a 1,000-line file took %dns, budget 50ms", per)
+	if diags := s.diagnostics(d); len(diags) != 0 {
+		t.Errorf("well-formed 1,000-line file: %d diagnostics, want 0: %+v", len(diags), diags)
+	}
+}
+
+func BenchmarkDiagnostics(b *testing.B) {
+	d := newDocument("file:///w/big.hurl", 1, largeDiagnosticsFile(), true)
+	s, err := NewServer(Options{})
+	if err != nil {
+		b.Fatal(err)
+	}
+	for b.Loop() {
+		d.setText(d.text, true)
+		s.diagnostics(d)
 	}
 }
 

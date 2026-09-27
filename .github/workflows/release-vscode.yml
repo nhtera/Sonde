@@ -1,0 +1,112 @@
+name: release-vscode
+
+on:
+  push:
+    # Separate from the CLI's v[0-9]* tags (release.yml): the extension has
+    # its own version and release cadence.
+    tags: ["editors/vscode/v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    # No `environment:` here (see the M5 note below) and no secrets: this
+    # job runs the full untrusted-ish toolchain (npm ci, lint, test) and
+    # produces the .vsix that `publish` below only uploads.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Keep in sync with ci.yml's vscode job / package.json engines.
+      GO_VERSION: "1.27.1"
+      NODE_VERSION: "22"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check package.json version matches the tag
+        run: |
+          tag="${GITHUB_REF_NAME#editors/vscode/v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag editors/vscode/v$tag does not match package.json version $pkg" >&2
+            exit 1
+          fi
+        working-directory: editors/vscode
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false # this job's output feeds a Marketplace publish; no Actions cache in a release workflow (M5)
+      - name: Build sonde and put it on PATH
+        run: |
+          mkdir -p "$HOME/bin"
+          go build -o "$HOME/bin/sonde" ./cmd/sonde
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+        env:
+          CGO_ENABLED: "0"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - run: npm ci
+        working-directory: editors/vscode
+      - run: npm run lint
+        working-directory: editors/vscode
+      - run: npm audit --audit-level=high
+        working-directory: editors/vscode
+      - run: xvfb-run -a npm test
+        working-directory: editors/vscode
+
+      - run: npx vsce package -o sonde.vsix
+        working-directory: editors/vscode
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sonde-vsix
+          path: editors/vscode/sonde.vsix
+          if-no-files-found: error
+
+  publish:
+    needs: build-test
+    runs-on: ubuntu-latest
+    # VSCE_PAT and the release GITHUB_TOKEN live only in this protected
+    # environment; this job does nothing but publish the artifact the
+    # build-test job already produced and tested — no checkout, no
+    # `npm ci`, no Actions cache (M5: a job with secrets must never restore
+    # a cache another job could have poisoned).
+    environment: release
+    permissions:
+      contents: write # to attach the .vsix to a GitHub release
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: sonde-vsix
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          # No `cache:` (npm cache) and no node_modules install in this
+          # job at all — see the job comment above (M5).
+
+      - name: Publish to the VS Code Marketplace
+        # Pinned to the same @vscode/vsce version as editors/vscode's
+        # devDependency; run standalone via npx so this job never installs
+        # the extension's own node_modules.
+        run: npx --yes @vscode/vsce@4.0.0 publish --packagePath sonde.vsix --pat "$VSCE_PAT"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Attach the .vsix to a GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            --title "VS Code extension $TAG" \
+            --notes "Published to the VS Code Marketplace as sonde v${TAG#editors/vscode/v}." \
+            --latest=false \
+            sonde.vsix

@@ -1,0 +1,66 @@
+name: nightly-fuzz
+
+# Runs every Fuzz target in the module for FUZZTIME each, well past the
+# 30s smoke test ci.yml runs on every push (architecture.md §9: "nightly
+# fuzz (parser + importers, 10 min each)"). Targets are discovered
+# dynamically (make fuzz-smoke's own loop, `go test -list '^Fuzz'` per
+# package), so a new Fuzz func is picked up here without editing this
+# file.
+
+on:
+  schedule:
+    # 03:17 UTC, off the hour to avoid the GitHub Actions cron stampede.
+    - cron: "17 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  # Keep in sync with the toolchain directive in go.mod and ci.yml.
+  GO_VERSION: "1.27.1"
+  FUZZTIME: "10m"
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    # 12 targets * 10m is ~2h; a single job stays well inside the 6h
+    # per-job limit, so no matrix split is needed today. Re-split by
+    # package if the target count grows enough to change that.
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Fuzz every target
+        # Same discovery as `make fuzz-smoke` (go list ./..., then
+        # `go test -list '^Fuzz'` per package), but that Makefile target
+        # stops at the first failing target (`|| exit 1`), which would
+        # skip every target after it for the rest of the night. Here every
+        # target runs regardless, and the job fails at the end if any did
+        # (L14).
+        run: |
+          set -uo pipefail
+          failed=0
+          for pkg in $(go list ./...); do
+            list=$(go test -list '^Fuzz' "$pkg") || { failed=1; continue; }
+            for fn in $(echo "$list" | grep '^Fuzz'); do
+              echo "::group::fuzz $pkg $fn"
+              if ! go test -run='^$' -fuzz="^$fn\$" -fuzztime="$FUZZTIME" "$pkg"; then
+                echo "FAILED: $pkg $fn" >&2
+                failed=1
+              fi
+              echo "::endgroup::"
+            done
+          done
+          exit "$failed"
+      - name: Upload failing corpus
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-failures
+          path: "**/testdata/fuzz/**"
+          if-no-files-found: ignore

@@ -65,8 +65,8 @@ HTTP 200
 // (variables.go) on a fixture exercising every placeholder location: they
 // must find exactly the same set of variable references. variableUses
 // exists only because uses is too slow for the 1,000-line diagnostics
-// budget (see TestLargeFileDiagnosticsBudget under -race); this test is
-// what keeps it honest as the AST evolves.
+// budget (see BenchmarkDiagnostics); this test is what keeps it honest as
+// the AST evolves.
 func TestVariableUsesMatchesReflectionWalk(t *testing.T) {
 	d := newDocument("file:///w/fixture.hurl", 1, variableUsesFixture, true)
 	if len(d.errs) != 0 {

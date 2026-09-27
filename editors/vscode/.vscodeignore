@@ -3,7 +3,9 @@
 .vscode/**
 src/**
 test/**
-out/test/**
+out/**
+node_modules/**
+esbuild.mjs
 .gitignore
 .eslintrc*
 eslint.config.mjs

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { execFile } from "node:child_process";
+import { constants as fsConstants, promises as fsp } from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import {
   DocumentSelector,
@@ -63,7 +66,8 @@ async function startClient(): Promise<void> {
   const command = config.get<string>("path", "sonde");
   const env = config.get<string | null>("env", null) ?? undefined;
 
-  if (!(await binaryIsRunnable(command))) {
+  const resolved = await resolveOnPath(command);
+  if (!resolved || !(await binaryIsRunnable(resolved))) {
     // Shown without blocking activation on the user dismissing it: nothing
     // else here depends on that happening.
     void showBinaryNotFoundError(command);
@@ -79,9 +83,16 @@ async function startClient(): Promise<void> {
   }
 
   const serverOptions: ServerOptions = {
-    command,
+    command: resolved,
     args: ["lsp"],
     transport: TransportKind.stdio,
+    // Never the workspace root: vscode-languageclient defaults to it, and
+    // on Windows a bare command is searched for in the spawned process's
+    // cwd before PATH, which `resolved` above already sidesteps — this is
+    // belt-and-suspenders in case that assumption ever changes. The LSP
+    // resolves workspace-relative paths from `rootUri`/`workspaceFolders`,
+    // never from the server process's own cwd, so this is safe.
+    options: { cwd: os.tmpdir() },
   };
 
   const clientOptions: LanguageClientOptions = {
@@ -103,6 +114,41 @@ async function startClient(): Promise<void> {
       `Sonde: the language server failed to start: ${String(err)}`,
     );
   }
+}
+
+/**
+ * Resolves `command` to an absolute path found on `PATH`, never considering
+ * the current working directory or any workspace folder. This matters on
+ * Windows: without an explicit `cwd`, `child_process` (and the libuv spawn
+ * vscode-languageclient uses) searches a spawned process's cwd for a bare
+ * command name before `PATH`. Left unresolved, a `sonde.exe` committed at
+ * the root of an untrusted workspace would run instead of the real one on
+ * `PATH`. An already-absolute `command` is returned unchanged: `sonde.path`
+ * is a restricted configuration, so an untrusted workspace can't set it,
+ * and an explicit absolute override should fail with a clear "not found"
+ * if it's wrong rather than silently falling back to a `PATH` match.
+ */
+async function resolveOnPath(command: string): Promise<string | undefined> {
+  if (path.isAbsolute(command)) {
+    return command;
+  }
+  const dirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+  const names =
+    process.platform === "win32"
+      ? [command, ...(process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").map((ext) => command + ext)]
+      : [command];
+  for (const dir of dirs) {
+    for (const name of names) {
+      const candidate = path.join(dir, name);
+      try {
+        await fsp.access(candidate, fsConstants.X_OK);
+        return candidate;
+      } catch {
+        // Not here; keep looking.
+      }
+    }
+  }
+  return undefined;
 }
 
 /** Resolves quickly and without a shell so a bad `sonde.path` fails fast with a clear message. */

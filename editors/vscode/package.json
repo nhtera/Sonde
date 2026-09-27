@@ -5,6 +5,8 @@
   "version": "0.1.0",
   "publisher": "nhtera",
   "license": "Apache-2.0",
+  "icon": "images/icon.png",
+  "homepage": "https://github.com/nhtera/sonde/tree/main/editors/vscode#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/nhtera/sonde.git",
@@ -15,6 +17,14 @@
   },
   "engines": {
     "vscode": "^1.91.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "restrictedConfigurations": ["sonde.path"],
+      "description": "In an untrusted workspace, `sonde.path` is ignored (a workspace-provided binary path would run arbitrary code); the language server still runs using the default `sonde` from `PATH`."
+    },
+    "virtualWorkspaces": false
   },
   "categories": [
     "Programming Languages",
@@ -33,7 +43,7 @@
     "onLanguage:hurl",
     "workspaceContains:**/*.sonde"
   ],
-  "main": "./out/src/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
@@ -87,9 +97,11 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
+    "bundle": "node esbuild.mjs",
     "watch": "tsc -w -p ./",
     "lint": "eslint src test",
-    "pretest": "npm run compile && node ./test/setup-vscode-settings.mjs",
+    "vscode:prepublish": "npm run bundle -- --production",
+    "pretest": "npm run compile && npm run bundle && node ./test/setup-vscode-settings.mjs",
     "test": "vscode-test",
     "package": "vsce package"
   },
@@ -104,6 +116,7 @@
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
     "eslint": "^10.11.0",
     "globals": "^17.12.0",
     "mocha": "^12.0.2",

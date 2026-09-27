@@ -65,3 +65,51 @@ secret column (`--data-secret password`); peak RSS from `/usr/bin/time -l`.
 Target: memory independent of the number of rows (without `--report-*`,
 which keeps every result for the reports). The time is the per-unit setup
 (about 30 µs a row); with real requests, each row's new connection dominates.
+
+## CLI comparison (`scripts/bench.sh`)
+
+`scripts/bench.sh` builds `sonde`, starts a local HTTP server on an
+ephemeral port (`scripts/bench/server.go`; never 8000-8003, reserved for
+the conformance harness), and measures, for each of `sonde`, `hurl`, `xh`,
+`newman` and `bru` that is installed: startup (a bare version/help
+invocation), a single GET request against the local server, and that
+request's peak RSS. Every command is run through a shell (`sh -c`, matching
+hyperfine's own default and how someone would actually type it), 10
+warm-up runs then a timed batch (default 50, `SONDE_BENCH_RUNS`); median
+and mean are reported in milliseconds. [hyperfine](https://github.com/sharkdp/hyperfine)
+is used when installed; otherwise a `python3` fallback loop times each run
+with `time.perf_counter()` in one long-lived process (so the timestamp
+itself never adds a second process spawn to a sub-20ms command). Peak RSS
+is `/usr/bin/time -l` on macOS, `-v` on Linux. `hurl`, `xh`, `newman` and
+`bru` are skipped with a note when not installed — see `scripts/bench.sh`
+usage comment for env vars.
+
+| Date | Tool | Version | Platform | Startup median/mean | Single request median/mean | Peak RSS | Method |
+|---|---|---|---|---|---|---|---|
+| 2026-09-26 | sonde | dev (Phase 10) | darwin/arm64, Apple M4 Pro, go1.27.1 | 9.90 ms / 9.96 ms | 10.92 ms / 10.98 ms | 17.7 MB | `scripts/bench.sh`, `SONDE_BENCH_WARMUP=10 SONDE_BENCH_RUNS=50`, python3 fallback (hyperfine not installed) |
+
+`hurl`, `xh`, `newman` and `bru` rows are pending: none of the four are
+installed on this machine, and the fallback loop is a fair stand-in for
+`sonde` alone but not a substitute for `hyperfine` across tools (its
+outlier handling matters more the more tools are compared). **User
+action:** install `hyperfine` plus whichever of `hurl`/`xh`/`newman`/`bru`
+should be compared, then rerun `scripts/bench.sh` and append the new rows
+here (never edit the row above).
+
+## LSP diagnostics (`BenchmarkDiagnostics`)
+
+`internal/lsp.BenchmarkDiagnostics` runs full diagnostics (parse +
+semantic checks) on a synthetic well-formed file of at least 1,000 lines /
+40 KB — the same file `TestDiagnosticsOnLargeFile` asserts produces zero
+diagnostics. Previously this was `TestLargeFileDiagnosticsBudget`, a test
+that asserted a 50ms budget directly; it never ran in CI (skipped under
+both `-short` and `-race`, and `ci.yml` runs neither a plain `-short`-free,
+non-race `go test ./internal/lsp` in isolation). As a benchmark it always
+runs, and the budget is enforced by comparing against this row instead of
+a hard assertion.
+
+| Date | Version | Platform | ns/op | B/op | allocs/op | Method |
+|---|---|---|---|---|---|---|
+| 2026-09-26 | dev (Phase 10) | darwin/arm64, Apple M4 Pro, go1.27.1 | 1,794,975 (~1.8 ms) | 2,502,945 | 32,292 | `go test ./internal/lsp -run '^$' -bench BenchmarkDiagnostics -benchtime=20x -benchmem` |
+
+Target: well under the old 50ms budget (about 28× margin here).

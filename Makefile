@@ -17,7 +17,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: apicheck build test race lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean
+.PHONY: apicheck bench verify-install build test race lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -49,8 +49,8 @@ conformance: ## Run the Hurl conformance suite against SONDE_CONFORMANCE_BIN (de
 conformance-update: ## Rerun the conformance suite and rewrite internal/conformance/manifest.yaml (CONFORMANCE_ALLOW_DEMOTE=1 to allow demotions)
 	SONDE_CONFORMANCE=1 SONDE_CONFORMANCE_UPDATE=1 CONFORMANCE_ALLOW_DEMOTE=$(CONFORMANCE_ALLOW_DEMOTE) go test ./internal/conformance -count=1 -v -timeout 60m
 
-snapshot: ## Local GoReleaser snapshot build into dist/
-	goreleaser release --snapshot --clean
+snapshot: ## Local GoReleaser snapshot build into dist/ (sign/sbom need cosign/syft, installed only in CI's release job)
+	goreleaser release --snapshot --clean --skip=sign,sbom
 
 license-check: headers licenses ## SPDX headers + dependency license allowlist
 
@@ -67,6 +67,12 @@ docs: ## Regenerate docs/compat.md and docs/cli from the command tree
 
 apicheck: $(BIN)/apidiff ## Fail on incompatible public API changes since .api-baseline (BASE=ref to override)
 	scripts/apicheck.sh $(BASE)
+
+bench: ## Local benchmarks vs other installed HTTP runners (report-only; see docs/benchmarks.md)
+	scripts/bench.sh
+
+verify-install: ## Verify a published release installs and verifies (VERSION=vX.Y.Z)
+	scripts/verify-install.sh $(VERSION)
 
 tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses $(BIN)/apidiff ## Install pinned tools into ./bin
 

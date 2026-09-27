@@ -2,6 +2,13 @@
 version: 2
 project_name: sonde
 
+# editors/vscode/v* tags (release-vscode.yml) share this repo's tag
+# namespace; without this, `git describe`/changelog range-finding can pick
+# one as the CLI's "previous tag", truncating the changelog.
+git:
+  ignore_tags:
+    - "editors/vscode/*"
+
 builds:
   - id: sonde
     main: ./cmd/sonde
@@ -33,11 +40,27 @@ archives:
 checksum:
   name_template: checksums.txt
 
+sboms:
+  - id: default
+    artifacts: archive
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
+  groups:
+    - title: "Features"
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "Bug fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "Performance"
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: "Others"
+      order: 999
   filters:
     exclude:
       - "^docs:"
@@ -45,14 +68,57 @@ changelog:
       - "^chore:"
 
 release:
-  # Not templatable. Every v0.x release is a pre-release; Phase 10 switches
-  # this to "auto" so only tags like v1.2.0-rc.1 are marked pre-release.
-  prerelease: "true"
+  # Only a version with a semver prerelease part (e.g. v1.0.0-rc.1) is
+  # marked as a GitHub prerelease; v1.0.0 and later final tags are not.
+  prerelease: auto
 
-# Enabled in Phase 10 (distribution):
-# homebrew_casks:
-#   - repository: { owner: nhtera, name: homebrew-tap }
-# scoops:
-#   - repository: { owner: nhtera, name: scoop-bucket }
-# signs:
-#   - artifacts: checksum
+# Keyless signing via GitHub Actions OIDC: no long-lived key, verified
+# against the workflow identity (see docs/release.md). Only the checksums
+# file is signed; every archive is verified against it.
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+
+# Pre-release tags (e.g. v1.0.0-rc.1) publish to the staging tap/bucket so a
+# rehearsal never touches the repos real users install from; final tags
+# publish to the production tap/bucket. `.Prerelease` is the semver
+# prerelease part (e.g. "rc.1"), empty string for a final tag.
+homebrew_casks:
+  - name: sonde
+    homepage: "https://github.com/nhtera/sonde"
+    description: "A single-binary HTTP file runner and testing CLI, LSP and VS Code extension"
+    license: Apache-2.0
+    directory: Casks
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+    repository:
+      owner: nhtera
+      name: "{{ if .Prerelease }}homebrew-tap-staging{{ else }}homebrew-tap{{ end }}"
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/sonde"]
+          end
+
+scoops:
+  - name: sonde
+    homepage: "https://github.com/nhtera/sonde"
+    description: "A single-binary HTTP file runner and testing CLI, LSP and VS Code extension"
+    license: Apache-2.0
+    directory: bucket
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+    repository:
+      owner: nhtera
+      name: "{{ if .Prerelease }}scoop-bucket-staging{{ else }}scoop-bucket{{ end }}"
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"

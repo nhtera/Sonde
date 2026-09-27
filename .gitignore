@@ -19,3 +19,4 @@ testdata/conformance/hurl/**/__pycache__/
 
 # Agent config and memory stay private
 /.claude/
+.env.*

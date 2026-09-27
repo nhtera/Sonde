@@ -1,0 +1,76 @@
+name: bench
+
+# Report-only: numbers are informative, never a merge gate. Runs weekly and
+# on demand.
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "17 6 * * 1" # Monday 06:17 UTC
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.27.1" # keep in sync with ci.yml
+  HYPERFINE_VERSION: "1.20.0"
+  HURL_VERSION: "8.0.1"
+  XH_VERSION: "0.26.2"
+  NEWMAN_VERSION: "6.2.2"
+  BRUNO_CLI_VERSION: "4.2.0"
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    continue-on-error: true # numbers only; a comparison tool install hiccup must not go red
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      - name: Install hyperfine
+        run: |
+          curl -fsSL -o /tmp/hyperfine.tar.gz \
+            "https://github.com/sharkdp/hyperfine/releases/download/v${HYPERFINE_VERSION}/hyperfine-v${HYPERFINE_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          tar -xzf /tmp/hyperfine.tar.gz -C /tmp
+          install -m 0755 "/tmp/hyperfine-v${HYPERFINE_VERSION}-x86_64-unknown-linux-gnu/hyperfine" /usr/local/bin/hyperfine
+
+      - name: Install hurl
+        run: |
+          curl -fsSL -o /tmp/hurl.tar.gz \
+            "https://github.com/Orange-OpenSource/hurl/releases/download/${HURL_VERSION}/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          tar -xzf /tmp/hurl.tar.gz -C /tmp
+          install -m 0755 "/tmp/hurl-${HURL_VERSION}-x86_64-unknown-linux-gnu/hurl" /usr/local/bin/hurl
+
+      - name: Install xh
+        run: |
+          curl -fsSL -o /tmp/xh.tar.gz \
+            "https://github.com/ducaale/xh/releases/download/v${XH_VERSION}/xh-v${XH_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          tar -xzf /tmp/xh.tar.gz -C /tmp
+          install -m 0755 "/tmp/xh-v${XH_VERSION}-x86_64-unknown-linux-musl/xh" /usr/local/bin/xh
+
+      - name: Install newman and bru (Bruno CLI)
+        run: |
+          npm install -g "newman@${NEWMAN_VERSION}" "@usebruno/cli@${BRUNO_CLI_VERSION}"
+
+      - name: Run scripts/bench.sh
+        id: bench
+        run: |
+          scripts/bench.sh bench-results.md
+          {
+            echo '## CLI benchmark'
+            echo
+            cat bench-results.md
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: bench-results
+          path: bench-results.md
+          if-no-files-found: warn
