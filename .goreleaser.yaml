@@ -85,10 +85,10 @@ signs:
       - "--yes"
     artifacts: checksum
 
-# Pre-release tags (e.g. v1.0.0-rc.1) publish to the staging tap/bucket so a
-# rehearsal never touches the repos real users install from; final tags
-# publish to the production tap/bucket. `.Prerelease` is the semver
-# prerelease part (e.g. "rc.1"), empty string for a final tag.
+# The tap and bucket are shared with other nhtera tools. Pre-release tags
+# (e.g. v1.0.0-rc.1) publish to them too, and the next tag overwrites them.
+# The bucket keeps its manifests at the root: a bucket/ directory would hide
+# the other tools' manifests from scoop.
 homebrew_casks:
   - name: sonde
     homepage: "https://github.com/nhtera/sonde"
@@ -100,7 +100,7 @@ homebrew_casks:
       email: 41898282+github-actions[bot]@users.noreply.github.com
     repository:
       owner: nhtera
-      name: "{{ if .Prerelease }}homebrew-tap-staging{{ else }}homebrew-tap{{ end }}"
+      name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     hooks:
       post:
@@ -114,11 +114,10 @@ scoops:
     homepage: "https://github.com/nhtera/sonde"
     description: "A single-binary HTTP file runner and testing CLI, LSP and VS Code extension"
     license: Apache-2.0
-    directory: bucket
     commit_author:
       name: github-actions[bot]
       email: 41898282+github-actions[bot]@users.noreply.github.com
     repository:
       owner: nhtera
-      name: "{{ if .Prerelease }}scoop-bucket-staging{{ else }}scoop-bucket{{ end }}"
+      name: scoop-bucket
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"

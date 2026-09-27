@@ -9,8 +9,8 @@
 #
 # Usage:   scripts/verify-install.sh [VERSION]
 # Version: positional arg, or $SONDE_VERIFY_VERSION, e.g. v1.0.0 or
-#          v1.0.0-rc.1 (a "-" after the numeric part marks a pre-release,
-#          which installs from the *-staging tap/bucket).
+#          v1.0.0-rc.1. The tap and bucket hold the latest tag, pre-release
+#          or not: verify right after publishing.
 # Env:
 #   SONDE_VERIFY_REPO         "owner/repo" (default: nhtera/sonde)
 #   SONDE_VERIFY_SKIP_BREW    set to skip the brew step
@@ -31,11 +31,6 @@ fi
 REPO="${SONDE_VERIFY_REPO:-nhtera/sonde}"
 # .Version in the GoReleaser templates: the tag without its leading "v".
 PLAIN_VERSION="${VERSION#v}"
-
-case "$VERSION" in
-*-*) PRERELEASE=1 ;;
-*) PRERELEASE=0 ;;
-esac
 
 fail=0
 note() { echo "==> $*"; }
@@ -73,7 +68,7 @@ linux) GOOS=linux ;;
 windows) GOOS=windows ;;
 esac
 
-note "platform=$PLATFORM arch=$GOARCH version=$VERSION prerelease=$PRERELEASE repo=$REPO"
+note "platform=$PLATFORM arch=$GOARCH version=$VERSION repo=$REPO"
 
 check_version_output() {
   # $1: label, $2: path to the sonde binary (or bare "sonde" on PATH)
@@ -105,11 +100,7 @@ elif [ "$PLATFORM" = windows ]; then
 elif ! command -v brew >/dev/null 2>&1; then
   skip "brew (not installed on this machine)"
 else
-  if [ "$PRERELEASE" -eq 1 ]; then
-    tap="nhtera/tap-staging"
-  else
-    tap="nhtera/tap"
-  fi
+  tap="nhtera/tap"
   note "brew install $tap/sonde"
   if brew install "$tap/sonde"; then
     check_version_output "brew" "$(brew --prefix)/bin/sonde"
@@ -155,13 +146,8 @@ $1
       powershell.exe -NoProfile -NonInteractive -Command "$body"
     fi
   }
-  if [ "$PRERELEASE" -eq 1 ]; then
-    bucket_repo="https://github.com/nhtera/scoop-bucket-staging"
-    bucket_name="sonde-staging"
-  else
-    bucket_repo="https://github.com/nhtera/scoop-bucket"
-    bucket_name="sonde"
-  fi
+  bucket_repo="https://github.com/nhtera/scoop-bucket"
+  bucket_name="nhtera"
   note "scoop bucket add $bucket_name $bucket_repo && scoop install $bucket_name/sonde"
   if ! pwsh_run 'Get-Command scoop -ErrorAction SilentlyContinue' | grep -q scoop; then
     note "installing scoop"
