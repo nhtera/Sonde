@@ -16,7 +16,6 @@ import (
 // one Parse would return.
 func ParseAll(name string, src []byte, d Dialect, limit int) (f *File, errs []*Error) {
 	_ = name
-	_ = d
 	f = &File{}
 	if len(src) > MaxFileSize {
 		return f, []*Error{errAt(Pos{Line: 1, Col: 1}, false, ErrFileTooLarge, "64 MiB")}
@@ -24,7 +23,7 @@ func ParseAll(name string, src []byte, d Dialect, limit int) (f *File, errs []*E
 	if !utf8.Valid(src) {
 		return f, []*Error{errAt(invalidUTF8Pos(src), false, ErrInvalidUTF8, "")}
 	}
-	r := newReader(string(src))
+	r := newReader(string(src), d)
 	if strings.HasPrefix(r.src, utf8BOM) {
 		f.BOM = true
 		r.pos.Offset = len(utf8BOM)

@@ -122,11 +122,12 @@ const (
 	SectionOptions
 	SectionCaptures
 	SectionAsserts
+	SectionMessages // [SondeMessages], .sonde only
 )
 
 // Section is `[Name]` followed by its items. Only the slice matching Kind is
 // set: KeyValues (query, form, cookies, basic auth — at most one), Multipart,
-// Options, Captures or Asserts.
+// Options, Captures, Asserts or Messages.
 type Section struct {
 	LineTerminators []*LineTerminator
 	Space0          Whitespace
@@ -140,6 +141,38 @@ type Section struct {
 	Options   []*Option
 	Captures  []*Capture
 	Asserts   []*Assert
+	Messages  []*MessageStep
+}
+
+// StepKind identifies a [SondeMessages] step; String returns its keyword.
+type StepKind int
+
+// Message step kinds.
+const (
+	StepSend StepKind = iota
+	StepReceive
+	StepClose
+)
+
+var stepNames = [...]string{"send", "receive", "close"}
+
+func (k StepKind) String() string { return stepNames[k] }
+
+// MessageStep is one step of a [SondeMessages] section: `send: body`,
+// `receive`, `receive: N`, `close` or `close: CODE`. Colon is false for a
+// bare `receive` or `close`, whose Space1, Space2 and Value are then empty.
+type MessageStep struct {
+	LineTerminators []*LineTerminator
+	Space0          Whitespace
+	Kind            StepKind
+	Space1          Whitespace
+	Colon           bool
+	Space2          Whitespace
+	// Value is a Bytes for send, a *Number or *Placeholder for receive and
+	// close, nil without a value.
+	Value           Node
+	Span            Span // from the step keyword to the end of its value
+	LineTerminator0 *LineTerminator
 }
 
 // MultipartParam is a *KeyValue or a *FilenameParam.
@@ -224,11 +257,12 @@ const (
 	QueryCertificate // Arg: *CertificateAttribute
 	QueryIP
 	QueryRedirects
+	QuerySondeStream // Arg: nil or *StreamField; .sonde only
 )
 
 var queryNames = [...]string{"status", "version", "url", "header", "cookie", "body", "xpath",
 	"jsonpath", "regex", "variable", "duration", "bytes", "rawbytes", "sha256", "md5",
-	"certificate", "ip", "redirects"}
+	"certificate", "ip", "redirects", "sondeStream"}
 
 func (k QueryKind) String() string { return queryNames[k] }
 
@@ -254,6 +288,12 @@ type CookieAttribute struct {
 	Space0 Whitespace
 	Name   string // as written; matched case-insensitively
 	Space1 Whitespace
+}
+
+// StreamField is the quoted field of a sondeStream query, e.g. "event"
+// (stored without quotes).
+type StreamField struct {
+	Name string
 }
 
 // CertificateAttribute is the quoted field of a certificate query, e.g.
@@ -625,6 +665,7 @@ func (*VariableDefinition) node()   {}
 func (*Identifier) node()           {}
 func (*CookiePath) node()           {}
 func (*CertificateAttribute) node() {}
+func (*StreamField) node()          {}
 
 func (*TemplateString) templateElement() {}
 func (*Placeholder) templateElement()    {}

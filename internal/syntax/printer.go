@@ -172,7 +172,23 @@ func (p *printer) sections(sections []*Section) {
 		for _, a := range s.Asserts {
 			p.assert(a)
 		}
+		for _, m := range s.Messages {
+			p.messageStep(m)
+		}
 	}
+}
+
+func (p *printer) messageStep(s *MessageStep) {
+	p.lineTerminators(s.LineTerminators)
+	p.ws(s.Space0, "")
+	p.WriteString(s.Kind.String())
+	if s.Colon {
+		p.ws(s.Space1, "")
+		p.WriteByte(':')
+		p.ws(s.Space2, " ")
+		p.node(s.Value)
+	}
+	p.lineTerminator(s.LineTerminator0)
 }
 
 func (p *printer) filenameParam(fp *FilenameParam) {
@@ -375,6 +391,8 @@ func (p *printer) node(n Node) {
 	case *CookiePath:
 		p.cookiePath(n)
 	case *CertificateAttribute:
+		p.WriteString(`"` + n.Name + `"`)
+	case *StreamField:
 		p.WriteString(`"` + n.Name + `"`)
 	}
 }

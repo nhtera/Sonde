@@ -9,8 +9,9 @@ The base fields below are byte-compatible with Hurl 8.0.1's own `--json`
 export — a Hurl parser or dashboard built against that schema reads a
 Sonde result unchanged. A `sonde` key, on a result or on an entry, holds
 Sonde-only data that has no Hurl equivalent (the data row of a `--data`
-run, the contract findings of `--openapi`; later streams, gRPC); it is
-additive within a major version and absent when empty.
+run, the contract findings of `--openapi`, the messages of a streamed
+entry; later gRPC); it is additive within a major version and absent when
+empty.
 
 Every string value in a result — a URL, header, cookie, capture, assert
 message, curl command, and so on — has already been redacted with the
@@ -51,7 +52,7 @@ the row's secrets: a secret can never appear in a report in the clear.
 | `calls` | `Call[]` | One HTTP exchange per call; a redirect produces more than one. |
 | `captures` | `Capture[]` | Variables captured by this attempt. |
 | `asserts` | `Assert[]` | One per implicit or explicit assert, in source order; with `--openapi`, each contract violation adds a failed assert at the status line. |
-| `sonde` | object, optional | Sonde-only data, absent when there is none. `sonde.contract.violations` (`Violation[]`) lists the contract findings of the attempt's final response (`--openapi`); absent when it conforms. |
+| `sonde` | object, optional | Sonde-only data, absent when there is none. `sonde.contract.violations` (`Violation[]`) lists the contract findings of the attempt's final response (`--openapi`); absent when it conforms. `sonde.stream` (`Stream`) holds the messages of a streamed entry (Server-Sent Events or WebSocket, `.sonde` files only). |
 
 ### `Violation`
 
@@ -63,6 +64,31 @@ the row's secrets: a secret can never appear in a report in the clear.
 | `spec_pointer` | string | the rule is located in the spec: a JSON pointer fragment, e.g. `"#/paths/~1pets/get/responses/200"` |
 | `instance_path` | string | the finding is located in the response: a JSON pointer into the body (`"/0/name"`) or `"header <Name>"` |
 | `warning` | bool (`true` or omitted) | the finding does not fail the entry (a request no operation matches, without `--openapi-strict`) |
+
+### `Stream`
+
+What a streamed entry exchanged after its response headers
+([guides/streaming.md](guides/streaming.md)).
+
+| Field | Type | Description |
+|---|---|---|
+| `protocol` | string | `sse` or `websocket` (later `grpc`). |
+| `stop_reason` | string, optional | Why the stream ended: `count`, `timeout`, `max-bytes`, `closed` (by the server) or `script` (every WebSocket step ran). Absent when the stream failed. |
+| `sent` | integer | Messages sent (WebSocket). |
+| `received` | integer | Events or messages received. |
+| `messages` | `StreamMessage[]` | Every message, in order. They are written inline, unlike bodies; `sonde-stream-max-bytes` bounds their size. |
+
+### `StreamMessage`
+
+| Field | Type | Present when |
+|---|---|---|
+| `direction` | string | always: `sent` or `received` |
+| `data` | string | always: the text, or base64 when `binary` is set (redacted before encoding) |
+| `binary` | bool (`true` or omitted) | a WebSocket binary message |
+| `event` | string | an SSE event (`message` when the event names none) |
+| `id` | string | an SSE event after an `id` field |
+| `retry` | integer | an SSE event with a valid `retry` field |
+| `time` | integer | always: milliseconds since the response headers |
 
 ### `Call`
 

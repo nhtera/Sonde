@@ -6,6 +6,7 @@ package lsp
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/nhtera/sonde/internal/syntax"
@@ -82,6 +83,22 @@ func TestVariableUsesMatchesReflectionWalk(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("name %d: variableUses=%q, uses=%q", i, got[i], want[i])
 		}
+	}
+}
+
+// TestVariableUsesSonde runs the same cross-check on the Sonde extensions.
+func TestVariableUsesSonde(t *testing.T) {
+	src := "GET ws://{{host}}/ws\n[Options]\nsonde-stream-timeout: {{t}}\n[SondeMessages]\n" +
+		"send: {\"a\": \"{{json}}\"}\nsend: `{{text}}`\nsend: file,{{f}};\nreceive: {{n}}\nclose: {{code}}\n" +
+		"HTTP 101\n[Asserts]\nsondeStream nth {{i}} == \"{{v}}\"\n"
+	d := newDocument("file:///w/fixture.sonde", 1, src, true)
+	if len(d.errs) != 0 {
+		t.Fatalf("fixture has parse errors: %v", d.errs)
+	}
+	got := sortedUseNames(variableUses(d.file))
+	want := sortedUseNames(usesByReflection(d.file))
+	if strings.Join(got, ",") != strings.Join(want, ",") || len(got) != 9 {
+		t.Errorf("variableUses %v, uses %v", got, want)
 	}
 }
 

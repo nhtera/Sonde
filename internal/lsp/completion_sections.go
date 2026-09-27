@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nhtera/sonde/internal/docs"
+	"github.com/nhtera/sonde/internal/syntax"
 )
 
 // notDoc and redactDoc document the two bare keywords that are not table
@@ -57,7 +58,13 @@ var optionShapes = map[string]optionShape{
 	"retry-interval": shapeDuration, "skip": shapeBoolean, "unix-socket": shapeString,
 	"user": shapeString, "variable": shapeVariable, "verbose": shapeBoolean,
 	"verbosity": shapeVerbosity, "very-verbose": shapeBoolean,
+	// Sonde extensions, .sonde files only.
+	"sonde-stream-count": shapeNatural, "sonde-stream-max-bytes": shapeNatural,
+	"sonde-stream-timeout": shapeDuration,
 }
+
+// sonde reports whether d accepts the Sonde extensions.
+func sonde(d *document) bool { return d.dialect == syntax.DialectSonde }
 
 // completeSectionName proposes section names right after "[" at the start
 // of a line: request sections, or response sections once the response's
@@ -70,6 +77,8 @@ func (s *Server) completeSectionName(d *document, line, lineStart int, text stri
 	names := requestSectionNames
 	if response {
 		names = responseSectionNames
+	} else if sonde(d) {
+		names = append(append([]string(nil), names...), "SondeMessages")
 	}
 	items := make([]CompletionItem, len(names))
 	for i, n := range names {
@@ -105,7 +114,7 @@ func (s *Server) completeAssertOrCapture(d *document, lineStart, lineEnd, offset
 	pos := segmentPosition(segs, offset)
 	rng := d.lines.rangeOf(replaceStart(segs, pos, offset), offset)
 	if pos == 0 {
-		return s.queryItems(rng)
+		return s.queryItems(rng, sonde(d))
 	}
 	items := s.filterItems(rng)
 	if capture {
@@ -127,6 +136,11 @@ func (s *Server) completeOption(d *document, lineStart, lineEnd, offset int, tex
 		items := make([]CompletionItem, 0, len(s.table.Options))
 		for _, e := range s.table.Options {
 			items = append(items, s.tableItem(e, kindProperty, rng, e.Name+": "))
+		}
+		if sonde(d) {
+			for _, e := range s.table.Sonde.Options {
+				items = append(items, s.tableItem(e, kindProperty, rng, e.Name+": "))
+			}
 		}
 		return items
 	}
@@ -212,10 +226,33 @@ func externalVariableItem(name string, src varSource, pv *projectVars, rng Range
 	}
 }
 
-func (s *Server) queryItems(rng Range) []CompletionItem {
+func (s *Server) queryItems(rng Range, sonde bool) []CompletionItem {
 	items := make([]CompletionItem, 0, len(s.table.Queries))
 	for _, e := range s.table.Queries {
 		items = append(items, s.queryItem(e, rng))
+	}
+	if sonde {
+		for _, e := range s.table.Sonde.Queries {
+			items = append(items, s.tableItem(e, kindProperty, rng, e.Name))
+		}
+	}
+	return items
+}
+
+// completeStep proposes a [SondeMessages] step name at the start of a line.
+func (s *Server) completeStep(d *document, lineStart, offset int, text string, col int) []CompletionItem {
+	start, ok := atFirstToken(text, col)
+	if !ok {
+		return []CompletionItem{}
+	}
+	rng := d.lines.rangeOf(lineStart+start, offset)
+	items := make([]CompletionItem, 0, len(s.table.Sonde.Steps))
+	for _, e := range s.table.Sonde.Steps {
+		insert := e.Name
+		if e.Name == "send" {
+			insert += ": "
+		}
+		items = append(items, s.tableItem(e, kindKeyword, rng, insert))
 	}
 	return items
 }

@@ -23,6 +23,7 @@ type entryOptions struct {
 	repeat        *int // nil: once, -1: forever
 	skip          bool
 	output        *outputTarget
+	stream        streamOptions
 }
 
 // outputTarget is the `output` option: a file or "-" (standard output).
@@ -242,6 +243,8 @@ func (u *unit) entryOptions(e *syntax.Entry) (*entryOptions, error) {
 			err = u.variableOption(o)
 		case "verbose", "very-verbose":
 			_, err = u.boolOption(o)
+		case "sonde-stream-count", "sonde-stream-max-bytes", "sonde-stream-timeout":
+			err = u.streamOption(o, &eo.stream)
 		}
 		if err != nil {
 			return nil, err

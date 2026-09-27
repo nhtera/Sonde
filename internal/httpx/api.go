@@ -7,6 +7,7 @@
 package httpx
 
 import (
+	"io"
 	"time"
 
 	"github.com/nhtera/sonde/exchange"
@@ -140,6 +141,13 @@ type Options struct {
 	// (cacert, cert, key, pinnedpubkey, unix-socket): they are read
 	// relative to the working directory instead of through the sandbox.
 	LocalFiles map[string]bool
+	// ReadStream, when set, reads the body of the final response instead
+	// of reading it whole (a streamed entry). body is decoded (content
+	// codings removed); the response keeps the bytes as received.
+	// MaxFilesize does not apply. stop cancels the request, so a pending
+	// read returns an error. When it fails, Execute returns the call
+	// with the error.
+	ReadStream func(body io.Reader, stop func()) error
 }
 
 // Call is one HTTP exchange of an entry; redirects produce several.

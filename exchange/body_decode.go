@@ -5,25 +5,18 @@ package exchange
 
 import (
 	"bytes"
-	"compress/gzip"
-	"compress/zlib"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/andybalholm/brotli"
-	"github.com/klauspost/compress/zstd"
-
 	"github.com/nhtera/sonde/internal/charset"
+	"github.com/nhtera/sonde/internal/codec"
 )
 
 // DefaultMaxDecodedBody is the decoded (decompressed) body size limit used
 // when Response.MaxDecodedBody is zero.
 const DefaultMaxDecodedBody = 512 << 20
-
-// zstdMaxWindow bounds the memory a zstd frame may ask for (the limit
-// RFC 8878 recommends for decoders).
-const zstdMaxWindow = 8 << 20
 
 // BodyErrorKind classifies body decoding errors.
 type BodyErrorKind int
@@ -111,29 +104,15 @@ func (r *Response) DecodedBody() ([]byte, error) {
 }
 
 func decode(coding string, data []byte, limit int64) ([]byte, error) {
-	var rd io.Reader
-	var err error
-	switch coding {
-	case "identity":
+	if coding == "identity" {
 		return data, nil
-	case "br":
-		rd = brotli.NewReader(bytes.NewReader(data))
-	case "gzip":
-		rd, err = gzip.NewReader(bytes.NewReader(data))
-	case "deflate":
-		rd, err = zlib.NewReader(bytes.NewReader(data))
-	case "zstd":
-		var d *zstd.Decoder
-		d, err = zstd.NewReader(bytes.NewReader(data), zstd.WithDecoderConcurrency(1),
-			zstd.WithDecoderMaxWindow(zstdMaxWindow))
-		if err == nil {
-			defer d.Close()
-			rd = d
-		}
-	default:
+	}
+	rd, release, err := codec.NewReader(coding, bytes.NewReader(data))
+	defer release()
+	if errors.Is(err, codec.ErrUnsupported) {
 		return nil, &BodyError{Kind: UnsupportedEncoding, Name: coding}
 	}
-	fail := &BodyError{Kind: DecompressFailed, Name: codingName(coding)}
+	fail := &BodyError{Kind: DecompressFailed, Name: codec.Name(coding)}
 	if err != nil {
 		return nil, fail
 	}
@@ -145,16 +124,6 @@ func decode(coding string, data []byte, limit int64) ([]byte, error) {
 		return nil, &BodyError{Kind: BodyTooLarge, Limit: limit}
 	}
 	return out, nil
-}
-
-func codingName(c string) string {
-	if c == "deflate" {
-		return "zlib"
-	}
-	if c == "br" {
-		return "brotli"
-	}
-	return c
 }
 
 // Charset returns the charset parameter of the Content-Type header.

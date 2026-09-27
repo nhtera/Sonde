@@ -1027,6 +1027,38 @@ config:
     status: "supported"
     doc: "same as --verbose"
 
+# Sonde extensions: valid only in .sonde files, never checked against the
+# Hurl inventory (docs/decisions/0004-streaming-protocols.md).
+sonde:
+  sections:
+    - name: "SondeMessages"
+      status: "supported"
+      doc: "makes the entry a WebSocket exchange: ordered send, receive and close steps"
+  steps:
+    - name: "send"
+      status: "supported"
+      doc: "sends one message: JSON, a backtick or multiline string or XML as a text frame; base64, hex or file as a binary frame"
+    - name: "receive"
+      status: "supported"
+      doc: "waits for the next message, or the next N with `receive: N`"
+    - name: "close"
+      status: "supported"
+      doc: "sends a close frame (1000, or `close: CODE`) and waits for the server's"
+  options:
+    - name: "sonde-stream-count"
+      status: "supported"
+      doc: "stops an event stream after N events"
+    - name: "sonde-stream-max-bytes"
+      status: "supported"
+      doc: "stops a stream after N bytes (default 10485760); a WebSocket fails beyond it"
+    - name: "sonde-stream-timeout"
+      status: "supported"
+      doc: "stops an event stream after this time (default 10s); a WebSocket `receive` still waiting then fails"
+  queries:
+    - name: "sondeStream"
+      status: "supported"
+      doc: "the data of each event or message received, as a list; `sondeStream \"event\"`, `\"id\"`, `\"retry\"` (SSE) or `\"type\"` (WebSocket) select another field"
+
 differences:
   - area: "Syntax"
     input: "Regex literal errors other than an invalid `{…}` repetition"

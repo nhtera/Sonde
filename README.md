@@ -101,6 +101,8 @@ Full walkthrough: [docs/getting-started.md](docs/getting-started.md).
 - **Mock server.** `sonde mock` serves a spec's examples, or data
   generated from its schemas, before the backend exists —
   [docs/guides/mock-server.md](docs/guides/mock-server.md).
+- **Streaming.** Test Server-Sent Events and WebSocket exchanges in
+  `.sonde` files — [docs/guides/streaming.md](docs/guides/streaming.md).
 - **Data-driven runs.** Run a file once per CSV/JSON row —
   [docs/guides/data-driven.md](docs/guides/data-driven.md).
 - **Environments.** Named variables and secrets in `sonde.yaml` —

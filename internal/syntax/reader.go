@@ -16,19 +16,23 @@ type reader struct {
 	end int    // exclusive byte limit of this reader
 	pos Pos
 
+	// sonde is set for the .sonde dialect: Sonde-only constructs parse,
+	// and "did you mean" suggestions may name them.
+	sonde bool
+
 	// scratch is reused to collect characters of a string literal; only
 	// for rules that parse nothing else while collecting.
 	scratch []encodedChar
 }
 
-func newReader(src string) *reader {
-	return &reader{src: src, end: len(src), pos: Pos{Line: 1, Col: 1}}
+func newReader(src string, d Dialect) *reader {
+	return &reader{src: src, end: len(src), pos: Pos{Line: 1, Col: 1}, sonde: d == DialectSonde}
 }
 
 // subReader reads the file range [from.Offset, end) starting at from; used
 // to re-parse a slice (placeholder content, cookie paths) in place.
 func (r *reader) subReader(from Pos, end int) *reader {
-	return &reader{src: r.src, end: end, pos: from}
+	return &reader{src: r.src, end: end, pos: from, sonde: r.sonde}
 }
 
 func (r *reader) isEOF() bool { return r.pos.Offset >= r.end }

@@ -87,6 +87,35 @@ type htmlEntry struct {
 	Asserts       []Assert
 	Captures      []Capture
 	RuntimeErrors []string
+	Stream        *htmlStream
+}
+
+// htmlStream is a stream transcript, cut to its first messages.
+type htmlStream struct {
+	Stream
+	Omitted int // messages not shown
+}
+
+// Transcript limits of the HTML report.
+const (
+	htmlStreamMaxMessages = 100
+	htmlStreamMaxData     = 2 << 10
+)
+
+// newHTMLStream truncates a stream (already redacted) for display.
+func newHTMLStream(s *Stream) *htmlStream {
+	hs := &htmlStream{Stream: *s}
+	if len(s.Messages) > htmlStreamMaxMessages {
+		hs.Messages = s.Messages[:htmlStreamMaxMessages]
+		hs.Omitted = len(s.Messages) - htmlStreamMaxMessages
+	}
+	hs.Messages = append([]StreamMessage(nil), hs.Messages...)
+	for i, m := range hs.Messages {
+		if len(m.Data) > htmlStreamMaxData {
+			hs.Messages[i].Data = truncateUTF8(m.Data, htmlStreamMaxData) + fmt.Sprintf(" ... (%d bytes)", len(m.Data))
+		}
+	}
+	return hs
 }
 
 // htmlUnitData is a unit page's (store/<id>.html) template data.
@@ -177,6 +206,9 @@ func writeHTMLUnitPage(storeDir, id string, res *engine.UnitResult, redact func(
 					he.RuntimeErrors = append(he.RuntimeErrors, redact(e.Render()))
 				}
 			}
+		}
+		if je.Sonde != nil && je.Sonde.Stream != nil {
+			he.Stream = newHTMLStream(je.Sonde.Stream)
 		}
 		entries[i] = he
 	}

@@ -67,26 +67,24 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 	}
 	opts := eo.http
 	opts.Verbose = u.verbosity >= Verbose
-	res.Curl = u.curlCommand(spec, &opts, eo.output)
+	res.Curl = u.entryCurl(e, spec, &opts, eo)
 	u.logRequest(spec, res.Curl)
 
-	calls, err := u.client.Execute(ctx, spec, &opts)
+	calls, rerr := u.send(ctx, e, index, spec, &opts, eo)
 	for _, c := range calls {
 		res.Calls = append(res.Calls, Call(c))
 		res.TransferDuration += c.Timings.Total
 	}
-	if err != nil {
-		e := runerr.New(e.Request.URL.Span, runerr.HTTP, false)
-		var he *httpx.Error
-		if errors.As(err, &he) {
-			e.Value, e.Reason = he.Description, he.Msg
-		} else {
-			e.Value, e.Reason = "HTTP connection", err.Error()
+	if rerr != nil {
+		if rerr.Kind == runerr.Stream { // a WebSocket that failed after its handshake
+			u.logResponses(res.Calls)
+			u.logStream(res.Calls)
 		}
-		res.Errors = append(res.Errors, &Error{run: e})
+		res.Errors = append(res.Errors, &Error{run: rerr})
 		return res
 	}
 	u.logResponses(res.Calls)
+	u.logStream(res.Calls)
 	responses := make([]*exchange.Response, len(calls))
 	for i, c := range calls {
 		responses[i] = c.Response
@@ -455,9 +453,11 @@ func (u *unit) logRequest(spec *httpx.RequestSpec, curl string) {
 		}
 	}
 	u.debug("")
-	u.debug("Request can be run with the following curl command:")
-	u.debug(curl)
-	u.debug("")
+	if curl != "" {
+		u.debug("Request can be run with the following curl command:")
+		u.debug(curl)
+		u.debug("")
+	}
 }
 
 // logResponses logs the request and response headers of every call.

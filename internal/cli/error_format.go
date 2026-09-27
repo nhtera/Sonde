@@ -38,8 +38,10 @@ func writeLongFormatErrors(stderr io.Writer, res *engine.UnitResult, color bool)
 		}
 		if len(e.Calls) > 0 {
 			call := e.Calls[len(e.Calls)-1]
-			writeCurlHint(stderr, redact(e.Curl), color)
-			fmt.Fprintln(stderr)
+			if e.Curl != "" { // none for a WebSocket entry
+				writeCurlHint(stderr, redact(e.Curl), color)
+				fmt.Fprintln(stderr)
+			}
 			if call.Response != nil {
 				writeStatusAndHeaders(stderr, call.Response, color, redact)
 				writeLongFormatBody(stderr, call.Response, redact, hasSecrets)

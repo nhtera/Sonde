@@ -9,6 +9,7 @@ require (
 	github.com/antchfx/htmlquery v1.3.6
 	github.com/antchfx/xmlquery v1.5.1
 	github.com/antchfx/xpath v1.3.8
+	github.com/coder/websocket v1.8.15
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/klauspost/compress v1.20.1
 	github.com/spf13/cobra v1.10.2

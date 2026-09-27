@@ -11,8 +11,9 @@ import (
 )
 
 // Dialect selects the accepted language: .hurl files are strictly the
-// standard grammar; .sonde files may later gain Sonde-prefixed extensions.
-// Both accept the same grammar today.
+// standard grammar; .sonde files add the Sonde-prefixed extensions of
+// docs/decisions/0004-streaming-protocols.md ([SondeMessages],
+// sonde-stream-* options, the sondeStream query).
 type Dialect int
 
 // Dialects.
@@ -38,14 +39,13 @@ const MaxFileSize = 64 << 20
 // the first syntax error as *Error.
 func Parse(name string, src []byte, d Dialect) (*File, error) {
 	_ = name
-	_ = d // identical grammar in both dialects for now
 	if len(src) > MaxFileSize {
 		return nil, errAt(Pos{Line: 1, Col: 1}, false, ErrFileTooLarge, "64 MiB")
 	}
 	if !utf8.Valid(src) {
 		return nil, errAt(invalidUTF8Pos(src), false, ErrInvalidUTF8, "")
 	}
-	r := newReader(string(src))
+	r := newReader(string(src), d)
 	bom := strings.HasPrefix(r.src, utf8BOM)
 	if bom {
 		r.pos.Offset = len(utf8BOM)
@@ -59,7 +59,7 @@ func Parse(name string, src []byte, d Dialect) (*File, error) {
 }
 
 func invalidUTF8Pos(src []byte) Pos {
-	r := newReader(string(src))
+	r := newReader(string(src), DialectHurl)
 	for !r.isEOF() {
 		c, size := utf8.DecodeRuneInString(r.src[r.pos.Offset:])
 		if c == utf8.RuneError && size == 1 {

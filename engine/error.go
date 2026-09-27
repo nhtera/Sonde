@@ -72,6 +72,9 @@ const (
 	ErrorBinaryOutput           ErrorKind = "binary-output"
 	ErrorPossibleLoggedSecret   ErrorKind = "possible-logged-secret"
 	ErrorUnsupportedSecretType  ErrorKind = "unsupported-secret-type"
+	// ErrorStream: a WebSocket step that failed, or a sondeStream field
+	// that does not apply to the entry's protocol.
+	ErrorStream ErrorKind = "stream"
 )
 
 // errorKinds maps every runtime error kind to its public kind.
@@ -111,6 +114,7 @@ var errorKinds = [runerr.KindCount]ErrorKind{
 	runerr.FileWriteAccess:              ErrorFileWriteAccess,
 	runerr.BinaryOutput:                 ErrorBinaryOutput,
 	runerr.ContractViolation:            ErrorContractViolation,
+	runerr.Stream:                       ErrorStream,
 }
 
 // Error is an error of a run: a parse error (kind ErrorParse) or an error

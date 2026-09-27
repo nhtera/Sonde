@@ -55,6 +55,11 @@ const (
 	ErrInvalidUTF8
 	ErrFileTooLarge
 	ErrNestingTooDeep
+	// Sonde extensions.
+	ErrSondeOnly   // Arg: the construct, e.g. "section `[SondeMessages]`"
+	ErrMessageStep // Arg: step name
+	ErrStreamField // Arg: field name
+	ErrMessageValue
 )
 
 // Error is a parse error at a single position; parsing stops at the first one.
@@ -65,6 +70,9 @@ type Error struct {
 
 	// recoverable errors let combinators backtrack and try an alternative.
 	recoverable bool
+	// sonde is set when the file is a .sonde one: "did you mean" may then
+	// suggest a Sonde-only name.
+	sonde bool
 }
 
 func (e *Error) Error() string {
@@ -134,6 +142,12 @@ func (e *Error) Description() string {
 		return "Parsing XML"
 	case ErrInvalidUTF8, ErrFileTooLarge:
 		return "Reading file"
+	case ErrSondeOnly:
+		return "Parsing Sonde extension"
+	case ErrMessageStep, ErrMessageValue:
+		return "Parsing message step"
+	case ErrStreamField:
+		return "Parsing sondeStream field"
 	}
 	return "Parsing"
 }
@@ -151,7 +165,21 @@ var (
 	validRequestSections  = []string{"Query", "Form", "Multipart", "Cookies", "Options"}
 	validResponseSections = []string{"Captures", "Asserts"}
 	validDurationUnits    = []string{"ms", "s"}
+
+	// Sonde-only names, suggested only in .sonde files.
+	sondeOptions         = []string{"sonde-stream-count", "sonde-stream-max-bytes", "sonde-stream-timeout"}
+	sondeRequestSections = []string{"SondeMessages"}
+	validMessageSteps    = []string{"send", "receive", "close"}
+	validStreamFields    = []string{"data", "event", "id", "retry", "type"}
 )
+
+// suggestions returns valid, plus the Sonde-only names in a .sonde file.
+func (e *Error) suggestions(valid, sonde []string) []string {
+	if !e.sonde {
+		return valid
+	}
+	return append(append([]string(nil), valid...), sonde...)
+}
 
 // Message is the detail shown next to the caret, e.g. "expecting ':'".
 func (e *Error) Message() string {
@@ -175,7 +203,8 @@ func (e *Error) Message() string {
 	case ErrInvalidDurationUnit:
 		return "the duration unit is not valid. " + didYouMean(validDurationUnits, e.Arg, "Valid values are "+strings.Join(validDurationUnits, ", "))
 	case ErrInvalidOption:
-		return "the option name is not valid. " + didYouMean(validOptions, e.Arg, "Valid values are "+strings.Join(validOptions, ", "))
+		valid := e.suggestions(validOptions, sondeOptions)
+		return "the option name is not valid. " + didYouMean(valid, e.Arg, "Valid values are "+strings.Join(valid, ", "))
 	case ErrJSONTrailingComma:
 		return "trailing comma is not allowed"
 	case ErrJSONEmptyElement:
@@ -201,7 +230,8 @@ func (e *Error) Message() string {
 	case ErrRequestSection:
 		return "this is not a valid section for a request"
 	case ErrRequestSectionName:
-		return "the section is not valid. " + didYouMean(validRequestSections, e.Arg, "Valid values are "+strings.Join(validRequestSections, ", "))
+		valid := e.suggestions(validRequestSections, sondeRequestSections)
+		return "the section is not valid. " + didYouMean(valid, e.Arg, "Valid values are "+strings.Join(valid, ", "))
 	case ErrResponseSection:
 		return "this is not a valid section for a response"
 	case ErrResponseSectionName:
@@ -232,6 +262,14 @@ func (e *Error) Message() string {
 		return "the file is larger than " + e.Arg
 	case ErrNestingTooDeep:
 		return "nesting is deeper than " + e.Arg + " levels"
+	case ErrSondeOnly:
+		return e.Arg + " requires a .sonde file"
+	case ErrMessageStep:
+		return "the step is not valid. " + didYouMean(validMessageSteps, e.Arg, "Valid values are send, receive, close")
+	case ErrMessageValue:
+		return "expecting a message: JSON, a `text` string, a ``` multiline string, XML, base64, hex or file"
+	case ErrStreamField:
+		return "the field is not valid. " + didYouMean(validStreamFields, e.Arg, "Valid values are "+strings.Join(validStreamFields, ", "))
 	}
 	return "invalid input"
 }

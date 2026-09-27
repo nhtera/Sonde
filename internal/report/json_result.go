@@ -75,6 +75,29 @@ type Entry struct {
 // EntrySonde is the `sonde` object of an entry.
 type EntrySonde struct {
 	Contract *Contract `json:"contract,omitempty"`
+	Stream   *Stream   `json:"stream,omitempty"`
+}
+
+// Stream is what a streamed entry exchanged after its response headers:
+// Server-Sent Events or WebSocket messages.
+type Stream struct {
+	Messages   []StreamMessage `json:"messages"`
+	Protocol   string          `json:"protocol"` // "sse" or "websocket"
+	Received   int             `json:"received"`
+	Sent       int             `json:"sent"`
+	StopReason string          `json:"stop_reason,omitempty"` // absent when the stream failed
+}
+
+// StreamMessage is one message of a stream. Data is text, or base64 when
+// Binary is set.
+type StreamMessage struct {
+	Binary    bool   `json:"binary,omitempty"`
+	Data      string `json:"data"`
+	Direction string `json:"direction"` // "sent" or "received"
+	Event     string `json:"event,omitempty"`
+	ID        string `json:"id,omitempty"`
+	Retry     *int   `json:"retry,omitempty"`
+	Time      int64  `json:"time"` // milliseconds since the response headers
 }
 
 // Contract holds the contract findings of an attempt's final response.
@@ -267,7 +290,36 @@ func toEntry(e *engine.EntryResult, redact func(string) string, store BodyStore)
 		}
 		je.Sonde = &EntrySonde{Contract: c}
 	}
+	if n := len(e.Calls); n > 0 && e.Calls[n-1].Response != nil && e.Calls[n-1].Response.Stream != nil {
+		if je.Sonde == nil {
+			je.Sonde = &EntrySonde{}
+		}
+		je.Sonde.Stream = toStream(e.Calls[n-1].Response.Stream, redact)
+	}
 	return je, nil
+}
+
+func toStream(s *exchange.Stream, redact func(string) string) *Stream {
+	js := &Stream{Protocol: string(s.Protocol), StopReason: string(s.StopReason), Messages: []StreamMessage{}}
+	for _, m := range s.Messages {
+		jm := StreamMessage{
+			Binary: m.Binary, Direction: m.Direction.String(),
+			Event: redact(m.Event), ID: redact(m.ID), Retry: m.Retry, Time: m.At.Milliseconds(),
+		}
+		if m.Binary {
+			// Redacted before encoding, as a binary body is.
+			jm.Data = base64.StdEncoding.EncodeToString([]byte(redact(string(m.Data))))
+		} else {
+			jm.Data = redact(string(m.Data))
+		}
+		if m.Direction == exchange.Sent {
+			js.Sent++
+		} else {
+			js.Received++
+		}
+		js.Messages = append(js.Messages, jm)
+	}
+	return js
 }
 
 func toCall(c engine.Call, redact func(string) string, store BodyStore) (Call, error) {

@@ -89,6 +89,9 @@ const (
 	// ContractViolation: Reason, Name (instance path, optional), Value
 	// (spec pointer, optional).
 	ContractViolation
+	// Stream is a failure of a streamed entry (a WebSocket step, a
+	// sondeStream field): Value (description), Reason (message).
+	Stream
 
 	// KindCount is the number of kinds; new kinds go above it.
 	KindCount
@@ -133,7 +136,7 @@ func (e *Error) Description() string {
 	case FilterDecode, FilterDateParsing, FilterInvalidEncoding, FilterInvalidInputValue,
 		FilterInvalidInputType, FilterInvalidFormatSpecifier, FilterMissingInput:
 		return "Filter error"
-	case HTTP:
+	case HTTP, Stream:
 		return e.Value
 	case InvalidJSON, QueryInvalidJSON:
 		return "Invalid JSON"
@@ -210,7 +213,7 @@ func (e *Error) Message() string {
 		return "date format <" + e.Value + "> is not supported"
 	case FilterMissingInput:
 		return "missing value to apply filter"
-	case HTTP:
+	case HTTP, Stream:
 		return e.Reason
 	case InvalidJSON:
 		return "actual value is <" + e.Value + ">"

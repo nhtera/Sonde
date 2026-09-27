@@ -64,7 +64,7 @@ linters:
           files: ["**/engine/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/sandbox, internal/enginex (architecture §2)"
+              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/stream, internal/sandbox, internal/enginex (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/enginex$
             - github.com/nhtera/sonde/internal/syntax$
@@ -77,15 +77,17 @@ linters:
             - github.com/nhtera/sonde/internal/runerr$
             - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/httpx$
+            - github.com/nhtera/sonde/internal/stream$
             - github.com/nhtera/sonde/internal/sandbox$
         pkg-exchange:
           list-mode: lax
           files: ["**/exchange/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "exchange may import only: internal/charset (architecture §2)"
+              desc: "exchange may import only: internal/charset, internal/codec (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/charset$
+            - github.com/nhtera/sonde/internal/codec$
         pkg-syntax:
           list-mode: lax
           files: ["**/internal/syntax/**", "!$test"]
@@ -226,6 +228,12 @@ linters:
           deny:
             - pkg: github.com/nhtera/sonde
               desc: "internal/charset may import only: no sonde packages (leaf) (architecture §2)"
+        pkg-codec:
+          list-mode: lax
+          files: ["**/internal/codec/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/codec may import only: no sonde packages (leaf) (architecture §2)"
         pkg-datefmt:
           list-mode: lax
           files: ["**/internal/datefmt/**", "!$test"]
@@ -237,10 +245,11 @@ linters:
           files: ["**/internal/httpx/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/httpx may import only: exchange, internal/sandbox (architecture §2)"
+              desc: "internal/httpx may import only: exchange, internal/sandbox, internal/codec (architecture §2)"
           allow:
             - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/sandbox$
+            - github.com/nhtera/sonde/internal/codec$
         pkg-report:
           list-mode: lax
           files: ["**/internal/report/**", "!$test"]

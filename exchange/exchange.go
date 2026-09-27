@@ -75,6 +75,9 @@ type Response struct {
 	// MaxDecodedBody limits the size of the decoded body in bytes; zero
 	// means DefaultMaxDecodedBody.
 	MaxDecodedBody int64
+	// Stream is set for a streamed entry (Server-Sent Events read with a
+	// sonde-stream-* option, or a WebSocket exchange); nil otherwise.
+	Stream *Stream
 }
 
 // Timings are the phases of a transfer, measured from its start.

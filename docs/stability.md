@@ -26,6 +26,17 @@ Within v1.x, compatibility only improves: a difference `compat.md` lists as
 a gap may be closed in a minor release; a passing case does not start
 failing.
 
+## `.sonde` extensions
+
+`.sonde` files accept everything `.hurl` does, plus Sonde's own constructs
+(`[SondeMessages]`, the `sonde-stream-*` options, the `sondeStream` query:
+[guides/streaming.md](guides/streaming.md),
+[decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md)).
+They are part of the v1 contract like the CLI: new constructs and new
+`sondeStream` fields may appear in a minor release; an existing one keeps
+its name, meaning and defaults within v1.x. A `.hurl` file that uses one
+is a parse error, and stays one.
+
 ## CLI
 
 Every command and flag in [cli/](cli/README.md) (generated from the cobra
@@ -67,7 +78,7 @@ Fixed: they are part of scripts and CI pipelines.
 The schema `--json` and `--report-json` share is documented in
 [report-json.md](report-json.md): a Hurl-8.0.1-compatible base (existing
 Hurl tooling reads a Sonde result unchanged) plus a `sonde` key for
-Sonde-only data (data rows, contract violations; later streams, gRPC).
+Sonde-only data (data rows, contract violations, streams; later gRPC).
 Within v1.x, changes to this schema are additive only: new fields at the
 base only to match the Hurl format, and Sonde-only data only under
 `sonde`. Existing fields do not change type or meaning, and are not
@@ -97,16 +108,19 @@ What the contract covers:
 - `engine`: `Runner` and its methods (`RunFile`, `RunSource`, `RunAll`,
   `RenderCurl`, `Redact`, `HasSecrets`, `Close`), `Options`, `HTTPOptions`,
   `RunAllOptions`, `Job`, `Row`, the events (`Log`, `EntryStarted`,
-  `EntryFinished`, `ContractEvaluated`), the results (`UnitResult`,
+  `EntryFinished`, `ContractEvaluated`, `MessageSent`, `MessageReceived`),
+  the results (`UnitResult`,
   `EntryResult`, `Call`, `Capture`, `Assert`, `Cookie`, `CurlEntry`), the
   opaque `Error` and `Value` types with their methods, `Pos`, `Span`,
   `Field`, `Redirect`, `ResponseValidator`, `NoContract`, `Violation`.
 - `exchange`: `Request`, `Response`, `Header`, `Headers`, `Cookie`,
-  `CookieAttribute`, `Timings`, `CertInfo`, `BodyError` and their methods.
+  `CookieAttribute`, `Timings`, `CertInfo`, `BodyError`, `Stream`,
+  `Message`, `Direction` and their methods, and the `Protocol*` and `Stop*`
+  constants.
 
 Enumerations may grow in a minor release: `ErrorKind`, `ValueKind`,
-`ViolationKind`, `LogLevel`, `exchange.BodyErrorKind`, and so may the set
-of `Event` types. Switch on them with a `default` case. The text
+`ViolationKind`, `LogLevel`, `exchange.BodyErrorKind`, the stream protocols
+and stop reasons, and so may the set of `Event` types. Switch on them with a `default` case. The text
 of `Error()`, `Message()`, `Render()` and log events is for people and may
 change in any release; match on `Kind()`, never on text.
 

@@ -29,7 +29,7 @@ func (u *unit) buildRequest(req *syntax.Request) (*httpx.RequestSpec, error) {
 	// literal {{name}} placeholder (see template.Env.Missing) is still
 	// worth printing as the curl command it would be, once that
 	// variable is actually set.
-	if reason := checkURL(url); reason != "" && !u.forExport {
+	if reason := checkURL(url, messages(req) != nil, syntax.DialectFor(u.name) == syntax.DialectSonde); reason != "" && !u.forExport {
 		e := runerr.New(req.URL.Span, runerr.InvalidURL, false)
 		e.Value, e.Reason = url, reason
 		return nil, e
@@ -101,10 +101,17 @@ func (u *unit) buildRequest(req *syntax.Request) (*httpx.RequestSpec, error) {
 	return spec, nil
 }
 
-// checkURL returns why a URL is not an absolute http(s) URL, or "".
-func checkURL(url string) string {
+// checkURL returns why a URL is not an absolute http(s) URL, or "". A
+// WebSocket entry of a .sonde file may also use ws:// and wss://.
+func checkURL(url string, webSocket, sonde bool) string {
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		return ""
+	}
+	if sonde && (strings.HasPrefix(url, "ws://") || strings.HasPrefix(url, "wss://")) {
+		if webSocket {
+			return ""
+		}
+		return "a <ws://> or <wss://> URL needs a [SondeMessages] section"
 	}
 	if scheme, _, ok := strings.Cut(url, "://"); ok && scheme != "" && strings.Trim(scheme, "abcdefghijklmnopqrstuvwxyz") == "" {
 		return "Only <http://> and <https://> schemes are supported"

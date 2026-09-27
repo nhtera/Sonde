@@ -134,6 +134,8 @@ func (c *Context) Eval(q *syntax.Query) (value.Value, error) {
 		return value.String(r.IP), nil
 	case syntax.QueryRedirects:
 		return c.redirects(), nil
+	case syntax.QuerySondeStream:
+		return stream(q, r.Stream)
 	}
 	return nil, nil
 }

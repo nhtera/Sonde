@@ -45,6 +45,12 @@ a{color:#0969da}
 {{if .BodyPreview}}<tr><th>Body</th><td><pre>{{.BodyPreview}}</pre></td></tr>{{end}}
 </table>
 {{end}}
+{{with .Stream}}<table>
+<thead><tr><th colspan="4">Stream: {{.Protocol}}, {{.Sent}} sent, {{.Received}} received{{if .StopReason}}, stopped by {{.StopReason}}{{end}}</th></tr>
+<tr><th>Time (ms)</th><th>Direction</th><th>Event</th><th>Data</th></tr></thead>
+{{range .Messages}}<tr><td>{{.Time}}</td><td>{{.Direction}}</td><td>{{.Event}}{{if .ID}} (id {{.ID}}){{end}}</td><td><pre>{{if .Binary}}base64: {{end}}{{.Data}}</pre></td></tr>{{end}}
+{{if .Omitted}}<tr><td colspan="4">&hellip; {{.Omitted}} more messages</td></tr>{{end}}
+</table>{{end}}
 {{if .Asserts}}<table>
 <thead><tr><th>Line</th><th>Result</th><th>Message</th></tr></thead>
 {{range .Asserts}}<tr><td>{{.Line}}</td><td class="{{if .Success}}success{{else}}failure{{end}}">{{if .Success}}ok{{else}}failed{{end}}</td><td>{{if .Message}}<pre>{{.Message}}</pre>{{end}}</td></tr>{{end}}

@@ -34,6 +34,10 @@ type CurlEntry struct {
 	// that also references it, never assumed defined from one entry to
 	// the next.
 	Undefined []string
+	// Skipped says why an entry has no Command and no Err: a WebSocket
+	// entry, which curl can not run. Exactly one of Command, Err and
+	// Skipped is set.
+	Skipped string
 	// Err is set instead of Command when this one entry could not be
 	// rendered at all: a value with its own strict syntax (an
 	// [Options] repeat/skip/max-redirs/... expecting a number or
@@ -161,7 +165,11 @@ func (r *Runner) renderCurl(ctx context.Context, name string, src []byte, file *
 		if eo == nil {
 			continue // skip: true, or repeat: 0 — a run never sends it either
 		}
-		cmd := u.curlCommand(spec, &eo.http, eo.output)
+		cmd := u.entryCurl(entry, spec, &eo.http, eo)
+		if cmd == "" {
+			out = append(out, CurlEntry{Index: i, Undefined: undefined, Skipped: "a WebSocket entry has no curl equivalent"})
+			continue
+		}
 		out = append(out, CurlEntry{Index: i, Command: cmd, Undefined: undefined})
 	}
 

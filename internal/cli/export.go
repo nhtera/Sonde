@@ -162,6 +162,10 @@ func exportCurlFile(ctx context.Context, stdout, stderr io.Writer, file string, 
 			failed = true
 			continue
 		}
+		if e.Skipped != "" {
+			fmt.Fprintf(stderr, "warning: %s: entry %d: skipped: %s\n", file, e.Index, e.Skipped)
+			continue
+		}
 		fmt.Fprintln(stdout, e.Command)
 	}
 	if failed {

@@ -53,8 +53,16 @@ func option(r *reader) (*Option, *Error) {
 	}
 	o.Space2, _ = zeroOrMoreSpaces(r)
 	shape, ok := optionShapes[o.Name]
+	if sh, sonde := sondeOptionShapes[o.Name]; !ok && sonde {
+		if err := sondeOnly(r, start, "option `"+o.Name+"`"); err != nil {
+			return nil, err
+		}
+		shape, ok = sh, true
+	}
 	if !ok {
-		return nil, errAt(start, false, ErrInvalidOption, o.Name)
+		e := errAt(start, false, ErrInvalidOption, o.Name)
+		e.sonde = r.sonde
+		return nil, e
 	}
 	if o.Value, err = optionValue(r, shape); err != nil {
 		return nil, err

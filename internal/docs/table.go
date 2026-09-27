@@ -74,7 +74,17 @@ type Table struct {
 	Flags       []Entry      `yaml:"flags"`
 	Env         []Entry      `yaml:"env"`
 	Config      []Entry      `yaml:"config"`
+	Sonde       SondeTable   `yaml:"sonde"`
 	Differences []Difference `yaml:"differences"`
+}
+
+// SondeTable lists the Sonde extensions of the file format, valid only in
+// .sonde files.
+type SondeTable struct {
+	Sections []Entry `yaml:"sections"`
+	Steps    []Entry `yaml:"steps"`
+	Options  []Entry `yaml:"options"`
+	Queries  []Entry `yaml:"queries"`
 }
 
 // kinds lists every Table field usable with Lookup, in table.yaml's own key
@@ -89,12 +99,18 @@ func (t *Table) kinds() map[string][]Entry {
 		"flags":      t.Flags,
 		"env":        t.Env,
 		"config":     t.Config,
+
+		"sonde-sections": t.Sonde.Sections,
+		"sonde-steps":    t.Sonde.Steps,
+		"sonde-options":  t.Sonde.Options,
+		"sonde-queries":  t.Sonde.Queries,
 	}
 }
 
 // Lookup returns the entry named name within kind ("queries", "filters",
-// "predicates", "functions", "options", "flags", "env" or "config"), used
-// by the LSP for hover text.
+// "predicates", "functions", "options", "flags", "env", "config", or a
+// Sonde extension kind: "sonde-sections", "sonde-steps", "sonde-options",
+// "sonde-queries"), used by the LSP for hover text.
 func (t *Table) Lookup(kind, name string) (Entry, bool) {
 	for _, e := range t.kinds()[kind] {
 		if e.Name == name {

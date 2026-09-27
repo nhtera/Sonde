@@ -41,9 +41,18 @@ func section(r *reader, request bool) (*Section, *Error) {
 	if !request {
 		kinds, errKind = responseSectionKinds, ErrResponseSectionName
 	}
+	namePos := Pos{Offset: start.Offset + 1, Line: start.Line, Col: start.Col + 1}
 	kind, ok := kinds[name]
+	if k, sonde := sondeRequestSectionKinds[name]; !ok && request && sonde {
+		if err := sondeOnly(r, namePos, "section `["+name+"]`"); err != nil {
+			return nil, err
+		}
+		kind, ok = k, true
+	}
 	if !ok {
-		return nil, errAt(Pos{Offset: start.Offset + 1, Line: start.Line, Col: start.Col + 1}, false, errKind, name)
+		e := errAt(namePos, false, errKind, name)
+		e.sonde = r.sonde
+		return nil, e
 	}
 	s.Kind = kind
 	switch kind {
@@ -63,6 +72,8 @@ func section(r *reader, request bool) (*Section, *Error) {
 		s.Captures, err = zeroOrMore(r, capture)
 	case SectionAsserts:
 		s.Asserts, err = zeroOrMore(r, assert)
+	case SectionMessages:
+		s.Messages, err = zeroOrMore(r, messageStep)
 	}
 	if err != nil {
 		return nil, err

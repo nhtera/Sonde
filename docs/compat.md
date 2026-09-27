@@ -241,6 +241,24 @@ Request `[Options]` section keys.
 | `verbosity` | supported |  | sets the verbosity level (brief, verbose, debug) for this entry |
 | `very-verbose` | supported |  | turns on very verbose output, including libcurl-style logs |
 
+## Sonde extensions
+
+Valid only in `.sonde` files (a `.hurl` file using one fails to parse). An
+entry with a `sonde-stream-*` option reads its body as Server-Sent Events.
+See [guides/streaming.md](guides/streaming.md) and
+[decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md).
+
+| Construct | Kind | Description |
+|---|---|---|
+| `[SondeMessages]` | section | makes the entry a WebSocket exchange: ordered send, receive and close steps |
+| `send` | `[SondeMessages]` step | sends one message: JSON, a backtick or multiline string or XML as a text frame; base64, hex or file as a binary frame |
+| `receive` | `[SondeMessages]` step | waits for the next message, or the next N with `receive: N` |
+| `close` | `[SondeMessages]` step | sends a close frame (1000, or `close: CODE`) and waits for the server's |
+| `sonde-stream-count` | option | stops an event stream after N events |
+| `sonde-stream-max-bytes` | option | stops a stream after N bytes (default 10485760); a WebSocket fails beyond it |
+| `sonde-stream-timeout` | option | stops an event stream after this time (default 10s); a WebSocket `receive` still waiting then fails |
+| `sondeStream` | query | the data of each event or message received, as a list; `sondeStream "event"`, `"id"`, `"retry"` (SSE) or `"type"` (WebSocket) select another field |
+
 ## CLI flags
 
 Occurrence counts are measured across the vendored Hurl 8.0.1 conformance

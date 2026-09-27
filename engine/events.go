@@ -3,6 +3,8 @@
 
 package engine
 
+import "github.com/nhtera/sonde/exchange"
+
 // Event is something a front end may show while a unit runs. Events are
 // delivered serially. Log texts are redacted; results carried by events
 // (and returned by the runner) hold raw values, to be passed through
@@ -63,6 +65,22 @@ type EntryFinished struct {
 	Result *EntryResult
 }
 
-func (Log) isEvent()           {}
-func (EntryStarted) isEvent()  {}
-func (EntryFinished) isEvent() {}
+// MessageSent is sent when a streamed entry sends a WebSocket message.
+// Like results, it holds raw values: redact before showing them.
+type MessageSent struct {
+	Index   int // the entry
+	Message exchange.Message
+}
+
+// MessageReceived is sent when a streamed entry receives a Server-Sent
+// Event or a WebSocket message. Like results, it holds raw values.
+type MessageReceived struct {
+	Index   int // the entry
+	Message exchange.Message
+}
+
+func (Log) isEvent()             {}
+func (EntryStarted) isEvent()    {}
+func (EntryFinished) isEvent()   {}
+func (MessageSent) isEvent()     {}
+func (MessageReceived) isEvent() {}

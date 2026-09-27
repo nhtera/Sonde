@@ -61,6 +61,8 @@ func (s *Server) completion(d *document, offset int) []CompletionItem {
 			return s.completeAssertOrCapture(d, lineStart, lineEnd, offset, true)
 		case "Options":
 			return s.completeOption(d, lineStart, lineEnd, offset, text)
+		case "SondeMessages":
+			return s.completeStep(d, lineStart, offset, text, col)
 		}
 		return []CompletionItem{}
 	}

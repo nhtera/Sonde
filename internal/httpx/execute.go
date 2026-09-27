@@ -4,12 +4,14 @@
 package httpx
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/http/httptrace"
 	"net/url"
 	"slices"
@@ -20,6 +22,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/codec"
 )
 
 // Execute sends a request, following redirects when opts ask for it, and
@@ -48,19 +51,16 @@ func (c *Client) Execute(ctx context.Context, spec *RequestSpec, opts *Options) 
 	for {
 		call, err := c.executeOne(ctx, curSpec, &curOpts)
 		if err != nil {
+			if call.Response != nil { // a stream that failed after its headers
+				calls = append(calls, call)
+			}
 			return calls, err
 		}
 		calls = append(calls, call)
 
-		if !opts.FollowLocation {
-			return calls, nil
-		}
 		status := call.Response.Status
-		if status < 300 || status >= 400 {
-			return calls, nil
-		}
-		loc, ok := call.Response.Headers.Get("Location")
-		if !ok || loc == "" {
+		loc, _ := call.Response.Headers.Get("Location")
+		if !followsRedirect(opts, status, loc) {
 			return calls, nil
 		}
 		curURL, err := url.Parse(call.Response.URL)
@@ -192,6 +192,11 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 	}
 	reqCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	stopStream := func() {}
+	if opts.ReadStream != nil {
+		reqCtx, stopStream = context.WithCancel(reqCtx)
+		defer stopStream()
+	}
 
 	start := time.Now()
 	timings := &hopTimings{start: start}
@@ -250,13 +255,22 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 	if opts.MaxRecvSpeed > 0 {
 		bodyReader = newRateLimitedReader(reqCtx, bodyReader, opts.MaxRecvSpeed)
 	}
-	limit := opts.MaxFilesize
-	if limit <= 0 {
-		limit = exchange.DefaultMaxDecodedBody
-	}
-	respBody, err := io.ReadAll(io.LimitReader(bodyReader, limit+1))
-	if err == nil && int64(len(respBody)) > limit {
-		return Call{}, maxFilesizeError()
+	var respBody []byte
+	var streamErr error // a streamed body that failed: the call is still returned
+	if opts.ReadStream != nil && !followsRedirect(opts, resp.StatusCode, resp.Header.Get("Location")) {
+		respBody, streamErr = readStream(resp, bodyReader, opts.ReadStream, stopStream)
+		if streamErr != nil {
+			streamErr = classifyRoundTripError(prep.req.URL, streamErr)
+		}
+	} else {
+		limit := opts.MaxFilesize
+		if limit <= 0 {
+			limit = exchange.DefaultMaxDecodedBody
+		}
+		respBody, err = io.ReadAll(io.LimitReader(bodyReader, limit+1))
+		if err == nil && int64(len(respBody)) > limit {
+			return Call{}, maxFilesizeError()
+		}
 	}
 	if err != nil {
 		return Call{}, classifyRoundTripError(prep.req.URL, err)
@@ -303,7 +317,58 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 		},
 		Response: response,
 		Timings:  response.Timings,
-	}, nil
+	}, streamErr
+}
+
+// followsRedirect reports whether Execute follows a response with status
+// and Location header loc to another URL.
+func followsRedirect(opts *Options, status int, loc string) bool {
+	return opts.FollowLocation && status >= 300 && status < 400 && loc != ""
+}
+
+// readStream runs read on the decoded body of a streamed response and
+// returns the bytes as received.
+func readStream(resp *http.Response, body io.Reader, read func(io.Reader, func()) error, stop func()) ([]byte, error) {
+	var raw bytes.Buffer
+	d := &lazyDecoder{
+		codings: (&exchange.Response{Headers: responseHeaders(resp.Header)}).ContentEncodings(),
+		r:       io.TeeReader(body, &raw),
+	}
+	defer d.close()
+	err := read(d, stop)
+	return raw.Bytes(), err
+}
+
+// lazyDecoder removes content codings from r, starting at the first Read:
+// a decoder reads its header at once, which must not block before the
+// stream's own limits apply.
+type lazyDecoder struct {
+	codings []string
+	r       io.Reader
+	started bool
+	release func()
+	err     error
+}
+
+func (d *lazyDecoder) Read(p []byte) (int, error) {
+	if !d.started {
+		d.started = true
+		var err error
+		if d.r, d.release, err = codec.Chain(d.codings, d.r); err != nil {
+			d.err = newError(ErrOther, "Decompression error",
+				"could not uncompress the event stream ("+strings.Join(d.codings, ", ")+")", err)
+		}
+	}
+	if d.err != nil {
+		return 0, d.err
+	}
+	return d.r.Read(p)
+}
+
+func (d *lazyDecoder) close() {
+	if d.release != nil {
+		d.release()
+	}
 }
 
 // hopTimings accumulates the httptrace timestamps of one call.

@@ -34,23 +34,25 @@ listed in [compat.md](compat.md).
 
 ## `.hurl` vs `.sonde`
 
-Both extensions parse with the **same grammar** today
-(`internal/syntax.DialectFor` picks a dialect from the extension, but
-`Parse` treats them identically — see `internal/syntax/parser.go`):
+The extension picks the grammar (`internal/syntax.DialectFor`):
 
 | | `.hurl` | `.sonde` |
 |---|---|---|
-| Grammar | strict Hurl 8 | identical to `.hurl` in v1 |
-| Runs with Hurl itself | yes | no (Hurl does not know the extension, but the content is valid Hurl) |
-| Where protocol extensions land post-v1 (WebSocket, SSE, gRPC) | never | only here, under a Sonde-specific prefix Hurl will not use |
+| Grammar | strict Hurl 8 | a superset of `.hurl` |
+| Sonde extensions: `[SondeMessages]`, `sonde-stream-*` options, the `sondeStream` query | a parse error naming the construct | accepted ([guides/streaming.md](guides/streaming.md)) |
+| Runs with Hurl itself | yes | no (Hurl rejects every Sonde construct at parse time) |
 | `sonde fmt` | canonical layout, still valid Hurl | canonical layout |
 
-In short: today the extension is a hint, not a behavior change. Use `.hurl`
-for files you want to keep interchangeable with the `hurl` CLI or other Hurl
-tooling; use `.sonde` for files that are Sonde-only, so a later Sonde-only
-addition does not need a rename. Both extensions are recognized by directory
-expansion (`sonde DIR`), `sonde import`'s `--ext` flag, and the language
-server ([guides/editors.md](guides/editors.md)).
+A `.sonde` file that uses no extension behaves exactly like the same file
+named `.hurl`. Use `.hurl` for files you want to keep interchangeable with
+the `hurl` CLI or other Hurl tooling; use `.sonde` for Server-Sent Events
+and WebSocket tests, and for files that are Sonde-only anyway. Input read
+from standard input is parsed as `.hurl`. Every extension is prefixed
+`sonde` so it never collides with syntax Hurl may add
+([decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md)).
+Both extensions are recognized by directory expansion (`sonde DIR`),
+`sonde import`'s `--ext` flag, and the language server
+([guides/editors.md](guides/editors.md)).
 
 ## What Sonde adds around the file
 

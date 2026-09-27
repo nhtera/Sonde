@@ -50,6 +50,10 @@ func collectSectionUses(out *[]use, secs []*syntax.Section) {
 			collectCaptureUses(out, sec.Captures)
 		case syntax.SectionAsserts:
 			collectAssertUses(out, sec.Asserts)
+		case syntax.SectionMessages:
+			for _, m := range sec.Messages {
+				collectNodeUses(out, m.Value)
+			}
 		}
 	}
 }

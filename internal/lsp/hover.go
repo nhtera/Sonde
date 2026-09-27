@@ -6,6 +6,7 @@ package lsp
 import (
 	"fmt"
 
+	"github.com/nhtera/sonde/internal/docs"
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
@@ -21,6 +22,16 @@ var sectionDocs = map[syntax.SectionKind]string{
 	syntax.SectionOptions:     "Per-entry client options: timeouts, retries, variables and more.",
 	syntax.SectionCaptures:    "Variables captured from the response, usable by later entries.",
 	syntax.SectionAsserts:     "Assertions checked against the response.",
+	syntax.SectionMessages:    "WebSocket steps (.sonde only): send, receive and close, in order.",
+}
+
+// lookup finds a docs.Table entry of kind, or of the Sonde extensions of
+// that kind.
+func (s *Server) lookup(kind, name string) (docs.Entry, bool) {
+	if e, ok := s.table.Lookup(kind, name); ok {
+		return e, true
+	}
+	return s.table.Lookup("sonde-"+kind, name)
 }
 
 // hover returns documentation for the element at offset in d, or nil.
@@ -140,6 +151,10 @@ func (s *Server) hoverSections(d *document, sections []*syntax.Section, offset i
 			if h := s.hoverAsserts(d, sec.Asserts, offset); h != nil {
 				return h
 			}
+		case syntax.SectionMessages:
+			if h := s.hoverSteps(d, sec.Messages, offset); h != nil {
+				return h
+			}
 		}
 	}
 	return nil
@@ -150,7 +165,21 @@ func (s *Server) hoverOptions(d *document, opts []*syntax.Option, offset int) *H
 		start := o.Space0.Span.End.Offset
 		end := start + len(o.Name)
 		if offset >= start && offset <= end {
-			if e, ok := s.table.Lookup("options", o.Name); ok {
+			if e, ok := s.lookup("options", o.Name); ok {
+				rng := d.lines.rangeOf(start, end)
+				return &Hover{Contents: *s.markup(entryDoc(e)), Range: &rng}
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Server) hoverSteps(d *document, steps []*syntax.MessageStep, offset int) *Hover {
+	for _, m := range steps {
+		start := m.Span.Start.Offset
+		end := start + len(m.Kind.String())
+		if offset >= start && offset <= end {
+			if e, ok := s.lookup("steps", m.Kind.String()); ok {
 				rng := d.lines.rangeOf(start, end)
 				return &Hover{Contents: *s.markup(entryDoc(e)), Range: &rng}
 			}
@@ -205,7 +234,7 @@ func (s *Server) hoverAsserts(d *document, asserts []*syntax.Assert, offset int)
 
 func (s *Server) hoverQueryAndFilters(d *document, q *syntax.Query, filters []*syntax.FilterItem, offset int) *Hover {
 	if q != nil && spanContains(q.Span, offset) {
-		if e, ok := s.table.Lookup("queries", q.Kind.String()); ok {
+		if e, ok := s.lookup("queries", q.Kind.String()); ok {
 			rng := d.lines.spanRange(q.Span)
 			return &Hover{Contents: *s.markup(entryDoc(e)), Range: &rng}
 		}

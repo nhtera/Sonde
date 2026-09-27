@@ -19,7 +19,7 @@ func TestOptionShapesMatchTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]bool{}
-	for _, e := range table.Options {
+	for _, e := range append(append([]docs.Entry(nil), table.Options...), table.Sonde.Options...) {
 		want[e.Name] = true
 	}
 	got := map[string]bool{}
@@ -64,7 +64,7 @@ func sampleOptionValue(shape optionShape) string {
 func TestOptionShapeSamplesParse(t *testing.T) {
 	for name, shape := range optionShapes {
 		src := "GET http://x/\n[Options]\n" + name + ": " + sampleOptionValue(shape) + "\n"
-		if _, err := syntax.Parse("<test>", []byte(src), syntax.DialectHurl); err != nil {
+		if _, err := syntax.Parse("<test>", []byte(src), syntax.DialectSonde); err != nil {
 			t.Errorf("%s (shape %d): sample %q did not parse: %v", name, shape, sampleOptionValue(shape), err)
 		}
 	}
