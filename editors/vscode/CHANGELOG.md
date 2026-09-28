@@ -2,6 +2,10 @@
 
 All notable changes to the Sonde VS Code extension are documented here.
 
+## 1.0.3
+
+- Syntax highlighting for the `[SondeMessages]` and `[SondeGrpc]` sections and the `sondeStream` and `sondeGrpc` queries (Sonde 1.2).
+
 ## 1.0.2
 
 - `.sonde` files get a Sonde file icon wherever the file icon theme has none of its own.
