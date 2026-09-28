@@ -93,6 +93,32 @@ never kept, never shown in a hover, and never sent anywhere. The LSP never
 makes an HTTP request and never reads a file outside the workspace folders
 the client gave it.
 
+## AI agents (`sonde mcp`)
+
+`sonde mcp` serves request files to an AI agent, which Sonde treats as
+untrusted: it may be following instructions planted in a file, a web page
+or a response body. The server starts read-only, and everything else is
+granted on its command line, never by a tool call:
+
+- **Running files** needs `--allow-run` plus at least one `--allow-host`.
+  Without them the run tool does not exist.
+- **Hosts** are checked twice with the same matcher: the URL of every
+  request, redirect and WebSocket handshake, and every connection Sonde
+  opens, proxies included. Entries using `proxy`, `connect-to`, `resolve`,
+  `unix-socket`, the `netrc` options or `output` fail without sending
+  anything.
+- **Files**: tools read only `.hurl` and `.sonde` files under `--root`.
+  Runs are confined to that root, and a `sonde.yaml` above it is ignored.
+- **Secrets** come only from `sonde.yaml`, `SONDE_SECRET_*` and the
+  server's own flags, and are redacted from every tool result and from the
+  audit log it writes to standard error.
+
+The allowlist is a statement of trust in host names: a secret a request
+file sends to an allowed host goes there, as in a manual run. Response
+bodies returned to the agent are data from the server under test. See
+[guides/mcp.md](guides/mcp.md) and
+[decisions/0006-mcp-server.md](decisions/0006-mcp-server.md).
+
 ## Supply chain
 
 Dependencies are kept minimal and reviewed with `go mod why`; `govulncheck`

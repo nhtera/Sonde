@@ -79,6 +79,12 @@ func fileAccessError(path string, err error) *Error {
 	return newError(ErrFileAccess, "File access", "could not read "+path+": "+err.Error(), err)
 }
 
+// hostDeniedError reports a request or connection to a host outside
+// ClientConfig.Hosts.
+func hostDeniedError(err error) *Error {
+	return newError(ErrHostDenied, "Host not allowed", err.Error(), err)
+}
+
 // otherError wraps a transport failure that does not fit another kind.
 func otherError(msg string, err error) *Error {
 	return newError(ErrOther, "HTTP connection", msg, err)

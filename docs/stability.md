@@ -73,10 +73,20 @@ Fixed: they are part of scripts and CI pipelines.
   `sonde fmt --check` adds `1` for unformatted files; `sonde import`/`sonde
   export` use `0`/`1` (usage) with `export curl` also using `2`/`3` (parse,
   render); `sonde mock` uses `0` (stopped by SIGTERM), `1` (usage or
-  unloadable spec), `3` (address cannot be bound) and `130` (Ctrl-C). See
+  unloadable spec), `3` (address cannot be bound) and `130` (Ctrl-C);
+  `sonde mcp` uses `0` (the client closed the connection), `1` (usage), `3`
+  (the server failed) and `130` (Ctrl-C). See
   each command's page under [cli/](cli/README.md) and
   [architecture.md](architecture.md#5-contracts) for the exact table and
   the multi-file aggregation rule.
+
+## MCP tools
+
+The tools of `sonde mcp` ([guides/mcp.md](guides/mcp.md)) are part of the v1
+contract like the CLI: a tool keeps its name, its arguments and the meaning
+of its output fields within v1.x. New tools, optional arguments and output
+fields may appear in a minor release. The `result` of `sonde_run` follows
+the JSON result schema below.
 
 ## JSON result schema
 

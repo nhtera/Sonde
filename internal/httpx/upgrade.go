@@ -88,6 +88,9 @@ func (c *Client) Upgrade(ctx context.Context, spec *RequestSpec, opts *Options) 
 	if err != nil {
 		return nil, err
 	}
+	if err := c.allowURL(prep.req.URL); err != nil {
+		return nil, err
+	}
 	built, err := c.transportFor(&o, prep.req.URL.Hostname())
 	if err != nil {
 		return nil, err

@@ -12,6 +12,8 @@ import (
 
 	"golang.org/x/net/http/httpproxy"
 	"golang.org/x/net/proxy"
+
+	"github.com/nhtera/sonde/internal/netpolicy"
 )
 
 // noProxyMatch reports whether host is covered by a --noproxy list: a
@@ -63,8 +65,8 @@ func environmentProxy(u *url.URL, noProxy string) *url.URL {
 
 // socks5DialContext wraps a SOCKS5 proxy as a DialContext for an
 // http.Transport, so every connection (not only CONNECT tunnels) goes
-// through the proxy.
-func socks5DialContext(proxyURL *url.URL, noProxy string, next func(ctx context.Context, network, addr string) (net.Conn, error)) (func(ctx context.Context, network, addr string) (net.Conn, error), error) {
+// through the proxy. The proxy itself must be allowed by hosts.
+func socks5DialContext(proxyURL *url.URL, noProxy string, next func(ctx context.Context, network, addr string) (net.Conn, error), hosts *netpolicy.Policy) (func(ctx context.Context, network, addr string) (net.Conn, error), error) {
 	var auth *proxy.Auth
 	if u := proxyURL.User; u != nil {
 		pass, _ := u.Password()
@@ -74,7 +76,11 @@ func socks5DialContext(proxyURL *url.URL, noProxy string, next func(ctx context.
 	if proxyURL.Port() == "" {
 		host = net.JoinHostPort(proxyURL.Hostname(), "1080")
 	}
-	d, err := proxy.SOCKS5("tcp", host, auth, proxy.Direct)
+	forward := proxy.Dialer(proxy.Direct)
+	if hosts != nil {
+		forward = allowedDialer{hosts: hosts}
+	}
+	d, err := proxy.SOCKS5("tcp", host, auth, forward)
 	if err != nil {
 		return nil, otherError("could not configure SOCKS5 proxy", err)
 	}
@@ -110,4 +116,23 @@ func parseProxyURL(raw string) (*url.URL, error) {
 		u.Host = net.JoinHostPort(u.Hostname(), port)
 	}
 	return u, nil
+}
+
+// allowedDialer dials directly, like proxy.Direct, after checking the
+// address against a host policy.
+type allowedDialer struct{ hosts *netpolicy.Policy }
+
+func (a allowedDialer) Dial(network, addr string) (net.Conn, error) {
+	return a.DialContext(context.Background(), network, addr)
+}
+
+func (a allowedDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.hosts.Allow(host, port); err != nil {
+		return nil, hostDeniedError(err)
+	}
+	return proxy.Direct.DialContext(ctx, network, addr)
 }

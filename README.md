@@ -106,6 +106,9 @@ Full walkthrough: [docs/getting-started.md](docs/getting-started.md).
 - **gRPC.** Call unary and server-streaming gRPC methods with JSON messages,
   from `.proto` files, descriptor sets or server reflection —
   [docs/guides/grpc.md](docs/guides/grpc.md).
+- **AI agents.** `sonde mcp` lets Claude Code, Cursor or VS Code list,
+  check and (when you allow it, against the hosts you list) run request
+  files — [docs/guides/mcp.md](docs/guides/mcp.md).
 - **Data-driven runs.** Run a file once per CSV/JSON row —
   [docs/guides/data-driven.md](docs/guides/data-driven.md).
 - **Environments.** Named variables and secrets in `sonde.yaml` —

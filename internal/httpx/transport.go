@@ -42,7 +42,7 @@ func transportCacheKey(opts *Options) string {
 // buildTransport constructs the RoundTripper for one distinct set of
 // transport options; the server certificate must match tlsHost.
 func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTransport, error) {
-	dialOpts, err := newDialOptions(opts, cfg.Sandbox)
+	dialOpts, err := newDialOptions(opts, cfg.Sandbox, cfg.Hosts)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 		}
 		switch proxyURL.Scheme {
 		case "socks5", "socks5h":
-			dc, err := socks5DialContext(proxyURL, opts.NoProxy, dialOpts.dialContext())
+			dc, err := socks5DialContext(proxyURL, opts.NoProxy, dialOpts.dialContext(), cfg.Hosts)
 			if err != nil {
 				return nil, err
 			}

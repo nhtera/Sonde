@@ -21,6 +21,7 @@
 | [guides/mock-server.md](guides/mock-server.md) | `sonde mock`: serve an OpenAPI spec's examples and generated responses |
 | [guides/streaming.md](guides/streaming.md) | Server-Sent Events and WebSocket tests in `.sonde` files |
 | [guides/grpc.md](guides/grpc.md) | gRPC calls in `.sonde` files |
+| [guides/mcp.md](guides/mcp.md) | `sonde mcp`: let AI agents list, check and run request files |
 | [guides/import-export.md](guides/import-export.md) | `sonde import` and `sonde export curl`: common flags, writer rules, kinds |
 | [guides/migrate-from-hurl.md](guides/migrate-from-hurl.md) | Switching from Hurl: commands, flags, differences, what Sonde adds |
 | [guides/migrate-from-postman.md](guides/migrate-from-postman.md) | Importing Postman collections and environments |

@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -146,6 +147,9 @@ func (u *unit) entryOptions(e *syntax.Entry) (*entryOptions, error) {
 	u.debugImportant("Entry options:")
 	h := &eo.http
 	for _, o := range opts {
+		if u.runner.hosts != nil && refusedOptions[o.Name] {
+			return nil, refusedOption(e, o)
+		}
 		var err error
 		switch o.Name {
 		case "aws-sigv4":
@@ -252,6 +256,34 @@ func (u *unit) entryOptions(e *syntax.Entry) (*entryOptions, error) {
 		u.debug(optionText(o))
 	}
 	return eo, nil
+}
+
+// refusedOptions are the entry options a run with a host allowlist
+// (`sonde mcp`) refuses: they send a connection somewhere else than the
+// host the URL names, send stored netrc credentials, or write a file.
+var refusedOptions = map[string]bool{
+	"connect-to":     true,
+	"netrc":          true,
+	"netrc-file":     true,
+	"netrc-optional": true,
+	"output":         true,
+	"proxy":          true,
+	"resolve":        true,
+	"unix-socket":    true,
+}
+
+// refusedOption reports a refused option at the [Options] section of e.
+func refusedOption(e *syntax.Entry, o *syntax.Option) *runerr.Error {
+	span := e.Request.Span
+	for _, s := range e.Request.Sections {
+		if s.Kind == syntax.SectionOptions {
+			span = s.Span
+		}
+	}
+	re := runerr.New(span, runerr.HTTP, false)
+	re.Value = "Option not allowed"
+	re.Reason = fmt.Sprintf("option %q is not available with a host allowlist (sonde mcp)", o.Name)
+	return re
 }
 
 // optionText is the option as written, for verbose output.

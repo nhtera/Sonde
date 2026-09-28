@@ -6,12 +6,14 @@ package httpx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/nhtera/sonde/internal/netpolicy"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -87,10 +89,12 @@ type dialOptions struct {
 	resolve        []resolveRule
 	unixSocket     string
 	connectTimeout time.Duration
+	hosts          *netpolicy.Policy
 }
 
-func newDialOptions(opts *Options, box *sandbox.Root) (dialOptions, error) {
+func newDialOptions(opts *Options, box *sandbox.Root, hosts *netpolicy.Policy) (dialOptions, error) {
 	d := dialOptions{
+		hosts:          hosts,
 		network:        "tcp",
 		connectTo:      parseConnectTo(opts.ConnectTo),
 		resolve:        parseResolve(opts.Resolve),
@@ -119,11 +123,17 @@ func newDialOptions(opts *Options, box *sandbox.Root) (dialOptions, error) {
 }
 
 // dialContext builds the DialContext used by an http.Transport, applying
-// unix-socket, connect-to, resolve and IP family restrictions.
+// unix-socket, connect-to, resolve and IP family restrictions. With a
+// host policy, the host actually dialed (after connect-to, and each
+// address of a resolve rule) must be allowed, and unix sockets are
+// refused: this is where a proxy or a rewritten address is caught.
 func (d dialOptions) dialContext() func(ctx context.Context, network, addr string) (net.Conn, error) {
 	nd := &net.Dialer{Timeout: d.connectTimeout}
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		if d.unixSocket != "" {
+			if d.hosts != nil {
+				return nil, hostDeniedError(fmt.Errorf("unix socket %s: %w", d.unixSocket, netpolicy.ErrDenied))
+			}
 			conn, err := nd.DialContext(ctx, "unix", d.unixSocket)
 			if err != nil {
 				return nil, classifyDialErr(d.unixSocket, "", err)
@@ -144,6 +154,9 @@ func (d dialOptions) dialContext() func(ctx context.Context, network, addr strin
 		if addrs, ok := matchResolve(d.resolve, host, port); ok {
 			var lastErr error
 			for _, a := range addrs {
+				if err := d.hosts.Allow(a, port); err != nil {
+					return nil, hostDeniedError(err)
+				}
 				conn, err := nd.DialContext(ctx, dialNetwork, net.JoinHostPort(a, port))
 				if err == nil {
 					return conn, nil
@@ -151,6 +164,9 @@ func (d dialOptions) dialContext() func(ctx context.Context, network, addr strin
 				lastErr = err
 			}
 			return nil, classifyDialErr(host, port, lastErr)
+		}
+		if err := d.hosts.Allow(host, port); err != nil {
+			return nil, hostDeniedError(err)
 		}
 		conn, err := nd.DialContext(ctx, dialNetwork, net.JoinHostPort(host, port))
 		if err != nil {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/netpolicy"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -179,6 +180,9 @@ type ClientConfig struct {
 	Debug func(line string)
 	// Warn receives warnings (e.g. `insecure` once per client). Nil: discarded.
 	Warn func(msg string)
+	// Hosts restricts the hosts requests may name and connections may
+	// reach (`sonde mcp --allow-host`). Nil: unrestricted.
+	Hosts *netpolicy.Policy
 }
 
 // Cookie is a stored cookie, with the fields of the Netscape format.
@@ -226,6 +230,7 @@ const (
 	ErrUnsupported                       // unsupported option (http1.0, ntlm, …)
 	ErrFileAccess                        // sandbox denial or unreadable file
 	ErrOther
+	ErrHostDenied // a host outside ClientConfig.Hosts
 )
 
 // Error is a transport error.

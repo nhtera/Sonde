@@ -5,6 +5,7 @@ package engine
 
 import (
 	"github.com/nhtera/sonde/internal/enginex"
+	"github.com/nhtera/sonde/internal/netpolicy"
 	"github.com/nhtera/sonde/internal/runerr"
 	"github.com/nhtera/sonde/internal/syntax"
 	"github.com/nhtera/sonde/internal/value"
@@ -18,4 +19,5 @@ func init() {
 		return &Error{parse: err, file: file, src: src}
 	}
 	enginex.Value = func(v value.Value) any { return Value{v: v} }
+	enginex.SetHosts = func(runner any, hosts *netpolicy.Policy) { runner.(*Runner).hosts = hosts }
 }

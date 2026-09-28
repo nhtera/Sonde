@@ -15,6 +15,7 @@ import (
 
 	"github.com/nhtera/sonde/internal/grpcx"
 	"github.com/nhtera/sonde/internal/httpx"
+	"github.com/nhtera/sonde/internal/netpolicy"
 	"github.com/nhtera/sonde/internal/redact"
 	"github.com/nhtera/sonde/internal/runerr"
 	"github.com/nhtera/sonde/internal/sandbox"
@@ -31,6 +32,9 @@ type Runner struct {
 	opt     Options
 	secrets *redact.Registry
 	grpc    grpcCache
+	// hosts restricts the hosts a run may contact (`sonde mcp`), set
+	// through enginex.SetHosts. Nil: unrestricted.
+	hosts *netpolicy.Policy
 }
 
 // NewRunner returns a runner.
@@ -121,7 +125,8 @@ func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio uni
 				u.log(LogDebug, line)
 			}
 		},
-		Warn: func(msg string) { u.log(LogWarning, msg) },
+		Warn:  func(msg string) { u.log(LogWarning, msg) },
+		Hosts: r.hosts,
 	})
 	if err != nil {
 		return nil, err

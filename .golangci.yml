@@ -64,7 +64,7 @@ linters:
           files: ["**/engine/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/stream, internal/grpcx, internal/sandbox, internal/enginex (architecture §2)"
+              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/stream, internal/grpcx, internal/sandbox, internal/enginex, internal/netpolicy (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/enginex$
             - github.com/nhtera/sonde/internal/syntax$
@@ -80,6 +80,7 @@ linters:
             - github.com/nhtera/sonde/internal/stream$
             - github.com/nhtera/sonde/internal/grpcx$
             - github.com/nhtera/sonde/internal/sandbox$
+            - github.com/nhtera/sonde/internal/netpolicy$
         pkg-exchange:
           list-mode: lax
           files: ["**/exchange/**", "!$test"]
@@ -189,11 +190,12 @@ linters:
           files: ["**/internal/enginex/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/enginex may import only: internal/runerr, internal/syntax, internal/value (architecture §2)"
+              desc: "internal/enginex may import only: internal/runerr, internal/syntax, internal/value, internal/netpolicy (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/runerr$
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/value$
+            - github.com/nhtera/sonde/internal/netpolicy$
         pkg-runerr:
           list-mode: lax
           files: ["**/internal/runerr/**", "!$test"]
@@ -246,11 +248,12 @@ linters:
           files: ["**/internal/httpx/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/httpx may import only: exchange, internal/sandbox, internal/codec (architecture §2)"
+              desc: "internal/httpx may import only: exchange, internal/sandbox, internal/codec, internal/netpolicy (architecture §2)"
           allow:
             - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/sandbox$
             - github.com/nhtera/sonde/internal/codec$
+            - github.com/nhtera/sonde/internal/netpolicy$
         pkg-report:
           list-mode: lax
           files: ["**/internal/report/**", "!$test"]
@@ -333,16 +336,27 @@ linters:
               desc: "internal/grpcx may import only: exchange (architecture §2)"
           allow:
             - github.com/nhtera/sonde/exchange$
+        pkg-netpolicy:
+          list-mode: lax
+          files: ["**/internal/netpolicy/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/netpolicy imports no other Sonde package (architecture §2)"
         pkg-mcp:
           list-mode: lax
           files: ["**/internal/mcp/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/mcp may import only: engine, internal/syntax, internal/config (architecture §2)"
+              desc: "internal/mcp may import only: engine, internal/syntax, internal/config, internal/enginex, internal/netpolicy, internal/openapi, internal/report, internal/sandbox (architecture §2)"
           allow:
             - github.com/nhtera/sonde/engine$
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/config$
+            - github.com/nhtera/sonde/internal/enginex$
+            - github.com/nhtera/sonde/internal/netpolicy$
+            - github.com/nhtera/sonde/internal/openapi$
+            - github.com/nhtera/sonde/internal/report$
+            - github.com/nhtera/sonde/internal/sandbox$
 
 formatters:
   enable:

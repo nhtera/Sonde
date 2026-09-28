@@ -38,6 +38,9 @@ func (c *Client) Execute(ctx context.Context, spec *RequestSpec, opts *Options) 
 	if err != nil {
 		return nil, err
 	}
+	if err := c.allowURL(originalURL); err != nil {
+		return nil, err
+	}
 
 	var calls []Call
 	curSpec := spec
@@ -75,6 +78,9 @@ func (c *Client) Execute(ctx context.Context, spec *RequestSpec, opts *Options) 
 		redirectCount++
 		if maxRedirects != -1 && redirectCount > maxRedirects {
 			return calls, tooManyRedirectsError()
+		}
+		if err := c.allowURL(redirectURL); err != nil {
+			return calls, err
 		}
 
 		newMethod := redirectMethod(status, curSpec.Method)
@@ -145,6 +151,20 @@ func shouldStripCredentials(original, redirect *url.URL, locationTrusted bool) b
 	return original.Scheme != redirect.Scheme ||
 		!strings.EqualFold(original.Hostname(), redirect.Hostname()) ||
 		effectivePort(original) != effectivePort(redirect)
+}
+
+// allowURL checks the host of a request or redirect URL against
+// ClientConfig.Hosts. The connection is checked again when it is dialed
+// (dialOptions.dialContext): a proxy or a connect-to rule can send the
+// bytes to another host than the one the URL names.
+func (c *Client) allowURL(u *url.URL) error {
+	if c.cfg.Hosts == nil {
+		return nil
+	}
+	if err := c.cfg.Hosts.Allow(u.Hostname(), effectivePort(u)); err != nil {
+		return hostDeniedError(err)
+	}
+	return nil
 }
 
 func effectivePort(u *url.URL) string {

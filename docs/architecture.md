@@ -56,7 +56,8 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/mock` | OpenAPI mock server (`sonde mock`): net/http plumbing around `openapi.Mock` | openapi |
 | `internal/stream` | SSE parser and reader, WebSocket message scripts (`coder/websocket`) for streamed entries | exchange, httpx |
 | `internal/grpcx` | gRPC on the HTTP/2 client: message framing, status codes, descriptors (`.proto` via `protocompile`, descriptor sets, server reflection), proto3 JSON mapping | exchange |
-| `internal/mcp` (post-v1) | MCP server | engine, syntax, config |
+| `internal/mcp` | MCP server (`sonde mcp`): tools on the official Go SDK, root confinement, guarded runs | engine, syntax, config, enginex, netpolicy, openapi, report, sandbox |
+| `internal/netpolicy` | Host allowlist of `sonde mcp --allow-host`: pattern parsing, host normalization, matching; checked by httpx on URLs and dials | — |
 | `editors/vscode` | VS Code extension (TypeScript) — separate npm package | — |
 | `testdata/conformance/hurl` | vendored Hurl 8 test tree + servers + requirements + manifest | — |
 
@@ -253,7 +254,7 @@ Owner: `docs/sonde-yaml.md` — the only place keys are defined; strict (unknown
 | LSP types and JSON-RPC | own minimal LSP 3.17 types and stdio framing in `internal/lsp` (`protocol.go`, `jsonrpc.go`) | — (`go.lsp.dev/protocol` v1 is ~87k lines and pins a pre-release JSON library; `tliron/glsp` stale since 2025-06) |
 | WebSocket | `github.com/coder/websocket` | ISC |
 | gRPC | `google.golang.org/protobuf` (BSD-3-Clause), `github.com/bufbuild/protocompile` (Apache-2.0); no grpc-go ([decisions/0005](decisions/0005-grpc.md)) | BSD-3-Clause, Apache-2.0 |
-| MCP (post-v1) | `github.com/modelcontextprotocol/go-sdk` | NOASSERTION on GitHub → verify before adopting |
+| MCP | `github.com/modelcontextprotocol/go-sdk` v1.8.0 | MIT source headers (GitHub shows NOASSERTION); adopted in [0006](decisions/0006-mcp-server.md) |
 
 CI gate: `go-licenses check ./... --allowed_licenses=Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC`.
 
@@ -302,7 +303,7 @@ Assets: secrets (tokens, passwords), local files, user's ambient credentials (`~
 | Decompression bombs / huge bodies | decoded body cap (512 MiB default), stream limits |
 | XSS in HTML report | `html/template`, bodies as escaped text, strict CSP, no remote assets |
 | OpenAPI remote specs / `$ref` (SSRF, local file read) | single CLI-only opt-in `--openapi-allow-remote` (`sonde.yaml` cannot enable it, its `openapi.spec` stays inside its directory); file `$ref`s confined to the spec's directory (`os.Root`, regular files only); schemas validated without the JSON Schema 2020 compiler, so `$schema`/`$dynamicRef` never trigger reads; 64 MiB per document; library panics on malformed specs recovered; loader fuzzed (`FuzzLoad`); fetching owned by `internal/openapi` |
-| MCP agent misuse (post-v1) | `run` off by default, project-root sandbox, host allowlist, redaction, audit log |
+| MCP agent misuse | `sonde_run` off by default; `--allow-run` requires `--allow-host`; allowlist checked on every URL, redirect and dial (one matcher, `internal/netpolicy`); `proxy`/`connect-to`/`resolve`/`unix-socket`/`netrc*`/`output` refused; root sandbox, `sonde.yaml` above the root ignored; secrets only from trusted sources, redacted; one run at a time with a timeout; audit log on stderr ([0006](decisions/0006-mcp-server.md)) |
 | Supply chain | minimal deps, `govulncheck`, `go-licenses`, Actions pinned by SHA, conformance CI without secrets (`contents: read`), Python deps `--require-hashes`, extension lockfile + `npm audit`, signed releases + SBOM, publish tokens only in protected `release` environment |
 
 ## 10. GUI-Readiness Checklist (for the future Wails plan)
