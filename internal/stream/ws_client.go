@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -50,8 +51,9 @@ func WebSocket(ctx context.Context, u *httpx.Upgrade, steps []Step, lim Options)
 	lim = lim.withDefaults()
 	ctx, cancel := context.WithTimeout(ctx, u.MaxTime())
 	defer cancel()
+	client, raw := recordConn(u.Client)
 	conn, resp, err := websocket.Dial(ctx, u.URL, &websocket.DialOptions{
-		HTTPClient: u.Client, HTTPHeader: u.Header, Host: u.Host,
+		HTTPClient: client, HTTPHeader: u.Header, Host: u.Host,
 		CompressionMode: websocket.CompressionDisabled,
 	})
 	if resp == nil {
@@ -66,7 +68,7 @@ func WebSocket(ctx context.Context, u *httpx.Upgrade, steps []Step, lim Options)
 	}
 	r := u.Response(resp)
 	r.Stream = &exchange.Stream{Protocol: exchange.ProtocolWebSocket}
-	s := &session{conn: conn, stream: r.Stream, start: time.Now(), deadline: time.Now().Add(lim.Timeout), opts: lim, notify: make(chan struct{}, 1)}
+	s := &session{conn: conn, raw: *raw, stream: r.Stream, start: time.Now(), deadline: time.Now().Add(lim.Timeout), opts: lim, notify: make(chan struct{}, 1)}
 	conn.SetReadLimit(lim.MaxBytes)
 	readCtx, stopRead := context.WithCancel(context.Background())
 	s.stopRead = stopRead
@@ -86,6 +88,32 @@ func WebSocket(ctx context.Context, u *httpx.Upgrade, steps []Step, lim Options)
 	r.Stream.StopReason = exchange.StopScript
 	return r, nil
 }
+
+// recordConn returns a copy of client that records the connection of a
+// successful upgrade (the body of a 101 response). The client runs the
+// round trip on the goroutine that dials, so no lock is needed.
+func recordConn(client *http.Client) (*http.Client, *io.Closer) {
+	raw := new(io.Closer)
+	c := *client
+	base := c.Transport
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	c.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		resp, err := base.RoundTrip(r)
+		if resp != nil && resp.StatusCode == http.StatusSwitchingProtocols {
+			if rwc, ok := resp.Body.(io.ReadWriteCloser); ok {
+				*raw = rwc
+			}
+		}
+		return resp, err
+	})
+	return &c, raw
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 // StepError is the failure of a step: Index is its position in the steps.
 type StepError struct {
@@ -107,6 +135,9 @@ type session struct {
 	opts     Options
 	// stopRead cancels readLoop's context, which drops the connection.
 	stopRead context.CancelFunc
+	// raw is the upgraded connection: closing it ends a close handshake
+	// the library would otherwise wait on for 5 seconds.
+	raw io.Closer
 
 	mu       sync.Mutex
 	queue    []exchange.Message
@@ -177,6 +208,9 @@ func (s *session) closeConn(ctx context.Context, code websocket.StatusCode) erro
 		return err
 	case <-ctx.Done():
 		s.stopRead()
+		if s.raw != nil {
+			_ = s.raw.Close()
+		}
 		<-done
 		return s.cause(ctx, ctx.Err())
 	}
