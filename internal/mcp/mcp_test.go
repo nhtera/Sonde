@@ -337,6 +337,11 @@ func TestRun(t *testing.T) {
 	if fl.Status != 500 || !strings.Contains(fl.Body, "q 42") || !strings.Contains(fl.Body, "***") || fl.ContentType != "text/plain" {
 		t.Errorf("failure = %+v", fl)
 	}
+	// Assert messages in the result name the file relative to the root, as
+	// the failures do.
+	if strings.Contains(resultText(res), f.root) {
+		t.Errorf("absolute path in output: %s", resultText(res))
+	}
 	// No secret, raw or encoded, anywhere in the output or the audit log.
 	all := resultText(res) + f.log.String()
 	for _, leak := range []string{f.secret, base64.StdEncoding.EncodeToString([]byte(f.secret)), url.QueryEscape(f.secret)} {

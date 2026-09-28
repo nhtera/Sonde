@@ -56,14 +56,16 @@ type failure struct {
 // buildRunOutput turns the result of a run into the tool output: every
 // string redacted, paths relative to the root.
 func buildRunOutput(res *engine.UnitResult, rf *requestFile, root, env string, timedOut bool, timeout time.Duration) (runOutput, error) {
-	clean := func(s string) string { return res.Redact(relativeTo(root, strings.ReplaceAll(s, rf.abs, rf.rel))) }
+	// Secrets are redacted first: one containing the root path would no
+	// longer match once the path is rewritten.
+	clean := func(s string) string { return relativeTo(root, strings.ReplaceAll(res.Redact(s), rf.abs, rf.rel)) }
 	out := runOutput{Path: rf.rel, Env: env, Success: res.Success, Failures: []failure{}}
 	if res.ParseError != nil {
 		out.Success = false
 		out.Error = clean(res.ParseError.Render())
 		return out, nil
 	}
-	jr, err := report.JSON(res, res.Redact, nil)
+	jr, err := report.JSON(res, clean, nil)
 	if err != nil {
 		return out, err
 	}
