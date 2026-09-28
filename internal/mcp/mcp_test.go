@@ -473,14 +473,16 @@ func TestCallVariables(t *testing.T) {
 }
 
 // TestRunNotStarted: a run whose context ends before it starts is an
-// error, not a crash.
+// error, not a crash. Where the clock is coarse (Windows), a 1ns timeout
+// may expire only once the run has started: it then times out instead.
 func TestRunNotStarted(t *testing.T) {
 	f := newRunFixture(t)
 	cs := f.connect(t, Config{RunTimeout: time.Nanosecond})
 	for range 3 {
 		res := call(t, cs, "sonde_run", map[string]any{"path": "ok.hurl"}, nil)
-		if !res.IsError || !strings.Contains(resultText(res), "did not start") {
-			t.Fatalf("result: %s", resultText(res))
+		text := resultText(res)
+		if !res.IsError || (!strings.Contains(text, "did not start") && !strings.Contains(text, "timed out")) {
+			t.Fatalf("result: %s", text)
 		}
 	}
 }
