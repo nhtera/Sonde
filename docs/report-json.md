@@ -10,7 +10,7 @@ export — a Hurl parser or dashboard built against that schema reads a
 Sonde result unchanged. A `sonde` key, on a result or on an entry, holds
 Sonde-only data that has no Hurl equivalent (the data row of a `--data`
 run, the contract findings of `--openapi`, the messages of a streamed
-entry; later gRPC); it is additive within a major version and absent when
+entry, the status of a gRPC call); it is additive within a major version and absent when
 empty.
 
 Every string value in a result — a URL, header, cookie, capture, assert
@@ -52,7 +52,7 @@ the row's secrets: a secret can never appear in a report in the clear.
 | `calls` | `Call[]` | One HTTP exchange per call; a redirect produces more than one. |
 | `captures` | `Capture[]` | Variables captured by this attempt. |
 | `asserts` | `Assert[]` | One per implicit or explicit assert, in source order; with `--openapi`, each contract violation adds a failed assert at the status line. |
-| `sonde` | object, optional | Sonde-only data, absent when there is none. `sonde.contract.violations` (`Violation[]`) lists the contract findings of the attempt's final response (`--openapi`); absent when it conforms. `sonde.stream` (`Stream`) holds the messages of a streamed entry (Server-Sent Events or WebSocket, `.sonde` files only). |
+| `sonde` | object, optional | Sonde-only data, absent when there is none. `sonde.contract.violations` (`Violation[]`) lists the contract findings of the attempt's final response (`--openapi`); absent when it conforms. `sonde.stream` (`Stream`) holds the messages of a streamed entry (Server-Sent Events, WebSocket or a server-streaming gRPC call, `.sonde` files only). `sonde.grpc` (`GRPCStatus`) is the status of a gRPC call; absent for other entries and for a gRPC stream stopped before its status. |
 
 ### `Violation`
 
@@ -72,7 +72,7 @@ What a streamed entry exchanged after its response headers
 
 | Field | Type | Description |
 |---|---|---|
-| `protocol` | string | `sse` or `websocket` (later `grpc`). |
+| `protocol` | string | `sse`, `websocket` or `grpc`. |
 | `stop_reason` | string, optional | Why the stream ended: `count`, `timeout`, `max-bytes`, `closed` (by the server) or `script` (every WebSocket step ran). Absent when the stream failed. |
 | `sent` | integer | Messages sent (WebSocket). |
 | `received` | integer | Events or messages received. |
@@ -89,6 +89,18 @@ What a streamed entry exchanged after its response headers
 | `id` | string | an SSE event after an `id` field |
 | `retry` | integer | an SSE event with a valid `retry` field |
 | `time` | integer | always: milliseconds since the response headers |
+
+A gRPC reply's `data` is its JSON ([guides/grpc.md](guides/grpc.md)).
+
+### `GRPCStatus`
+
+The status of a gRPC call ([guides/grpc.md](guides/grpc.md)).
+
+| Field | Type | Description |
+|---|---|---|
+| `code` | integer | The status code: `0` is OK. |
+| `status` | string | The code's name: `OK`, `NOT_FOUND`…; `UNKNOWN` for a code gRPC does not define. |
+| `message` | string | The status message, percent-decoded; empty when none. Redacted. |
 
 ### `Call`
 

@@ -57,19 +57,19 @@ func messages(r *syntax.Request) *syntax.Section {
 	return nil
 }
 
-// usesStream reports whether a response section queries sondeStream.
-func usesStream(r *syntax.Response) bool {
+// usesQuery reports whether a capture or assert of r uses a query of kind.
+func usesQuery(r *syntax.Response, kind syntax.QueryKind) bool {
 	if r == nil {
 		return false
 	}
 	for _, s := range r.Sections {
 		for _, c := range s.Captures {
-			if c.Query.Kind == syntax.QuerySondeStream {
+			if c.Query.Kind == kind {
 				return true
 			}
 		}
 		for _, a := range s.Asserts {
-			if a.Query.Kind == syntax.QuerySondeStream {
+			if a.Query.Kind == kind {
 				return true
 			}
 		}
@@ -77,8 +77,8 @@ func usesStream(r *syntax.Response) bool {
 	return false
 }
 
-// send performs the exchange of an entry: a WebSocket script, a streamed
-// or a plain HTTP request. The error is located in the entry.
+// send performs the exchange of an entry: a gRPC call, a WebSocket script,
+// a streamed or a plain HTTP request. The error is located in the entry.
 func (u *unit) send(ctx context.Context, e *syntax.Entry, index int, spec *httpx.RequestSpec, opts *httpx.Options, eo *entryOptions) ([]httpx.Call, *runerr.Error) {
 	so := eo.stream.opts
 	so.OnMessage = func(m exchange.Message) {
@@ -88,12 +88,15 @@ func (u *unit) send(ctx context.Context, e *syntax.Entry, index int, spec *httpx
 			u.emit(MessageReceived{Index: index, Message: m})
 		}
 	}
+	if s := grpcSection(e.Request); s != nil {
+		return u.grpcCall(ctx, e, s, spec, opts, so, eo.stream.set)
+	}
 	if s := messages(e.Request); s != nil {
 		return u.webSocket(ctx, e, s, spec, opts, so)
 	}
 	var st *exchange.Stream
 	if eo.stream.set {
-		opts.ReadStream = func(body io.Reader, stop func()) error {
+		opts.ReadStream = func(_ exchange.Headers, body io.Reader, stop func()) error {
 			s, err := stream.ReadSSE(body, stop, so)
 			st = s
 			return err
@@ -113,7 +116,7 @@ func (u *unit) send(ctx context.Context, e *syntax.Entry, index int, spec *httpx
 		if st.StopReason == exchange.StopMaxBytes {
 			u.log(LogWarning, fmt.Sprintf("the event stream reached sonde-stream-max-bytes after %d event(s)", len(st.Messages)))
 		}
-	case usesStream(e.Response):
+	case usesQuery(e.Response, syntax.QuerySondeStream):
 		// Without sonde-stream-* options, sondeStream reads the whole body.
 		if body, err := final.DecodedBody(); err == nil {
 			final.Stream = stream.SSEStream(body)
@@ -221,10 +224,21 @@ func (u *unit) stepNumber(m *syntax.MessageStep, def int, valid func(int) bool, 
 	return def, nil
 }
 
-// entryCurl is the curl command of an entry: none for a WebSocket entry,
-// one reading without buffering for an event stream.
+// noCurl says why an entry has no curl equivalent, or "".
+func noCurl(r *syntax.Request) string {
+	switch {
+	case messages(r) != nil:
+		return "a WebSocket entry has no curl equivalent"
+	case grpcSection(r) != nil:
+		return "a gRPC entry has no curl equivalent"
+	}
+	return ""
+}
+
+// entryCurl is the curl command of an entry: none for a WebSocket or gRPC
+// entry, one reading without buffering for an event stream.
 func (u *unit) entryCurl(e *syntax.Entry, spec *httpx.RequestSpec, opts *httpx.Options, eo *entryOptions) string {
-	if messages(e.Request) != nil {
+	if noCurl(e.Request) != "" {
 		return ""
 	}
 	cmd := u.curlCommand(spec, opts, eo.output)

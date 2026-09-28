@@ -60,6 +60,8 @@ const (
 	ErrMessageStep // Arg: step name
 	ErrStreamField // Arg: field name
 	ErrMessageValue
+	ErrGrpcField // Arg: field name
+	ErrGrpcKey   // Arg: key
 )
 
 // Error is a parse error at a single position; parsing stops at the first one.
@@ -148,6 +150,10 @@ func (e *Error) Description() string {
 		return "Parsing message step"
 	case ErrStreamField:
 		return "Parsing sondeStream field"
+	case ErrGrpcField:
+		return "Parsing sondeGrpc field"
+	case ErrGrpcKey:
+		return "Parsing SondeGrpc section"
 	}
 	return "Parsing"
 }
@@ -168,9 +174,11 @@ var (
 
 	// Sonde-only names, suggested only in .sonde files.
 	sondeOptions         = []string{"sonde-stream-count", "sonde-stream-max-bytes", "sonde-stream-timeout"}
-	sondeRequestSections = []string{"SondeMessages"}
+	sondeRequestSections = []string{"SondeMessages", "SondeGrpc"}
 	validMessageSteps    = []string{"send", "receive", "close"}
 	validStreamFields    = []string{"data", "event", "id", "retry", "type"}
+	validGrpcFields      = []string{"status", "code", "message"}
+	validGrpcKeys        = []string{"proto", "import-path", "protoset"}
 )
 
 // suggestions returns valid, plus the Sonde-only names in a .sonde file.
@@ -270,6 +278,10 @@ func (e *Error) Message() string {
 		return "expecting a message: JSON, a `text` string, a ``` multiline string, XML, base64, hex or file"
 	case ErrStreamField:
 		return "the field is not valid. " + didYouMean(validStreamFields, e.Arg, "Valid values are "+strings.Join(validStreamFields, ", "))
+	case ErrGrpcField:
+		return "the field is not valid. " + didYouMean(validGrpcFields, e.Arg, "Valid values are "+strings.Join(validGrpcFields, ", "))
+	case ErrGrpcKey:
+		return "the key is not valid. " + didYouMean(validGrpcKeys, e.Arg, "Valid values are "+strings.Join(validGrpcKeys, ", "))
 	}
 	return "invalid input"
 }

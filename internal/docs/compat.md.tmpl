@@ -106,13 +106,18 @@ Request `[Options]` section keys.
 
 Valid only in `.sonde` files (a `.hurl` file using one fails to parse). An
 entry with a `sonde-stream-*` option reads its body as Server-Sent Events.
-See [guides/streaming.md](guides/streaming.md) and
-[decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md).
+See [guides/streaming.md](guides/streaming.md),
+[guides/grpc.md](guides/grpc.md),
+[decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md) and
+[decisions/0005-grpc.md](decisions/0005-grpc.md).
 
 | Construct | Kind | Description |
 |---|---|---|
 {{ range .Sonde.Sections -}}
 | `[{{ .Name }}]` | section | {{ .Doc }} |
+{{ end -}}
+{{ range .Sonde.GrpcKeys -}}
+| `{{ .Name }}` | `[SondeGrpc]` key | {{ .Doc }} |
 {{ end -}}
 {{ range .Sonde.Steps -}}
 | `{{ .Name }}` | `[SondeMessages]` step | {{ .Doc }} |

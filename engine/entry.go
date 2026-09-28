@@ -76,7 +76,7 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 		res.TransferDuration += c.Timings.Total
 	}
 	if rerr != nil {
-		if rerr.Kind == runerr.Stream { // a WebSocket that failed after its handshake
+		if rerr.Kind == runerr.Stream || rerr.Kind == runerr.GRPC { // a WebSocket or gRPC call that failed after its response
 			u.logResponses(res.Calls)
 			u.logStream(res.Calls)
 		}

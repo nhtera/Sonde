@@ -64,7 +64,7 @@ linters:
           files: ["**/engine/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/stream, internal/sandbox, internal/enginex (architecture §2)"
+              desc: "engine may import only: internal/syntax, internal/value, internal/redact, internal/template, internal/query, internal/filter, internal/predicate, internal/runerr, exchange, internal/httpx, internal/stream, internal/grpcx, internal/sandbox, internal/enginex (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/enginex$
             - github.com/nhtera/sonde/internal/syntax$
@@ -78,6 +78,7 @@ linters:
             - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/httpx$
             - github.com/nhtera/sonde/internal/stream$
+            - github.com/nhtera/sonde/internal/grpcx$
             - github.com/nhtera/sonde/internal/sandbox$
         pkg-exchange:
           list-mode: lax

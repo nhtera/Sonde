@@ -120,6 +120,8 @@ func checkSupported(opts *Options) error {
 		return unsupportedError("http1.0")
 	case opts.HTTPVersion == HTTP3:
 		return newError(ErrUnsupported, "Unsupported HTTP version", "HTTP/3 is not supported, check --version", nil)
+	case opts.GRPC && opts.HTTPVersion == HTTP11:
+		return newError(ErrUnsupported, "Unsupported HTTP version", "a gRPC call uses HTTP/2: the http1.1 option does not apply", nil)
 	}
 	return nil
 }
@@ -283,11 +285,15 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 		cert = certInfo(*resp.TLS)
 	}
 
+	headers := responseHeaders(resp.Header)
+	if opts.GRPC { // the status of a gRPC call is in its trailers
+		headers = append(headers, responseHeaders(resp.Trailer)...)
+	}
 	response := &exchange.Response{
 		Version:        version,
 		Status:         resp.StatusCode,
 		Reason:         reasonPhrase(resp.Status, resp.ProtoMajor),
-		Headers:        responseHeaders(resp.Header),
+		Headers:        headers,
 		Body:           respBody,
 		URL:            prep.req.URL.String(),
 		IP:             timings.remoteIP,
@@ -323,19 +329,20 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 // followsRedirect reports whether Execute follows a response with status
 // and Location header loc to another URL.
 func followsRedirect(opts *Options, status int, loc string) bool {
-	return opts.FollowLocation && status >= 300 && status < 400 && loc != ""
+	return opts.FollowLocation && !opts.GRPC && status >= 300 && status < 400 && loc != ""
 }
 
 // readStream runs read on the decoded body of a streamed response and
 // returns the bytes as received.
-func readStream(resp *http.Response, body io.Reader, read func(io.Reader, func()) error, stop func()) ([]byte, error) {
+func readStream(resp *http.Response, body io.Reader, read func(exchange.Headers, io.Reader, func()) error, stop func()) ([]byte, error) {
 	var raw bytes.Buffer
+	header := responseHeaders(resp.Header)
 	d := &lazyDecoder{
-		codings: (&exchange.Response{Headers: responseHeaders(resp.Header)}).ContentEncodings(),
+		codings: (&exchange.Response{Headers: header}).ContentEncodings(),
 		r:       io.TeeReader(body, &raw),
 	}
 	defer d.close()
-	err := read(d, stop)
+	err := read(header, d, stop)
 	return raw.Bytes(), err
 }
 

@@ -88,6 +88,7 @@ type htmlEntry struct {
 	Captures      []Capture
 	RuntimeErrors []string
 	Stream        *htmlStream
+	GRPC          *GRPCStatus
 }
 
 // htmlStream is a stream transcript, cut to its first messages.
@@ -209,6 +210,9 @@ func writeHTMLUnitPage(storeDir, id string, res *engine.UnitResult, redact func(
 		}
 		if je.Sonde != nil && je.Sonde.Stream != nil {
 			he.Stream = newHTMLStream(je.Sonde.Stream)
+		}
+		if je.Sonde != nil {
+			he.GRPC = je.Sonde.GRPC
 		}
 		entries[i] = he
 	}

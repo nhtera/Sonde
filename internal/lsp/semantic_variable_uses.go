@@ -38,7 +38,7 @@ func collectResponseUses(out *[]use, r *syntax.Response) {
 func collectSectionUses(out *[]use, secs []*syntax.Section) {
 	for _, sec := range secs {
 		switch sec.Kind {
-		case syntax.SectionQueryParams, syntax.SectionFormParams, syntax.SectionCookies, syntax.SectionBasicAuth:
+		case syntax.SectionQueryParams, syntax.SectionFormParams, syntax.SectionCookies, syntax.SectionBasicAuth, syntax.SectionGrpc:
 			collectKeyValueUses(out, sec.KeyValues)
 		case syntax.SectionMultipart:
 			collectMultipartUses(out, sec.Multipart)

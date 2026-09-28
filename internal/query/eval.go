@@ -136,6 +136,8 @@ func (c *Context) Eval(q *syntax.Query) (value.Value, error) {
 		return c.redirects(), nil
 	case syntax.QuerySondeStream:
 		return stream(q, r.Stream)
+	case syntax.QuerySondeGrpc:
+		return grpcStatus(q, r.GRPC), nil
 	}
 	return nil, nil
 }

@@ -74,6 +74,8 @@ func section(r *reader, request bool) (*Section, *Error) {
 		s.Asserts, err = zeroOrMore(r, assert)
 	case SectionMessages:
 		s.Messages, err = zeroOrMore(r, messageStep)
+	case SectionGrpc:
+		s.KeyValues, err = zeroOrMore(r, grpcKeyValue)
 	}
 	if err != nil {
 		return nil, err

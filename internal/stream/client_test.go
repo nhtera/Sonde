@@ -69,7 +69,7 @@ func newClient(t *testing.T) *httpx.Client {
 func execSSE(t *testing.T, url string, lim Options) (*exchange.Response, *exchange.Stream, error) {
 	t.Helper()
 	var s *exchange.Stream
-	opts := &httpx.Options{ReadStream: func(body io.Reader, stop func()) error {
+	opts := &httpx.Options{ReadStream: func(_ exchange.Headers, body io.Reader, stop func()) error {
 		st, err := ReadSSE(body, stop, lim)
 		s = st
 		return err
@@ -119,7 +119,7 @@ func TestReadSSE(t *testing.T) {
 func TestReadSSEMaxTime(t *testing.T) {
 	srv := sseServer(t, []string{"data: 1\n\n"}, false)
 	var s *exchange.Stream
-	opts := &httpx.Options{Timeout: 200 * time.Millisecond, ReadStream: func(body io.Reader, stop func()) error {
+	opts := &httpx.Options{Timeout: 200 * time.Millisecond, ReadStream: func(_ exchange.Headers, body io.Reader, stop func()) error {
 		st, err := ReadSSE(body, stop, Options{Timeout: time.Minute})
 		s = st
 		return err

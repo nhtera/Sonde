@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package sonde.test;
+
+import "google/protobuf/any.proto";
+import "sonde/test/types.proto";
+
+// Greeter is the service of the gRPC tests.
+service Greeter {
+  rpc SayHello(HelloRequest) returns (HelloReply);
+  rpc Count(CountRequest) returns (stream CountReply);
+  rpc Chat(stream HelloRequest) returns (stream HelloReply);
+}
+
+message HelloRequest {
+  string name = 1;
+  int32 times = 2;
+}
+
+message HelloReply {
+  string message = 1;
+  int32 times = 2;
+  Mood mood = 3;
+  google.protobuf.Any extra = 4;
+  int64 big = 5;
+}

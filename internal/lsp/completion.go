@@ -63,6 +63,8 @@ func (s *Server) completion(d *document, offset int) []CompletionItem {
 			return s.completeOption(d, lineStart, lineEnd, offset, text)
 		case "SondeMessages":
 			return s.completeStep(d, lineStart, offset, text, col)
+		case "SondeGrpc":
+			return s.completeGrpcKey(d, lineStart, offset, text, col)
 		}
 		return []CompletionItem{}
 	}

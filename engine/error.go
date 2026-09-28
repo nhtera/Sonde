@@ -75,6 +75,10 @@ const (
 	// ErrorStream: a WebSocket step that failed, or a sondeStream field
 	// that does not apply to the entry's protocol.
 	ErrorStream ErrorKind = "stream"
+	// ErrorGRPC: a gRPC call that failed: a status other than OK that the
+	// entry does not check, descriptors that could not be loaded, or a
+	// message that does not match its type.
+	ErrorGRPC ErrorKind = "grpc"
 )
 
 // errorKinds maps every runtime error kind to its public kind.
@@ -115,6 +119,7 @@ var errorKinds = [runerr.KindCount]ErrorKind{
 	runerr.BinaryOutput:                 ErrorBinaryOutput,
 	runerr.ContractViolation:            ErrorContractViolation,
 	runerr.Stream:                       ErrorStream,
+	runerr.GRPC:                         ErrorGRPC,
 }
 
 // Error is an error of a run: a parse error (kind ErrorParse) or an error

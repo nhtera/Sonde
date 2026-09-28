@@ -17,7 +17,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: apicheck bench verify-install build test race lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean
+.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -27,6 +27,9 @@ test: ## Run unit tests
 
 race: ## Run unit tests with the race detector
 	go test -race ./...
+
+test-grpc-interop: ## Run gRPC calls against grpc-go servers (separate module under testdata/grpcinterop)
+	cd testdata/grpcinterop && go test -race ./...
 
 lint: $(BIN)/golangci-lint ## Run golangci-lint (linters + formatters)
 	$(BIN)/golangci-lint run ./...

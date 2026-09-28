@@ -14,9 +14,12 @@ import (
 var streamFields = map[exchange.Protocol]map[string]bool{
 	exchange.ProtocolSSE:       {"data": true, "event": true, "id": true, "retry": true},
 	exchange.ProtocolWebSocket: {"data": true, "type": true},
+	exchange.ProtocolGRPC:      {"data": true},
 }
 
-var protocolNames = map[exchange.Protocol]string{exchange.ProtocolSSE: "an SSE", exchange.ProtocolWebSocket: "a WebSocket"}
+var protocolNames = map[exchange.Protocol]string{
+	exchange.ProtocolSSE: "an SSE", exchange.ProtocolWebSocket: "a WebSocket", exchange.ProtocolGRPC: "a gRPC",
+}
 
 // stream evaluates sondeStream: one field of each message received, in
 // order. A response without a stream returns nothing.

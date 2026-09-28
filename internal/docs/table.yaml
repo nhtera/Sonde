@@ -1034,6 +1034,19 @@ sonde:
     - name: "SondeMessages"
       status: "supported"
       doc: "makes the entry a WebSocket exchange: ordered send, receive and close steps"
+    - name: "SondeGrpc"
+      status: "supported"
+      doc: "makes the entry a gRPC call of the method its URL path names (`POST http://host/package.Service/Method`), with a JSON request body; empty, the descriptors come from server reflection"
+  grpc_keys:
+    - name: "proto"
+      status: "supported"
+      doc: "a `.proto` file compiled at run time (repeatable)"
+    - name: "import-path"
+      status: "supported"
+      doc: "a directory where imports of proto files resolve (repeatable; default: each proto file's directory)"
+    - name: "protoset"
+      status: "supported"
+      doc: "a binary FileDescriptorSet, as written by `protoc --descriptor_set_out --include_imports` or `buf build -o` (repeatable)"
   steps:
     - name: "send"
       status: "supported"
@@ -1058,6 +1071,9 @@ sonde:
     - name: "sondeStream"
       status: "supported"
       doc: "the data of each event or message received, as a list; `sondeStream \"event\"`, `\"id\"`, `\"retry\"` (SSE) or `\"type\"` (WebSocket) select another field"
+    - name: "sondeGrpc"
+      status: "supported"
+      doc: "the status name of a gRPC call (`OK`, `NOT_FOUND`…); `sondeGrpc \"code\"` is the status code and `sondeGrpc \"message\"` the status message. A status other than OK fails the entry unless the entry uses this query"
 
 differences:
   - area: "Syntax"

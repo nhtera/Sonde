@@ -39,17 +39,18 @@ The extension picks the grammar (`internal/syntax.DialectFor`):
 | | `.hurl` | `.sonde` |
 |---|---|---|
 | Grammar | strict Hurl 8 | a superset of `.hurl` |
-| Sonde extensions: `[SondeMessages]`, `sonde-stream-*` options, the `sondeStream` query | a parse error naming the construct | accepted ([guides/streaming.md](guides/streaming.md)) |
+| Sonde extensions: `[SondeMessages]`, `[SondeGrpc]`, `sonde-stream-*` options, the `sondeStream` and `sondeGrpc` queries | a parse error naming the construct | accepted ([guides/streaming.md](guides/streaming.md), [guides/grpc.md](guides/grpc.md)) |
 | Runs with Hurl itself | yes | no (Hurl rejects every Sonde construct at parse time) |
 | `sonde fmt` | canonical layout, still valid Hurl | canonical layout |
 
 A `.sonde` file that uses no extension behaves exactly like the same file
 named `.hurl`. Use `.hurl` for files you want to keep interchangeable with
-the `hurl` CLI or other Hurl tooling; use `.sonde` for Server-Sent Events
-and WebSocket tests, and for files that are Sonde-only anyway. Input read
+the `hurl` CLI or other Hurl tooling; use `.sonde` for Server-Sent Events,
+WebSocket and gRPC tests, and for files that are Sonde-only anyway. Input read
 from standard input is parsed as `.hurl`. Every extension is prefixed
 `sonde` so it never collides with syntax Hurl may add
-([decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md)).
+([decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md),
+[decisions/0005-grpc.md](decisions/0005-grpc.md)).
 Both extensions are recognized by directory expansion (`sonde DIR`),
 `sonde import`'s `--ext` flag, and the language server
 ([guides/editors.md](guides/editors.md)).

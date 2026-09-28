@@ -12,14 +12,14 @@ var queryParsers = []parseFunc[*Query]{
 	templateQuery(QueryXPath), templateQuery(QueryJSONPath), regexQuery,
 	templateQuery(QueryVariable), keywordQuery(QueryDuration), keywordQuery(QueryBytes),
 	keywordQuery(QueryRawBytes), keywordQuery(QuerySHA256), keywordQuery(QueryMD5),
-	certificateQuery, keywordQuery(QueryIP), sondeStreamQuery, keywordQuery(QueryRedirects),
+	certificateQuery, keywordQuery(QueryIP), sondeStreamQuery, sondeGrpcQuery, keywordQuery(QueryRedirects),
 }
 
 // queryKeywords matches queryParsers; `redirects` stays last so an unknown
 // query is reported as in Hurl.
 var queryKeywords = []string{"status", "version", "url", "header", "cookie", "body", "xpath",
 	"jsonpath", "regex", "variable", "duration", "bytes", "rawbytes", "sha256", "md5",
-	"certificate", "ip", "sondeStream", "redirects"}
+	"certificate", "ip", "sondeStream", "sondeGrpc", "redirects"}
 
 func query(r *reader) (*Query, *Error) {
 	start := r.pos

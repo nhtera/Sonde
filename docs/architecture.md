@@ -10,7 +10,7 @@ All paths are relative to the repository root.
 ## 1. Principles
 
 1. **One engine, many frontends.** CLI now; later Wails v3 GUI (separate plan), `go test` embedding, LSP, MCP. All call the same `engine` package.
-2. **Plain text is the source of truth.** `.hurl` = strict Hurl 8 grammar. `.sonde` = a superset: Sonde's protocol extensions (SSE and WebSocket since v1.2, [decisions/0004](decisions/0004-streaming-protocols.md); gRPC later) are allowed **only** in `.sonde`, under a Sonde-specific prefix Hurl will not use, and are parse errors in `.hurl` — *confirmed in validation 2026-09-23*.
+2. **Plain text is the source of truth.** `.hurl` = strict Hurl 8 grammar. `.sonde` = a superset: Sonde's protocol extensions (SSE, WebSocket and gRPC since v1.2, [decisions/0004](decisions/0004-streaming-protocols.md), [decisions/0005](decisions/0005-grpc.md)) are allowed **only** in `.sonde`, under a Sonde-specific prefix Hurl will not use, and are parse errors in `.hurl` — *confirmed in validation 2026-09-23*.
 3. **Sonde extras never change `.hurl` files.** OpenAPI contracts, data-driven runs, environments = CLI flags / `sonde.yaml` only.
 4. **Engine is a library.** No `os.Exit`, no printing, no package globals, no `init()` side effects. `context.Context` cancel everywhere. Typed events delivered serially. JSON-serializable, already-redacted results.
 5. **Hurl HTTP semantics, explicit.** Body queries see decoded bytes (`rawbytes` = raw); redirects followed only on request, via a manual loop with curl's credential rules; curl-like defaults (`Accept: */*`, `User-Agent: sonde/<version>`).
@@ -25,9 +25,9 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | Package | Role | Allowed internal deps |
 |---|---|---|
 | `cmd/sonde` | `main` → `cli.Execute()` | `internal/cli` |
-| `engine` (**public**) | `Runner` (`RunFile`, `RunSource`, `RunAll`, `RenderCurl`), `Options`, `HTTPOptions`, events, results (`Error`, `Value`), `ResponseValidator`, `Violation` | syntax, value, redact, template, query, filter, predicate, runerr, exchange, httpx, stream, sandbox, enginex |
+| `engine` (**public**) | `Runner` (`RunFile`, `RunSource`, `RunAll`, `RenderCurl`), `Options`, `HTTPOptions`, events, results (`Error`, `Value`), `ResponseValidator`, `Violation` | syntax, value, redact, template, query, filter, predicate, runerr, exchange, httpx, stream, grpcx, sandbox, enginex |
 | `internal/enginex` | constructors of engine result values for internal tests, set by `engine` | runerr, syntax, value |
-| `exchange` (**public**) | transport-neutral `Request`/`Response`/`Timings`/`CertInfo`/`Cookie`/`Stream` model; decoded body (br/gzip/deflate/zstd), charset-decoded text, `Set-Cookie` parsing | charset, codec |
+| `exchange` (**public**) | transport-neutral `Request`/`Response`/`Timings`/`CertInfo`/`Cookie`/`Stream`/`GRPCStatus` model; decoded body (br/gzip/deflate/zstd), charset-decoded text, `Set-Cookie` parsing | charset, codec |
 | `internal/syntax` | reader, parser, AST, lossless printer, canonical formatter, diagnostics, dialect gate | regex, styled |
 | `internal/regex` | regex validity rules shared by parser and evaluation | — (leaf) |
 | `internal/styled` | styled text runs printed plain or with ANSI colors (error snippets) | — (leaf) |
@@ -44,7 +44,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/query` | all Hurl queries over the responses of an entry (redirect chain), with a per-entry parsed-body cache | syntax, value, exchange, template, filter, runerr, xpath, datefmt |
 | `internal/filter` | all Hurl filters | syntax, value, jsonpath, template, runerr, xpath, datefmt, charset |
 | `internal/predicate` | all Hurl predicates | syntax, value, template, runerr, datefmt |
-| `internal/httpx` | client/transport builder, options, manual redirect loop, timings, cookie jar, decompression, streamed-body hook, WebSocket handshake | exchange, sandbox, codec |
+| `internal/httpx` | client/transport builder, options, manual redirect loop, timings, cookie jar, decompression, streamed-body hook, WebSocket handshake, HTTP/2-only transport for gRPC (h2c, trailers) | exchange, sandbox, codec |
 | `internal/report` | JSON result (shared by `--json` and `--report-json`), JUnit, TAP, HTML reports; redacted with the final secret union | engine, exchange |
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
 | `internal/dataset` | CSV / JSON-array rows for `--data` | value |
@@ -55,7 +55,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/cli` | cobra commands, Hurl-compatible root, flag → `engine.Options` mapping, output wiring | everything above |
 | `internal/mock` | OpenAPI mock server (`sonde mock`): net/http plumbing around `openapi.Mock` | openapi |
 | `internal/stream` | SSE parser and reader, WebSocket message scripts (`coder/websocket`) for streamed entries | exchange, httpx |
-| `internal/grpcx` (post-v1) | gRPC dynamic client | exchange |
+| `internal/grpcx` | gRPC on the HTTP/2 client: message framing, status codes, descriptors (`.proto` via `protocompile`, descriptor sets, server reflection), proto3 JSON mapping | exchange |
 | `internal/mcp` (post-v1) | MCP server | engine, syntax, config |
 | `editors/vscode` | VS Code extension (TypeScript) — separate npm package | — |
 | `testdata/conformance/hurl` | vendored Hurl 8 test tree + servers + requirements + manifest | — |
@@ -252,7 +252,7 @@ Owner: `docs/sonde-yaml.md` — the only place keys are defined; strict (unknown
 | Shell words (curl import) | own tokenizer in `internal/convert/curl` (`'…'`, `"…"`, `$'…'`, continuations, `$VAR`) | — (`go-shellwords` can't read `$'…'`, which the curl export writes; `google/shlex` archived) |
 | LSP types and JSON-RPC | own minimal LSP 3.17 types and stdio framing in `internal/lsp` (`protocol.go`, `jsonrpc.go`) | — (`go.lsp.dev/protocol` v1 is ~87k lines and pins a pre-release JSON library; `tliron/glsp` stale since 2025-06) |
 | WebSocket | `github.com/coder/websocket` | ISC |
-| gRPC (post-v1) | `google.golang.org/grpc`, `github.com/bufbuild/protocompile` | Apache-2.0 |
+| gRPC | `google.golang.org/protobuf` (BSD-3-Clause), `github.com/bufbuild/protocompile` (Apache-2.0); no grpc-go ([decisions/0005](decisions/0005-grpc.md)) | BSD-3-Clause, Apache-2.0 |
 | MCP (post-v1) | `github.com/modelcontextprotocol/go-sdk` | NOASSERTION on GitHub → verify before adopting |
 
 CI gate: `go-licenses check ./... --allowed_licenses=Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC`.

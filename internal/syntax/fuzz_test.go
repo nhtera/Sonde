@@ -17,6 +17,7 @@ func FuzzParse(f *testing.F) {
 		f.Add(readFile(f, path))
 	}
 	f.Add([]byte(sondeStreams))
+	f.Add([]byte(sondeGrpc))
 	f.Fuzz(func(t *testing.T, src []byte) {
 		for _, d := range []Dialect{DialectHurl, DialectSonde} {
 			fuzzParse(t, src, d)

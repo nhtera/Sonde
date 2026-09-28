@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package sonde.test;
+
+enum Mood {
+  MOOD_UNSPECIFIED = 0;
+  HAPPY = 1;
+}
+
+message CountRequest {
+  int32 n = 1;
+  // Milliseconds between two replies.
+  int32 delay = 2;
+}
+
+message CountReply {
+  int32 i = 1;
+}

@@ -32,10 +32,10 @@ func transportCacheKey(opts *Options) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "insecure=%v;cacert=%s;cert=%s;key=%s;pin=%s;",
 		opts.Insecure, opts.CACert, opts.ClientCert, opts.ClientKey, opts.PinnedPublicKey)
-	fmt.Fprintf(&b, "proxy=%s;noproxy=%s;unix=%s;connectto=%s;resolve=%s;ip=%d;http=%d;connto=%s",
+	fmt.Fprintf(&b, "proxy=%s;noproxy=%s;unix=%s;connectto=%s;resolve=%s;ip=%d;http=%d;connto=%s;grpc=%v",
 		opts.Proxy, opts.NoProxy, opts.UnixSocket,
 		strings.Join(opts.ConnectTo, ","), strings.Join(opts.Resolve, ","),
-		opts.IPResolve, opts.HTTPVersion, opts.ConnectTimeout)
+		opts.IPResolve, opts.HTTPVersion, opts.ConnectTimeout, opts.GRPC)
 	return b.String()
 }
 
@@ -93,7 +93,29 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 		}
 	}
 
+	if opts.GRPC {
+		grpcTransport(t)
+	}
 	return &builtTransport{rt: t, insecure: opts.Insecure}, nil
+}
+
+// grpcTransport restricts t to HTTP/2, with prior knowledge over
+// cleartext: gRPC servers speak nothing else. Cleartext HTTP/2 cannot go
+// through an HTTP proxy, which would receive the HTTP/2 preface itself.
+func grpcTransport(t *http.Transport) {
+	t.Protocols = new(http.Protocols)
+	t.Protocols.SetHTTP2(true)
+	t.Protocols.SetUnencryptedHTTP2(true)
+	if proxy := t.Proxy; proxy != nil {
+		t.Proxy = func(r *http.Request) (*url.URL, error) {
+			u, err := proxy(r)
+			if err == nil && u != nil && r.URL.Scheme == "http" {
+				return nil, newError(ErrUnsupported, "Unsupported proxy",
+					"a gRPC call to an http:// URL (cleartext HTTP/2) cannot go through the HTTP proxy "+u.Redacted(), nil)
+			}
+			return u, err
+		}
+	}
 }
 
 // buildTLSConfig assembles the tls.Config for --insecure, --cacert,

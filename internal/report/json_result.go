@@ -74,15 +74,23 @@ type Entry struct {
 
 // EntrySonde is the `sonde` object of an entry.
 type EntrySonde struct {
-	Contract *Contract `json:"contract,omitempty"`
-	Stream   *Stream   `json:"stream,omitempty"`
+	Contract *Contract   `json:"contract,omitempty"`
+	GRPC     *GRPCStatus `json:"grpc,omitempty"`
+	Stream   *Stream     `json:"stream,omitempty"`
+}
+
+// GRPCStatus is the status of a gRPC call.
+type GRPCStatus struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Status  string `json:"status"` // "OK", "NOT_FOUND"…
 }
 
 // Stream is what a streamed entry exchanged after its response headers:
-// Server-Sent Events or WebSocket messages.
+// Server-Sent Events, WebSocket messages or gRPC replies.
 type Stream struct {
 	Messages   []StreamMessage `json:"messages"`
-	Protocol   string          `json:"protocol"` // "sse" or "websocket"
+	Protocol   string          `json:"protocol"` // "sse", "websocket" or "grpc"
 	Received   int             `json:"received"`
 	Sent       int             `json:"sent"`
 	StopReason string          `json:"stop_reason,omitempty"` // absent when the stream failed
@@ -295,6 +303,13 @@ func toEntry(e *engine.EntryResult, redact func(string) string, store BodyStore)
 			je.Sonde = &EntrySonde{}
 		}
 		je.Sonde.Stream = toStream(e.Calls[n-1].Response.Stream, redact)
+	}
+	if n := len(e.Calls); n > 0 && e.Calls[n-1].Response != nil && e.Calls[n-1].Response.GRPC != nil {
+		if je.Sonde == nil {
+			je.Sonde = &EntrySonde{}
+		}
+		st := e.Calls[n-1].Response.GRPC
+		je.Sonde.GRPC = &GRPCStatus{Code: st.Code, Message: redact(st.Message), Status: st.Status}
 	}
 	return je, nil
 }

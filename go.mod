@@ -9,6 +9,7 @@ require (
 	github.com/antchfx/htmlquery v1.3.6
 	github.com/antchfx/xmlquery v1.5.1
 	github.com/antchfx/xpath v1.3.8
+	github.com/bufbuild/protocompile v0.14.1
 	github.com/coder/websocket v1.8.15
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/klauspost/compress v1.20.1
@@ -19,6 +20,7 @@ require (
 	golang.org/x/net v0.59.0
 	golang.org/x/text v0.42.0
 	golang.org/x/time v0.16.0
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
@@ -29,4 +31,5 @@ require (
 	github.com/oasdiff/yaml v0.1.1 // indirect
 	github.com/oasdiff/yaml3 v0.0.14 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 )

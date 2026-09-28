@@ -23,6 +23,7 @@ var sectionDocs = map[syntax.SectionKind]string{
 	syntax.SectionCaptures:    "Variables captured from the response, usable by later entries.",
 	syntax.SectionAsserts:     "Assertions checked against the response.",
 	syntax.SectionMessages:    "WebSocket steps (.sonde only): send, receive and close, in order.",
+	syntax.SectionGrpc:        "Makes the entry a gRPC call (.sonde only): its message types come from proto or protoset files, or from server reflection when the section is empty.",
 }
 
 // lookup finds a docs.Table entry of kind, or of the Sonde extensions of
@@ -155,6 +156,10 @@ func (s *Server) hoverSections(d *document, sections []*syntax.Section, offset i
 			if h := s.hoverSteps(d, sec.Messages, offset); h != nil {
 				return h
 			}
+		case syntax.SectionGrpc:
+			if h := s.hoverGrpcKeys(d, sec.KeyValues, offset); h != nil {
+				return h
+			}
 		}
 	}
 	return nil
@@ -182,6 +187,23 @@ func (s *Server) hoverSteps(d *document, steps []*syntax.MessageStep, offset int
 			if e, ok := s.lookup("steps", m.Kind.String()); ok {
 				rng := d.lines.rangeOf(start, end)
 				return &Hover{Contents: *s.markup(entryDoc(e)), Range: &rng}
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Server) hoverGrpcKeys(d *document, kvs []*syntax.KeyValue, offset int) *Hover {
+	for _, kv := range kvs {
+		if !spanContains(kv.Key.Span, offset) {
+			continue
+		}
+		for _, el := range kv.Key.Elements {
+			if ts, ok := el.(*syntax.TemplateString); ok {
+				if e, ok := s.lookup("grpc-keys", ts.Value); ok {
+					rng := d.lines.spanRange(kv.Key.Span)
+					return &Hover{Contents: *s.markup(entryDoc(e)), Range: &rng}
+				}
 			}
 		}
 	}

@@ -50,9 +50,23 @@ func (l Options) observe(m exchange.Message) {
 // the stop, not failures. Only a read error the limits did not cause is
 // returned as an error, with the events read so far.
 func ReadSSE(body io.Reader, stop func(), lim Options) (*exchange.Stream, error) {
+	var parser SSEParser
+	return Read(body, stop, lim, exchange.ProtocolSSE, func(chunk []byte) ([]exchange.Message, error) {
+		var ms []exchange.Message
+		for _, e := range parser.Write(chunk) {
+			ms = append(ms, exchange.Message{Data: []byte(e.Data), Event: e.Type, ID: e.ID, Retry: e.Retry})
+		}
+		return ms, nil
+	})
+}
+
+// Read reads the messages of a stream of protocol from body, as ReadSSE
+// does: parse turns each chunk read into the messages it completes. An
+// error from parse ends the stream as a failure.
+func Read(body io.Reader, stop func(), lim Options, protocol exchange.Protocol, parse func([]byte) ([]exchange.Message, error)) (*exchange.Stream, error) {
 	lim = lim.withDefaults()
 	start := time.Now()
-	s := &exchange.Stream{Protocol: exchange.ProtocolSSE}
+	s := &exchange.Stream{Protocol: protocol}
 	var timedOut atomic.Bool
 	timer := time.AfterFunc(lim.Timeout, func() {
 		timedOut.Store(true)
@@ -61,9 +75,8 @@ func ReadSSE(body io.Reader, stop func(), lim Options) (*exchange.Stream, error)
 	defer timer.Stop()
 
 	var (
-		read   int64
-		parser SSEParser
-		buf    = make([]byte, 32<<10)
+		read int64
+		buf  = make([]byte, 32<<10)
 	)
 	for {
 		n, err := body.Read(buf)
@@ -74,8 +87,9 @@ func ReadSSE(body io.Reader, stop func(), lim Options) (*exchange.Stream, error)
 		}
 		read += int64(len(chunk))
 		at := time.Since(start)
-		for _, e := range parser.Write(chunk) {
-			m := exchange.Message{Data: []byte(e.Data), Event: e.Type, ID: e.ID, Retry: e.Retry, At: at}
+		ms, perr := parse(chunk)
+		for _, m := range ms {
+			m.At = at
 			s.Messages = append(s.Messages, m)
 			lim.observe(m)
 			if lim.Count > 0 && len(s.Messages) == lim.Count {
@@ -85,6 +99,9 @@ func ReadSSE(body io.Reader, stop func(), lim Options) (*exchange.Stream, error)
 			}
 		}
 		switch {
+		case perr != nil:
+			stop()
+			return s, perr
 		case full:
 			s.StopReason = exchange.StopMaxBytes
 			stop()

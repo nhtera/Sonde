@@ -13,6 +13,7 @@ type Protocol string
 const (
 	ProtocolSSE       Protocol = "sse"
 	ProtocolWebSocket Protocol = "websocket"
+	ProtocolGRPC      Protocol = "grpc" // a server-streaming gRPC call
 )
 
 // StopReason tells why a stream ended normally. More may be added in a
@@ -29,7 +30,8 @@ const (
 )
 
 // Stream is what a streamed entry exchanged after the response headers:
-// Server-Sent Events, or WebSocket messages.
+// Server-Sent Events, WebSocket messages, or the replies of a
+// server-streaming gRPC call.
 type Stream struct {
 	Protocol Protocol
 	// StopReason is empty when the stream failed: the messages are then
@@ -56,7 +58,7 @@ func (d Direction) String() string {
 	return "received"
 }
 
-// Message is one SSE event or WebSocket message.
+// Message is one SSE event, WebSocket message or gRPC reply (its JSON).
 type Message struct {
 	Direction Direction
 	// Binary is set for a WebSocket binary message.
@@ -83,4 +85,15 @@ func (s *Stream) ReceivedMessages() []Message {
 		}
 	}
 	return out
+}
+
+// GRPCStatus is the status of a gRPC call.
+type GRPCStatus struct {
+	// Code is the status code: 0 is OK.
+	Code int
+	// Status is the name of the code: "OK", "NOT_FOUND"…; "UNKNOWN" for a
+	// code gRPC does not define.
+	Status string
+	// Message is the status message, percent-decoded.
+	Message string
 }

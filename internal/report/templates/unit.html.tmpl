@@ -45,6 +45,7 @@ a{color:#0969da}
 {{if .BodyPreview}}<tr><th>Body</th><td><pre>{{.BodyPreview}}</pre></td></tr>{{end}}
 </table>
 {{end}}
+{{with .GRPC}}<p>gRPC status: <code>{{.Status}}</code> ({{.Code}}){{if .Message}}: {{.Message}}{{end}}</p>{{end}}
 {{with .Stream}}<table>
 <thead><tr><th colspan="4">Stream: {{.Protocol}}, {{.Sent}} sent, {{.Received}} received{{if .StopReason}}, stopped by {{.StopReason}}{{end}}</th></tr>
 <tr><th>Time (ms)</th><th>Direction</th><th>Event</th><th>Data</th></tr></thead>

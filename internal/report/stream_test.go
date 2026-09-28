@@ -83,3 +83,28 @@ func TestHTMLStream(t *testing.T) {
 		t.Error("page leaks the secret")
 	}
 }
+
+func TestReportGRPCStatus(t *testing.T) {
+	res := successResult("grpc.sonde")
+	res.Entries[0].Calls[0].Response.GRPC = &exchange.GRPCStatus{Code: 5, Status: "NOT_FOUND", Message: "no " + testSecret}
+	jr, err := JSON(res, redactTestSecret, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(jr.Entries[0].Sonde)
+	if want := `{"grpc":{"code":5,"message":"no ***","status":"NOT_FOUND"}}`; string(b) != want {
+		t.Errorf("sonde = %s, want %s", b, want)
+	}
+	dir := t.TempDir()
+	if err := WriteHTML(dir, []*engine.UnitResult{res}, redactTestSecret); err != nil {
+		t.Fatal(err)
+	}
+	pages, _ := filepath.Glob(filepath.Join(dir, "store", "*.html"))
+	b, err = os.ReadFile(pages[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "gRPC status: <code>NOT_FOUND</code> (5): no ***") {
+		t.Errorf("page lacks the status")
+	}
+}

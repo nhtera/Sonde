@@ -245,12 +245,18 @@ Request `[Options]` section keys.
 
 Valid only in `.sonde` files (a `.hurl` file using one fails to parse). An
 entry with a `sonde-stream-*` option reads its body as Server-Sent Events.
-See [guides/streaming.md](guides/streaming.md) and
-[decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md).
+See [guides/streaming.md](guides/streaming.md),
+[guides/grpc.md](guides/grpc.md),
+[decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md) and
+[decisions/0005-grpc.md](decisions/0005-grpc.md).
 
 | Construct | Kind | Description |
 |---|---|---|
 | `[SondeMessages]` | section | makes the entry a WebSocket exchange: ordered send, receive and close steps |
+| `[SondeGrpc]` | section | makes the entry a gRPC call of the method its URL path names (`POST http://host/package.Service/Method`), with a JSON request body; empty, the descriptors come from server reflection |
+| `proto` | `[SondeGrpc]` key | a `.proto` file compiled at run time (repeatable) |
+| `import-path` | `[SondeGrpc]` key | a directory where imports of proto files resolve (repeatable; default: each proto file's directory) |
+| `protoset` | `[SondeGrpc]` key | a binary FileDescriptorSet, as written by `protoc --descriptor_set_out --include_imports` or `buf build -o` (repeatable) |
 | `send` | `[SondeMessages]` step | sends one message: JSON, a backtick or multiline string or XML as a text frame; base64, hex or file as a binary frame |
 | `receive` | `[SondeMessages]` step | waits for the next message, or the next N with `receive: N` |
 | `close` | `[SondeMessages]` step | sends a close frame (1000, or `close: CODE`) and waits for the server's |
@@ -258,6 +264,7 @@ See [guides/streaming.md](guides/streaming.md) and
 | `sonde-stream-max-bytes` | option | stops a stream after N bytes (default 10485760); a WebSocket fails beyond it |
 | `sonde-stream-timeout` | option | stops an event stream after this time (default 10s); a WebSocket `receive` still waiting then fails |
 | `sondeStream` | query | the data of each event or message received, as a list; `sondeStream "event"`, `"id"`, `"retry"` (SSE) or `"type"` (WebSocket) select another field |
+| `sondeGrpc` | query | the status name of a gRPC call (`OK`, `NOT_FOUND`…); `sondeGrpc "code"` is the status code and `sondeGrpc "message"` the status message. A status other than OK fails the entry unless the entry uses this query |
 
 ## CLI flags
 

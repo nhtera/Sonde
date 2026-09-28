@@ -43,7 +43,7 @@
     },
 
     "section-header": {
-      "match": "^\\s*(\\[)(Query|QueryStringParams|Form|FormParams|Multipart|MultipartFormData|Cookies|BasicAuth|Options|Captures|Asserts|SondeMessages)(\\])",
+      "match": "^\\s*(\\[)(Query|QueryStringParams|Form|FormParams|Multipart|MultipartFormData|Cookies|BasicAuth|Options|Captures|Asserts|SondeMessages|SondeGrpc)(\\])",
       "captures": {
         "1": { "name": "punctuation.definition.section.begin.sonde" },
         "2": { "name": "entity.name.section.sonde" },
@@ -98,7 +98,7 @@
 
     "query-name": {
       "comment": "A query keyword, as used inside [Captures] (`name: query [filters...] [redact]`) and [Asserts] (`query [filters...] [not] predicate [value]`).",
-      "match": "\\b(body|bytes|certificate|cookie|duration|header|ip|jsonpath|md5|rawbytes|redirects|regex|sha256|sondeStream|status|url|variable|version|xpath)\\b",
+      "match": "\\b(body|bytes|certificate|cookie|duration|header|ip|jsonpath|md5|rawbytes|redirects|regex|sha256|sondeGrpc|sondeStream|status|url|variable|version|xpath)\\b",
       "name": "support.function.query.sonde"
     },
 

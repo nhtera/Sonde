@@ -62,3 +62,41 @@ func TestSondeHoverAndDiagnostics(t *testing.T) {
 		t.Errorf("hurl diagnostics = %+v", diags)
 	}
 }
+
+func TestSondeGrpcCompletionAndHover(t *testing.T) {
+	c := newTestClient(t, nil)
+	c.initialize(true, "", nil)
+	uri := "file:///w/g.sonde"
+	src := "POST http://a/p.S/M\n[SondeGrpc]\npro\nproto: a.proto\n{}\nHTTP 200\n[Asserts]\nsondeG\n"
+	c.open(uri, src)
+	items := c.completion(uri, Position{2, 3})
+	if it := item(t, items, "proto"); it.TextEdit.NewText != "proto: " {
+		t.Errorf("proto = %+v", it)
+	}
+	item(t, items, "import-path")
+	item(t, items, "protoset")
+	item(t, c.completion(uri, Position{7, 6}), "sondeGrpc")
+	if !hasLabel(c.completion(uri, Position{1, 1}), "SondeGrpc") {
+		t.Error("SondeGrpc section not offered")
+	}
+	src = "POST http://a/p.S/M\n[SondeGrpc]\nproto: a.proto\n{}\nHTTP 200\n[Asserts]\nsondeGrpc == \"OK\"\n"
+	if diags := c.open(uri, src); len(diags) != 0 {
+		t.Errorf("diagnostics = %+v", diags)
+	}
+	for _, tc := range []struct {
+		pos  Position
+		want string
+	}{
+		{Position{1, 3}, "Makes the entry a gRPC call"},
+		{Position{2, 2}, "a `.proto` file compiled at run time"},
+		{Position{6, 3}, "the status name of a gRPC call"},
+	} {
+		if h := c.hover(uri, tc.pos); h == nil || !strings.Contains(h.Contents.Value, tc.want) {
+			t.Errorf("hover %v = %+v, want %q", tc.pos, h, tc.want)
+		}
+	}
+	diags := c.open("file:///w/g.hurl", src)
+	if len(diags) != 1 || !strings.Contains(diags[0].Message, "section `[SondeGrpc]` requires a .sonde file") {
+		t.Errorf("hurl diagnostics = %+v", diags)
+	}
+}

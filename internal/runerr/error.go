@@ -92,6 +92,10 @@ const (
 	// Stream is a failure of a streamed entry (a WebSocket step, a
 	// sondeStream field): Value (description), Reason (message).
 	Stream
+	// GRPC is a failed gRPC call (a status other than OK that the entry
+	// does not check, descriptors, messages): Value (description), Reason
+	// (message).
+	GRPC
 
 	// KindCount is the number of kinds; new kinds go above it.
 	KindCount
@@ -136,7 +140,7 @@ func (e *Error) Description() string {
 	case FilterDecode, FilterDateParsing, FilterInvalidEncoding, FilterInvalidInputValue,
 		FilterInvalidInputType, FilterInvalidFormatSpecifier, FilterMissingInput:
 		return "Filter error"
-	case HTTP, Stream:
+	case HTTP, Stream, GRPC:
 		return e.Value
 	case InvalidJSON, QueryInvalidJSON:
 		return "Invalid JSON"
@@ -213,7 +217,7 @@ func (e *Error) Message() string {
 		return "date format <" + e.Value + "> is not supported"
 	case FilterMissingInput:
 		return "missing value to apply filter"
-	case HTTP, Stream:
+	case HTTP, Stream, GRPC:
 		return e.Reason
 	case InvalidJSON:
 		return "actual value is <" + e.Value + ">"

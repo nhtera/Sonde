@@ -76,8 +76,12 @@ type Response struct {
 	// means DefaultMaxDecodedBody.
 	MaxDecodedBody int64
 	// Stream is set for a streamed entry (Server-Sent Events read with a
-	// sonde-stream-* option, or a WebSocket exchange); nil otherwise.
+	// sonde-stream-* option, a WebSocket exchange or a server-streaming
+	// gRPC call); nil otherwise.
 	Stream *Stream
+	// GRPC is the status of a gRPC call; nil for any other entry, and for
+	// a gRPC stream stopped before the server sent its status.
+	GRPC *GRPCStatus
 }
 
 // Timings are the phases of a transfer, measured from its start.

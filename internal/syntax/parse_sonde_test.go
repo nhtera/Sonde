@@ -44,6 +44,48 @@ first: sondeStream nth 0 jsonpath "$.type"
 sondeStream "type" nth 2 == "binary"
 `
 
+const sondeGrpc = `POST http://localhost:50051/helloworld.Greeter/SayHello
+x-request-id: {{id}}
+[Options]
+sonde-stream-count: 2
+[SondeGrpc]
+proto:  {{dir}}/helloworld.proto   # a comment
+import-path: protos
+protoset: build/all.protoset
+{"name": "sonde"}
+HTTP 200
+[Captures]
+code: sondeGrpc "code"
+[Asserts]
+sondeGrpc == "OK"
+sondeGrpc "message" == ""
+`
+
+func TestSondeGrpcParse(t *testing.T) {
+	f, err := Parse("g.sonde", []byte(sondeGrpc), DialectSonde)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(Print(f)); got != sondeGrpc {
+		t.Errorf("Print is not lossless:\n%s", got)
+	}
+	r := f.Entries[0].Request
+	s := r.Sections[1]
+	if s.Kind != SectionGrpc || len(s.KeyValues) != 3 || r.Body == nil {
+		t.Fatalf("section = %+v, body = %v", s, r.Body)
+	}
+	asserts := f.Entries[0].Response.Sections[1].Asserts
+	if q := asserts[0].Query; q.Kind != QuerySondeGrpc || q.Arg != nil {
+		t.Errorf("sondeGrpc = %+v", q)
+	}
+	if q := asserts[1].Query; q.Arg.(*StreamField).Name != "message" {
+		t.Errorf("field = %+v", q.Arg)
+	}
+	if f, err := Parse("g.sonde", []byte("POST http://h/a.B/C\n[SondeGrpc]\nHTTP 200\n"), DialectSonde); err != nil || len(f.Entries[0].Request.Sections[0].KeyValues) != 0 {
+		t.Errorf("empty section: %v", err)
+	}
+}
+
 func TestSondeConstructsParse(t *testing.T) {
 	f, err := Parse("s.sonde", []byte(sondeStreams), DialectSonde)
 	if err != nil {
@@ -165,6 +207,18 @@ func TestSondeErrors(t *testing.T) {
 		{"bad field", "GET http://h\nHTTP 200\n[Asserts]\nsondeStream \"evnt\" count == 1\n", DialectSonde, ErrStreamField, 4, 14,
 			"the field is not valid. Did you mean event?"},
 		{"stream option value", "GET http://h\n[Options]\nsonde-stream-timeout: 5x\n", DialectSonde, ErrInvalidDurationUnit, 3, 24, ""},
+		{"grpc section in hurl", "POST http://h/a.B/C\n[SondeGrpc]\n", DialectHurl, ErrSondeOnly, 2, 2,
+			"section `[SondeGrpc]` requires a .sonde file"},
+		{"grpc query in hurl", "POST http://h/a.B/C\nHTTP 200\n[Asserts]\nsondeGrpc == \"OK\"\n", DialectHurl, ErrSondeOnly, 4, 1,
+			"query `sondeGrpc` requires a .sonde file"},
+		{"grpc section typo", "POST http://h/a.B/C\n[SondeGrp]\n", DialectSonde, ErrRequestSectionName, 2, 2,
+			"the section is not valid. Did you mean SondeGrpc?"},
+		{"grpc key typo", "POST http://h/a.B/C\n[SondeGrpc]\nprotos: a.proto\n", DialectSonde, ErrGrpcKey, 3, 1,
+			"the key is not valid. Did you mean proto?"},
+		{"grpc key template", "POST http://h/a.B/C\n[SondeGrpc]\n{{k}}: a.proto\n", DialectSonde, ErrGrpcKey, 3, 1,
+			"Valid values are proto, import-path, protoset"},
+		{"grpc field", "POST http://h/a.B/C\nHTTP 200\n[Asserts]\nsondeGrpc \"cod\" == 0\n", DialectSonde, ErrGrpcField, 4, 12,
+			"the field is not valid. Did you mean code?"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := Parse("f", []byte(tc.src), tc.d)

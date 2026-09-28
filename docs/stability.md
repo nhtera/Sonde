@@ -29,12 +29,17 @@ failing.
 ## `.sonde` extensions
 
 `.sonde` files accept everything `.hurl` does, plus Sonde's own constructs
-(`[SondeMessages]`, the `sonde-stream-*` options, the `sondeStream` query:
+(`[SondeMessages]`, `[SondeGrpc]`, the `sonde-stream-*` options, the
+`sondeStream` and `sondeGrpc` queries:
 [guides/streaming.md](guides/streaming.md),
-[decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md)).
-They are part of the v1 contract like the CLI: new constructs and new
-`sondeStream` fields may appear in a minor release; an existing one keeps
-its name, meaning and defaults within v1.x. A `.hurl` file that uses one
+[guides/grpc.md](guides/grpc.md),
+[decisions/0004-streaming-protocols.md](decisions/0004-streaming-protocols.md),
+[decisions/0005-grpc.md](decisions/0005-grpc.md)).
+They are part of the v1 contract like the CLI: new constructs, new
+`[SondeGrpc]` keys and new query fields may appear in a minor release; an
+existing one keeps its name, meaning and defaults within v1.x. That includes
+the gRPC JSON mapping and the rule that an unchecked status other than OK
+fails the entry. A `.hurl` file that uses one
 is a parse error, and stays one.
 
 ## CLI
@@ -78,7 +83,7 @@ Fixed: they are part of scripts and CI pipelines.
 The schema `--json` and `--report-json` share is documented in
 [report-json.md](report-json.md): a Hurl-8.0.1-compatible base (existing
 Hurl tooling reads a Sonde result unchanged) plus a `sonde` key for
-Sonde-only data (data rows, contract violations, streams; later gRPC).
+Sonde-only data (data rows, contract violations, streams, gRPC status).
 Within v1.x, changes to this schema are additive only: new fields at the
 base only to match the Hurl format, and Sonde-only data only under
 `sonde`. Existing fields do not change type or meaning, and are not
@@ -115,8 +120,8 @@ What the contract covers:
   `Field`, `Redirect`, `ResponseValidator`, `NoContract`, `Violation`.
 - `exchange`: `Request`, `Response`, `Header`, `Headers`, `Cookie`,
   `CookieAttribute`, `Timings`, `CertInfo`, `BodyError`, `Stream`,
-  `Message`, `Direction` and their methods, and the `Protocol*` and `Stop*`
-  constants.
+  `Message`, `Direction`, `GRPCStatus` and their methods, and the
+  `Protocol*` and `Stop*` constants.
 
 Enumerations may grow in a minor release: `ErrorKind`, `ValueKind`,
 `ViolationKind`, `LogLevel`, `exchange.BodyErrorKind`, the stream protocols

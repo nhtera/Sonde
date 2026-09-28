@@ -38,7 +38,7 @@ func writeLongFormatErrors(stderr io.Writer, res *engine.UnitResult, color bool)
 		}
 		if len(e.Calls) > 0 {
 			call := e.Calls[len(e.Calls)-1]
-			if e.Curl != "" { // none for a WebSocket entry
+			if e.Curl != "" { // none for a WebSocket or gRPC entry
 				writeCurlHint(stderr, redact(e.Curl), color)
 				fmt.Fprintln(stderr)
 			}

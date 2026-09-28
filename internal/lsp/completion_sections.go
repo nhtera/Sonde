@@ -78,7 +78,7 @@ func (s *Server) completeSectionName(d *document, line, lineStart int, text stri
 	if response {
 		names = responseSectionNames
 	} else if sonde(d) {
-		names = append(append([]string(nil), names...), "SondeMessages")
+		names = append(append([]string(nil), names...), "SondeMessages", "SondeGrpc")
 	}
 	items := make([]CompletionItem, len(names))
 	for i, n := range names {
@@ -253,6 +253,20 @@ func (s *Server) completeStep(d *document, lineStart, offset int, text string, c
 			insert += ": "
 		}
 		items = append(items, s.tableItem(e, kindKeyword, rng, insert))
+	}
+	return items
+}
+
+// completeGrpcKey proposes a [SondeGrpc] key at the start of a line.
+func (s *Server) completeGrpcKey(d *document, lineStart, offset int, text string, col int) []CompletionItem {
+	start, ok := atFirstToken(text, col)
+	if !ok || strings.Contains(text[:col], ":") {
+		return []CompletionItem{}
+	}
+	rng := d.lines.rangeOf(lineStart+start, offset)
+	items := make([]CompletionItem, 0, len(s.table.Sonde.GrpcKeys))
+	for _, e := range s.table.Sonde.GrpcKeys {
+		items = append(items, s.tableItem(e, kindProperty, rng, e.Name+": "))
 	}
 	return items
 }

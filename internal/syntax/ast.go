@@ -123,6 +123,7 @@ const (
 	SectionCaptures
 	SectionAsserts
 	SectionMessages // [SondeMessages], .sonde only
+	SectionGrpc     // [SondeGrpc], .sonde only: KeyValues
 )
 
 // Section is `[Name]` followed by its items. Only the slice matching Kind is
@@ -258,11 +259,12 @@ const (
 	QueryIP
 	QueryRedirects
 	QuerySondeStream // Arg: nil or *StreamField; .sonde only
+	QuerySondeGrpc   // Arg: nil or *StreamField; .sonde only
 )
 
 var queryNames = [...]string{"status", "version", "url", "header", "cookie", "body", "xpath",
 	"jsonpath", "regex", "variable", "duration", "bytes", "rawbytes", "sha256", "md5",
-	"certificate", "ip", "redirects", "sondeStream"}
+	"certificate", "ip", "redirects", "sondeStream", "sondeGrpc"}
 
 func (k QueryKind) String() string { return queryNames[k] }
 
@@ -290,8 +292,8 @@ type CookieAttribute struct {
 	Space1 Whitespace
 }
 
-// StreamField is the quoted field of a sondeStream query, e.g. "event"
-// (stored without quotes).
+// StreamField is the quoted field of a sondeStream or sondeGrpc query,
+// e.g. "event" (stored without quotes).
 type StreamField struct {
 	Name string
 }

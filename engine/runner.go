@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nhtera/sonde/internal/grpcx"
 	"github.com/nhtera/sonde/internal/httpx"
 	"github.com/nhtera/sonde/internal/redact"
 	"github.com/nhtera/sonde/internal/runerr"
@@ -29,6 +30,7 @@ import (
 type Runner struct {
 	opt     Options
 	secrets *redact.Registry
+	grpc    grpcCache
 }
 
 // NewRunner returns a runner.
@@ -243,6 +245,9 @@ type unit struct {
 	// checkURL and never read a file body's actual content, only its
 	// name — see the comments at each check.
 	forExport bool
+	// reflected are the gRPC descriptors loaded by server reflection, by
+	// server and service.
+	reflected map[string]*grpcx.Descriptors
 }
 
 // addSecret registers a secret found while running: with the row's

@@ -9,7 +9,7 @@ import "slices"
 // parses only in the .sonde dialect; in a .hurl file it is an ErrSondeOnly
 // error naming the construct.
 
-var sondeRequestSectionKinds = map[string]SectionKind{"SondeMessages": SectionMessages}
+var sondeRequestSectionKinds = map[string]SectionKind{"SondeMessages": SectionMessages, "SondeGrpc": SectionGrpc}
 
 var sondeOptionShapes = map[string]int{
 	"sonde-stream-count": optNatural, "sonde-stream-max-bytes": optNatural,
@@ -123,14 +123,25 @@ func atLineEnd(r *reader) bool {
 
 // sondeStreamQuery is `sondeStream` with an optional quoted field.
 func sondeStreamQuery(r *reader) (*Query, *Error) {
+	return sondeFieldQuery(r, QuerySondeStream, validStreamFields, ErrStreamField)
+}
+
+// sondeGrpcQuery is `sondeGrpc` with an optional quoted field.
+func sondeGrpcQuery(r *reader) (*Query, *Error) {
+	return sondeFieldQuery(r, QuerySondeGrpc, validGrpcFields, ErrGrpcField)
+}
+
+// sondeFieldQuery is a Sonde query keyword with an optional quoted field,
+// one of fields.
+func sondeFieldQuery(r *reader, kind QueryKind, fields []string, errKind ErrorKind) (*Query, *Error) {
 	start := r.pos
-	if err := tryLiteral(r, QuerySondeStream.String()); err != nil {
+	if err := tryLiteral(r, kind.String()); err != nil {
 		return nil, err
 	}
-	if err := sondeOnly(r, start, "query `sondeStream`"); err != nil {
+	if err := sondeOnly(r, start, "query `"+kind.String()+"`"); err != nil {
 		return nil, err
 	}
-	q := &Query{Kind: QuerySondeStream}
+	q := &Query{Kind: kind}
 	save := r.pos
 	space0, _ := zeroOrMoreSpaces(r)
 	if space0.Value == "" || !r.peekIs('"') {
@@ -140,8 +151,8 @@ func sondeStreamQuery(r *reader) (*Query, *Error) {
 	r.read() // '"'
 	from := r.pos
 	name := r.readWhile(isLetter)
-	if !slices.Contains(validStreamFields, name) {
-		e := errAt(from, false, ErrStreamField, name)
+	if !slices.Contains(fields, name) {
+		e := errAt(from, false, errKind, name)
 		e.sonde = true
 		return nil, e
 	}
@@ -150,4 +161,28 @@ func sondeStreamQuery(r *reader) (*Query, *Error) {
 	}
 	q.Space0, q.Arg = space0, &StreamField{Name: name}
 	return q, nil
+}
+
+// grpcKeyValue is a `key: value` line of [SondeGrpc]; the key is one of
+// validGrpcKeys, written without templates.
+func grpcKeyValue(r *reader) (*KeyValue, *Error) {
+	kv, err := keyValue(r)
+	if err != nil {
+		return nil, err
+	}
+	key := ""
+	for _, el := range kv.Key.Elements {
+		ts, ok := el.(*TemplateString)
+		if !ok {
+			key = "{{"
+			break
+		}
+		key += ts.Value
+	}
+	if !slices.Contains(validGrpcKeys, key) {
+		e := errAt(kv.Key.Span.Start, false, ErrGrpcKey, key)
+		e.sonde = true
+		return nil, e
+	}
+	return kv, nil
 }
