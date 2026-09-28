@@ -439,7 +439,18 @@ func success(entries []*EntryResult) bool {
 	return true
 }
 
-// runWithRetry runs an entry, retrying on any error as configured.
+// final reports whether res has an error retrying cannot clear.
+func final(res *EntryResult) bool {
+	for _, e := range res.Errors {
+		if e.run != nil && e.run.Final {
+			return true
+		}
+	}
+	return false
+}
+
+// runWithRetry runs an entry, retrying on an error as configured, unless
+// the error is final.
 func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int, eo *entryOptions) []*EntryResult {
 	var results []*EntryResult
 	for retry := 0; ; retry++ {
@@ -451,7 +462,7 @@ func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int,
 			u.debugImportant("Retry max count reached, no more retry")
 			u.debug("")
 		}
-		again := eo.retry != 0 && !maxReached && hasError && !u.stopped(ctx)
+		again := eo.retry != 0 && !maxReached && hasError && !final(res) && !u.stopped(ctx)
 		res.Retried = again
 		switch {
 		case !hasError && eo.output != nil:

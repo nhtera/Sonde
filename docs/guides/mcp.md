@@ -90,8 +90,8 @@ tool error (`isError`), so the agent sees it failed.
 Each run starts fresh: no cookies carry over from one call to the next.
 Runs happen one at a time, each within `--run-timeout` (default 60 s,
 from 1 s to 10 minutes). When the client cancels a call, its run stops.
-The timeout also ends an entry that keeps retrying (`retry: -1`) against a
-host that is not allowed.
+An entry whose host is not allowed fails at once, even with `retry`: a
+retry would be refused the same way.
 
 ## Allowing runs
 

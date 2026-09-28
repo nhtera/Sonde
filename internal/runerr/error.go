@@ -103,11 +103,13 @@ const (
 
 // Error is a runtime error at a source span. Assert is set when the error
 // was raised while evaluating an assert, which makes it an assert failure
-// rather than a runtime error for the exit code.
+// rather than a runtime error for the exit code. Final is set when
+// retrying the entry cannot clear the error.
 type Error struct {
 	Span   syntax.Span
 	Kind   Kind
 	Assert bool
+	Final  bool
 
 	Name         string
 	Actual       string

@@ -293,6 +293,9 @@ func (u *unit) reflect(ctx context.Context, s *syntax.Section, target *neturl.UR
 	if err != nil {
 		var he *httpx.Error
 		if errors.As(err, &he) {
+			if he.Kind == httpx.ErrHostDenied {
+				return nil, httpError(s.Span, he)
+			}
 			err = errors.New(he.Msg)
 		}
 		return nil, grpcError(s.Span, "gRPC reflection", err.Error())

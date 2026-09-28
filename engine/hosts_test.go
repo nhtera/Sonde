@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/nhtera/sonde/internal/enginex"
 	"github.com/nhtera/sonde/internal/netpolicy"
@@ -62,5 +63,37 @@ func TestRunHosts(t *testing.T) {
 		if hits.Load() != before {
 			t.Errorf("%s: the request was sent", opt)
 		}
+	}
+}
+
+// TestRunHostsNoRetry checks that a denied host is not retried: the next
+// attempt would be refused the same way, and `retry: -1` would otherwise
+// retry until the run is stopped.
+func TestRunHostsNoRetry(t *testing.T) {
+	policy, err := netpolicy.Parse([]string{"allowed.test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, src := range map[string]string{ // HTTP, and gRPC reflection
+		"t.hurl": "GET http://denied.test/\n[Options]\nretry: -1\nretry-interval: 1ms\nHTTP 200\n",
+		"t.sonde": "POST http://denied.test/sonde.test.Greeter/SayHello\n[Options]\nretry: -1\nretry-interval: 1ms\n" +
+			"[SondeGrpc]\n{\"name\": \"x\"}\nHTTP 200\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			r := NewRunner(Options{})
+			enginex.SetHosts(r, policy)
+			res, err := r.RunSource(ctx, filepath.Join(t.TempDir(), name), []byte(src))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Success || res.Interrupted || len(res.Entries) != 1 || res.Entries[0].Retried {
+				t.Fatalf("success=%v interrupted=%v entries=%d errors=%v parse=%v", res.Success, res.Interrupted, len(res.Entries), res.Errors(), res.ParseError)
+			}
+			if errs := res.Errors(); len(errs) != 1 || !strings.Contains(errs[0].Error(), "not in the host allowlist") {
+				t.Errorf("errors = %v", errs)
+			}
+		})
 	}
 }

@@ -125,12 +125,14 @@ func (u *unit) send(ctx context.Context, e *syntax.Entry, index int, spec *httpx
 	return calls, nil
 }
 
-// httpError locates a transport error at span.
+// httpError locates a transport error at span. A host outside the
+// allowlist is final: retrying the entry would be refused the same way.
 func httpError(span syntax.Span, err error) *runerr.Error {
 	e := runerr.New(span, runerr.HTTP, false)
 	var he *httpx.Error
 	if errors.As(err, &he) {
 		e.Value, e.Reason = he.Description, he.Msg
+		e.Final = he.Kind == httpx.ErrHostDenied
 	} else {
 		e.Value, e.Reason = "HTTP connection", err.Error()
 	}
