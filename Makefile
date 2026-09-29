@@ -17,7 +17,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean
+.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean tag-guards
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -76,6 +76,9 @@ bench: ## Local benchmarks vs other installed HTTP runners (report-only; see doc
 
 verify-install: ## Verify a published release installs and verifies (VERSION=vX.Y.Z)
 	scripts/verify-install.sh $(VERSION)
+
+tag-guards: ## Check that no release tag namespace (editors/vscode/*, desktop/*) leaks into the CLI's tag lookups
+	scripts/check-tag-guards.sh
 
 tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses $(BIN)/apidiff ## Install pinned tools into ./bin
 

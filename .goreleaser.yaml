@@ -2,14 +2,16 @@
 version: 2
 project_name: sonde
 
-# editors/vscode/v* tags (release-vscode.yml) share this repo's tag
-# namespace; without this, `git describe`/changelog range-finding can pick
-# one as the CLI's "previous tag", truncating the changelog. The glob only
-# applies to `git describe`; tags on HEAD are matched exactly, so the
-# workflows pin GORELEASER_CURRENT_TAG themselves.
+# editors/vscode/v* (release-vscode.yml) and desktop/v* (the desktop app)
+# tags share this repo's tag namespace; without this, `git describe`/
+# changelog range-finding can pick one as the CLI's "previous tag",
+# truncating the changelog. The glob only applies to `git describe`; tags on
+# HEAD are matched exactly, so the workflows pin GORELEASER_CURRENT_TAG
+# themselves. scripts/check-tag-guards.sh keeps this list complete.
 git:
   ignore_tags:
     - "editors/vscode/*"
+    - "desktop/*"
 
 builds:
   - id: sonde
