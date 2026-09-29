@@ -14,6 +14,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/bodies"
 	"github.com/nhtera/sonde/desktop/internal/emit"
+	"github.com/nhtera/sonde/desktop/internal/envsvc"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/history"
 	"github.com/nhtera/sonde/desktop/internal/jar"
@@ -52,6 +53,7 @@ type Host struct {
 	Settings  *settings.Store
 	Jars      *jar.Jars
 	History   *history.History
+	Envs      *envsvc.Envs
 }
 
 // version is the app's version (set at build time); it names the default
@@ -67,9 +69,12 @@ func (h *Host) setup() error {
 	h.Settings = settings.Open(h.Dirs.Config(), h.Emit, h.Handles)
 	h.Jars = jar.New(h.Dirs.Config(), h.Workspace.Root, func() bool { return h.Settings.Get().Cookies.Keep })
 	h.History = history.New(h.Dirs.Config(), h.Workspace.Root, h.historyPolicy, h.Emit.Emit)
-	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, config.FromOSEnviron(), version, h.Bodies, h.Handles)
+	env := config.FromOSEnviron()
+	h.Envs = envsvc.New(h.Emit, h.Dirs.Config(), h.Workspace.Root, env, version, h.Settings.Apply)
+	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, env, version, h.Bodies, h.Handles)
 	h.Runs.Hooks = runsvc.Hooks{
-		Extend:      h.Settings.Apply,
+		Extend:      h.Envs.Extend,
+		Overrides:   h.Envs.Digest,
 		KeptJar:     h.Jars.KeptJar,
 		KeepCookies: h.Jars.Keep,
 		Record:      h.History.Add,
