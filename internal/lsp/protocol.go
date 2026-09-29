@@ -120,6 +120,10 @@ type initializeParams struct {
 type initOptions struct {
 	// Env names the sonde.yaml environment whose variables are defined.
 	Env *string `json:"env"`
+	// ExtraVariables are more names to treat as defined, that the client
+	// knows and the files do not (the desktop's captures of a session,
+	// data columns, overrides).
+	ExtraVariables []string `json:"extraVariables"`
 }
 
 type clientCapabilities struct {

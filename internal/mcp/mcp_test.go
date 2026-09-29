@@ -147,6 +147,18 @@ func TestToolGating(t *testing.T) {
 	if got := names(cs); !slices.Equal(got, []string{"sonde_check", "sonde_list", "sonde_run"}) {
 		t.Fatalf("tools with --allow-run = %v", got)
 	}
+	// The server registers exactly Tools.
+	for _, allow := range []bool{false, true} {
+		var table []string
+		for _, tool := range Tools(allow) {
+			table = append(table, tool.Name)
+		}
+		slices.Sort(table)
+		cs := connect(t, Config{Root: root, AllowRun: allow, Hosts: hosts})
+		if got := names(cs); !slices.Equal(got, table) {
+			t.Errorf("allowRun %v: registered %v, Tools %v", allow, got, table)
+		}
+	}
 	if _, _, err := New(Config{Root: root, AllowRun: true}); err == nil {
 		t.Fatal("--allow-run without hosts must be refused")
 	}

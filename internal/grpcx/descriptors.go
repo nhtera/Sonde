@@ -194,3 +194,48 @@ func newDescriptors(files []*descriptorpb.FileDescriptorProto) (*Descriptors, er
 	}
 	return &Descriptors{files: reg, types: dynamicpb.NewTypes(reg)}, nil
 }
+
+// Service is a service of the descriptors and its methods.
+type Service struct {
+	// Name is the full name, e.g. "package.Service".
+	Name    string
+	Methods []MethodInfo
+}
+
+// MethodInfo describes a method of a service.
+type MethodInfo struct {
+	Name string
+	// Path is the call path "/package.Service/Method".
+	Path            string
+	ClientStreaming bool
+	ServerStreaming bool
+	// Input and Output are the full names of the message types.
+	Input, Output string
+}
+
+// Services lists every service of the descriptors, sorted by name, with
+// its methods in declaration order.
+func (d *Descriptors) Services() []Service {
+	var out []Service
+	d.files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+		for i := range fd.Services().Len() {
+			sd := fd.Services().Get(i)
+			s := Service{Name: string(sd.FullName())}
+			for j := range sd.Methods().Len() {
+				md := sd.Methods().Get(j)
+				s.Methods = append(s.Methods, MethodInfo{
+					Name:            string(md.Name()),
+					Path:            "/" + s.Name + "/" + string(md.Name()),
+					ClientStreaming: md.IsStreamingClient(),
+					ServerStreaming: md.IsStreamingServer(),
+					Input:           string(md.Input().FullName()),
+					Output:          string(md.Output().FullName()),
+				})
+			}
+			out = append(out, s)
+		}
+		return true
+	})
+	slices.SortFunc(out, func(a, b Service) int { return strings.Compare(a.Name, b.Name) })
+	return out
+}

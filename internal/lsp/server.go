@@ -50,8 +50,11 @@ type Server struct {
 
 	folders []string // workspace folder paths
 	env     *string  // environment from the client settings, nil when unset
-	config  *configCache
-	nextID  int
+	// extraVariables are the names the client settings define (see
+	// initOptions.ExtraVariables).
+	extraVariables []string
+	config         *configCache
+	nextID         int
 }
 
 // NewServer returns a server; call Run to serve a connection.
@@ -259,6 +262,7 @@ func (s *Server) notification(m *message) {
 		}
 		if json.Unmarshal(p.Settings, &settings) == nil && settings.Sonde != nil {
 			s.env = settings.Sonde.Env
+			s.extraVariables = settings.Sonde.ExtraVariables
 			s.publishAll()
 		}
 	case "workspace/didChangeWorkspaceFolders":
@@ -311,6 +315,7 @@ func (s *Server) initialize(p *initializeParams) initializeResult {
 	var opts initOptions
 	if len(p.InitializationOptions) > 0 && json.Unmarshal(p.InitializationOptions, &opts) == nil {
 		s.env = opts.Env
+		s.extraVariables = opts.ExtraVariables
 	}
 
 	caps := serverCapabilities{

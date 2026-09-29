@@ -24,6 +24,7 @@ const (
 	srcSecretsFile                        // a secrets_files entry (value never kept)
 	srcProcessEnv                         // HURL_VARIABLE_* / SONDE_VARIABLE_*
 	srcProcessSecret                      // HURL_SECRET_* / SONDE_SECRET_* (value never kept)
+	srcExtra                              // named by the client (the "extraVariables" setting)
 )
 
 // varSource is where a variable is defined. It never holds the value.
@@ -150,6 +151,11 @@ func (c *configCache) variables(d *document) *projectVars {
 	}
 	for name := range c.s.opt.Environ.SecretEnvVars() {
 		pv.names[name] = varSource{kind: srcProcessSecret}
+	}
+	for _, name := range c.s.extraVariables {
+		if _, ok := pv.names[name]; !ok {
+			pv.names[name] = varSource{kind: srcExtra}
+		}
 	}
 	return pv
 }

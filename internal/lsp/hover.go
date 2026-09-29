@@ -106,6 +106,8 @@ func externalSourceText(src varSource, pv *projectVars) string {
 		return fmt.Sprintf("Secrets file %s (value hidden).", src.file)
 	case srcProcessSecret:
 		return "Process environment secret (value hidden)."
+	case srcExtra:
+		return "Defined by the client (value hidden)."
 	default: // srcProcessEnv
 		return "Process environment variable (value hidden)."
 	}

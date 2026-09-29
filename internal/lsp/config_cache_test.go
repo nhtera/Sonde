@@ -424,3 +424,22 @@ func TestFolderContainingRoot(t *testing.T) {
 		t.Errorf("folderContaining(%q) = %q, %v, want %q, true", dir, folder, ok, root)
 	}
 }
+
+// TestExtraVariables checks the "extraVariables" setting: names the client
+// defines are not undefined, at initialize and after a change.
+func TestExtraVariables(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "sonde.yaml"), []byte("version: 1\nenvironments:\n  dev:\n    variables: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := newTestClient(t, nil)
+	c.initialize(false, dir, map[string]any{"extraVariables": []string{"token"}})
+	uri := pathToURI(filepath.Join(dir, "a.hurl"))
+	if diags := c.open(uri, undefinedTokenAssert); containsMessage(diags, "undefined variable") {
+		t.Fatalf("diagnostics = %+v, want token defined by the client", diags)
+	}
+	c.notify("workspace/didChangeConfiguration", didChangeConfigurationParams{Settings: json.RawMessage(`{"sonde":{"extraVariables":[]}}`)})
+	if diags := c.diagnostics(uri); !containsMessage(diags, `undefined variable "token"`) {
+		t.Errorf("diagnostics = %+v, want token undefined again", diags)
+	}
+}
