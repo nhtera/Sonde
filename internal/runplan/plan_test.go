@@ -57,6 +57,11 @@ func TestPrecedence(t *testing.T) {
 		// as the CLI always did.
 		{"ipv6", "IPV6", "true", Invocation{IPv6: false}, func(p *Plan) any { return p.Options.HTTP.IPResolve }, engine.IPv6, engine.IPv6},
 		{"http2", "HTTP2", "true", Invocation{HTTP2: false}, func(p *Plan) any { return p.Options.HTTP.HTTPVersion }, engine.HTTP2, engine.HTTP2},
+		{"http3", "HTTP3", "true", Invocation{HTTP3: false}, func(p *Plan) any { return p.Options.HTTP.HTTPVersion }, engine.HTTP3, engine.HTTP3},
+		{"http1.1", "HTTP11", "true", Invocation{HTTP11: false}, func(p *Plan) any { return p.Options.HTTP.HTTPVersion }, engine.HTTP11, engine.HTTP11},
+		{"ipv4", "IPV4", "true", Invocation{IPv4: false}, func(p *Plan) any { return p.Options.HTTP.IPResolve }, engine.IPv4, engine.IPv4},
+		{"location", "LOCATION", "true", Invocation{Location: true}, func(p *Plan) any { return p.Options.HTTP.FollowLocation }, true, true},
+		{"jobs", "JOBS", "3", Invocation{Cmd: "test", Jobs: 5}, func(p *Plan) any { return p.Workers }, 1, 5},
 		{"verbosity", "VERBOSITY", "brief", Invocation{Verbosity: "debug"}, func(p *Plan) any { return p.Options.Verbosity }, engine.Brief, engine.VeryVerbose},
 		{"delay", "DELAY", "50", Invocation{Delay: "20"}, func(p *Plan) any { return p.Options.Delay }, 50 * time.Millisecond, 20 * time.Millisecond},
 		{"retry", "RETRY", "3", Invocation{Retry: "1"}, func(p *Plan) any { return p.Options.Retry }, 3, 1},

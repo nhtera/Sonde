@@ -4,6 +4,8 @@
 package runflags
 
 import (
+	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -22,40 +24,61 @@ const (
 )
 
 // Shell renders inv as a `sonde` command line for dialect. Unless reveal
-// is set, the value of every --secret and the password of --user are
-// references to environment variables (SECRET_<name>,
-// SECRET_USER_PASSWORD), and a first comment line names the variables to
-// set. In cmd.exe a `%` in a value can not be escaped inside quotes: such
-// a command is best run from a script, where `%%` would be needed.
-func Shell(inv *runplan.Invocation, dialect Dialect, reveal bool) string {
+// is set, credentials are references to environment variables, and a
+// first comment line names the variables to set: the value of every
+// --secret (SECRET_<name>), the password of --user, --cert and a --proxy
+// URL, and the value of an Authorization, Proxy-Authorization or Cookie
+// --header. A value cmd.exe can not quote (a line break, `%` or `!`) is an
+// error for that dialect.
+func Shell(inv *runplan.Invocation, dialect Dialect, reveal bool) (string, error) {
 	args := Args(inv)
-	words := make([]string, 0, len(args)+1)
-	words = append(words, "sonde")
+	words := []string{"sonde"}
 	var refs []string
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		name, value, joined := strings.Cut(arg, "=")
-		secretFlag := name == "--secret" || name == "--user"
+		if !strings.HasPrefix(arg, "--") || arg == "--" {
+			name, joined = "", false
+		}
+		_, credential := mask(name, "")
 		switch {
-		case reveal || !secretFlag || !joined && i+1 == len(args):
-			words = append(words, quote(dialect, arg))
+		case reveal || !credential || !joined && i+1 == len(args):
+			w, err := quote(dialect, arg)
+			if err != nil {
+				return "", err
+			}
+			words = append(words, w)
 			continue
 		case !joined:
 			i++
 			value = args[i]
 			words = append(words, arg)
 		}
-		key, sep, ref := maskedParts(name, value)
-		refs = append(refs, ref)
-		word := reference(dialect, key+sep, ref)
-		if joined {
-			word = quote(dialect, name+"=") + word
+		m, ok := mask(name, value)
+		if !ok {
+			w, err := quote(dialect, value)
+			if err != nil {
+				return "", err
+			}
+			if joined {
+				w = name + "=" + w
+			}
+			words = append(words, w)
+			continue
 		}
-		words = append(words, word)
+		refs = append(refs, m.ref)
+		w, err := reference(dialect, m)
+		if err != nil {
+			return "", err
+		}
+		if joined {
+			w = name + "=" + w
+		}
+		words = append(words, w)
 	}
 	cmd := strings.Join(words, " ")
 	if len(refs) == 0 {
-		return cmd
+		return cmd, nil
 	}
 	slices.Sort(refs)
 	refs = slices.Compact(refs)
@@ -63,67 +86,150 @@ func Shell(inv *runplan.Invocation, dialect Dialect, reveal bool) string {
 	if dialect == Cmd {
 		lead = "REM"
 	}
-	return lead + " Set " + strings.Join(refs, ", ") + " first: secret values are not shown.\n" + cmd
+	return lead + " Set " + strings.Join(refs, ", ") + " first: secret values are not shown.\n" + cmd, nil
 }
 
-// maskedParts splits the value of a --secret (name=value) or --user
-// (user:password) flag into the part kept in clear and the environment
-// variable the rest is read from.
-func maskedParts(flag, value string) (key, sep, ref string) {
-	if flag == "--user" {
-		user, _, ok := strings.Cut(value, ":")
-		if !ok {
-			return "", "", "SECRET_USER"
-		}
-		return user, ":", "SECRET_USER_PASSWORD"
-	}
-	name, _, ok := strings.Cut(value, "=")
-	if !ok {
-		return "", "", "SECRET_VALUE"
-	}
-	return name, "=", "SECRET_" + envSafe.ReplaceAllString(name, "_")
+// masked is a flag value with its credential replaced by the environment
+// variable ref: prefix and suffix are kept in clear.
+type masked struct {
+	prefix, ref, suffix string
 }
+
+// credentialHeaders are the --header names whose value is masked.
+var credentialHeaders = []string{"authorization", "proxy-authorization", "cookie"}
 
 var envSafe = regexp.MustCompile(`[^A-Za-z0-9_]`)
 
-// reference is one shell word: prefix in clear, then the value of the
-// environment variable ref.
-func reference(dialect Dialect, prefix, ref string) string {
+// mask splits value, the value of flag, around its credential. With an
+// empty value it reports whether flag may hold one.
+func mask(flag, value string) (masked, bool) {
+	switch flag {
+	case "--secret":
+		if value == "" {
+			return masked{}, true
+		}
+		name, _, ok := strings.Cut(value, "=")
+		if !ok {
+			return masked{ref: "SECRET_VALUE"}, true
+		}
+		return masked{prefix: name + "=", ref: "SECRET_" + envSafe.ReplaceAllString(name, "_")}, true
+	case "--user":
+		if value == "" {
+			return masked{}, true
+		}
+		user, _, ok := strings.Cut(value, ":")
+		if !ok {
+			return masked{ref: "SECRET_USER"}, true
+		}
+		return masked{prefix: user + ":", ref: "SECRET_USER_PASSWORD"}, true
+	case "--cert":
+		if value == "" {
+			return masked{}, true
+		}
+		from := 0
+		if len(value) > 2 && value[1] == ':' { // a Windows drive letter
+			from = 2
+		}
+		i := strings.LastIndexByte(value[from:], ':')
+		if i < 0 {
+			return masked{}, false
+		}
+		return masked{prefix: value[:from+i+1], ref: "SECRET_CERT_PASSWORD"}, true
+	case "--proxy":
+		if value == "" {
+			return masked{}, true
+		}
+		u, err := url.Parse(value)
+		if err != nil || u.User == nil {
+			return masked{}, false
+		}
+		if _, ok := u.User.Password(); !ok {
+			return masked{}, false
+		}
+		at := strings.Index(value, "@")
+		colon := strings.LastIndex(value[:at], ":")
+		return masked{prefix: value[:colon+1], ref: "SECRET_PROXY_PASSWORD", suffix: value[at:]}, true
+	case "--header":
+		if value == "" {
+			return masked{}, true
+		}
+		name, rest, ok := strings.Cut(value, ":")
+		if !ok || !slices.Contains(credentialHeaders, strings.ToLower(strings.TrimSpace(name))) {
+			return masked{}, false
+		}
+		sp := rest[:len(rest)-len(strings.TrimLeft(rest, " "))]
+		ref := "SECRET_HEADER_" + strings.ToUpper(envSafe.ReplaceAllString(strings.TrimSpace(name), "_"))
+		return masked{prefix: name + ":" + sp, ref: ref}, true
+	}
+	return masked{}, false
+}
+
+// reference is one shell word: m's prefix and suffix in clear around the
+// value of the environment variable m.ref.
+func reference(dialect Dialect, m masked) (string, error) {
 	switch dialect {
 	case PowerShell:
-		return `"` + strings.NewReplacer("`", "``", `"`, "`\"", "$", "`$").Replace(prefix) + "$env:" + ref + `"`
+		esc := strings.NewReplacer("`", "``", `"`, "`\"", "$", "`$", "“", "`“", "”", "`”", "„", "`„")
+		return `"` + esc.Replace(m.prefix) + "${env:" + m.ref + "}" + esc.Replace(m.suffix) + `"`, nil
 	case Cmd:
-		return `"` + strings.ReplaceAll(prefix, `"`, `\"`) + "%" + ref + `%"`
+		if err := cmdSafe(m.prefix + m.suffix); err != nil {
+			return "", err
+		}
+		return `"` + strings.ReplaceAll(m.prefix, `"`, `""`) + "%" + m.ref + "%" + strings.ReplaceAll(m.suffix, `"`, `""`) + `"`, nil
 	}
-	if prefix == "" {
-		return `"$` + ref + `"`
+	w := `"${` + m.ref + `}"`
+	if m.prefix != "" {
+		p, _ := quote(POSIX, m.prefix)
+		w = p + w
 	}
-	return quote(POSIX, prefix) + `"$` + ref + `"`
+	if m.suffix != "" {
+		s, _ := quote(POSIX, m.suffix)
+		w += s
+	}
+	return w, nil
 }
 
 // Characters a word may hold unquoted, per dialect.
 var (
-	posixSafe = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./-]+$`)
-	psSafe    = regexp.MustCompile(`^[A-Za-z0-9_+=:./-]+$`)
-	cmdSafe   = regexp.MustCompile(`^[A-Za-z0-9_+=:,./\\-]+$`)
+	posixPlain = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./-]+$`)
+	psPlain    = regexp.MustCompile(`^[A-Za-z0-9_+=:./-]+$`)
+	cmdPlain   = regexp.MustCompile(`^[A-Za-z0-9_+=:,./\\-]+$`)
 )
 
+// cmdSafe refuses a value cmd.exe can not hold in double quotes: a line
+// break ends the command, `%` and `!` expand variables.
+func cmdSafe(s string) error {
+	if strings.ContainsAny(s, "\r\n%!") {
+		return fmt.Errorf("runflags: %q can not be written for cmd.exe (a line break, %% or !): use PowerShell", s)
+	}
+	return nil
+}
+
 // quote renders s as one shell word.
-func quote(dialect Dialect, s string) string {
+func quote(dialect Dialect, s string) (string, error) {
 	switch dialect {
 	case PowerShell:
-		if psSafe.MatchString(s) {
-			return s
+		if psPlain.MatchString(s) {
+			return s, nil
 		}
-		return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+		// PowerShell ends a single-quoted string at any single quote,
+		// typographic ones included: each is doubled.
+		esc := strings.NewReplacer("'", "''", "‘", "‘‘", "’", "’’", "‚", "‚‚", "‛", "‛‛")
+		return "'" + esc.Replace(s) + "'", nil
 	case Cmd:
-		if cmdSafe.MatchString(s) {
-			return s
+		if cmdPlain.MatchString(s) {
+			return s, nil
 		}
-		return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+		if err := cmdSafe(s); err != nil {
+			return "", err
+		}
+		// Inside double quotes cmd.exe leaves & | < > ^ alone; a quote is
+		// doubled, which keeps cmd.exe inside the string and gives the
+		// program one quote.
+		return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`, nil
 	}
-	if posixSafe.MatchString(s) {
-		return s
+	if posixPlain.MatchString(s) {
+		return s, nil
 	}
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'", nil
 }

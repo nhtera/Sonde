@@ -94,7 +94,7 @@ func flags(inv *runplan.Invocation) []flag {
 		d("data-secret", flag{list: &inv.DataSecrets}),
 		d("openapi", flag{s: &inv.OpenAPI.Spec}),
 		d("openapi-server", flag{s: &inv.OpenAPI.Server}),
-		d("openapi-strict", flag{b: &inv.OpenAPI.Strict}),
+		p("openapi-strict", flag{b: &inv.OpenAPI.Strict}),
 		d("openapi-allow-remote", flag{b: &inv.OpenAPI.AllowRemote}),
 		p("include", flag{b: &inv.Include}),
 		p("json", flag{b: &inv.JSON}),

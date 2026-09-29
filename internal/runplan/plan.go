@@ -80,10 +80,10 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 	// --test implies --parallel, matching the upstream CLI; --jobs (or
 	// its env var) picks the worker count, defaulting to the number of
 	// CPUs. Sequential (1) otherwise, regardless of --jobs. Parallel is
-	// also the reference CLI's own switch between its sequential and
-	// parallel runners (run_par vs. run_seq in main.rs) — independent of
-	// --jobs, which only picks the parallel runner's worker count: even
-	// `--test --jobs 1` uses the parallel runner with one worker, so this
+	// also the switch between the sequential and parallel runners,
+	// independent of --jobs, which only picks the parallel runner's worker
+	// count: even `--test --jobs 1` uses the parallel runner with one
+	// worker, so this
 	// is what callers check for parallel-runner-only behavior (buffered
 	// per-job logs, the progress bar), not Workers > 1.
 	p.Parallel = p.Test || ResolveBool(inv, "parallel", "PARALLEL", inv.Parallel, env)
@@ -445,8 +445,7 @@ func provenance(inv *Invocation, env config.Env, fileCfg config.FileOptions) []S
 		_, _, envUA := env.Lookup("USER_AGENT")
 		_, _, envRedirs := env.Lookup("MAX_REDIRS")
 		_, _, envVerbosity := env.Lookup("VERBOSITY")
-		switch {
-		case fileCfg.UserAgent != nil && !inv.Changed("user-agent") && !envUA:
+		if fileCfg.UserAgent != nil && !inv.Changed("user-agent") && !envUA {
 			out = append(out, Source{Setting: "--user-agent", Origin: path})
 		}
 		if fileCfg.MaxRedirs != nil && !inv.Changed("max-redirs") && !envRedirs {
