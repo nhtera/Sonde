@@ -38,7 +38,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/xpath` | XPath 1.0 on HTML (lenient) and XML (namespaces) documents | value |
 | `internal/codec` | readers undoing HTTP content codings (br, gzip, deflate, zstd), for whole bodies and streams | — (leaf) |
 | `internal/redact` | per-run, append-only, concurrency-safe secret registry + encoded-variant matching | — (leaf) |
-| `internal/sandbox` | `os.Root`-based file access for all request-file paths | — (leaf) |
+| `internal/sandbox` | `os.Root`-based file access for all request-file paths; atomic, permission-aware writes and file operations | — (leaf) |
 | `internal/template` | `Env` (variables, clock, UUID source, file access), `{{ }}` rendering, functions (`newUuid`, `newDate` — Hurl 8 set only), multiline and JSON body rendering | syntax, value, runerr |
 | `internal/jsonpath` | RFC 9535 evaluator over `value.Value`, sorted-key traversal, Hurl unwrap rule (Go port of Hurl's JSONPath module, Apache-2.0, see NOTICE) | value |
 | `internal/query` | all Hurl queries over the responses of an entry (redirect chain), with a per-entry parsed-body cache | syntax, value, exchange, template, filter, runerr, xpath, datefmt |
@@ -49,7 +49,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
 | `internal/dataset` | CSV / JSON-array rows for `--data` | value |
 | `internal/openapi` | spec load (owns remote fetch), route match, `engine.ResponseValidator` impl, spec → AST generator, mock response selection and request validation | exchange, syntax, engine (interface only) |
-| `internal/convert` | shared import writer + flags; importers in subpackages `curl`, `postman`, `opencollection`, `httpfile` (curl export uses the engine's renderer, `engine/curl.go`) | syntax, exchange, config (subpackages: + convert) |
+| `internal/convert` | shared import writer + flags; importers in subpackages `curl`, `postman`, `opencollection`, `httpfile` (curl export uses the engine's renderer, `engine/curl.go`) | syntax, exchange, config, sandbox (subpackages: + convert) |
 | `internal/docs` | single doc-data source (`table.yaml`) for compat.md, LSP hover | — |
 | `internal/lsp` | language server (`sonde lsp`, stdio): diagnostics, completion, hover, formatting | syntax, config, docs |
 | `internal/cli` | cobra commands, Hurl-compatible root, flag → `engine.Options` mapping, output wiring | everything above |

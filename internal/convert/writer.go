@@ -8,7 +8,6 @@
 package convert
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/nhtera/sonde/internal/sandbox"
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
@@ -187,7 +187,7 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 
 	for i, f := range out.Files {
 		data := syntax.Format(f.File)
-		if err := writeFileAtomic(root, planned[i], data, 0o644); err != nil {
+		if err := sandbox.WriteFileAtomicIn(root, planned[i], data, 0o644); err != nil {
 			return nil, fmt.Errorf("convert: %w", err)
 		}
 	}
@@ -196,12 +196,12 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 		if out.Extra[i].Keep {
 			perm = 0o600
 		}
-		if err := writeFileAtomic(root, extra[i], out.Extra[i].Data, perm); err != nil {
+		if err := sandbox.WriteFileAtomicIn(root, extra[i], out.Extra[i].Data, perm); err != nil {
 			return nil, fmt.Errorf("convert: %w", err)
 		}
 	}
 	if out.ProjectYAML != nil && !projectExists {
-		if err := writeFileAtomic(root, ProjectFileName, out.ProjectYAML, 0o644); err != nil {
+		if err := sandbox.WriteFileAtomicIn(root, ProjectFileName, out.ProjectYAML, 0o644); err != nil {
 			return nil, fmt.Errorf("convert: %w", err)
 		}
 	}
@@ -341,54 +341,4 @@ func sanitizeSegment(s string) string {
 		out += "-file"
 	}
 	return out
-}
-
-// tempName returns a random hidden file name for an atomic write's
-// temporary file, in dir ("." for the root).
-func tempName(dir string) (string, error) {
-	buf := make([]byte, 6)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	name := ".sonde-tmp-" + hex.EncodeToString(buf)
-	if dir == "." {
-		return name, nil
-	}
-	return path.Join(dir, name), nil
-}
-
-// writeFileAtomic writes data to rel inside root via a temporary file in
-// the same directory, renamed into place, so a reader never sees a partial
-// file; parent directories are created as needed (0o755).
-func writeFileAtomic(root *os.Root, rel string, data []byte, perm fs.FileMode) (err error) {
-	dir := path.Dir(rel)
-	if dir != "." {
-		if err := root.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // G301: output directories are 0o755, docs/guides/import-export.md
-			return fmt.Errorf("%s: %w", rel, err)
-		}
-	}
-	tmp, err := tempName(dir)
-	if err != nil {
-		return fmt.Errorf("%s: %w", rel, err)
-	}
-	f, err := root.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
-	if err != nil {
-		return fmt.Errorf("%s: %w", rel, err)
-	}
-	defer func() {
-		if err != nil {
-			_ = root.Remove(tmp)
-		}
-	}()
-	if _, err = f.Write(data); err != nil {
-		_ = f.Close()
-		return fmt.Errorf("%s: %w", rel, err)
-	}
-	if err = f.Close(); err != nil {
-		return fmt.Errorf("%s: %w", rel, err)
-	}
-	if err = root.Rename(tmp, rel); err != nil {
-		return fmt.Errorf("%s: %w", rel, err)
-	}
-	return nil
 }
