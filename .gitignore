@@ -1,6 +1,10 @@
 # Build output
 /dist/
 /bin/
+/desktop/bin/
+/desktop/.task/
+/desktop/build/linux/appimage/build/
+/desktop/build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 *.test
 coverage.*
 

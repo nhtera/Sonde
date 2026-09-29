@@ -1,0 +1,65 @@
+# Copyright 2026 The Sonde Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Sonde Desktop tasks. Run with the pinned tools (see scripts/tools.sha256):
+#   ../bin/task build          desktop app for this OS (cgo)
+#   ../bin/task build:server   hardened server mode (CGO_ENABLED=0, -tags server)
+#   ../bin/task build:harness  test-only e2e harness (-tags "server e2eharness")
+version: '3'
+
+vars:
+  APP_NAME: "sonde-desktop"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: "npm"
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  GOOS: '{{.GOOS | default OS}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the desktop application
+    cmds:
+      - task: "{{.GOOS}}:build"
+
+  package:
+    summary: Packages a production build of the desktop application
+    cmds:
+      - task: "{{.GOOS}}:package"
+
+  run:
+    summary: Runs the desktop application
+    cmds:
+      - task: "{{.GOOS}}:run"
+
+  dev:
+    summary: Runs the desktop application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  build:server:
+    summary: Builds server mode (no GUI, loopback HTTP, CGO-free)
+    deps:
+      - task: common:build:frontend
+        vars:
+          BUILD_FLAGS: "-tags server,production"
+    cmds:
+      - go build -tags server,production -trimpath -buildvcs=false -ldflags="-w -s" -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"
+    env:
+      CGO_ENABLED: 0
+
+  build:harness:
+    summary: Builds the test-only e2e harness (never released)
+    deps:
+      - task: common:build:frontend
+        vars:
+          BUILD_FLAGS: "-tags server,e2eharness"
+          SCRIPT: build:harness
+    cmds:
+      - go build -tags server,e2eharness -o "{{.BIN_DIR}}/{{.APP_NAME}}-harness{{exeExt}}"
+    env:
+      CGO_ENABLED: 0

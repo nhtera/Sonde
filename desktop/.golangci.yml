@@ -1,0 +1,81 @@
+# golangci-lint v2 configuration for the desktop module; same pinned
+# version as the root (Makefile). Run from desktop/: ../bin/golangci-lint run
+version: "2"
+
+# Lint each build: make desktop-check passes --build-tags server and
+# server,e2eharness; the native window build is linted with no tags.
+
+linters:
+  enable:
+    - depguard
+    - errcheck
+    - forbidigo
+    - gosec
+    - govet
+    - misspell
+    - revive
+    - staticcheck
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - std-error-handling
+    rules:
+      # Tests set up fixtures with plain file calls.
+      - path: _test\.go$
+        linters: [forbidigo]
+      # The file rules below apply to internal/ only.
+      - path-except: ^internal/
+        linters: [forbidigo]
+        text: "through a sandbox.Root|escapes its checks"
+      # Wails events reach every window and, in server mode, an unguarded
+      # socket: only the emitter (and the test-only harness) may send them.
+      - path: ^(internal/emit/|harness_service\.go$)
+        linters: [forbidigo]
+        text: "Wails events"
+  settings:
+    depguard:
+      rules:
+        no-cli-imports:
+          list-mode: lax
+          files: ["$all", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde/internal/cli
+              desc: "the desktop app never imports internal/cli"
+        net-http:
+          list-mode: lax
+          files:
+            - "$all"
+            - "!$test"
+            - "!**/desktop/app.go"
+            - "!**/desktop/main_server.go"
+            - "!**/desktop/serve.go"
+            - "!**/desktop/main_harness.go"
+            - "!**/desktop/harness_service.go"
+            - "!**/desktop/cmd/fixture-server/**"
+            - "!**/desktop/internal/serverauth/**"
+            - "!**/desktop/internal/bodies/**"
+            - "!**/desktop/internal/mocksvc/**"
+          deny:
+            - pkg: net/http
+              desc: "net/http is allowed only in app.go, serve.go, the server and harness mains, cmd/fixture-server, internal/serverauth, internal/bodies and internal/mocksvc"
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^os\.(WriteFile|Create|OpenFile|Rename|Remove|RemoveAll|Mkdir|MkdirAll)$
+          msg: "write through a sandbox.Root (atomic, permission-aware); appdirs holds the app's own"
+        - pattern: ^sandbox\.Root\.Path$
+          pkg: ^github\.com/nhtera/sonde/internal/sandbox$
+          msg: "a path outside the Root escapes its checks; use Root methods"
+        - pattern: ^application\.(EventManager\.(Emit|EmitEvent)|WebviewWindow\.EmitEvent)$
+          pkg: ^github\.com/wailsapp/wails/v3/pkg/application$
+          msg: "Wails events reach every window and, in server mode, an unguarded socket; send through internal/emit"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/nhtera/sonde

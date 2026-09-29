@@ -1,0 +1,7 @@
+# Pinned desktop build tools, installed with desktop/scripts/tools.sh into
+# ../bin. Each line: package, version, and the Go module checksum (h1:, a
+# SHA-256 hash of the module's source) that `go version -m` must report
+# for the installed binary. `go install` checks the source against the
+# checksum database; the script then checks the binary against this file.
+github.com/wailsapp/wails/v3/cmd/wails3 v3.0.0-beta.26 h1:Cs7E3wSD6kouJGDzbbvqeFBIbNOzuUMjf0kto3/a7Oc=
+github.com/go-task/task/v3/cmd/task v3.53.1 h1:4myl5NHvq30uSkkoWH4Fz0OapYVGRci3AiN11yJti08=

@@ -1,0 +1,116 @@
+// Copyright 2026 The Sonde Authors
+// SPDX-License-Identifier: Apache-2.0
+
+//go:build server
+
+package main
+
+import (
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"github.com/nhtera/sonde/desktop/internal/appdirs"
+	"github.com/nhtera/sonde/desktop/internal/serverauth"
+)
+
+// loopback is the only address server mode listens on.
+const loopback = "127.0.0.1"
+
+// newServerApp returns the app served over HTTP on loopback:port, every
+// request passing guard. Wails' own event socket (/wails/events) is
+// outside the guard: in server mode the app sends its events through its
+// guarded endpoints instead.
+func newServerApp(h *Host, port int, guard *serverauth.Guard) *application.App {
+	// Wails lets these override the address; server mode's address is fixed.
+	_ = os.Unsetenv("WAILS_SERVER_HOST")
+	_ = os.Unsetenv("WAILS_SERVER_PORT")
+	opts := appOptions(h)
+	opts.Server = application.ServerOptions{
+		Host:        loopback,
+		Port:        port,
+		ReadTimeout: time.Minute,
+		// Binding calls answer when the work is done and body URLs stream
+		// large responses, possibly through a slow tunnel: the Wails
+		// default (30 s) would cut them off. Each request still ends with
+		// its client.
+		WriteTimeout: 12 * time.Hour,
+	}
+	opts.Assets.Middleware = guard.Middleware
+	// Request logs would record launch links.
+	opts.Assets.DisableLogging = true
+	return application.New(opts)
+}
+
+// waitListening polls the server's health route until it answers or
+// timeout passes.
+func waitListening(port int, timeout time.Duration) error {
+	url := "http://" + loopback + ":" + strconv.Itoa(port) + "/health"
+	client := &http.Client{Timeout: time.Second}
+	deadline := time.Now().Add(timeout)
+	for {
+		res, err := client.Get(url)
+		if err == nil {
+			_ = res.Body.Close()
+			if res.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("the server did not start listening on port %d", port)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// freePort asks the OS for a free loopback port.
+func freePort() (int, error) {
+	l, err := net.Listen("tcp", loopback+":0")
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+// openDirs opens the app data folders: <data>/config and <data>/cache, or
+// the user's own when data is empty.
+func openDirs(data string) (*appdirs.Dirs, error) {
+	if data == "" {
+		return appdirs.Default()
+	}
+	return appdirs.Open(filepath.Join(data, "config"), filepath.Join(data, "cache"))
+}
+
+// projectRoot resolves --root to an existing directory.
+func projectRoot(dir string) (string, error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	fi, err := os.Stat(abs)
+	if err != nil {
+		return "", fmt.Errorf("--root: %w", err)
+	}
+	if !fi.IsDir() {
+		return "", fmt.Errorf("--root: %s is not a directory", abs)
+	}
+	return abs, nil
+}
+
+// checkPort validates a --port value; 0 picks a free port.
+func checkPort(port int) (int, error) {
+	if port == 0 {
+		return freePort()
+	}
+	if port < 1 || port > 65535 {
+		return 0, fmt.Errorf("--port: %d is out of range", port)
+	}
+	return port, nil
+}

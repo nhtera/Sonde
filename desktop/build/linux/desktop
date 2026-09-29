@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Sonde
+Comment=Reads and runs .hurl files
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/sonde-desktop %u
+Terminal=false
+Type=Application
+Icon=sonde-desktop
+Categories=Utility;
+StartupWMClass=sonde-desktop
+
+ 
