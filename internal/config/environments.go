@@ -73,14 +73,20 @@ func (p *Project) walkEnvironment(env string, stopOnError bool,
 	for name, v := range e.Variables {
 		onVariable(name, v)
 	}
+	read := func(rel string) ([]byte, error) {
+		if data, ok := p.overlay[rel]; ok {
+			return data, nil
+		}
+		return root.ReadFile(rel)
+	}
 	for _, rel := range e.VariablesFiles {
-		data, rerr := root.ReadFile(rel)
+		data, rerr := read(rel)
 		if cbErr := onVariablesFile(rel, data, rerr); cbErr != nil && stopOnError {
 			return cbErr
 		}
 	}
 	for _, rel := range e.SecretsFiles {
-		data, rerr := root.ReadFile(rel)
+		data, rerr := read(rel)
 		if cbErr := onSecretsFile(rel, data, rerr); cbErr != nil && stopOnError {
 			return cbErr
 		}

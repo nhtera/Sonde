@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -18,6 +17,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/nhtera/sonde/internal/sandbox"
 	"github.com/nhtera/sonde/internal/value"
 )
 
@@ -27,8 +27,8 @@ import (
 // secrets_files file. sonde.yaml is edited by splicing lines located with
 // its YAML node tree, never re-encoded, so comments, anchors, order and
 // line endings stay. Every edit is checked by loading a copy of the
-// project with it and resolving every environment it does not break
-// already.
+// project with it, in memory, and resolving every environment it does not
+// break already.
 
 // ErrEditByHand reports a sonde.yaml shape the editor does not change
 // (flow style, multi-line values): the user edits it by hand.
@@ -43,6 +43,32 @@ type FileEdit struct {
 	Perm fs.FileMode
 	// Created is set when the file does not exist yet.
 	Created bool
+}
+
+// WriteEdits writes edits into root (the project's directory), each
+// atomically: an existing file keeps its permission, a created one gets
+// the edit's Perm. A symbolic link is refused (edited by hand), since an
+// atomic write would replace the link rather than its target.
+func WriteEdits(root *sandbox.Root, edits []FileEdit) error {
+	for _, e := range edits {
+		rel, err := filepath.Rel(root.Dir(), e.Path)
+		if err != nil {
+			return err
+		}
+		perm := e.Perm
+		switch fi, err := root.Lstat(rel); {
+		case err == nil && fi.Mode()&fs.ModeSymlink != 0:
+			return fmt.Errorf("%s is a symbolic link: edit it by hand", rel)
+		case err == nil:
+			perm = fi.Mode().Perm()
+		case !errors.Is(err, fs.ErrNotExist):
+			return err
+		}
+		if err := root.WriteFileAtomic(rel, e.Data, perm); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // projectEdit accumulates the new content of the files of a project.
@@ -107,7 +133,7 @@ func (e *projectEdit) yamlRel() string { return filepath.ToSlash(filepath.Base(e
 // source; a new name is added to the inline "variables:" of env. A name
 // that is a secret stays one, with v's text as its value.
 func (p *Project) SetVariable(env, name string, v value.Value) ([]FileEdit, error) {
-	names, err := p.VariableNames(env)
+	names, err := p.editableNames(env)
 	if err != nil {
 		return nil, err
 	}
@@ -131,12 +157,12 @@ func (p *Project) SetVariable(env, name string, v value.Value) ([]FileEdit, erro
 }
 
 // SetSecret sets secret name of environment env to secret. A name that
-// is already a secret is set in its file; any other moves to the secrets
-// file env/<env>.secrets (created with permission 0600 and added to the
-// environment's secrets_files when missing), and is removed from the
+// is already a secret is set in its file; any other moves to the last
+// secrets file env lists, or to secrets/<env>.secrets (created with
+// permission 0600 and added to secrets_files), and is removed from the
 // inline variables and the variables files of env.
 func (p *Project) SetSecret(env, name, secret string) ([]FileEdit, error) {
-	names, err := p.VariableNames(env)
+	names, err := p.editableNames(env)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +173,7 @@ func (p *Project) SetSecret(env, name, secret string) ([]FileEdit, error) {
 		}
 		return e.result()
 	}
-	rel, err := secretsFileFor(env)
+	rel, err := p.secretsFileFor(env)
 	if err != nil {
 		return nil, err
 	}
@@ -177,14 +203,32 @@ func (p *Project) RemoveVariable(env, name string) ([]FileEdit, error) {
 	return e.result()
 }
 
+// editableNames returns the names env defines and their sources, for an
+// edit: a variables or secrets file that does not exist (a secrets file
+// not checked out) defines nothing, and is not an error.
+func (p *Project) editableNames(env string) (map[string]VariableSource, error) {
+	if _, ok := p.Environments[env]; !ok {
+		return nil, fmt.Errorf("%s: unknown environment %q (available: %s)", p.Path, env, strings.Join(p.envNames(), ", "))
+	}
+	names, err := p.VariableNames(env)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	return names, nil
+}
+
 var envFileRE = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
 
-// secretsFileFor is the secrets file a new secret of env goes to.
-func secretsFileFor(env string) (string, error) {
+// secretsFileFor is the secrets file a new secret of env goes to: the
+// last one env lists, else secrets/<env>.secrets (as an import names it).
+func (p *Project) secretsFileFor(env string) (string, error) {
+	if files := p.Environments[env].SecretsFiles; len(files) > 0 {
+		return files[len(files)-1], nil
+	}
 	if !envFileRE.MatchString(env) {
 		return "", fmt.Errorf("environment %q: no secrets file can be named after it", env)
 	}
-	return "env/" + env + ".secrets", nil
+	return "secrets/" + env + ".secrets", nil
 }
 
 // setProperty sets name to raw in the properties file rel.
@@ -225,57 +269,31 @@ func (e *projectEdit) removeVariable(env, name string, secrets bool) error {
 	return nil
 }
 
-// validate loads a copy of the project with the edits and resolves every
-// environment.
+// validate loads the project with the edits (in memory: nothing is
+// written) and resolves every environment. An environment that did not
+// resolve before (a secrets file not checked out) does not block the
+// edit; one the edit breaks does.
 func (e *projectEdit) validate() error {
-	tmp, err := os.MkdirTemp("", "sonde-project-")
+	yamlData, _, err := e.read(e.yamlRel())
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp) //nolint:errcheck // temporary copy
-	yamlRel := e.yamlRel()
-	yamlData, _, err := e.read(yamlRel)
-	if err != nil {
-		return err
-	}
-	if err := writeCopy(tmp, yamlRel, yamlData); err != nil {
-		return err
-	}
-	copied, err := LoadProject(filepath.Join(tmp, yamlRel))
+	edited, err := loadProjectData(e.p.Path, yamlData)
 	if err != nil {
 		return fmt.Errorf("the edit would break sonde.yaml: %w", err)
 	}
-	for _, env := range copied.Environments {
-		for _, rel := range append(slices.Clone(env.VariablesFiles), env.SecretsFiles...) {
-			data, exists, err := e.read(rel)
-			if err != nil {
-				return err
-			}
-			if exists || e.files[rel] != nil {
-				if err := writeCopy(tmp, rel, data); err != nil {
-					return err
-				}
-			}
-		}
+	edited.overlay = map[string][]byte{}
+	for rel, f := range e.files {
+		edited.overlay[rel] = f.Data
 	}
-	// An environment that did not resolve before (a secrets file not
-	// checked out) does not block the edit; one the edit breaks does.
-	for _, name := range copied.envNames() {
-		if _, _, err := copied.Resolve(name); err != nil {
+	for _, name := range edited.envNames() {
+		if _, _, err := edited.Resolve(name); err != nil {
 			if _, _, before := e.p.Resolve(name); before == nil {
 				return fmt.Errorf("the edit would break environment %s: %w", name, err)
 			}
 		}
 	}
 	return nil
-}
-
-func writeCopy(dir, rel string, data []byte) error {
-	path := filepath.Join(dir, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o600)
 }
 
 // yamlDoc is sonde.yaml's source and node tree.
@@ -291,6 +309,11 @@ func (e *projectEdit) yamlLoad() (*yamlDoc, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parseYAMLDoc(src)
+}
+
+// parseYAMLDoc parses a sonde.yaml source for editing.
+func parseYAMLDoc(src []byte) (*yamlDoc, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(src, &doc); err != nil {
 		return nil, err
@@ -344,16 +367,39 @@ func (y *yamlDoc) lineEnd(line int) int {
 	return len(y.src)
 }
 
-// lastLine is the last line a node spans.
-func lastLine(n *yaml.Node) int {
-	last := n.Line
-	if n.Kind == yaml.ScalarNode && n.Style&(yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
-		last += strings.Count(strings.TrimRight(n.Value, "\n"), "\n") + 1
+// endAfter is the offset after the lines of the mapping pair whose key is
+// k: its own line and every following line indented more than k (the
+// rest of its value: nested pairs, block scalars, continued scalars), and
+// the items of a sequence written at k's own indentation. Blank lines and
+// comments after the pair's last line are left out.
+func (y *yamlDoc) endAfter(k *yaml.Node) int {
+	indent := k.Column - 1
+	end := y.lineEnd(k.Line)
+	for l := k.Line + 1; l <= len(y.lines); l++ {
+		text := strings.TrimRight(string(y.src[y.lines[l-1]:y.lineEnd(l)]), "\r\n")
+		trimmed := strings.TrimLeft(text, " ")
+		if trimmed == "" {
+			continue
+		}
+		ind := len(text) - len(trimmed)
+		item := ind == indent && (trimmed == "-" || strings.HasPrefix(trimmed, "- "))
+		if ind <= indent && !item {
+			break
+		}
+		if !strings.HasPrefix(trimmed, "#") || ind > indent {
+			end = y.lineEnd(l)
+		}
 	}
-	for _, c := range n.Content {
-		last = max(last, lastLine(c))
+	return end
+}
+
+// mappingEnd is the offset after the last pair of mapping m, or after the
+// line of its key k when m is empty or not a mapping.
+func (y *yamlDoc) mappingEnd(k, m *yaml.Node) int {
+	if m != nil && m.Kind == yaml.MappingNode && len(m.Content) >= 2 {
+		return y.endAfter(m.Content[len(m.Content)-2])
 	}
-	return last
+	return y.endAfter(k)
 }
 
 // splice replaces src[start:end] with text.
@@ -456,7 +502,7 @@ func (e *projectEdit) yamlSetVariable(env, name string, v value.Value) error {
 		if err != nil {
 			return err
 		}
-		return e.yamlSave(splice(y.src, start, end, text))
+		return e.yamlSaveChecked(y, splice(y.src, start, end, text), env, func(vars map[string]value.Value) { vars[name] = v })
 	}
 	key, err := yamlKey(name)
 	if err != nil {
@@ -468,19 +514,13 @@ func (e *projectEdit) yamlSetVariable(env, name string, v value.Value) error {
 	}
 	if varsKey != nil {
 		line := indentOf(vars, varsKey) + key + ": " + text + y.nl
-		at := y.lineEnd(lastLine(varsKey))
-		if vars.Kind == yaml.MappingNode {
-			at = y.lineEnd(lastLine(vars))
-		}
-		return e.yamlSave(splice(y.src, at, at, y.lead(at)+line))
+		at := y.mappingEnd(varsKey, vars)
+		return e.yamlSaveChecked(y, splice(y.src, at, at, y.lead(at)+line), env, func(vars map[string]value.Value) { vars[name] = v })
 	}
 	ind := indentOf(envVal, envKey)
 	block := ind + "variables:" + y.nl + ind + "  " + key + ": " + text + y.nl
-	at := y.lineEnd(lastLine(envKey))
-	if envVal.Kind == yaml.MappingNode {
-		at = y.lineEnd(lastLine(envVal))
-	}
-	return e.yamlSave(splice(y.src, at, at, y.lead(at)+block))
+	at := y.mappingEnd(envKey, envVal)
+	return e.yamlSaveChecked(y, splice(y.src, at, at, y.lead(at)+block), env, func(vars map[string]value.Value) { vars[name] = v })
 }
 
 // lead is the line ending to write before an insertion at at, when the
@@ -542,7 +582,7 @@ func (e *projectEdit) yamlRemoveVariable(env, name string) error {
 	if _, _, err := y.valueRange(k, v); err != nil {
 		return err
 	}
-	return e.yamlSave(splice(y.src, y.lines[k.Line-1], y.lineEnd(k.Line), ""))
+	return e.yamlSaveChecked(y, splice(y.src, y.lines[k.Line-1], y.lineEnd(k.Line), ""), env, func(vars map[string]value.Value) { delete(vars, name) })
 }
 
 // yamlAddSecretsFile appends rel to the secrets_files of env.
@@ -559,22 +599,20 @@ func (e *projectEdit) yamlAddSecretsFile(env, rel string) error {
 	if err != nil {
 		return err
 	}
+	var out []byte
 	k, seq := get(envVal, "secrets_files")
 	switch {
 	case k == nil:
 		ind := indentOf(envVal, envKey)
 		block := ind + "secrets_files:" + y.nl + ind + "  - " + item + y.nl
-		at := y.lineEnd(lastLine(envKey))
-		if envVal.Kind == yaml.MappingNode {
-			at = y.lineEnd(lastLine(envVal))
-		}
-		return e.yamlSave(splice(y.src, at, at, y.lead(at)+block))
+		at := y.mappingEnd(envKey, envVal)
+		out = splice(y.src, at, at, y.lead(at)+block)
 	case seq.Kind == yaml.SequenceNode && seq.Style&yaml.FlowStyle == 0 && len(seq.Content) > 0:
 		first := seq.Content[0]
 		line := strings.Repeat(" ", first.Column-3) + "- " + item + y.nl
-		at := y.lineEnd(lastLine(seq))
-		return e.yamlSave(splice(y.src, at, at, y.lead(at)+line))
-	case seq.Kind == yaml.SequenceNode && seq.Style&yaml.FlowStyle != 0 && lastLine(seq) == seq.Line:
+		at := y.endAfter(k)
+		out = splice(y.src, at, at, y.lead(at)+line)
+	case seq.Kind == yaml.SequenceNode && seq.Style&yaml.FlowStyle != 0 && y.endAfter(k) == y.lineEnd(seq.Line):
 		// [a, b] on one line: insert before its closing bracket.
 		lineText := string(y.src[y.lines[seq.Line-1]:y.lineEnd(seq.Line)])
 		i := strings.LastIndex(lineText, "]")
@@ -586,7 +624,86 @@ func (e *projectEdit) yamlAddSecretsFile(env, rel string) error {
 			sep = ""
 		}
 		at := y.lines[seq.Line-1] + i
-		return e.yamlSave(splice(y.src, at, at, sep+item))
+		out = splice(y.src, at, at, sep+item)
+	default:
+		return ErrEditByHand
 	}
-	return ErrEditByHand
+	before, err := y.secretsFiles(env)
+	if err != nil {
+		return err
+	}
+	ny, err := parseYAMLDoc(out)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrEditByHand, err)
+	}
+	after, err := ny.secretsFiles(env)
+	if err != nil || !slices.Equal(after, append(before, rel)) {
+		return fmt.Errorf("%w: secrets_files would read %v", ErrEditByHand, after)
+	}
+	return e.yamlSaveChecked(y, out, env, func(map[string]value.Value) {})
+}
+
+// secretsFiles returns the secrets_files of env.
+func (y *yamlDoc) secretsFiles(env string) ([]string, error) {
+	_, envVal, err := y.env(env)
+	if err != nil {
+		return nil, err
+	}
+	_, seq := get(envVal, "secrets_files")
+	var out []string
+	if seq != nil {
+		for _, it := range seq.Content {
+			out = append(out, it.Value)
+		}
+	}
+	return out, nil
+}
+
+// variables decodes the inline variables of env.
+func (y *yamlDoc) variables(env string) (map[string]value.Value, error) {
+	_, envVal, err := y.env(env)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]value.Value{}
+	_, vars := get(envVal, "variables")
+	if vars == nil || vars.Kind != yaml.MappingNode {
+		return out, nil
+	}
+	for i := 0; i+1 < len(vars.Content); i += 2 {
+		v, err := variableFromNode(vars.Content[i+1])
+		if err != nil {
+			return nil, err
+		}
+		out[vars.Content[i].Value] = v
+	}
+	return out, nil
+}
+
+// yamlSaveChecked records out as the new sonde.yaml once its inline
+// variables of env read back as those of y changed by want: a splice that
+// would fold into a neighboring value is refused.
+func (e *projectEdit) yamlSaveChecked(y *yamlDoc, out []byte, env string, want func(map[string]value.Value)) error {
+	expected, err := y.variables(env)
+	if err != nil {
+		return err
+	}
+	want(expected)
+	ny, err := parseYAMLDoc(out)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrEditByHand, err)
+	}
+	got, err := ny.variables(env)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrEditByHand, err)
+	}
+	if len(got) != len(expected) {
+		return fmt.Errorf("%w: the edit would change other variables", ErrEditByHand)
+	}
+	for name, v := range expected {
+		if g, ok := got[name]; !ok || g.Kind() != v.Kind() || !value.Equal(g, v) {
+			return fmt.Errorf("%w: the edit would change variable %s", ErrEditByHand, name)
+		}
+	}
+	return e.yamlSave(out)
 }

@@ -138,6 +138,16 @@ func (r *Root) Stat(name string) (fs.FileInfo, error) {
 	return fi, r.wrap(name, err)
 }
 
+// Lstat describes a file without following a final symbolic link.
+func (r *Root) Lstat(name string) (fs.FileInfo, error) {
+	rel, err := r.rel(name)
+	if err != nil {
+		return nil, err
+	}
+	fi, err := r.root.Lstat(rel)
+	return fi, r.wrap(name, err)
+}
+
 // Chmod changes the permission of a file.
 func (r *Root) Chmod(name string, perm fs.FileMode) error {
 	rel, err := r.rel(name)

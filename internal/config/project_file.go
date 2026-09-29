@@ -46,6 +46,10 @@ type Project struct {
 	Defaults Defaults
 	// OpenAPI holds "openapi:" (nil when absent).
 	OpenAPI *OpenAPI
+
+	// overlay replaces the content of files the project reads, by path
+	// relative to Dir (an edit being validated).
+	overlay map[string][]byte
 }
 
 // Environment is one "environments:<name>:" entry.
@@ -136,7 +140,12 @@ func LoadProject(path string) (*Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+	return loadProjectData(path, data)
+}
 
+// loadProjectData is LoadProject on data, the content of the sonde.yaml at
+// path.
+func loadProjectData(path string, data []byte) (*Project, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	var raw projectFileYAML

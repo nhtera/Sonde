@@ -7,9 +7,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/nhtera/sonde/internal/sandbox"
 	"github.com/nhtera/sonde/internal/value"
 )
 
@@ -143,26 +145,29 @@ func TestSetSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 	sec := only(t, edits, "dev.secrets")
-	if string(sec.Data) != "port=s3cr3t\n" || !sec.Created || sec.Perm != 0o600 || !strings.HasSuffix(filepath.ToSlash(sec.Path), "env/dev.secrets") {
+	if string(sec.Data) != "port=s3cr3t\n" || !sec.Created || sec.Perm != 0o600 || !strings.HasSuffix(filepath.ToSlash(sec.Path), "secrets/dev.secrets") {
 		t.Errorf("secrets file %+v", sec)
 	}
 	y := string(only(t, edits, "sonde.yaml").Data)
-	if strings.Contains(y, "port: 8080") || !strings.Contains(y, "    secrets_files:\n      - env/dev.secrets\n") {
+	if strings.Contains(y, "port: 8080") || !strings.Contains(y, "    secrets_files:\n      - secrets/dev.secrets\n") {
 		t.Errorf("sonde.yaml:\n%s", y)
 	}
 	if string(only(t, edits, "dev.properties").Data) != "" {
 		t.Error("the variables file still defines the name")
 	}
 
-	// An existing block list gets one more item.
-	p = project(t, strings.Replace(editYAML, "  prod:\n", "    secrets_files:\n      - other.secrets\n  prod:\n", 1), map[string]string{"dev.properties": "", "other.secrets": "a=1\n"})
+	// A listed secrets file is used, even when it is not checked out.
+	p = project(t, strings.Replace(editYAML, "  prod:\n", "    secrets_files:\n      - other.secrets\n  prod:\n", 1), map[string]string{"dev.properties": ""})
 	if edits, err = p.SetSecret("dev", "b", "2"); err != nil {
 		t.Fatal(err)
 	}
-	if y := string(only(t, edits, "sonde.yaml").Data); !strings.Contains(y, "      - other.secrets\n      - env/dev.secrets\n  prod:") {
-		t.Errorf("block list:\n%s", y)
+	if e := only(t, edits, "other.secrets"); string(e.Data) != "b=2\n" || !e.Created || len(edits) != 1 {
+		t.Errorf("listed secrets file: %+v (%d edits)", e, len(edits))
 	}
-	// A secret defined twice is refused by the validation.
+	if _, err := p.SetVariable("dev", "c", value.Int(3)); err != nil {
+		t.Errorf("a missing secrets file blocks SetVariable: %v", err)
+	}
+	// An existing secrets file gets the new secret.
 	p = project(t, strings.Replace(editYAML, "  prod:\n", "    secrets_files: [a.secrets, env/dev.secrets]\n  prod:\n", 1), map[string]string{
 		"dev.properties": "", "a.secrets": "x=1\n", "env/dev.secrets": "y=2\n",
 	})
@@ -174,6 +179,69 @@ func TestSetSecret(t *testing.T) {
 	}
 	if _, err := p.SetSecret("dev", "q", "multi\nline"); err == nil {
 		t.Error("a multi-line secret is accepted")
+	}
+}
+
+// TestEditAfterMultiLineValues adds a variable after last values that
+// span lines: the new line goes after them, never inside.
+func TestEditAfterMultiLineValues(t *testing.T) {
+	for name, last := range map[string]string{
+		"folded":  "      desc: >\n        long text\n        continues\n",
+		"literal": "      desc: |\n        line one\n\n        line three\n",
+		"double":  "      desc: \"foo\n        bar\"\n",
+		"plain":   "      desc: foo\n        bar\n",
+		"nested":  "      desc: x # c\n      # trailing comment\n",
+	} {
+		src := "version: 1\nenvironments:\n  dev:\n    variables:\n      a: 1\n" + last + "  prod:\n    variables:\n      a: 2\n"
+		p := project(t, src, nil)
+		edits, err := p.SetVariable("dev", "new", value.String("y"))
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		got, err := loadProjectData(p.Path, edits[0].Data)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		vars := got.Environments["dev"].Variables
+		if !value.Equal(vars["new"], value.String("y")) || !value.Equal(vars["desc"], p.Environments["dev"].Variables["desc"]) {
+			t.Errorf("%s:\n%s", name, edits[0].Data)
+		}
+	}
+}
+
+// TestWriteEdits keeps an existing file's mode, gives a new one its Perm,
+// and refuses a symbolic link.
+func TestWriteEdits(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("modes and links")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "sonde.yaml"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	root, err := sandbox.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = root.Close() }()
+	err = WriteEdits(root, []FileEdit{
+		{Path: filepath.Join(dir, "sonde.yaml"), Data: []byte("y"), Perm: 0o644},
+		{Path: filepath.Join(dir, "secrets", "dev.secrets"), Data: []byte("k=v\n"), Perm: 0o600, Created: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]os.FileMode{"sonde.yaml": 0o600, "secrets/dev.secrets": 0o600} {
+		if fi, err := os.Stat(filepath.Join(dir, name)); err != nil || fi.Mode().Perm() != want {
+			t.Errorf("%s: %v %v", name, fi.Mode().Perm(), err)
+		}
+	}
+	if err := os.Symlink(filepath.Join(dir, "sonde.yaml"), filepath.Join(dir, "link.properties")); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteEdits(root, []FileEdit{{Path: filepath.Join(dir, "link.properties"), Data: []byte("z")}}); err == nil {
+		t.Error("a symbolic link is replaced")
 	}
 }
 
