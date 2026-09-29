@@ -4,8 +4,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/nhtera/sonde/internal/convert"
@@ -37,13 +35,9 @@ func importPostman(cmd *cobra.Command, input string, opts convert.Options) (conv
 	if err != nil {
 		return convert.Output{}, err
 	}
-	envs := make([]postman.EnvironmentFile, 0, len(envPaths))
-	for _, path := range envPaths {
-		raw, err := convert.ReadInput(path, convert.MaxInput)
-		if err != nil {
-			return convert.Output{}, fmt.Errorf("--environment: %w", err)
-		}
-		envs = append(envs, postman.EnvironmentFile{FileName: path, Data: raw})
+	envs, err := postman.ReadEnvironments(envPaths)
+	if err != nil {
+		return convert.Output{}, err
 	}
 	return postman.Import(data, postman.Options{Group: group, Environments: envs, Dialect: opts.Dialect()})
 }

@@ -115,3 +115,17 @@ func sortedSet(set map[string]bool) []string {
 	sort.Strings(out)
 	return out
 }
+
+// ReadEnvironments reads Postman environment JSON files (--environment),
+// each at most convert.MaxInput bytes.
+func ReadEnvironments(paths []string) ([]EnvironmentFile, error) {
+	envs := make([]EnvironmentFile, 0, len(paths))
+	for _, path := range paths {
+		raw, err := convert.ReadInput(path, convert.MaxInput)
+		if err != nil {
+			return nil, fmt.Errorf("--environment: %w", err)
+		}
+		envs = append(envs, EnvironmentFile{FileName: path, Data: raw})
+	}
+	return envs, nil
+}

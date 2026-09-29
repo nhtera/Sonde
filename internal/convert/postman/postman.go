@@ -222,6 +222,8 @@ type walker struct {
 	// replaced by an unrelated variable of the same name.
 	taken    map[string]bool
 	pathVars map[string]string
+	// suggestions are the edits proposed on top of the files (Suggest).
+	suggestions []FileSuggestion
 }
 
 func newWalker(dialect syntax.Dialect) *walker {
@@ -325,19 +327,27 @@ func Import(data []byte, opts Options) (out convert.Output, err error) {
 			out, err = convert.Output{}, fmt.Errorf("postman: malformed collection: %v", p)
 		}
 	}()
+	w, err := walk(data, opts)
+	if err != nil {
+		return convert.Output{}, err
+	}
+	return w.out, nil
+}
 
+// walk converts a collection, the work of Import and Suggest.
+func walk(data []byte, opts Options) (*walker, error) {
 	group := opts.Group
 	switch group {
 	case "":
 		group = GroupRequest
 	case GroupRequest, GroupFolder:
 	default:
-		return convert.Output{}, fmt.Errorf("postman: --group must be %q or %q, got %q", GroupRequest, GroupFolder, group)
+		return nil, fmt.Errorf("postman: --group must be %q or %q, got %q", GroupRequest, GroupFolder, group)
 	}
 
 	col, err := parseCollection(data)
 	if err != nil {
-		return convert.Output{}, err
+		return nil, err
 	}
 
 	w := newWalker(opts.Dialect)
@@ -360,9 +370,9 @@ func Import(data []byte, opts Options) (out convert.Output, err error) {
 	}
 
 	if err := w.finish(opts.Environments); err != nil {
-		return convert.Output{}, err
+		return nil, err
 	}
-	return w.out, nil
+	return w, nil
 }
 
 // parseCollection unmarshals data, rejecting the legacy Collection v1
@@ -425,6 +435,7 @@ func (w *walker) importRequests(items []item, prefix []string, parent authState)
 		}
 		w.pending = nil // attached to the file just written; don't repeat it
 		w.out.Files = append(w.out.Files, convert.GeneratedFile{Path: name, File: f})
+		w.fileSuggestions(len(w.out.Files)-1, []entryOps{w.entryOps(it, reqAuth)})
 	}
 }
 
@@ -436,6 +447,7 @@ func (w *walker) importRequests(items []item, prefix []string, parent authState)
 // rather than sinking every other request of the folder.
 func (w *walker) importFolder(items []item, prefix []string, parent authState, fileName string, leading []string) {
 	var entries []syntax.EntrySpec
+	var ops []entryOps
 	for _, it := range items {
 		w.mergeVariables(it.Variable)
 		path := appended(prefix, it.Name)
@@ -461,6 +473,7 @@ func (w *walker) importFolder(items []item, prefix []string, parent authState, f
 			continue
 		}
 		entries = append(entries, e)
+		ops = append(ops, w.entryOps(it, reqAuth))
 	}
 	if len(entries) == 0 {
 		return
@@ -476,6 +489,7 @@ func (w *walker) importFolder(items []item, prefix []string, parent authState, f
 		return
 	}
 	w.out.Files = append(w.out.Files, convert.GeneratedFile{Path: fileName, File: f})
+	w.fileSuggestions(len(w.out.Files)-1, ops)
 }
 
 // buildEntry renders one request item to an EntrySpec: comments (name,

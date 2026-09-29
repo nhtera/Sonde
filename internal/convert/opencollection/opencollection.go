@@ -105,3 +105,23 @@ func assemble(doc *document, dialect syntax.Dialect, warns []convert.Warning) co
 		Skipped:     wr.skipped,
 	}
 }
+
+// ImportPath converts input: a single OpenCollection YAML file, or a
+// collection directory (docs/decisions/0002-opencollection-mapping.md).
+func ImportPath(input string, dialect syntax.Dialect) (convert.Output, error) {
+	st, err := os.Stat(input)
+	if err != nil {
+		return convert.Output{}, err
+	}
+	if st.IsDir() {
+		return ImportDir(input, dialect)
+	}
+	if !st.Mode().IsRegular() {
+		return convert.Output{}, fmt.Errorf("%s: not a regular file or directory", input)
+	}
+	data, err := convert.ReadInput(input, convert.MaxInput)
+	if err != nil {
+		return convert.Output{}, err
+	}
+	return ImportFile(data, dialect)
+}

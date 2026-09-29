@@ -12,6 +12,7 @@ package curl
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -119,4 +120,35 @@ func Import(data []byte, dialect syntax.Dialect) (Result, error) {
 	}
 	res.File = f
 	return res, nil
+}
+
+// ImportInput converts every `curl` command of data, read from input (a
+// file name, or "-" for standard input), to one entry of a single file
+// named after input's stem.
+func ImportInput(input string, data []byte, dialect syntax.Dialect) (convert.Output, error) {
+	res, err := Import(data, dialect)
+	if err != nil {
+		return convert.Output{}, err
+	}
+	return convert.Output{
+		Files:    []convert.GeneratedFile{{Path: OutputStem(input), File: res.File}},
+		Warnings: res.Warnings,
+		Skipped:  res.Skipped,
+	}, nil
+}
+
+// OutputStem names the single generated file: input's base name without
+// its extension, or "curl" for standard input or an input whose name
+// sanitizes to nothing (the writer would fall back to "request"
+// otherwise, which is a fine but less informative default).
+func OutputStem(input string) string {
+	if input == "-" {
+		return "curl"
+	}
+	base := filepath.Base(input)
+	stem := strings.TrimSuffix(base, filepath.Ext(base))
+	if stem == "" {
+		return "curl"
+	}
+	return stem
 }

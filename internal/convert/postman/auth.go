@@ -26,6 +26,7 @@ type auth struct {
 	Digest authParamList `json:"digest"`
 	Awsv4  authParamList `json:"awsv4"`
 	Ntlm   authParamList `json:"ntlm"`
+	Oauth2 authParamList `json:"oauth2"`
 }
 
 type authParam struct {

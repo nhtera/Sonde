@@ -344,23 +344,26 @@ linters:
           files: ["**/internal/openapi/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/openapi may import only: exchange, internal/syntax, engine (architecture §2)"
+              desc: "internal/openapi may import only: exchange, internal/syntax, engine, internal/convert, internal/config (architecture §2)"
           allow:
             - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/engine$
+            - github.com/nhtera/sonde/internal/convert$
+            - github.com/nhtera/sonde/internal/config$
         pkg-convert:
           list-mode: lax
           files: ["**/internal/convert/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/convert and its importer subpackages may import only: internal/convert, internal/syntax, exchange, internal/config, internal/sandbox (architecture §2)"
+              desc: "internal/convert and its importer subpackages may import only: internal/convert, internal/syntax, exchange, internal/config, internal/sandbox, internal/syntaxedit (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/convert$
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/config$
             - github.com/nhtera/sonde/internal/sandbox$
+            - github.com/nhtera/sonde/internal/syntaxedit$
         pkg-lsp:
           list-mode: lax
           files: ["**/internal/lsp/**", "!$test"]

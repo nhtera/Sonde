@@ -96,21 +96,29 @@ func (e *ErrConflicts) Error() string {
 		len(e.Files), strings.Join(e.Files, ", "))
 }
 
-// Write formats and writes out into dir under opts. With opts.DryRun set,
-// it computes the same plan and returns it without touching the
-// filesystem. dir is created if missing; every other write is confined
-// inside it (including through a symbolic link) using os.Root.
-func Write(dir string, out Output, opts Options) (*Result, error) {
+// PlannedFile is a file Write writes: its path relative to DIR
+// (slash-separated), its content and its permission.
+type PlannedFile struct {
+	Path string
+	Data []byte
+	Perm fs.FileMode
+}
+
+// Plan computes what Write does with out in dir under opts, without
+// writing anything: the Result, and the files to write in order. A
+// missing dir has no files yet. Without opts.Force, planned files that
+// already exist are an *ErrConflicts.
+func Plan(dir string, out Output, opts Options) (*Result, []PlannedFile, error) {
 	ext, err := opts.extension()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	used := map[string]bool{ProjectFileName: true}
 	planned := planPaths(used, out.Files, ext)
 	extra, err := planExtra(used, out.Extra)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	res := &Result{DryRun: opts.DryRun, Files: append([]string(nil), planned...)}
 	sort.Strings(res.Files)
@@ -118,32 +126,35 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 		res.RequestCount += len(f.File.Entries)
 	}
 
-	if opts.DryRun {
-		// A dry run creates nothing: a missing directory has no conflicts.
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			if out.ProjectYAML != nil {
-				res.Project = ProjectFileName
+	// exists reports whether rel exists in dir (never, when dir does not).
+	exists := func(string) (bool, error) { return false, nil }
+	if _, err := os.Stat(dir); err == nil {
+		root, err := os.OpenRoot(dir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("convert: %w", err)
+		}
+		defer func() { _ = root.Close() }()
+		exists = func(rel string) (bool, error) {
+			_, err := root.Stat(rel)
+			if err == nil {
+				return true, nil
 			}
-			res.Extra = sorted(extra)
-			return res, nil
+			if os.IsNotExist(err) {
+				return false, nil
+			}
+			return false, err
 		}
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // G301: output directories are 0o755, docs/guides/import-export.md
-		return nil, fmt.Errorf("convert: %w", err)
-	}
-	root, err := os.OpenRoot(dir)
-	if err != nil {
-		return nil, fmt.Errorf("convert: %w", err)
-	}
-	defer func() { _ = root.Close() }()
 
 	projectExists := false
 	if out.ProjectYAML != nil {
-		if _, err := root.Stat(ProjectFileName); err == nil {
+		ok, err := exists(ProjectFileName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("convert: %s: %w", ProjectFileName, err)
+		}
+		if ok {
 			projectExists = true
 			res.ProjectSkipped = true
-		} else if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("convert: %s: %w", ProjectFileName, err)
 		} else {
 			res.Project = ProjectFileName
 		}
@@ -152,7 +163,7 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 	var writeExtra []int
 	for i, rel := range extra {
 		if out.Extra[i].Keep {
-			if _, err := root.Stat(rel); err == nil {
+			if ok, _ := exists(rel); ok {
 				res.ExtraKept = append(res.ExtraKept, rel)
 				continue
 			}
@@ -166,42 +177,57 @@ func Write(dir string, out Output, opts Options) (*Result, error) {
 	if !opts.Force {
 		var conflicts []string
 		for _, rel := range planned {
-			if _, err := root.Stat(rel); err == nil {
+			if ok, _ := exists(rel); ok {
 				conflicts = append(conflicts, rel)
 			}
 		}
 		for _, i := range writeExtra {
-			if _, err := root.Stat(extra[i]); err == nil {
+			if ok, _ := exists(extra[i]); ok {
 				conflicts = append(conflicts, extra[i])
 			}
 		}
 		if len(conflicts) > 0 {
 			sort.Strings(conflicts)
-			return nil, &ErrConflicts{Files: conflicts}
+			return nil, nil, &ErrConflicts{Files: conflicts}
 		}
 	}
 
-	if opts.DryRun {
-		return res, nil
-	}
-
+	var files []PlannedFile
 	for i, f := range out.Files {
-		data := syntax.Format(f.File)
-		if err := sandbox.WriteFileAtomicIn(root, planned[i], data, 0o644); err != nil {
-			return nil, fmt.Errorf("convert: %w", err)
-		}
+		files = append(files, PlannedFile{Path: planned[i], Data: syntax.Format(f.File), Perm: 0o644})
 	}
 	for _, i := range writeExtra {
 		perm := fs.FileMode(0o644)
 		if out.Extra[i].Keep {
 			perm = 0o600
 		}
-		if err := sandbox.WriteFileAtomicIn(root, extra[i], out.Extra[i].Data, perm); err != nil {
-			return nil, fmt.Errorf("convert: %w", err)
-		}
+		files = append(files, PlannedFile{Path: extra[i], Data: out.Extra[i].Data, Perm: perm})
 	}
 	if out.ProjectYAML != nil && !projectExists {
-		if err := sandbox.WriteFileAtomicIn(root, ProjectFileName, out.ProjectYAML, 0o644); err != nil {
+		files = append(files, PlannedFile{Path: ProjectFileName, Data: out.ProjectYAML, Perm: 0o644})
+	}
+	return res, files, nil
+}
+
+// Write formats and writes out into dir under opts. With opts.DryRun set,
+// it computes the same plan and returns it without touching the
+// filesystem. dir is created if missing; every other write is confined
+// inside it (including through a symbolic link) using os.Root.
+func Write(dir string, out Output, opts Options) (*Result, error) {
+	res, files, err := Plan(dir, out, opts)
+	if err != nil || opts.DryRun {
+		return res, err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // G301: output directories are 0o755, docs/guides/import-export.md
+		return nil, fmt.Errorf("convert: %w", err)
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, fmt.Errorf("convert: %w", err)
+	}
+	defer func() { _ = root.Close() }()
+	for _, f := range files {
+		if err := sandbox.WriteFileAtomicIn(root, f.Path, f.Data, f.Perm); err != nil {
 			return nil, fmt.Errorf("convert: %w", err)
 		}
 	}
@@ -244,12 +270,6 @@ func planExtra(used map[string]bool, files []RawFile) ([]string, error) {
 // from every path already in used, which it records.
 func StubPath(env string, used map[string]bool) string {
 	return uniquePath(used, "secrets/"+sanitizeSegment(env)+".secrets")
-}
-
-func sorted(s []string) []string {
-	out := append([]string(nil), s...)
-	sort.Strings(out)
-	return out
 }
 
 // uniquePath returns base, or base with a "-2", "-3", ... suffix before its
