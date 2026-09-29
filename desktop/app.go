@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
+	"github.com/nhtera/sonde/desktop/internal/emit"
 )
 
 // Mode is how the app is hosted.
@@ -29,6 +30,9 @@ type Host struct {
 	// opens one.
 	Root string
 	Dirs *appdirs.Dirs
+	// Emit sends app events to the frontend (Wails events in the window,
+	// the guarded event stream over HTTP).
+	Emit emit.Emitter
 }
 
 // registration is one service. Each services_*.go file registers its

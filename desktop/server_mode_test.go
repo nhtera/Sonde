@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
+	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/serverauth"
 )
 
@@ -53,7 +54,8 @@ func TestServerMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	app := newServerApp(&Host{Mode: ModeServer, Root: t.TempDir(), Dirs: dirs}, port, guard)
+	host := &Host{Mode: ModeServer, Root: t.TempDir(), Dirs: dirs}
+	app := newServerApp(host, port, guard)
 	done := make(chan error, 1)
 	go func() { done <- app.Run() }()
 	defer func() {
@@ -211,6 +213,40 @@ func TestServerMode(t *testing.T) {
 		}
 		if got := call(session.Token); got == 401 || got == 403 {
 			t.Errorf("cookie and token: %d, want the runtime's answer", got)
+		}
+
+		// App events: the guarded stream, with the token only.
+		events := func(token string) *http.Response {
+			req, _ := http.NewRequest("GET", base+emit.StreamPath, nil)
+			if token != "" {
+				req.Header.Set(serverauth.TokenHeader, token)
+			}
+			res, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return res
+		}
+		if res := events(""); res.StatusCode != 401 {
+			t.Errorf("event stream without token: %d, want 401", res.StatusCode)
+			_ = res.Body.Close()
+		}
+		res = events(session.Token)
+		defer func() { _ = res.Body.Close() }()
+		if res.StatusCode != 200 {
+			t.Fatalf("event stream: %d", res.StatusCode)
+		}
+		stream := host.Emit.(*emit.Stream)
+		for deadline := time.Now().Add(5 * time.Second); stream.Clients() == 0; {
+			if time.Now().After(deadline) {
+				t.Fatal("event stream client not registered")
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		host.Emit.Emit("run:1", map[string]int{"seq": 1})
+		line, err := bufio.NewReader(res.Body).ReadString('\n')
+		if err != nil || !strings.Contains(line, `"topic":"run:1"`) {
+			t.Errorf("event line %q (%v)", line, err)
 		}
 	})
 }

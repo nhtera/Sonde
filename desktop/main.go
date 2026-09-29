@@ -15,6 +15,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
+	"github.com/nhtera/sonde/desktop/internal/emit"
 )
 
 func main() {
@@ -30,7 +31,7 @@ func run() error {
 		return err
 	}
 	defer dirs.Close()
-	app := application.New(appOptions(&Host{Mode: ModeDesktop, Dirs: dirs}))
+	app := application.New(appOptions(&Host{Mode: ModeDesktop, Dirs: dirs, Emit: emit.Wails{}}))
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "Sonde",
 		Width:     1280,

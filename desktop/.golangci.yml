@@ -54,11 +54,12 @@ linters:
             - "!**/desktop/harness_service.go"
             - "!**/desktop/cmd/fixture-server/**"
             - "!**/desktop/internal/serverauth/**"
+            - "!**/desktop/internal/emit/**"
             - "!**/desktop/internal/bodies/**"
             - "!**/desktop/internal/mocksvc/**"
           deny:
             - pkg: net/http
-              desc: "net/http is allowed only in app.go, serve.go, the server and harness mains, cmd/fixture-server, internal/serverauth, internal/bodies and internal/mocksvc"
+              desc: "net/http is allowed only in app.go, serve.go, the server and harness mains, cmd/fixture-server, internal/serverauth, internal/emit, internal/bodies and internal/mocksvc"
     forbidigo:
       analyze-types: true
       forbid:

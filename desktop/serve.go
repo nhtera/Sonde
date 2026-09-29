@@ -17,6 +17,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
+	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/serverauth"
 )
 
@@ -25,13 +26,17 @@ const loopback = "127.0.0.1"
 
 // newServerApp returns the app served over HTTP on loopback:port, every
 // request passing guard. Wails' own event socket (/wails/events) is
-// outside the guard: in server mode the app sends its events through its
-// guarded endpoints instead.
+// outside the guard, so app events go through the guarded event stream
+// (emit.StreamPath) instead: h.Emit is set to it.
 func newServerApp(h *Host, port int, guard *serverauth.Guard) *application.App {
 	// Wails lets these override the address; server mode's address is fixed.
 	_ = os.Unsetenv("WAILS_SERVER_HOST")
 	_ = os.Unsetenv("WAILS_SERVER_PORT")
+	stream := emit.NewStream()
+	h.Emit = stream
 	opts := appOptions(h)
+	opts.Services = append(opts.Services, application.NewServiceWithOptions(&eventStream{stream},
+		application.ServiceOptions{Name: "events", Route: emit.StreamPath}))
 	opts.Server = application.ServerOptions{
 		Host:        loopback,
 		Port:        port,
@@ -47,6 +52,12 @@ func newServerApp(h *Host, port int, guard *serverauth.Guard) *application.App {
 	opts.Assets.DisableLogging = true
 	return application.New(opts)
 }
+
+// eventStream serves the event stream. It binds nothing: its only method
+// is ServeHTTP, which Wails does not bind.
+type eventStream struct{ s *emit.Stream }
+
+func (e *eventStream) ServeHTTP(w http.ResponseWriter, r *http.Request) { e.s.ServeHTTP(w, r) }
 
 // waitListening polls the server's health route until it answers or
 // timeout passes.
