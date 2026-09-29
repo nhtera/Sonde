@@ -29,6 +29,8 @@ fi
 
 missing=0
 for f in "${files[@]}"; do
+  # A tracked file deleted in the working tree (not yet staged) is gone.
+  [ -e "$f" ] || continue
   if ! head -n 3 "$f" | grep -q 'SPDX-License-Identifier: Apache-2.0'; then
     echo "missing SPDX header: $f" >&2
     missing=1

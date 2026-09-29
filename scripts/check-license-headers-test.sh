@@ -36,6 +36,11 @@ cp "$tmp/good.ts" "$repo/desktop/frontend/src/ok.ts"
 printf 'export {};\n' > "$repo/editors/elsewhere.ts" # outside desktop/: not checked
 git -C "$repo" init -q
 (cd "$repo" && "$script" > /dev/null) || { echo "FAIL: clean repository failed the check" >&2; exit 1; }
+# A tracked file deleted but not yet staged is skipped.
+git -C "$repo" add main.go
+rm "$repo/main.go"
+cp "$tmp/good.go" "$repo/other.go"
+(cd "$repo" && "$script" > /dev/null) || { echo "FAIL: a deleted tracked file failed the check" >&2; exit 1; }
 cp "$tmp/bad.tsx" "$repo/desktop/frontend/src/bad.tsx"
 if (cd "$repo" && "$script" > /dev/null 2>&1); then
   echo "FAIL: desktop/**/*.tsx without a header passed" >&2
