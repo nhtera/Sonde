@@ -18,9 +18,11 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/history"
 	"github.com/nhtera/sonde/desktop/internal/jar"
+	"github.com/nhtera/sonde/desktop/internal/mocksvc"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/desktop/internal/settings"
 	"github.com/nhtera/sonde/desktop/internal/workspace"
+	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
 )
 
@@ -54,6 +56,7 @@ type Host struct {
 	Jars      *jar.Jars
 	History   *history.History
 	Envs      *envsvc.Envs
+	Mocks     *mocksvc.Mocks
 }
 
 // version is the app's version (set at build time); it names the default
@@ -71,13 +74,17 @@ func (h *Host) setup() error {
 	h.History = history.New(h.Dirs.Config(), h.Workspace.Root, h.historyPolicy, h.Emit.Emit)
 	env := config.FromOSEnviron()
 	h.Envs = envsvc.New(h.Emit, h.Dirs.Config(), h.Workspace.Root, env, version, h.Settings.Apply)
+	h.Mocks = mocksvc.New(h.Emit.Emit, h.Workspace.Root, h.Envs.SetMock)
 	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, env, version, h.Bodies, h.Handles)
 	h.Runs.Hooks = runsvc.Hooks{
 		Extend:      h.Envs.Extend,
 		Overrides:   h.Envs.Digest,
 		KeptJar:     h.Jars.KeptJar,
 		KeepCookies: h.Jars.Keep,
-		Record:      h.History.Add,
+		Record: func(s *runsvc.Summary, results []*engine.UnitResult) {
+			h.History.Add(s, results)
+			h.Mocks.Observe(results)
+		},
 	}
 	if h.Root != "" {
 		if _, err := h.Workspace.Open(h.Root); err != nil {
