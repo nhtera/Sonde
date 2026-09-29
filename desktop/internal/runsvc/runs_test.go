@@ -23,7 +23,9 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
 	"github.com/nhtera/sonde/desktop/internal/view"
+	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
+	"github.com/nhtera/sonde/internal/cookiejar"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -346,5 +348,33 @@ func TestPlanningErrorEndsRun(t *testing.T) {
 	}
 	if _, done := f.events(t, "r1"); done == nil || done.Summary.Error == "" {
 		t.Errorf("done %+v", done)
+	}
+}
+
+// TestKeepCookies: with keep cookies on, a full run starts with the jar
+// the previous one kept.
+func TestKeepCookies(t *testing.T) {
+	f := setup(t)
+	jar := filepath.Join(t.TempDir(), "jar.txt")
+	f.runs.Hooks.KeptJar = func(string) string {
+		if _, err := os.Stat(jar); err != nil {
+			return ""
+		}
+		return jar
+	}
+	f.runs.Hooks.KeepCookies = func(file string, cookies []engine.Cookie) {
+		_ = os.WriteFile(jar, cookiejar.Format(file, cookies, func(s string) string { return s }), 0o600)
+	}
+	src := "POST {{base}}/login\nHTTP 200\n"
+	if _, err := f.runs.Run(context.Background(), RunRequest{RunID: "r1", File: "flow.hurl", Source: src, Env: "local"}); err != nil {
+		t.Fatal(err)
+	}
+	src2 := "GET {{base}}/me\nHTTP 200\n"
+	if _, err := f.runs.Run(context.Background(), RunRequest{RunID: "r2", File: "flow.hurl", Source: src2, Env: "local"}); err != nil {
+		t.Fatal(err)
+	}
+	got := f.shop.requests()
+	if !strings.Contains(got[len(got)-1], "cookie=sid=s-1") {
+		t.Errorf("second run did not send the kept cookie: %q", got[len(got)-1])
 	}
 }

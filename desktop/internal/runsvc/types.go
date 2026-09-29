@@ -63,13 +63,15 @@ const (
 type Summary struct {
 	RunID string `json:"runId"`
 	// Kind is "run", "send", "test" or "data".
-	Kind      string `json:"kind"`
-	Outcome   string `json:"outcome"`
-	Files     int    `json:"files"`
-	Succeeded int    `json:"succeeded"`
-	Requests  int    `json:"requests"`
-	Duration  int64  `json:"durationMs"`
-	Units     []Unit `json:"units"`
+	Kind      string    `json:"kind"`
+	Env       string    `json:"env"`
+	Outcome   string    `json:"outcome"`
+	StartedAt time.Time `json:"startedAt"`
+	Files     int       `json:"files"`
+	Succeeded int       `json:"succeeded"`
+	Requests  int       `json:"requests"`
+	Duration  int64     `json:"durationMs"`
+	Units     []Unit    `json:"units"`
 	// BaseRunAt is, for a Send, when the run it reused ran.
 	BaseRunAt *time.Time `json:"baseRunAt,omitempty"`
 	// Error is why the run could not start (a planning error).

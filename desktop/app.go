@@ -6,6 +6,7 @@ package main
 import (
 	"cmp"
 	"slices"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
@@ -14,7 +15,10 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/bodies"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
+	"github.com/nhtera/sonde/desktop/internal/history"
+	"github.com/nhtera/sonde/desktop/internal/jar"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
+	"github.com/nhtera/sonde/desktop/internal/settings"
 	"github.com/nhtera/sonde/desktop/internal/workspace"
 	"github.com/nhtera/sonde/internal/config"
 )
@@ -45,6 +49,9 @@ type Host struct {
 	Handles   *handles.Table
 	Runs      *runsvc.Runs
 	Bodies    *bodies.Store
+	Settings  *settings.Store
+	Jars      *jar.Jars
+	History   *history.History
 }
 
 // version is the app's version (set at build time); it names the default
@@ -57,13 +64,35 @@ func (h *Host) setup() error {
 	h.Handles = handles.New()
 	h.Workspace = workspace.New(h.Emit)
 	h.Bodies = bodies.New(h.Dirs.Cache())
+	h.Settings = settings.Open(h.Dirs.Config(), h.Emit, h.Handles)
+	h.Jars = jar.New(h.Dirs.Config(), h.Workspace.Root, func() bool { return h.Settings.Get().Cookies.Keep })
+	h.History = history.New(h.Dirs.Config(), h.Workspace.Root, h.historyPolicy, h.Emit.Emit)
 	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, config.FromOSEnviron(), version, h.Bodies, h.Handles)
+	h.Runs.Hooks = runsvc.Hooks{
+		Extend:      h.Settings.Apply,
+		KeptJar:     h.Jars.KeptJar,
+		KeepCookies: h.Jars.Keep,
+		Record:      h.History.Add,
+	}
 	if h.Root != "" {
 		if _, err := h.Workspace.Open(h.Root); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// historyPolicy reads the history settings.
+func (h *Host) historyPolicy() history.Policy {
+	s := h.Settings.Get().History
+	p := history.Policy{Enabled: s.Enabled}
+	switch s.Retention {
+	case "7d":
+		p.Retention = 7 * 24 * time.Hour
+	case "30d":
+		p.Retention = 30 * 24 * time.Hour
+	}
+	return p
 }
 
 // registration is one service. Each services_*.go file registers its

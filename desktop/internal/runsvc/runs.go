@@ -38,9 +38,10 @@ type Hooks struct {
 	// on it).
 	Extend    func(inv *runplan.Invocation)
 	Overrides func() string
-	// KeptCookies returns the jar kept for file between full runs (nil:
-	// keep cookies is off); KeepCookies stores the jar after one.
-	KeptCookies func(file string) []engine.Cookie
+	// KeptJar returns the path of the jar kept for file between full runs
+	// ("" when keep cookies is off or there is none): the run reads it as
+	// -b. KeepCookies stores the jar after a full run.
+	KeptJar     func(file string) string
 	KeepCookies func(file string, cookies []engine.Cookie)
 	// Record stores a finished run in the history.
 	Record func(s *Summary, results []*engine.UnitResult)
@@ -195,6 +196,7 @@ func (r *Runs) start(ctx context.Context, runID, kind string, files []string, bo
 
 	rn := &run{runs: r, root: root, bridge: newBridge(r.emit, runID), summary: &Summary{RunID: runID, Kind: kind, Units: []Unit{}}}
 	start := time.Now()
+	rn.summary.StartedAt = start.UTC()
 	err := body(ctx, rn)
 	rn.summary.Duration = time.Since(start).Milliseconds()
 	if err != nil {
@@ -304,6 +306,14 @@ func (rn *run) plan(ctx context.Context, cmd, env, data string, sources map[stri
 	if h := rn.runs.Hooks.Extend; h != nil {
 		h(&inv)
 	}
+	if k := rn.runs.Hooks.KeptJar; k != nil && rn.summary.Kind == "run" {
+		if files := rn.reserved(); len(files) == 1 {
+			if jar := k(files[0]); jar != "" {
+				inv.Cookie = jar
+				inv.Set["cookie"] = true
+			}
+		}
+	}
 	rn.files, rn.sources = map[string]string{}, map[string][]byte{}
 	files := rn.reserved()
 	var inputs []runplan.Input
@@ -330,6 +340,7 @@ func (rn *run) plan(ctx context.Context, cmd, env, data string, sources map[stri
 	rn.opts.BufferedLogs = true // a redact capture's value may otherwise be logged
 	rn.opts.Stdout = io.Discard
 	rn.summary.Warnings = p.Warnings
+	rn.summary.Env = env
 	return nil
 }
 
@@ -437,19 +448,9 @@ func (rn *run) jobs(all iter.Seq[engine.Job], opts *engine.Options) iter.Seq[eng
 	}
 }
 
-// seedCookies is the jar a run starts with: the Send session's, or the
-// kept jar of a full run when keep cookies is on.
-func (rn *run) seedCookies() []engine.Cookie {
-	if rn.seed != nil {
-		return rn.seed
-	}
-	if k := rn.runs.Hooks.KeptCookies; k != nil && rn.summary.Kind == "run" && len(rn.files) == 1 {
-		for _, f := range rn.files {
-			return k(f)
-		}
-	}
-	return nil
-}
+// seedCookies is the jar a Send starts with: its session's. (A full run
+// with keep cookies reads its kept jar as -b.)
+func (rn *run) seedCookies() []engine.Cookie { return rn.seed }
 
 // finish summarizes the results.
 func (rn *run) finish(ctx context.Context) {
