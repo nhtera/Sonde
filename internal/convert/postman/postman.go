@@ -214,12 +214,42 @@ type walker struct {
 	// (--group folder does), so they land on the first request they would
 	// apply to instead, per docs/guides/migrate-from-postman.md.
 	pending []string
+	// taken holds every sanitized variable name the collection, its
+	// folders and the --environment files define, collected before the
+	// walk; pathVars holds the literal values of path variables (:id)
+	// turned into {{id}}, added to every environment by finish. A path
+	// variable never takes a name from taken, so its value cannot be
+	// replaced by an unrelated variable of the same name.
+	taken    map[string]bool
+	pathVars map[string]string
 }
 
 func newWalker(dialect syntax.Dialect) *walker {
 	return &walker{
 		dialect: dialect, collVars: map[string]string{}, collSecrets: map[string]bool{},
 		warned: map[string]bool{}, varNames: map[string]string{},
+		taken: map[string]bool{}, pathVars: map[string]string{},
+	}
+}
+
+// reserveNames records in w.taken every variable name items (recursively)
+// and envFiles define. An environment file that fails to parse is skipped
+// here: finish reports its error.
+func (w *walker) reserveNames(vars []variable, items []item, envFiles []EnvironmentFile) {
+	for _, v := range vars {
+		w.taken[convert.VariableName(v.Key)] = true
+	}
+	for _, it := range items {
+		w.reserveNames(it.Variable, it.Item, nil)
+	}
+	for _, ef := range envFiles {
+		var env envFile
+		if json.Unmarshal(ef.Data, &env) != nil {
+			continue
+		}
+		for _, v := range env.Values {
+			w.taken[convert.VariableName(v.Key)] = true
+		}
 	}
 }
 
@@ -311,6 +341,7 @@ func Import(data []byte, opts Options) (out convert.Output, err error) {
 	}
 
 	w := newWalker(opts.Dialect)
+	w.reserveNames(col.Variable, col.Item, opts.Environments)
 	w.mergeVariables(col.Variable)
 	root := authState{}.resolve(col.Auth)
 
@@ -498,7 +529,7 @@ func (w *walker) urlText(raw json.RawMessage) syntax.Text {
 	}
 	var s string
 	if json.Unmarshal(raw, &s) == nil {
-		t, ws := convert.ParseText(s)
+		t, ws := convert.ParseText(w.pathVariables(s, nil))
 		w.addWarnings(ws)
 		return t
 	}
@@ -511,7 +542,7 @@ func (w *walker) urlText(raw json.RawMessage) syntax.Text {
 	if s == "" {
 		s = reconstructURL(obj)
 	}
-	t, ws := convert.ParseText(s)
+	t, ws := convert.ParseText(w.pathVariables(s, obj.Variable))
 	w.addWarnings(ws)
 	return t
 }
@@ -523,6 +554,73 @@ type urlObject struct {
 	Path     json.RawMessage `json:"path"`
 	Port     string          `json:"port"`
 	Query    []queryParam    `json:"query"`
+	Variable []variable      `json:"variable"`
+}
+
+// pathVariables rewrites every path segment of u written as a Postman path
+// variable (":id", the whole segment) with the value vars gives it, since
+// Sonde sends a ":id" segment as is:
+//   - a value holding a {{template}} replaces the segment;
+//   - a literal value becomes {{id}}, with the value added to every
+//     environment (w.pathVars), unless another variable already uses that
+//     name or another request gave id a different value: the literal then
+//     replaces the segment, so this request still sends what Postman did;
+//   - no value becomes {{id}}, with a warning to set it.
+//
+// The query string and fragment are left alone.
+func (w *walker) pathVariables(u string, vars []variable) string {
+	values := map[string]string{}
+	for _, v := range vars {
+		if _, ok := values[v.Key]; !ok {
+			values[v.Key] = string(v.Value)
+		}
+	}
+	path, rest := u, ""
+	if i := strings.IndexAny(u, "?#"); i >= 0 {
+		path, rest = u[:i], u[i:]
+	}
+	segs := strings.Split(path, "/")
+	for i, seg := range segs {
+		key, ok := strings.CutPrefix(seg, ":")
+		if !ok || !isPathVariableKey(key) {
+			continue
+		}
+		segs[i] = w.pathVariable(key, values[key])
+	}
+	return strings.Join(segs, "/") + rest
+}
+
+// pathVariable returns the text that replaces the ":key" segment whose
+// Postman value is value (see pathVariables).
+func (w *walker) pathVariable(key, value string) string {
+	name := convert.VariableName(key)
+	placeholder := "{{" + name + "}}"
+	switch {
+	case strings.Contains(value, "{{"):
+		return value
+	case value == "":
+		w.warn(convert.WarnUnsupported, fmt.Sprintf("path variable :%s has no value; set %s before running", key, name))
+		return placeholder
+	}
+	if prev, ok := w.pathVars[name]; w.taken[name] || ok && prev != value {
+		return value
+	}
+	w.pathVars[name] = value
+	return placeholder
+}
+
+// isPathVariableKey reports whether key (after the ':') names a Postman
+// path variable: a letter or '_' first, then letters, digits, '_' or '-'.
+// It keeps a segment such as ":" or ":8080" as it is.
+func isPathVariableKey(key string) bool {
+	for i, r := range key {
+		letter := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '_'
+		digitOrDash := r >= '0' && r <= '9' || r == '-'
+		if !letter && (i == 0 || !digitOrDash) {
+			return false
+		}
+	}
+	return key != ""
 }
 
 type queryParam struct {
@@ -589,6 +687,11 @@ func (w *walker) finish(envFiles []EnvironmentFile) error {
 	stubUsed := map[string]bool{}               // secrets stub file paths (a separate namespace)
 	envs := map[string]config.EnvironmentSkeleton{}
 
+	// Path variable names never clash with a collection, folder or
+	// environment variable (w.taken), so they join every environment as is.
+	for name, value := range w.pathVars {
+		w.collVars[name] = value
+	}
 	collSecretNames := sortedSet(w.collSecrets)
 	sk, extra := buildEnvironment("collection", w.collVars, collSecretNames, stubUsed)
 	envs["collection"] = sk

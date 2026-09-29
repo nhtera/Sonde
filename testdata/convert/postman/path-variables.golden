@@ -1,0 +1,38 @@
+== Literal value
+# Literal value
+GET {{base_url}}/orders/{{order_id}}/items/{{sku}}?expand=:order_id
+== Template value
+# Template value
+GET {{base_url}}/users/{{current_user}}
+== Same value again
+# Same value again
+DELETE {{base_url}}/orders/{{order_id}}
+== Different value
+# Different value
+GET {{base_url}}/orders/ord_2000
+== Name taken by a collection variable
+# Name taken by a collection variable
+GET {{base_url}}/tenants/us-2
+== No value
+# No value
+GET {{base_url}}/carts/{{cart_id}}
+== Unlisted, and a port
+# Unlisted, and a port
+GET http://localhost:9090/refunds/{{refund_id}}/:8080
+== Reconstructed from parts
+# Reconstructed from parts
+GET https://api.example.test/products/{{product_id}}
+== sonde.yaml
+version: 1
+environments:
+  collection:
+    variables:
+      base_url: http://localhost:8080
+      order_id: ord_1093
+      product_id: p-42
+      sku: TEA-EARL-250
+      tenant: eu-1
+defaults:
+  env: collection
+warning unsupported: path variable :cart_id has no value; set cart_id before running
+warning unsupported: path variable :refund_id has no value; set refund_id before running

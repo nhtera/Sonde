@@ -83,6 +83,23 @@ Postman dynamic variables translate to the matching Sonde function
 (`{{$uuid}}`, `{{$guid}}` → `newUuid`; `{{$isoTimestamp}}` → `newDate`);
 any other `{{$...}}` becomes a plain variable to set, with a warning.
 
+A path variable, a whole URL path segment such as `/orders/:id`, becomes a
+placeholder too, since Sonde would otherwise send `:id` as is. What it
+becomes depends on its value in the request's `url.variable`:
+
+- a value holding a `{{variable}}` (`{{order_id}}`) replaces the segment:
+  `/orders/{{order_id}}`;
+- a plain value (`ord_1093`) becomes `/orders/{{id}}`, and `id: ord_1093`
+  is added to every generated environment. When another variable already
+  has that name (in the collection, a folder or an `--environment` file),
+  or another request gave `id` a different value, the plain value is
+  written into the path instead (`/orders/ord_2000`), so each request
+  still sends what Postman sent;
+- no value becomes `/orders/{{id}}`, with a warning to set it.
+
+The query string is left alone, and so is a segment that is not a name
+(`:8080`).
+
 ## Auth
 
 Basic, bearer and API key auth translate directly and work: bearer becomes

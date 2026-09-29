@@ -40,6 +40,7 @@ func TestImportGolden(t *testing.T) {
 		{"auth-types", "auth-types.json", GroupRequest, nil},
 		{"folder-group", "folder-group.json", GroupFolder, nil},
 		{"v2-compat", "v2-compat.json", GroupRequest, nil},
+		{"path-variables", "path-variables.json", GroupRequest, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := Options{Group: tc.group, Dialect: syntax.DialectHurl}
@@ -150,6 +151,27 @@ func TestVariableNameCollisionWarns(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected a collision warning naming both variables: %v", out.Warnings)
+	}
+}
+
+// TestPathVariableNameTakenByEnvironment checks that a path variable whose
+// name an --environment file also defines keeps its own value inline,
+// rather than becoming {{id}} and silently sending the environment's value.
+func TestPathVariableNameTakenByEnvironment(t *testing.T) {
+	col := `{"info":{"name":"x"},"item":[
+		{"name":"get","request":{"method":"GET","url":{"raw":"{{base_url}}/orders/:id","variable":[{"key":"id","value":"ord_1"}]}}}
+	]}`
+	env := `{"name":"dev","values":[{"key":"id","value":"something-else"}]}`
+	out, err := Import([]byte(col), Options{
+		Dialect:      syntax.DialectHurl,
+		Environments: []EnvironmentFile{{FileName: "dev.json", Data: []byte(env)}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(syntax.Format(out.Files[0].File))
+	if !strings.Contains(src, "/orders/ord_1") {
+		t.Errorf("the path variable should keep its own value inline:\n%s", src)
 	}
 }
 

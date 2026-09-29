@@ -1,0 +1,97 @@
+{
+  "info": {
+    "name": "Path Variables",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8080"},
+    {"key": "tenant", "value": "eu-1"}
+  ],
+  "item": [
+    {
+      "name": "Literal value",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/orders/:order_id/items/:sku?expand=:order_id",
+          "host": ["{{base_url}}"],
+          "path": ["orders", ":order_id", "items", ":sku"],
+          "query": [{"key": "expand", "value": ":order_id"}],
+          "variable": [
+            {"key": "order_id", "value": "ord_1093"},
+            {"key": "sku", "value": "TEA-EARL-250"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Template value",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/users/:user_id",
+          "variable": [{"key": "user_id", "value": "{{current_user}}"}]
+        }
+      }
+    },
+    {
+      "name": "Same value again",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{base_url}}/orders/:order_id",
+          "variable": [{"key": "order_id", "value": "ord_1093"}]
+        }
+      }
+    },
+    {
+      "name": "Different value",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/orders/:order_id",
+          "variable": [{"key": "order_id", "value": "ord_2000"}]
+        }
+      }
+    },
+    {
+      "name": "Name taken by a collection variable",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/tenants/:tenant",
+          "variable": [{"key": "tenant", "value": "us-2"}]
+        }
+      }
+    },
+    {
+      "name": "No value",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/carts/:cart_id",
+          "variable": [{"key": "cart_id", "value": ""}]
+        }
+      }
+    },
+    {
+      "name": "Unlisted, and a port",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:9090/refunds/:refund_id/:8080"
+      }
+    },
+    {
+      "name": "Reconstructed from parts",
+      "request": {
+        "method": "GET",
+        "url": {
+          "protocol": "https",
+          "host": ["api", "example", "test"],
+          "path": ["products", ":product_id"],
+          "variable": [{"key": "product_id", "value": "p-42"}]
+        }
+      }
+    }
+  ]
+}
