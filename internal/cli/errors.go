@@ -12,9 +12,3 @@ import "fmt"
 func invalidFlagErr(flag, placeholder, value string, cause error) error {
 	return NewExitError(ExitUsage, fmt.Errorf("invalid value '%s' for '--%s <%s>' (%v)", value, flag, placeholder, cause))
 }
-
-// unsupportedOptionErr reports an option sonde does not implement: a
-// runtime error (ExitRuntime), matching docs/architecture.md's contract.
-func unsupportedOptionErr(name string) error {
-	return NewExitError(ExitRuntime, fmt.Errorf("option %q is not supported by sonde yet", name))
-}

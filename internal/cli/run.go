@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"iter"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,10 +20,9 @@ import (
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/cookiejar"
-	"github.com/nhtera/sonde/internal/datarow"
 	"github.com/nhtera/sonde/internal/report"
+	"github.com/nhtera/sonde/internal/runplan"
 	"github.com/nhtera/sonde/internal/sandbox"
-	"github.com/nhtera/sonde/internal/syntax"
 	"github.com/nhtera/sonde/internal/testsummary"
 )
 
@@ -73,43 +71,24 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
 
-	rc, err := buildRunContext(cmd, o, env, stdout)
+	rc, err := buildRunContext(cmd, o.invocation(cmd, args, forceTest), env, stdout)
 	if err != nil {
 		return err
-	}
-	if forceTest {
-		rc.test = true
-		rc.parallel = true
-		rc.noOutput = true
-		if rc.jobs < 2 {
-			rc.jobs = resolveJobs(cmd, o, env, true)
-		}
 	}
 
 	files, err := resolveInputFiles(args, rc.glob)
 	if err != nil {
 		return err
 	}
-
-	extras, defaultsJobs, projectWarnings, err := resolveJobExtras(files, rc, env)
-	if err != nil {
-		return err
+	inputs := make([]runplan.Input, len(files))
+	for i, f := range files {
+		inputs[i] = runplan.Input{Name: f.name, Stdin: f.stdin}
 	}
-	if rc.data != nil {
-		for name, e := range extras {
-			if err := rc.data.CheckSecrets(e.secrets); err != nil {
-				return NewExitError(ExitUsage, fmt.Errorf("%s: %w (sonde.yaml)", name, err))
-			}
-		}
+	if err := rc.plan.Resolve(cmd.Context(), inputs); err != nil {
+		return NewExitError(ExitUsage, err)
 	}
-	if err := resolveContracts(cmd, o, rc, extras, files); err != nil {
-		return err
-	}
-	if rc.jobs > 1 && defaultsJobs > 0 && !changed(cmd, "jobs") {
-		if _, _, ok := env.Lookup("JOBS"); !ok {
-			rc.jobs = defaultsJobs
-		}
-	}
+	rc.engine.Validator = rc.plan.Options.Validator
+	rc.jobs = rc.plan.Workers
 
 	// Stdin can only be consumed once, however many repeat passes there
 	// are, so it is read here rather than per job.
@@ -118,7 +97,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 		if !f.stdin {
 			continue
 		}
-		if stdinSrc, err = readLimitedFrom(os.Stdin); err != nil {
+		if stdinSrc, err = runplan.ReadLimited(os.Stdin); err != nil {
 			reportReadError(stderr, "-", err)
 			return silentExit(ExitParse)
 		}
@@ -148,7 +127,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	// ownership/permission check) are printed once the run's own secret
 	// registry exists, redacted like any other stderr text even though
 	// they only ever name a path, never a secret value.
-	for _, w := range projectWarnings {
+	for _, w := range rc.plan.Warnings {
 		newEventLogger(stderr, rc.color, false).writePrefixedMessage(ansiYellowBold, "warning", runner.Redact(w))
 	}
 
@@ -329,7 +308,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 		newEventLogger(stderr, rc.color, false).writeStar(fmt.Sprintf("Parallel run using %d workers", rc.jobs), false)
 	}
 	var dataErr error
-	runner.RunAll(ctx, buildJobs(files, stdinSrc, rc.repeat, extras, rc.data, &dataErr), opt)
+	runner.RunAll(ctx, rc.plan.Jobs(stdinSrc, &dataErr), opt)
 	if dataErr != nil {
 		return NewExitError(ExitUsage, dataErr)
 	}
@@ -482,124 +461,6 @@ func writeCurlFile(path string, curlBySeq map[int][]string, runner *engine.Runne
 	return os.WriteFile(path, b.Bytes(), 0o600) //nolint:gosec // G304: the command line names the file
 }
 
-// jobExtras holds one input file's sonde.yaml-resolved variables and
-// secrets. They are set on that file's engine.Job below the runner's
-// Options: an Options value of the same name wins (docs/sonde-yaml.md
-// precedence), so this is a pure fallback layer.
-type jobExtras struct {
-	vars    map[string]any
-	secrets map[string]string
-	// project is the file's sonde.yaml.
-	project *config.Project
-	// validator checks the file's responses against its contract (nil:
-	// the run's, from --openapi).
-	validator engine.ResponseValidator
-}
-
-// resolveContracts loads the OpenAPI specs of the run, once each: the
-// run's (--openapi) and those of the files' sonde.yaml projects.
-func resolveContracts(cmd *cobra.Command, o *runOptions, rc *runContext, extras map[string]jobExtras, files []*inputFile) error {
-	c := newContracts(cmd, o.openAPI)
-	v, err := c.forRun()
-	if err != nil {
-		return err
-	}
-	rc.engine.Validator = v
-	for _, f := range files {
-		e, ok := extras[f.name]
-		if !ok {
-			continue
-		}
-		if e.validator, err = c.forFile(f.name, e.project); err != nil {
-			return err
-		}
-		extras[f.name] = e
-	}
-	return nil
-}
-
-// resolveJobExtras discovers each real (non-stdin) file's sonde.yaml,
-// selects its environment (--env, then SONDE_ENV, then that project's own
-// defaults.env) and resolves its variables/secrets, returning them keyed
-// by file name. defaultsJobs is the first project found's defaults.jobs
-// (0 if none set anywhere), used by runMain as a --jobs fallback. warnings
-// are every discovery warning the search collected (a candidate sonde.yaml
-// skipped for failing the ownership/permission check — see
-// config.ProjectCache.TakeWarnings); the caller is responsible for
-// printing them, redacted like any other stderr text.
-//
-// rc.configFile, when set, names the sonde.yaml used for every file,
-// skipping discovery entirely. A file with no sonde.yaml above it (and no
-// --config) is simply left out of the result: it runs with no sonde.yaml
-// variables or secrets, not an error.
-func resolveJobExtras(files []*inputFile, rc *runContext, env config.Env) (extras map[string]jobExtras, defaultsJobs int, warnings []string, err error) {
-	extras = make(map[string]jobExtras)
-	loaded := map[string]*config.Project{}
-	var cache *config.ProjectCache
-	if rc.configFile == "" {
-		cache = config.NewProjectCache()
-	}
-	haveDefaultsJobs := false
-
-	for _, f := range files {
-		if f.stdin {
-			continue
-		}
-
-		path := rc.configFile
-		if path == "" {
-			found, ok, ferr := cache.FindProject(filepath.Dir(f.name))
-			if ferr != nil {
-				return nil, 0, nil, NewExitError(ExitUsage, ferr)
-			}
-			if !ok {
-				// No sonde.yaml applies to this file at all. An explicit
-				// --env has nothing to select an environment from, which
-				// is an error; SONDE_ENV alone (rc.env stays "" here,
-				// since SelectEnv's flag argument is exactly rc.env) is
-				// silently ignored instead, matching a plain run with no
-				// sonde.yaml anywhere.
-				if rc.env != "" {
-					return nil, 0, nil, NewExitError(ExitUsage, fmt.Errorf("%s: no sonde.yaml found for environment %q", f.name, rc.env))
-				}
-				continue
-			}
-			path = found
-		}
-
-		proj, ok := loaded[path]
-		if !ok {
-			var lerr error
-			proj, lerr = config.LoadProject(path)
-			if lerr != nil {
-				return nil, 0, nil, NewExitError(ExitUsage, lerr)
-			}
-			loaded[path] = proj
-		}
-		if !haveDefaultsJobs && proj.Defaults.Jobs > 0 {
-			defaultsJobs, haveDefaultsJobs = proj.Defaults.Jobs, true
-		}
-
-		envName := config.SelectEnv(rc.env, env["SONDE_ENV"], proj.Defaults.Env)
-		vars, secrets, rerr := proj.Resolve(envName)
-		if rerr != nil {
-			return nil, 0, nil, NewExitError(ExitUsage, rerr)
-		}
-		e := jobExtras{secrets: secrets, project: proj}
-		if len(vars) > 0 {
-			e.vars = make(map[string]any, len(vars))
-			for name, v := range vars {
-				e.vars[name] = v
-			}
-		}
-		extras[f.name] = e
-	}
-	if cache != nil {
-		warnings = cache.TakeWarnings()
-	}
-	return extras, defaultsJobs, warnings, nil
-}
-
 // orderedResults returns m's values ordered by seq: RunAll's Finished hook
 // fires in completion order, not necessarily the input files' original
 // order, but reports must reflect that original order (same reasoning as
@@ -663,59 +524,6 @@ func logWriting(stderr io.Writer, color, verbose bool, what, path string) {
 		return
 	}
 	newEventLogger(stderr, color, false).writeStar(fmt.Sprintf("Writing %s to %s", what, path), false)
-}
-
-// buildJobs returns the lazy sequence of jobs RunAll runs: the resolved
-// input files, repeated repeat times (-1: forever). A real file's Source
-// is left nil so RunAll reads it (lazily, once per attempt); stdin's
-// Source is the bytes read once in runMain, reused for every repeat. A
-// non-stdin file's sonde.yaml variables/secrets, if any, come from extras.
-//
-// With a data file, each file runs once per row; a data file that fails
-// to read midway ends the sequence and sets *dataErr.
-func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[string]jobExtras, data *datarow.Run, dataErr *error) iter.Seq[engine.Job] {
-	return func(yield func(engine.Job) bool) {
-		for pass := 0; repeat < 0 || pass < repeat; pass++ {
-			yielded := false
-			for _, f := range files {
-				job := engine.Job{Name: f.name}
-				if f.stdin {
-					job = engine.Job{Name: "-", Source: stdinSrc}
-				} else if e, ok := extras[f.name]; ok {
-					job.Variables = e.vars
-					job.Secrets = e.secrets
-					job.Validator = e.validator
-				}
-				if data == nil {
-					if !yield(job) {
-						return
-					}
-					yielded = true
-					continue
-				}
-				if job.Source == nil {
-					// Read once for all the rows; on failure the jobs
-					// read it again and report the error.
-					job.Source = readSourceOnce(f.name)
-				}
-				stopped, err := data.Each(func(row *engine.Row) bool {
-					job.Row = row
-					yielded = true
-					return yield(job)
-				})
-				if err != nil {
-					*dataErr = err
-					return
-				}
-				if stopped {
-					return
-				}
-			}
-			if !yielded {
-				return // no rows: another pass would yield nothing either
-			}
-		}
-	}
 }
 
 // worstCode keeps the most severe of two exit codes, in the documented
@@ -838,33 +646,6 @@ func expandInputArg(a string) ([]*inputFile, error) {
 // nothing on disk, matching the upstream CLI's own message.
 func cannotAccessErr(path string) error {
 	return NewExitError(ExitUsage, fmt.Errorf("Cannot access '%s': No such file or directory", path)) //nolint:staticcheck,revive // kept for CLI message-format compatibility
-}
-
-// readSourceOnce reads a request file shared by many jobs; nil when it
-// cannot be read or is too large (each job then reports it).
-func readSourceOnce(name string) []byte {
-	f, err := os.Open(name) //nolint:gosec // G304: an input file named on the command line
-	if err != nil {
-		return nil
-	}
-	defer f.Close() //nolint:errcheck // read-only
-	src, err := readLimitedFrom(f)
-	if err != nil {
-		return nil
-	}
-	return src
-}
-
-// readLimitedFrom reads all of r but stops past syntax.MaxFileSize.
-func readLimitedFrom(r io.Reader) ([]byte, error) {
-	src, err := io.ReadAll(io.LimitReader(r, syntax.MaxFileSize+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(src) > syntax.MaxFileSize {
-		return nil, fmt.Errorf("file is larger than %d MiB", syntax.MaxFileSize>>20)
-	}
-	return src, nil
 }
 
 // writeCookieJar writes cookies to path (a command line path, not

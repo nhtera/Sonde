@@ -13,6 +13,7 @@ import (
 
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
+	"github.com/nhtera/sonde/internal/runplan"
 )
 
 // exportCurlOptions are `sonde export curl`'s own flags. Variables and
@@ -94,7 +95,7 @@ func runExportCurl(cmd *cobra.Command, o *exportCurlOptions, files []string) err
 		cliVars[name] = v
 	}
 
-	base := engine.Options{DefaultUserAgent: defaultUserAgent(env)}
+	base := engine.Options{DefaultUserAgent: runplan.DefaultUserAgent(env, currentBuildInfo().Version)}
 	if o.entry > 0 {
 		base.FromEntry, base.ToEntry = o.entry, o.entry
 	}

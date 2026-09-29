@@ -48,6 +48,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/report` | JSON result (shared by `--json` and `--report-json`), JUnit, TAP, HTML reports; redacted with the final secret union | engine, exchange |
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
 | `internal/dataset` | CSV / JSON-array rows for `--data` | value |
+| `internal/runplan` | a run's invocation (flags, `HURL_*`/`SONDE_*`, config file) turned into engine options and jobs, shared by the CLI and the desktop app; capture layering for reruns | engine, config, datarow, openapi, syntax |
 | `internal/datarow` | a checked `--data` file as engine rows (secret columns, overrides, clashes) | engine, config, dataset, value |
 | `internal/testsummary` | run outcome classification, `--test` status lines and summary | engine |
 | `internal/cookiejar` | merged end-of-run cookies written as a Netscape file (`--cookie-jar`) | engine, sandbox |

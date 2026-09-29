@@ -294,6 +294,18 @@ linters:
             - github.com/nhtera/sonde/internal/config$
             - github.com/nhtera/sonde/internal/dataset$
             - github.com/nhtera/sonde/internal/value$
+        pkg-runplan:
+          list-mode: lax
+          files: ["**/internal/runplan/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/runplan may import only: engine, internal/config, internal/datarow, internal/openapi, internal/syntax (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/engine$
+            - github.com/nhtera/sonde/internal/config$
+            - github.com/nhtera/sonde/internal/datarow$
+            - github.com/nhtera/sonde/internal/openapi$
+            - github.com/nhtera/sonde/internal/syntax$
         pkg-config:
           list-mode: lax
           files: ["**/internal/config/**", "!$test"]
