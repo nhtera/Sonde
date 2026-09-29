@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -157,6 +158,27 @@ func TestToolGating(t *testing.T) {
 		cs := connect(t, Config{Root: root, AllowRun: allow, Hosts: hosts})
 		if got := names(cs); !slices.Equal(got, table) {
 			t.Errorf("allowRun %v: registered %v, Tools %v", allow, got, table)
+		}
+		listed, err := cs.ListTools(context.Background(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tool := range Tools(allow) {
+			for _, l := range listed.Tools {
+				if l.Name != tool.Name {
+					continue
+				}
+				for what, pair := range map[string][2]any{"input": {tool.InputSchema, l.InputSchema}, "output": {tool.OutputSchema, l.OutputSchema}} {
+					a, _ := json.Marshal(pair[0])
+					b, _ := json.Marshal(pair[1])
+					var x, y any
+					_ = json.Unmarshal(a, &x)
+					_ = json.Unmarshal(b, &y)
+					if pair[0] == nil || !reflect.DeepEqual(x, y) {
+						t.Errorf("%s %s schema: Tools %s, listed %s", tool.Name, what, a, b)
+					}
+				}
+			}
 		}
 	}
 	if _, _, err := New(Config{Root: root, AllowRun: true}); err == nil {
