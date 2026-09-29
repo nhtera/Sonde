@@ -11,9 +11,13 @@ package runsvc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"iter"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -116,7 +120,9 @@ func (r *Runs) Planned(ctx context.Context, file, source, env string, withCaptur
 		break
 	}
 	if s := r.session(file, 0); withCaptures && s != nil {
+		r.mu.Lock()
 		plain, secret := s.layers()
+		r.mu.Unlock()
 		var job engine.Job
 		runplan.ApplyCaptures(&opts, &job, plain, secret)
 	}
@@ -175,9 +181,10 @@ func (r *Runs) Run(ctx context.Context, req RunRequest) (*Summary, error) {
 		}
 		rn.opts.ToEntry = req.To
 		src := []byte(req.Source)
+		values := rn.valuesDigest()
 		rn.execute(ctx, func(res *engine.UnitResult) {
 			if !res.Interrupted && !canceled(res) {
-				r.storeSession(req.File, src, req.Env, res)
+				r.storeSession(req.File, src, req.Env, values, res)
 			}
 		})
 		return nil
@@ -197,23 +204,28 @@ func (r *Runs) Send(ctx context.Context, req SendRequest) (*Summary, error) {
 			return err
 		}
 		sess := r.session(req.File, 0)
-		overrides := r.overrides()
+		values := rn.valuesDigest()
 		if sess == nil {
 			// No run to reuse: run 1…n, which then is one.
 			rn.opts.ToEntry = req.Entry
 			rn.execute(ctx, func(res *engine.UnitResult) {
 				if !res.Interrupted && !canceled(res) {
-					r.storeSession(req.File, src, req.Env, res)
+					r.storeSession(req.File, src, req.Env, values, res)
 				}
 			})
 			return nil
 		}
-		if !sess.matches(src, req.Entry, req.Env, overrides, 0) {
+		r.mu.Lock()
+		ok := sess.matches(src, req.Entry, req.Env, values, 0)
+		r.mu.Unlock()
+		if !ok {
 			return apperr.New(apperr.Stale, "Results are from another version or environment · Run 1–"+strconv.Itoa(req.Entry))
 		}
 		rn.opts.FromEntry, rn.opts.ToEntry = req.Entry, req.Entry
 		rn.summary.BaseRunAt = &sess.at
+		r.mu.Lock()
 		plain, secret := sess.layers()
+		r.mu.Unlock()
 		rn.captures = func(opts *engine.Options, job *engine.Job) { runplan.ApplyCaptures(opts, job, plain, secret) }
 		rn.seed = sess.cookies
 		rn.execute(ctx, func(res *engine.UnitResult) {
@@ -249,11 +261,12 @@ func (r *Runs) RunTest(ctx context.Context, req TestRequest) (*Summary, error) {
 
 // RunData runs a file once per row of a data file.
 func (r *Runs) RunData(ctx context.Context, req DataRequest) (*Summary, error) {
-	data, err := r.handles.Take(req.DataHandle, handles.OpenFile)
-	if err != nil {
-		return nil, apperr.Wrap(apperr.Expired, err)
-	}
 	return r.start(ctx, req.RunID, "data", []string{req.File}, func(ctx context.Context, rn *run) error {
+		// Taken once the file is ours: a busy file keeps the handle.
+		data, err := r.handles.Take(req.DataHandle, handles.OpenFile)
+		if err != nil {
+			return apperr.Wrap(apperr.Expired, err)
+		}
 		rn.dataSecrets = req.Secrets
 		if err := rn.plan(ctx, "run", req.Env, data, []string{req.File}, map[string]string{req.File: req.Source}); err != nil {
 			return err
@@ -353,6 +366,14 @@ func (r *Runs) session(file string, row int) *session {
 	return r.sessions[sessionKey(file, row)]
 }
 
+// Reset forgets every Send session (a project was opened: its files are
+// not the previous project's).
+func (r *Runs) Reset() {
+	r.mu.Lock()
+	r.sessions = map[string]*session{}
+	r.mu.Unlock()
+}
+
 // Capture is a capture of a file's last run, for the variables list. A
 // redacted capture has no Value.
 type Capture struct {
@@ -387,8 +408,8 @@ func (r *Runs) Captures(file string) []Capture {
 	return out
 }
 
-func (r *Runs) storeSession(file string, src []byte, env string, res *engine.UnitResult) {
-	s := newSession(src, env, r.overrides(), res)
+func (r *Runs) storeSession(file string, src []byte, env, values string, res *engine.UnitResult) {
+	s := newSession(src, env, values, res)
 	r.mu.Lock()
 	r.sessions[sessionKey(file, res.Row)] = s
 	r.mu.Unlock()
@@ -450,6 +471,33 @@ func (rn *run) plan(ctx context.Context, cmd, env, data string, files []string, 
 	rn.summary.Warnings = p.Warnings
 	rn.summary.Env = env
 	return nil
+}
+
+// valuesDigest is a digest of what the planned run resolves: the
+// overrides and the first job's project values (secrets hashed with the
+// rest; the digest never leaves the process).
+func (rn *run) valuesDigest() string {
+	h := sha256.New()
+	_, _ = io.WriteString(h, rn.runs.overrides()+"\x00")
+	var dataErr error
+	for job := range rn.planned.Jobs(nil, &dataErr) {
+		for _, m := range []map[string]string{stringsOf(job.Variables), job.Secrets, stringsOf(rn.opts.Variables), rn.opts.Secrets} {
+			for _, k := range slices.Sorted(maps.Keys(m)) {
+				_, _ = io.WriteString(h, k+"="+m[k]+"\x00")
+			}
+			_, _ = io.WriteString(h, "\x01")
+		}
+		break
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func stringsOf(m map[string]any) map[string]string {
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = fmt.Sprint(v)
+	}
+	return out
 }
 
 // abs resolves a project path to the absolute path runplan runs.

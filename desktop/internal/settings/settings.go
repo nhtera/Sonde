@@ -9,6 +9,7 @@ package settings
 
 import (
 	"encoding/json"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -134,7 +135,7 @@ func (st *Store) Set(s Settings) (Settings, error) {
 	if err != nil {
 		return Settings{}, err
 	}
-	st.emit.Emit(TopicChanged, clone(s))
+	st.emit.Emit(TopicChanged, forPage(s))
 	return clone(s), nil
 }
 
@@ -174,7 +175,7 @@ func (st *Store) SetTLSFile(kind, handle string) (Settings, error) {
 	if err != nil {
 		return Settings{}, err
 	}
-	st.emit.Emit(TopicChanged, s)
+	st.emit.Emit(TopicChanged, forPage(s))
 	return s, nil
 }
 
@@ -267,6 +268,24 @@ func normalize(s Settings) Settings {
 	return s
 }
 
+// forPage masks the proxy URL's password: the page never gets it back.
+func forPage(s Settings) Settings {
+	c := clone(s)
+	c.Network.Proxy = maskProxy(c.Network.Proxy)
+	return c
+}
+
+func maskProxy(proxy string) string {
+	u, err := url.Parse(proxy)
+	if err != nil || u.User == nil {
+		return proxy
+	}
+	if _, ok := u.User.Password(); !ok {
+		return proxy
+	}
+	return u.Redacted()
+}
+
 func clone(s Settings) Settings {
 	c := s
 	c.Shortcuts = make(map[string]string, len(s.Shortcuts))
@@ -282,14 +301,22 @@ type Service struct{ st *Store }
 // NewService returns the bindings over st.
 func NewService(st *Store) *Service { return &Service{st: st} }
 
-// Get returns the settings.
-func (s *Service) Get() Settings { return s.st.Get() }
+// Get returns the settings, the proxy password masked.
+func (s *Service) Get() Settings { return forPage(s.st.Get()) }
 
-// Set replaces the settings (TLS files excepted) and returns them.
-func (s *Service) Set(v Settings) (Settings, error) { return s.st.Set(v) }
+// Set replaces the settings (TLS files excepted) and returns them. A proxy
+// URL sent back with its password masked keeps the stored password.
+func (s *Service) Set(v Settings) (Settings, error) {
+	if stored := s.st.Get().Network.Proxy; v.Network.Proxy != "" && v.Network.Proxy == maskProxy(stored) {
+		v.Network.Proxy = stored
+	}
+	out, err := s.st.Set(v)
+	return forPage(out), err
+}
 
 // SetTLSFile sets the cacert, cert or key file from a picked file's
 // handle ("" clears it).
 func (s *Service) SetTLSFile(kind, handle string) (Settings, error) {
-	return s.st.SetTLSFile(kind, handle)
+	out, err := s.st.SetTLSFile(kind, handle)
+	return forPage(out), err
 }

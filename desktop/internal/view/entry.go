@@ -51,7 +51,10 @@ func storeBody(call engine.Call, redact Redactor, bodies BodyStore) Body {
 	body := Body{ContentType: ct}
 	data, err := resp.DecodedBody()
 	if err != nil {
-		data, body.Error = resp.Body, redact(err.Error())
+		// A body that does not decode is not stored at all: redaction
+		// cannot see a secret inside compressed bytes.
+		body.Error, body.Size = redact(err.Error()), len(resp.Body)
+		return body
 	}
 	redacted := RedactBytes(data, redact)
 	body.Size = len(redacted)

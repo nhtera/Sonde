@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -54,18 +55,26 @@ func TestStreamDeliversInOrder(t *testing.T) {
 
 func TestStreamDropsSlowClient(t *testing.T) {
 	s := NewStream()
-	c := make(chan []byte, 1)
+	c := &client{ch: make(chan []byte, 1)}
 	s.clients[c] = struct{}{}
 	s.Emit("x", 1)
 	s.Emit("x", 2) // buffer full: dropped
 	if s.Clients() != 0 {
 		t.Fatal("a client that cannot keep up must be dropped")
 	}
-	if _, ok := <-c; !ok {
+	if _, ok := <-c.ch; !ok {
 		t.Fatal("the buffered event is lost")
 	}
-	if _, ok := <-c; ok {
+	if _, ok := <-c.ch; ok {
 		t.Fatal("channel not closed")
+	}
+	// Too many bytes behind, even with room in the buffer.
+	big := &client{ch: make(chan []byte, clientBuffer)}
+	s.clients[big] = struct{}{}
+	s.Emit("x", strings.Repeat("a", clientBytes/2))
+	s.Emit("x", strings.Repeat("a", clientBytes/2))
+	if s.Clients() != 0 {
+		t.Error("a client 32 MiB behind must be dropped")
 	}
 }
 

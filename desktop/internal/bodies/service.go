@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
@@ -32,7 +33,9 @@ type Desktop struct {
 	s *Store
 	// pickSave shows the save dialog; "" when canceled.
 	pickSave func(suggested string) (string, error)
-	tempDir  string
+
+	mu      sync.Mutex
+	tempDir string
 }
 
 // NewDesktop returns the window-only body bindings.
@@ -71,18 +74,22 @@ func (d *Desktop) OpenExternally(ctx context.Context, id string) error {
 	if !ok {
 		return apperr.New(apperr.NotFound, "this response is no longer available")
 	}
+	d.mu.Lock()
 	if d.tempDir == "" {
 		dir, err := os.MkdirTemp("", "sonde-open-")
 		if err != nil {
+			d.mu.Unlock()
 			return err
 		}
 		d.tempDir = dir
 	}
+	dir := d.tempDir
+	d.mu.Unlock()
 	ext := extension(ct)
 	if !allowed[ext] {
 		ext = ".txt"
 	}
-	path := filepath.Join(d.tempDir, "response-"+id[:8]+ext)
+	path := filepath.Join(dir, "response-"+id[:8]+ext)
 	//nolint:forbidigo // a private temp file for another app
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return err
@@ -102,11 +109,15 @@ func (d *Desktop) OpenExternally(ctx context.Context, id string) error {
 	return cmd.Start()
 }
 
-// Close removes the files opened externally.
-func (d *Desktop) Close() {
+// ServiceShutdown removes the files opened externally when the app quits.
+func (d *Desktop) ServiceShutdown() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if d.tempDir != "" {
 		_ = os.RemoveAll(d.tempDir) //nolint:forbidigo // our own temp folder
+		d.tempDir = ""
 	}
+	return nil
 }
 
 // extension picks a file extension for a content type.

@@ -5,6 +5,7 @@ package clipboard
 
 import (
 	"errors"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -21,6 +22,7 @@ var (
 	globalAlloc             = kernel32.NewProc("GlobalAlloc")
 	globalLock              = kernel32.NewProc("GlobalLock")
 	globalUnlock            = kernel32.NewProc("GlobalUnlock")
+	globalFree              = kernel32.NewProc("GlobalFree")
 )
 
 const (
@@ -35,13 +37,25 @@ func writeConcealed(text string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The clipboard is owned by the thread that opened it.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if err := writeOpen(utf16); err != nil {
+		return nil, err
+	}
+	// Read after CloseClipboard, which is what bumps the number.
+	seq, _, _ := getSequenceNumber.Call()
+	return seq, nil
+}
+
+func writeOpen(utf16 []uint16) error {
 	if r, _, _ := openClipboard.Call(0); r == 0 {
-		return nil, errors.New("clipboard: busy")
+		return errors.New("clipboard: busy")
 	}
 	defer func() { _, _, _ = closeClipboard.Call() }()
 	_, _, _ = emptyClipboard.Call() // SetClipboardData reports failures
 	if err := setData(cfUnicodeText, unsafe.Slice((*byte)(unsafe.Pointer(&utf16[0])), len(utf16)*2)); err != nil {
-		return nil, err
+		return err
 	}
 	zero := []byte{0, 0, 0, 0} // a DWORD 0
 	for _, name := range []string{"ExcludeClipboardContentFromMonitorProcessing", "CanIncludeInClipboardHistory", "CanUploadToCloudClipboard"} {
@@ -51,8 +65,7 @@ func writeConcealed(text string) (any, error) {
 			_ = setData(f, zero)
 		}
 	}
-	seq, _, _ := getSequenceNumber.Call()
-	return seq, nil
+	return nil
 }
 
 func setData(format uintptr, data []byte) error {
@@ -62,18 +75,22 @@ func setData(format uintptr, data []byte) error {
 	}
 	p, _, _ := globalLock.Call(h)
 	if p == 0 {
+		_, _, _ = globalFree.Call(h)
 		return errors.New("clipboard: lock failed")
 	}
 	// p is a locked global memory block, not Go memory.
 	copy(unsafe.Slice((*byte)(unsafe.Add(nil, p)), len(data)), data)
 	_, _, _ = globalUnlock.Call(h) // unlocking cannot fail usefully
 	if r, _, _ := setClipboardData.Call(format, h); r == 0 {
+		_, _, _ = globalFree.Call(h) // not owned by the system: ours to free
 		return errors.New("clipboard: set failed")
 	}
 	return nil
 }
 
 func clearIf(token any) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	seq, _, _ := getSequenceNumber.Call()
 	if seq != token.(uintptr) {
 		return

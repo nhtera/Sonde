@@ -47,11 +47,15 @@ func Trash(ctx context.Context, path string) error {
 	case "windows":
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		// The path is passed as an argument, never inside the script.
-		script := `param($p) Add-Type -AssemblyName Microsoft.VisualBasic; ` +
+		// The path reaches the script through an environment variable:
+		// PowerShell joins every argument after -Command into the script
+		// text, so a file name must never be one of them.
+		script := `$p = $env:SONDE_TRASH_PATH; Add-Type -AssemblyName Microsoft.VisualBasic; ` +
 			`if (Test-Path -LiteralPath $p -PathType Container) { [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($p, 'OnlyErrorDialogs', 'SendToRecycleBin') } ` +
 			`else { [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($p, 'OnlyErrorDialogs', 'SendToRecycleBin') }`
-		out, err := exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", "& {"+script+"}", path).CombinedOutput()
+		cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+		cmd.Env = append(os.Environ(), "SONDE_TRASH_PATH="+path)
+		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("trash: %v: %s", err, strings.TrimSpace(string(out)))
 		}

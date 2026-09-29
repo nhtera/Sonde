@@ -62,14 +62,12 @@ func TestPaths(t *testing.T) {
 			t.Errorf("clean(%q): %v", bad, err)
 		}
 	}
-	for _, bad := range []string{".git/config", "a/.vscode/x.json", "."} {
+	for _, bad := range []string{".git/config", "a/.vscode/x.json", ".", ".envrc", "a/.env"} {
 		if _, err := writable(bad); code(err) != apperr.Denied {
 			t.Errorf("writable(%q): %v", bad, err)
 		}
 	}
-	if p, err := writable("api/.env.hurl"); err != nil || p != filepath.FromSlash("api/.env.hurl") {
-		t.Errorf("a dot file in a normal folder: %q %v", p, err)
-	}
+
 }
 
 func TestTree(t *testing.T) {
@@ -307,4 +305,58 @@ func TestTreeIndexTiming(t *testing.T) {
 		t.Fatalf("index: %d %v", len(idx), err)
 	}
 	t.Logf("1000-file Tree+Index: %v (budget 300ms on an M1)", time.Since(start))
+}
+
+// TestSecretsNeverRead: the page cannot read or overwrite secrets files,
+// dot files or the files a project lists as secrets.
+func TestSecretsNeverRead(t *testing.T) {
+	s, _, dir := open(t)
+	write(t, dir, "secrets/local.secrets", "password=x\n")
+	write(t, dir, "env/prod.env", "token=y\n")
+	write(t, dir, ".env", "k=v\n")
+	s.Secret = func(rel string) bool { return rel == "env/prod.env" }
+	for _, f := range []string{"secrets/local.secrets", "env/prod.env", ".env", ".git/config"} {
+		if _, err := s.Read(f); code(err) != apperr.Denied {
+			t.Errorf("Read(%q): %v", f, err)
+		}
+		if _, err := s.Duplicate(f); err == nil {
+			t.Errorf("Duplicate(%q) worked", f)
+		}
+		if _, err := s.Save(f, "x", ""); code(err) != apperr.Denied && code(err) != apperr.Conflict {
+			t.Errorf("Save(%q): %v", f, err)
+		}
+	}
+	if _, err := s.Save("secrets/new.secrets", "x", ""); code(err) != apperr.Denied {
+		t.Errorf("a new secrets file: %v", err)
+	}
+}
+
+// TestPollingLargeProject: a project past the watch limit is polled, and
+// outside changes are still reported.
+func TestPollingLargeProject(t *testing.T) {
+	dir := t.TempDir()
+	for i := range maxWatched + 5 {
+		write(t, dir, fmt.Sprintf("d/f%05d.txt", i), "x")
+	}
+	rec := &emit.Recorder{}
+	s := New(rec)
+	if _, err := s.Open(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if s.watcher == nil || s.watcher.fs != nil {
+		t.Fatal("a large project must be polled")
+	}
+	time.Sleep(50 * time.Millisecond)
+	write(t, dir, "d/new.hurl", "GET https://x\n")
+	deadline := time.Now().Add(3 * pollEvery)
+	for time.Now().Before(deadline) {
+		for _, ev := range rec.Events() {
+			if c, ok := ev.Data.(Changed); ok && strings.Contains(strings.Join(c.Paths, ","), "d/new.hurl") {
+				return
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("the poller did not report the new file")
 }

@@ -223,6 +223,27 @@ var credentialHeaders = []string{"authorization", "proxy-authorization", "cookie
 // credential headers and every cookie value are masked.
 func redacted(res *engine.UnitResult) report.Result {
 	tokens := redact.New()
+	// Cookie values are masked wherever they appear (a capture, an assert
+	// message), not only in the cookie lists.
+	for _, c := range res.Cookies {
+		tokens.Add(c.Name, c.Value)
+	}
+	for _, e := range res.Entries {
+		for _, call := range e.Calls {
+			if v, ok := call.Request.Headers.Get("Cookie"); ok {
+				for _, part := range strings.Split(v, ";") {
+					if _, val, ok := strings.Cut(strings.TrimSpace(part), "="); ok {
+						tokens.Add("cookie", val)
+					}
+				}
+			}
+			if call.Response != nil {
+				for _, c := range call.Response.Cookies() {
+					tokens.Add(c.Name, c.Value)
+				}
+			}
+		}
+	}
 	for _, e := range res.Entries {
 		for _, c := range e.Captures {
 			text, ok := c.Value.Text()

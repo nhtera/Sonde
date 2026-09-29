@@ -19,13 +19,17 @@ import (
 // Send(n) reuses it only when entries 1…n-1, the environment, the
 // overrides and the data row are the same.
 type session struct {
-	src       []byte
-	env       string
-	overrides string
-	row       int
-	captures  []capture
-	cookies   []engine.Cookie
-	at        time.Time
+	src []byte
+	env string
+	// values is a digest of what the run resolved (project values,
+	// overrides), so an edited sonde.yaml does not match.
+	values string
+	row    int
+	// last is the last entry that ran: Send(n) needs 1…n-1.
+	last     int
+	captures []capture
+	cookies  []engine.Cookie
+	at       time.Time
 }
 
 type capture struct {
@@ -35,8 +39,8 @@ type capture struct {
 }
 
 // newSession records a finished run.
-func newSession(src []byte, env, overrides string, res *engine.UnitResult) *session {
-	s := &session{src: src, env: env, overrides: overrides, row: res.Row, at: res.Timestamp}
+func newSession(src []byte, env, values string, res *engine.UnitResult) *session {
+	s := &session{src: src, env: env, values: values, row: res.Row, at: res.Timestamp}
 	if s.at.IsZero() {
 		s.at = time.Now()
 	}
@@ -52,6 +56,9 @@ func (s *session) merge(res *engine.UnitResult) {
 		}
 	}
 	s.cookies = append([]engine.Cookie(nil), res.Cookies...)
+	if n := len(res.Entries); n > 0 && res.Entries[n-1].Index > s.last {
+		s.last = res.Entries[n-1].Index
+	}
 }
 
 // layers splits the captures for runplan.ApplyCaptures, last writer
@@ -76,8 +83,8 @@ func (s *session) layers() (plain map[string]any, secret map[string]string) {
 
 // matches reports whether a Send of entry n of src (env, overrides, row)
 // may reuse the session.
-func (s *session) matches(src []byte, n int, env, overrides string, row int) bool {
-	if s.env != env || s.overrides != overrides || s.row != row {
+func (s *session) matches(src []byte, n int, env, values string, row int) bool {
+	if s.env != env || s.values != values || s.row != row || s.last < n-1 {
 		return false
 	}
 	a, okA := prefix(s.src, n)

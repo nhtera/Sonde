@@ -4,6 +4,8 @@
 package envsvc
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -29,6 +31,9 @@ type journalEntry struct {
 	Existed bool   `json:"existed"`
 	Data    []byte `json:"data,omitempty"`
 	Perm    uint32 `json:"perm"`
+	// Written is the hash of the bytes the edit writes: a file that no
+	// longer holds them was changed by hand since, and is left alone.
+	Written string `json:"written"`
 }
 
 // hook lets tests stop an edit at a write point: it runs before write n
@@ -45,7 +50,7 @@ func apply(appCfg, root *sandbox.Root, edits []config.FileEdit) error {
 		if err != nil {
 			return err
 		}
-		entry := journalEntry{Rel: filepath.ToSlash(rel), Perm: uint32(e.Perm)}
+		entry := journalEntry{Rel: filepath.ToSlash(rel), Perm: uint32(e.Perm), Written: hashOf(e.Data)}
 		if data, err := root.ReadFile(rel); err == nil {
 			entry.Existed, entry.Data = true, data
 			if fi, err := root.Stat(rel); err == nil {
@@ -83,6 +88,11 @@ func apply(appCfg, root *sandbox.Root, edits []config.FileEdit) error {
 	return appCfg.Remove(journalFile)
 }
 
+func hashOf(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
 // recoverEdit rolls back an edit the app did not finish, if the journal
 // names root's project.
 func recoverEdit(cfg, root *sandbox.Root) {
@@ -101,6 +111,15 @@ func recoverEdit(cfg, root *sandbox.Root) {
 func rollback(root *sandbox.Root, files []journalEntry) {
 	for _, f := range files {
 		rel := filepath.FromSlash(f.Rel)
+		current, err := root.ReadFile(rel)
+		switch {
+		case err == nil && hashOf(current) != f.Written:
+			continue // not the edit's bytes: the edit never wrote it, or the user changed it since
+		case err != nil && !errors.Is(err, fs.ErrNotExist):
+			continue
+		case err != nil && !f.Existed:
+			continue // never created
+		}
 		if f.Existed {
 			_ = root.WriteFileAtomic(rel, f.Data, fs.FileMode(f.Perm))
 		} else {

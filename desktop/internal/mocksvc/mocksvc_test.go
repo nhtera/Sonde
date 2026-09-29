@@ -118,7 +118,13 @@ func TestSpecStartStop(t *testing.T) {
 	for len(rec.logs()) == 0 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if logs := rec.logs(); len(logs) == 0 || !strings.Contains(logs[0], "/pets") {
+	if _, err := http.Get(st.URL + "/pets/secret-in-path"); err != nil {
+		t.Fatal(err)
+	}
+	for len(rec.logs()) < 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if logs := rec.logs(); len(logs) < 2 || logs[0] != "GET /pets → 200" || strings.Contains(strings.Join(logs, ""), "secret-in-path") {
 		t.Errorf("log %v", logs)
 	}
 	var ae *apperr.Error

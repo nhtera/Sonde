@@ -62,20 +62,28 @@ func (r *Recorder) Events() []Event {
 // the guard's token-checked app endpoints.
 const StreamPath = "/_sonde/events"
 
-// clientBuffer is how many events a slow client may lag before it is
-// dropped; the page reconnects and resynchronizes (run events carry a
-// sequence number).
-const clientBuffer = 4096
+// A page that lags this many events, or bytes, behind is dropped; it
+// reconnects and resynchronizes (run events carry a sequence number).
+const (
+	clientBuffer = 4096
+	clientBytes  = 32 << 20
+)
+
+// client is one connected page.
+type client struct {
+	ch      chan []byte
+	pending int64 // bytes queued, guarded by Stream.mu
+}
 
 // Stream is server mode's emitter: an http.Handler (mounted at StreamPath)
 // that streams each event as a line of JSON to every connected page.
 type Stream struct {
 	mu      sync.Mutex
-	clients map[chan []byte]struct{}
+	clients map[*client]struct{}
 }
 
 // NewStream returns a stream with no clients.
-func NewStream() *Stream { return &Stream{clients: map[chan []byte]struct{}{}} }
+func NewStream() *Stream { return &Stream{clients: map[*client]struct{}{}} }
 
 // Emit sends the event to every connected page. A page too slow to keep
 // up is disconnected rather than allowed to block the app.
@@ -88,12 +96,24 @@ func (s *Stream) Emit(topic string, data any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for c := range s.clients {
-		select {
-		case c <- line:
-		default:
-			delete(s.clients, c)
-			close(c)
+		if c.pending+int64(len(line)) > clientBytes {
+			s.drop(c)
+			continue
 		}
+		select {
+		case c.ch <- line:
+			c.pending += int64(len(line))
+		default:
+			s.drop(c)
+		}
+	}
+}
+
+// drop disconnects c (s.mu held).
+func (s *Stream) drop(c *client) {
+	if _, ok := s.clients[c]; ok {
+		delete(s.clients, c)
+		close(c.ch)
 	}
 }
 
@@ -106,16 +126,13 @@ func (s *Stream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rc := http.NewResponseController(w)
 	// The server's write timeout would end the stream.
 	_ = rc.SetWriteDeadline(time.Time{})
-	c := make(chan []byte, clientBuffer)
+	c := &client{ch: make(chan []byte, clientBuffer)}
 	s.mu.Lock()
 	s.clients[c] = struct{}{}
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
-		if _, ok := s.clients[c]; ok {
-			delete(s.clients, c)
-			close(c)
-		}
+		s.drop(c)
 		s.mu.Unlock()
 	}()
 	w.Header().Set("Content-Type", "application/x-ndjson")
@@ -126,10 +143,13 @@ func (s *Stream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
-		case line, ok := <-c:
+		case line, ok := <-c.ch:
 			if !ok {
 				return // dropped as too slow
 			}
+			s.mu.Lock()
+			c.pending -= int64(len(line))
+			s.mu.Unlock()
 			if _, err := w.Write(line); err != nil {
 				return
 			}

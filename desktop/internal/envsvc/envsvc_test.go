@@ -261,3 +261,44 @@ func snapshot(t *testing.T, dir string) string {
 	})
 	return b.String()
 }
+
+// TestRecoveryKeepsHandEdits: after a crash, a file the user changed by
+// hand is not rolled back.
+func TestRecoveryKeepsHandEdits(t *testing.T) {
+	e, proj, cfg := project(t)
+	hook = func(step int) {
+		if step == 2 { // the secrets file is written, sonde.yaml not yet
+			panic("crash")
+		}
+	}
+	func() {
+		defer func() { _ = recover() }()
+		_ = e.MarkSecret("local", "token")
+	}()
+	hook = nil
+	write(t, proj, "secrets/local.secrets", "api_key=edited-by-hand\n", 0o600)
+	e2, _, _ := project(t, proj, cfg)
+	if _, err := e2.List(); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, proj, "secrets/local.secrets"); got != "api_key=edited-by-hand\n" {
+		t.Errorf("a hand edit was rolled back: %q", got)
+	}
+}
+
+// TestConcurrentEdits: edits run one at a time; both land.
+func TestConcurrentEdits(t *testing.T) {
+	e, proj, _ := project(t)
+	done := make(chan error, 2)
+	go func() { done <- e.MarkSecret("local", "token") }()
+	go func() { done <- e.SetVariable("local", "retries", json.RawMessage(`9`)) }()
+	for range 2 {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+	y := read(t, proj, "sonde.yaml")
+	if !strings.Contains(y, "retries: 9") || strings.Contains(y, tokenValue) {
+		t.Errorf("sonde.yaml:\n%s", y)
+	}
+}

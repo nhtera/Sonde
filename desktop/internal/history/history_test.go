@@ -46,6 +46,7 @@ access_token: jsonpath "$.access_token"
 id_value: jsonpath "$.id_value"
 order_id: jsonpath "$.order"
 hidden: header "X-Redact" redact
+plain_sid: cookie "sid"
 
 GET ` + srv.URL + `/orders/{{order_id}}?t={{access_token}}
 Authorization: Bearer {{id_value}}

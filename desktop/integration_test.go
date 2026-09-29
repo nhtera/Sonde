@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,7 +17,9 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
 	"github.com/nhtera/sonde/desktop/internal/apperr"
@@ -23,9 +27,11 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/fixture"
 	"github.com/nhtera/sonde/desktop/internal/handles"
+	"github.com/nhtera/sonde/desktop/internal/lspbridge"
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/desktop/internal/view"
+	"github.com/nhtera/sonde/internal/lsp"
 )
 
 // shop is the shop-api project and its fixture server, wired as the app.
@@ -153,12 +159,16 @@ func TestSendReusesTokenAndCookie(t *testing.T) {
 	send := func(id string, n int, env string) (*runsvc.Summary, error) {
 		return s.h.Runs.Send(context.Background(), runsvc.SendRequest{RunID: id, File: "checkout.hurl", Source: src, Env: env, Entry: n})
 	}
+	full := s.api.Wire()
 	if _, err := send("s1", 5, "local"); err != nil {
 		t.Fatal(err)
 	}
 	e := s.entries(t, "s1")
 	if len(e) != 1 || e[0].Calls[0].Response.Status != 200 {
 		t.Fatalf("send 5: %+v", e)
+	}
+	if wire := s.api.Wire(); wire[len(wire)-1] != full[4] {
+		t.Error("Send(5) is not the full run's request 5 on the wire")
 	}
 	if _, err := send("s2", 3, "local"); err != nil { // a new cart: c2
 		t.Fatal(err)
@@ -251,6 +261,20 @@ func TestNoSecretReachesThePage(t *testing.T) {
 	}
 	redactcheck.AssertNoSecret(t, "copy as curl", curl, secrets...)
 	redactcheck.AssertNoSecret(t, "lists", mustList(t, s), secrets...)
+
+	vars, err := s.h.Vars().For("checkout.hurl", "local")
+	if err != nil || len(vars) == 0 {
+		t.Fatalf("vars %v", err)
+	}
+	redactcheck.AssertNoSecret(t, "vars", vars, secrets...)
+	if _, err := s.h.Workspace.Read("secrets/local.secrets"); err == nil {
+		t.Error("the page read the secrets file")
+	}
+	lspMessages := s.lspHover(t)
+	if len(lspMessages) == 0 {
+		t.Fatal("no language server messages")
+	}
+	redactcheck.AssertNoSecret(t, "language server", lspMessages, secrets...)
 }
 
 // finished decodes an entryFinished event.
@@ -268,6 +292,63 @@ func finished(t *testing.T, raw json.RawMessage) (view.Entry, bool) {
 		t.Fatal(err)
 	}
 	return e.Entry, true
+}
+
+// lspHover asks the language server for hovers over every variable of
+// checkout.hurl and returns what it answered.
+func (s *shop) lspHover(t *testing.T) []string {
+	t.Helper()
+	var (
+		mu  sync.Mutex
+		out []string
+	)
+	sess, err := lspbridge.Start(context.Background(), lsp.Options{Version: "test"}, func(msg []byte) {
+		mu.Lock()
+		out = append(out, string(msg))
+		mu.Unlock()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+	root := (&url.URL{Scheme: "file", Path: filepath.ToSlash(s.dir)}).String()
+	doc := (&url.URL{Scheme: "file", Path: filepath.ToSlash(filepath.Join(s.dir, "checkout.hurl"))}).String()
+	src := s.source(t, "checkout.hurl")
+	text, _ := json.Marshal(src)
+	send := func(msg string) {
+		if err := sess.Send([]byte(msg)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":"` + root + `","capabilities":{},"initializationOptions":{"env":"local"}}}`)
+	send(`{"jsonrpc":"2.0","method":"initialized","params":{}}`)
+	send(`{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"` + doc + `","languageId":"hurl","version":1,"text":` + string(text) + `}}}`)
+	id := 10
+	for n, line := range strings.Split(src, "\n") {
+		for col := strings.Index(line, "{{"); col >= 0; {
+			id++
+			send(fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"textDocument/hover","params":{"textDocument":{"uri":%q},"position":{"line":%d,"character":%d}}}`, id, doc, n, col+3))
+			next := strings.Index(line[col+2:], "{{")
+			if next < 0 {
+				break
+			}
+			col += 2 + next
+		}
+	}
+	send(fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"shutdown"}`, id+1))
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		done := strings.Contains(strings.Join(out, ""), fmt.Sprintf(`"id":%d`, id+1))
+		mu.Unlock()
+		if done {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	return append([]string(nil), out...)
 }
 
 func mustList(t *testing.T, s *shop) any {

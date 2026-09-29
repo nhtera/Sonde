@@ -50,3 +50,15 @@ func TestMoveInto(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestTrashScriptTakesNoPath: on Windows the path must never be part of
+// the PowerShell command line (it would be script text).
+func TestTrashScriptTakesNoPath(t *testing.T) {
+	src, err := os.ReadFile("osfile.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(src), `"-Command", script)`) || strings.Contains(string(src), `"& {"+script+"}", path)`) {
+		t.Error("the trash script must read the path from the environment only")
+	}
+}

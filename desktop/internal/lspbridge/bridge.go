@@ -18,8 +18,10 @@ import (
 )
 
 // Heartbeat is how long a session lives without a Send or Ping: a page
-// that reloaded or closed stops pinging, and its server is stopped.
-const Heartbeat = 30 * time.Second
+// that reloaded or closed stops pinging, and its server is stopped. A
+// hidden browser tab may run its timers only once a minute, so it is
+// several minutes; a page whose session ended opens a new one.
+const Heartbeat = 3 * time.Minute
 
 // Bridge is the language server bindings: one server per page session.
 // Server messages arrive on "lsp:<id>" (the JSON text), and "lsp:<id>:closed"

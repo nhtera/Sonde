@@ -35,10 +35,19 @@ type Server struct {
 	mu    sync.Mutex
 	carts map[string][]string
 	seen  []string
+	wire  []string
 }
 
 // New returns a fresh shop-api.
 func New() *Server { return &Server{carts: map[string][]string{}} }
+
+// Wire returns "METHOD path|Authorization|Cookie" of every request so far,
+// for comparing requests on the wire.
+func (s *Server) Wire() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.wire...)
+}
 
 // Requests returns "METHOD path" of every request so far.
 func (s *Server) Requests() []string {
@@ -62,6 +71,7 @@ func (s *Server) authorized(r *http.Request) bool {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.seen = append(s.seen, r.Method+" "+r.URL.Path)
+	s.wire = append(s.wire, r.Method+" "+r.URL.RequestURI()+"|"+r.Header.Get("Authorization")+"|"+r.Header.Get("Cookie"))
 	s.mu.Unlock()
 	p := strings.Trim(r.URL.Path, "/")
 	parts := strings.Split(p, "/")

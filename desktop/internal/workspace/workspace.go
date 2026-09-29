@@ -59,6 +59,14 @@ type Workspace struct {
 	root    *sandbox.Root
 	watcher *watcher
 	echoes  map[string]string // path -> hash of our own last save
+
+	// Secret reports whether a project path is a secrets file of the
+	// project (its sonde.yaml's secrets_files): the page never reads or
+	// writes one; envsvc edits secrets. Set by the app.
+	Secret func(rel string) bool
+	// Opened runs after a project opens (recovering an unfinished
+	// edit, resetting session state). Set by the app.
+	Opened func()
 }
 
 // New returns a workspace with no project open.
@@ -90,6 +98,9 @@ func (s *Workspace) Open(dir string) (*Project, error) {
 	}
 	if old != nil {
 		_ = old.Close()
+	}
+	if s.Opened != nil {
+		s.Opened()
 	}
 	p := &Project{Name: filepath.Base(root.Dir()), Dir: root.Dir()}
 	s.emit.Emit(TopicOpened, p)
@@ -183,6 +194,15 @@ func (s *Workspace) Requests(file string) ([]Request, error) {
 	return requestsOf(t.Path, []byte(t.Text)), nil
 }
 
+// protected reports whether the page may not read or write p (OS form):
+// dot files and folders (.env, .git/config…), *.secrets files and the
+// project's secrets files. Their values reach the page only through the
+// environment service, which hides them.
+func (s *Workspace) protected(p string) bool {
+	slash := filepath.ToSlash(p)
+	return dotted(p) || strings.EqualFold(path.Ext(slash), ".secrets") || s.Secret != nil && s.Secret(slash)
+}
+
 // Read returns file's text and hash.
 func (s *Workspace) Read(file string) (*FileText, error) {
 	root, err := s.project()
@@ -192,6 +212,9 @@ func (s *Workspace) Read(file string) (*FileText, error) {
 	p, err := clean(file)
 	if err != nil {
 		return nil, err
+	}
+	if s.protected(p) {
+		return nil, apperr.New(apperr.Denied, file+" holds secrets or settings the app does not show")
 	}
 	data, err := root.ReadFile(p)
 	if err != nil {
@@ -211,6 +234,9 @@ func (s *Workspace) Save(file, text, expectedHash string) (string, error) {
 	p, err := writable(file)
 	if err != nil {
 		return "", err
+	}
+	if s.protected(p) {
+		return "", apperr.New(apperr.Denied, file+" holds secrets: edit them in Environments")
 	}
 	data := []byte(text)
 	s.mu.Lock() // one save at a time: check and write stay together

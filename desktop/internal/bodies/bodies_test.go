@@ -67,7 +67,7 @@ func TestServe(t *testing.T) {
 func TestSpillKeepsOnlyRedacted(t *testing.T) {
 	root, dir := spillRoot(t)
 	s := New(root)
-	s.memLimit = 10
+	s.memLimit = 20 // one body: 8 redacted + 11 raw bytes
 	a := s.Put([]byte("aaaa-***"), []byte("aaaa-SECRET"), "text/plain")
 	b := s.Put([]byte("bbbb-***"), []byte("bbbb-SECRET"), "text/plain")
 	if _, _, ok := s.Raw(a); ok {

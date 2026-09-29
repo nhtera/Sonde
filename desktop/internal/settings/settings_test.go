@@ -4,9 +4,11 @@
 package settings
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/nhtera/sonde/desktop/internal/emit"
@@ -100,5 +102,30 @@ func TestTLSAndApply(t *testing.T) {
 	}
 	if _, err := st.SetTLSFile(CACert, ""); err != nil || st.Get().TLS.CACert != "" {
 		t.Errorf("clear: %v", err)
+	}
+}
+
+func TestProxyPasswordNeverSent(t *testing.T) {
+	st, _, rec, _ := store(t)
+	svc := NewService(st)
+	s := svc.Get()
+	s.Network.Proxy = "http://u:proxy-pw-sentinel@p.example:3128"
+	got, err := svc.Set(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range []any{got, svc.Get(), rec.Events()} {
+		if b, _ := json.Marshal(v); strings.Contains(string(b), "proxy-pw-sentinel") {
+			t.Errorf("proxy password sent: %s", b)
+		}
+	}
+	// The page sends the masked form back: the password stays.
+	again := svc.Get()
+	again.Appearance.Theme = "dark"
+	if _, err := svc.Set(again); err != nil {
+		t.Fatal(err)
+	}
+	if st.Get().Network.Proxy != "http://u:proxy-pw-sentinel@p.example:3128" { //nolint:gosec // G101: test sentinel
+		t.Errorf("stored proxy %q", st.Get().Network.Proxy)
 	}
 }

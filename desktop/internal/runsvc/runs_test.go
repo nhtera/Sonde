@@ -378,3 +378,32 @@ func TestKeepCookies(t *testing.T) {
 		t.Errorf("second run did not send the kept cookie: %q", got[len(got)-1])
 	}
 }
+
+// TestSendNeedsEarlierEntries: a run that stopped at entry 1 does not
+// back a Send of entry 3 (entry 2 never ran); an edited sonde.yaml does
+// not match either.
+func TestSendNeedsEarlierEntries(t *testing.T) {
+	f := setup(t)
+	if _, err := f.runs.Run(context.Background(), RunRequest{RunID: "r1", File: "flow.hurl", Source: flow, Env: "local", To: 1}); err != nil {
+		t.Fatal(err)
+	}
+	var e *apperr.Error
+	_, err := f.runs.Send(context.Background(), SendRequest{RunID: "s1", File: "flow.hurl", Source: flow, Env: "local", Entry: 3})
+	if !errors.As(err, &e) || e.Code != apperr.Stale {
+		t.Errorf("send 3 after a run of 1: %v", err)
+	}
+	if _, err := f.runs.Send(context.Background(), SendRequest{RunID: "s2", File: "flow.hurl", Source: flow, Env: "local", Entry: 2}); err != nil {
+		t.Errorf("send 2 after a run of 1: %v", err)
+	}
+	f.run(t, "r2")
+	y := filepath.Join(f.dir, "sonde.yaml")
+	data, _ := os.ReadFile(y)
+	edited := strings.Replace(string(data), "  local:\n    variables:\n", "  local:\n    variables:\n      extra: 1\n", 1)
+	if err := os.WriteFile(y, []byte(edited), 0o600); err != nil { //nolint:gosec // G703: the test's project
+		t.Fatal(err)
+	}
+	_, err = f.runs.Send(context.Background(), SendRequest{RunID: "s3", File: "flow.hurl", Source: flow, Env: "local", Entry: 3})
+	if !errors.As(err, &e) || e.Code != apperr.Stale {
+		t.Errorf("send after sonde.yaml changed: %v", err)
+	}
+}

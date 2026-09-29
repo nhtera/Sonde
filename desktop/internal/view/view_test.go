@@ -57,6 +57,13 @@ func echo(t *testing.T) *httptest.Server {
 		case "/bin":
 			w.Header().Set("Content-Type", "application/octet-stream")
 			_, _ = w.Write(append([]byte{0, 1, 2, 0xff}, []byte(captured+"\x00"+declared)...))
+		case "/broken-gzip":
+			w.Header().Set("Content-Encoding", "gzip")
+			var buf bytes.Buffer
+			zw := gzip.NewWriter(&buf)
+			_, _ = io.WriteString(zw, "broken "+captured)
+			_ = zw.Close()
+			_, _ = w.Write(buf.Bytes()[:buf.Len()-2]) // trailer cut
 		case "/gzip":
 			w.Header().Set("Content-Encoding", "gzip")
 			w.Header().Set("Content-Type", "text/plain")
@@ -83,6 +90,9 @@ HTTP 200
 
 GET {{base}}/gzip
 HTTP 200
+
+GET {{base}}/broken-gzip
+HTTP *
 
 GET {{base}}/skipped
 [Options]
@@ -174,11 +184,14 @@ func TestEventShapes(t *testing.T) {
 			}
 		}
 	}
-	if started != 4 || finished != 4 || sent != 4 || logs == 0 {
+	if started != 5 || finished != 5 || sent != 5 || logs == 0 {
 		t.Errorf("started %d finished %d sent %d logs %d", started, finished, sent, logs)
 	}
-	if len(skipped) != 1 || skipped[0].Entry != 5 || skipped[0].Reason != "option" {
+	if len(skipped) != 1 || skipped[0].Entry != 6 || skipped[0].Reason != "option" {
 		t.Errorf("skipped %+v", skipped)
+	}
+	if broken := entries[4].Bodies[0]; broken.ID != "" || broken.Error == "" {
+		t.Errorf("an undecodable body was stored: %+v", broken)
 	}
 	gz := entries[3]
 	if len(gz.Bodies) != 1 || gz.Bodies[0].ID == "" || gz.Bodies[0].ContentType != "text/plain" {

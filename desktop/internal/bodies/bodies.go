@@ -74,9 +74,17 @@ func (s *Store) Put(redacted, raw []byte, contentType string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.items[id] = s.lru.PushFront(it)
-	s.memory += it.size
+	s.memory += it.inMemory()
 	s.evict()
 	return id
+}
+
+// inMemory is what the item holds in memory: redacted and raw bytes.
+func (it *item) inMemory() int64 {
+	if it.redacted == nil {
+		return 0
+	}
+	return it.size + int64(len(it.raw))
 }
 
 // evict spills or drops the least recently used bodies over the limits.
@@ -85,12 +93,12 @@ func (s *Store) evict() {
 		prev := e.Prev()
 		it := e.Value.(*item)
 		if it.redacted != nil {
-			s.memory -= it.size
 			if s.spill != nil && s.spill.WriteFileAtomic(spillDir+"/"+it.id, it.redacted, 0o600) == nil {
+				s.memory -= it.inMemory()
 				s.disk += it.size
 				it.redacted, it.raw = nil, nil
 			} else {
-				s.drop(e)
+				s.drop(e) // drop subtracts what it held
 			}
 		}
 		e = prev
@@ -112,25 +120,28 @@ func (s *Store) drop(e *list.Element) {
 		s.disk -= it.size
 		_ = s.spill.Remove(spillDir + "/" + it.id)
 	} else {
-		s.memory -= it.size
+		s.memory -= it.inMemory()
 	}
 }
 
-// get returns a body's redacted bytes and content type.
+// get returns a body's redacted bytes and content type. A spilled body is
+// read without holding the lock (runs keep adding bodies meanwhile).
 func (s *Store) get(id string) ([]byte, string, bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	e, ok := s.items[id]
 	if !ok {
+		s.mu.Unlock()
 		return nil, "", false
 	}
 	s.lru.MoveToFront(e)
 	it := e.Value.(*item)
-	if it.redacted != nil {
-		return it.redacted, it.contentType, true
+	data, ct := it.redacted, it.contentType
+	s.mu.Unlock()
+	if data != nil {
+		return data, ct, true
 	}
-	data, err := s.spill.ReadFile(spillDir + "/" + it.id)
-	return data, it.contentType, err == nil
+	data, err := s.spill.ReadFile(spillDir + "/" + id)
+	return data, ct, err == nil
 }
 
 // Raw returns a body's raw decoded bytes, while it is still in memory.
@@ -182,7 +193,8 @@ func (s *Store) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if r.Context().Err() != nil {
 			return
 		}
-		if _, err := w.Write(data[off:min(off+chunk, len(data))]); err != nil {
+		// A response body, served sandboxed and never sniffed (above).
+		if _, err := w.Write(data[off:min(off+chunk, len(data))]); err != nil { //nolint:gosec // G705: see above
 			return
 		}
 		_ = rc.Flush()

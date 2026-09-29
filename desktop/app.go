@@ -86,6 +86,12 @@ func (h *Host) setup() error {
 			h.Mocks.Observe(results)
 		},
 	}
+	h.Workspace.Secret = h.Envs.IsSecretFile
+	h.Workspace.Opened = func() {
+		h.Mocks.Stop()
+		h.Runs.Reset()
+		h.Envs.Opened()
+	}
 	if h.Root != "" {
 		if _, err := h.Workspace.Open(h.Root); err != nil {
 			return err

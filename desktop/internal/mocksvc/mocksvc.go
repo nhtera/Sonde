@@ -8,9 +8,9 @@
 package mocksvc
 
 import (
-	"bytes"
 	"context"
 	"net"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"slices"
@@ -135,22 +135,30 @@ func (m *Mocks) Start(ctx context.Context, port int) (*Status, error) {
 	if port < 1 || port > 65535 {
 		return nil, apperr.New(apperr.Invalid, "port out of range")
 	}
+	stop, done := make(chan struct{}), make(chan struct{})
 	m.mu.Lock()
-	running := m.stop != nil
-	m.mu.Unlock()
-	if running {
+	if m.stop != nil {
+		m.mu.Unlock()
 		return nil, apperr.New(apperr.Busy, "the mock is running")
 	}
+	m.stop, m.done = stop, done // reserved: a concurrent Start is refused
+	m.mu.Unlock()
 	// Loopback only, never every interface.
 	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(port))
 	if err != nil {
+		m.mu.Lock()
+		if m.stop == stop {
+			m.stop, m.done = nil, nil
+		}
+		m.mu.Unlock()
+		close(done) // a Stop that came meanwhile does not wait forever
 		return nil, &apperr.Error{Code: apperr.Busy, Message: "port " + strconv.Itoa(port) + " is not available", Data: map[string]int{"next": nextFree(port)}}
 	}
-	stop, done := make(chan struct{}), make(chan struct{})
-	h := mock.Handler(spec.Mock(""), mock.Options{ValidateRequests: true, Log: &lineWriter{emit: m.emit}})
+	mk := spec.Mock("")
+	h := logRequests(mk, mock.Handler(mk, mock.Options{ValidateRequests: true}), m.emit)
 	u := "http://" + ln.Addr().String()
 	m.mu.Lock()
-	m.stop, m.done, m.url = stop, done, u
+	m.url = u
 	m.mu.Unlock()
 	go func() {
 		defer close(done)
@@ -254,26 +262,32 @@ func nextFree(port int) int {
 	return 0
 }
 
-// lineWriter sends each complete line written to it as a log event.
-type lineWriter struct {
-	emit func(string, any)
-	mu   sync.Mutex
-	buf  []byte
+// logRequests sends one log line per request: the method, the operation
+// it matched (its template, never the raw path, which may hold a
+// captured secret) and the status.
+func logRequests(mk *openapi.Mock, next http.Handler, emit func(string, any)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &status{ResponseWriter: w, code: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		op := "no operation"
+		if o, p := mk.Match(r.Method, r.URL.Path); p == nil && o != nil {
+			op = o.Template
+		}
+		emit(TopicLog, r.Method+" "+op+" → "+strconv.Itoa(rec.code))
+	})
 }
 
-func (w *lineWriter) Write(p []byte) (int, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.buf = append(w.buf, p...)
-	for {
-		i := bytes.IndexByte(w.buf, '\n')
-		if i < 0 {
-			return len(p), nil
-		}
-		w.emit(TopicLog, string(w.buf[:i]))
-		w.buf = w.buf[i+1:]
-	}
+type status struct {
+	http.ResponseWriter
+	code int
 }
+
+func (s *status) WriteHeader(code int) {
+	s.code = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *status) Unwrap() http.ResponseWriter { return s.ResponseWriter }
 
 // Service is the mock bindings.
 type Service struct{ m *Mocks }

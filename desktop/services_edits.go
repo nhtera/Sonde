@@ -12,11 +12,15 @@ import (
 
 func init() {
 	register("vars", nil, func(h *Host) application.Service {
-		v := vars.New(h.Workspace.Root, h.Runs.Captures, h.Envs.SessionOverrides)
-		return application.NewServiceWithOptions(vars.NewService(v), application.ServiceOptions{Name: "vars"})
+		return application.NewServiceWithOptions(vars.NewService(h.Vars()), application.ServiceOptions{Name: "vars"})
 	})
 	register("editsvc", nil, func(h *Host) application.Service {
 		return application.NewServiceWithOptions(editsvc.NewService(editsvc.New(h.Bodies, h.Runs.Prepare)),
 			application.ServiceOptions{Name: "editsvc"})
 	})
+}
+
+// Vars is the variables lister of the open project.
+func (h *Host) Vars() *vars.Vars {
+	return vars.New(h.Workspace.Root, h.Runs.Captures, h.Envs.SessionOverrides)
 }

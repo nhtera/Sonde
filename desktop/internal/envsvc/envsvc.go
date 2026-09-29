@@ -86,6 +86,7 @@ type Envs struct {
 	version  string
 	settings func(inv *runplan.Invocation) // the settings' flags
 
+	editMu    sync.Mutex // one project edit at a time, load to journal removal
 	mu        sync.Mutex
 	session   map[string]string // session overrides: name -> value text
 	mock      string            // the mock's URL while it runs
@@ -202,6 +203,8 @@ func (e *Envs) MarkSecret(env, name string) error {
 // edit computes edits (validated by config against every environment),
 // then writes them as one transaction.
 func (e *Envs) edit(fn func(*config.Project) ([]config.FileEdit, error)) error {
+	e.editMu.Lock()
+	defer e.editMu.Unlock()
 	root, p, err := e.load()
 	if err != nil {
 		return err
@@ -263,6 +266,34 @@ func (e *Envs) SetOverride(env, name, text string) error {
 	e.mu.Unlock()
 	e.emit.Emit(TopicChanged, nil)
 	return nil
+}
+
+// IsSecretFile reports whether rel (project path) is a secrets file of the
+// project's sonde.yaml, of any environment.
+func (e *Envs) IsSecretFile(rel string) bool {
+	_, p, err := e.load()
+	if err != nil || p == nil {
+		return false
+	}
+	for _, env := range p.Environments {
+		for _, f := range env.SecretsFiles {
+			if filepath.ToSlash(filepath.Clean(f)) == rel {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Opened resets what belongs to the previous project (session overrides,
+// the mock) and rolls back an unfinished edit of the new one, before
+// anything reads it.
+func (e *Envs) Opened() {
+	e.mu.Lock()
+	e.session, e.mock, e.recovered = map[string]string{}, "", ""
+	e.mu.Unlock()
+	_, _, _ = e.load()
+	e.emit.Emit(TopicChanged, nil)
 }
 
 // SessionOverrides returns the session overrides (name -> value).
