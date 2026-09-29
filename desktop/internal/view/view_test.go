@@ -16,10 +16,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/enginex"
+	"github.com/nhtera/sonde/internal/redact"
 )
 
 const (
@@ -229,5 +231,22 @@ func TestNoRedactorYetHolds(t *testing.T) {
 	c.Flush()
 	if len(out) != 2 || out[1].(Log).Text != "*" {
 		t.Fatalf("flush %+v", out)
+	}
+}
+
+// TestRedactBodyTiming reports how long a 50 MB body takes to redact
+// (budget 500 ms on an M1; report only).
+func TestRedactBodyTiming(t *testing.T) {
+	reg := redact.New()
+	for _, s := range []string{declared, captured, "another-secret-value", "yet-another-1234"} {
+		reg.Add("s", s)
+	}
+	chunk := []byte(`{"id":1234,"name":"item","note":"` + captured + `","pad":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},`)
+	body := bytes.Repeat(chunk, (50<<20)/len(chunk))
+	start := time.Now()
+	out := RedactBytes(body, reg.Redact)
+	t.Logf("50 MB body redacted in %v (budget 500ms on an M1)", time.Since(start))
+	if bytes.Contains(out, []byte(captured)) {
+		t.Fatal("secret left")
 	}
 }

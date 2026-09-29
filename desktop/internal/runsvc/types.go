@@ -49,6 +49,8 @@ type DataRequest struct {
 	Env        string `json:"env"`
 	DataHandle string `json:"dataHandle"`
 	Rows       []int  `json:"rows"`
+	// Secrets are the data file's secret columns (--data-secret).
+	Secrets []string `json:"secrets"`
 }
 
 // Outcomes.

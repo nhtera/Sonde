@@ -1,0 +1,19 @@
+# shop-api: the desktop's test project (desktop/cmd/fixture-server).
+version: 1
+
+environments:
+  local:
+    variables:
+      base_url: http://127.0.0.1:34120
+      user: ada
+    secrets_files:
+      - secrets/local.secrets
+  staging:
+    variables:
+      base_url: http://127.0.0.1:34121
+      user: ada
+    secrets_files:
+      - secrets/local.secrets
+
+defaults:
+  env: local

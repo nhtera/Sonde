@@ -1,0 +1,5 @@
+# Order events (Server-Sent Events)
+GET {{base_url}}/events
+[Options]
+sonde-stream-count: 3
+HTTP 200

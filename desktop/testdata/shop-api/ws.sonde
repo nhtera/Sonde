@@ -1,0 +1,6 @@
+# WebSocket echo
+GET {{base_url}}/ws
+[SondeMessages]
+send: `hello`
+receive
+HTTP 101

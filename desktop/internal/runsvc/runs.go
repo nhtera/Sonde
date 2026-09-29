@@ -254,6 +254,7 @@ func (r *Runs) RunData(ctx context.Context, req DataRequest) (*Summary, error) {
 		return nil, apperr.Wrap(apperr.Expired, err)
 	}
 	return r.start(ctx, req.RunID, "data", []string{req.File}, func(ctx context.Context, rn *run) error {
+		rn.dataSecrets = req.Secrets
 		if err := rn.plan(ctx, "run", req.Env, data, []string{req.File}, map[string]string{req.File: req.Source}); err != nil {
 			return err
 		}
@@ -400,16 +401,17 @@ type run struct {
 	bridge  *bridge
 	summary *Summary
 
-	planned   *runplan.Plan
-	opts      engine.Options
-	files     map[string]string // absolute path -> project path
-	sources   map[string][]byte // absolute path -> buffer text
-	captures  func(*engine.Options, *engine.Job)
-	seed      []engine.Cookie
-	rows      []int
-	results   []*engine.UnitResult
-	startErrs map[*engine.UnitResult]error
-	redact    func(string) string // the runner's: every secret of the run
+	planned     *runplan.Plan
+	opts        engine.Options
+	files       map[string]string // absolute path -> project path
+	sources     map[string][]byte // absolute path -> buffer text
+	captures    func(*engine.Options, *engine.Job)
+	seed        []engine.Cookie
+	rows        []int
+	dataSecrets []string
+	results     []*engine.UnitResult
+	startErrs   map[*engine.UnitResult]error
+	redact      func(string) string // the runner's: every secret of the run
 }
 
 // plan builds the run like the CLI: cmd, env and data are the command,
@@ -417,6 +419,9 @@ type run struct {
 func (rn *run) plan(ctx context.Context, cmd, env, data string, files []string, sources map[string]string) error {
 	inv := rn.runs.Invocation(cmd, env, data, rn.summary.Kind, files)
 	inv.FileRoot = rn.root.Dir()
+	if len(rn.dataSecrets) > 0 {
+		inv.DataSecrets, inv.Set["data-secret"] = rn.dataSecrets, true
+	}
 	rn.files, rn.sources = map[string]string{}, map[string][]byte{}
 	files = slices.Sorted(slices.Values(files))
 	var inputs []runplan.Input
