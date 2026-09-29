@@ -13,7 +13,9 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
+	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/desktop/internal/workspace"
+	"github.com/nhtera/sonde/internal/config"
 )
 
 // Mode is how the app is hosted.
@@ -40,13 +42,19 @@ type Host struct {
 	// Shared by the services; built by setup.
 	Workspace *workspace.Workspace
 	Handles   *handles.Table
+	Runs      *runsvc.Runs
 }
+
+// version is the app's version (set at build time); it names the default
+// User-Agent of runs, as the CLI's does.
+var version = "dev"
 
 // setup builds the parts services share, once Emit is set, and opens Root
 // when given.
 func (h *Host) setup() error {
 	h.Handles = handles.New()
 	h.Workspace = workspace.New(h.Emit)
+	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, config.FromOSEnviron(), version, nil, h.Handles)
 	if h.Root != "" {
 		if _, err := h.Workspace.Open(h.Root); err != nil {
 			return err
