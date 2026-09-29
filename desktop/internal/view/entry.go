@@ -56,7 +56,7 @@ func storeBody(call engine.Call, redact Redactor, bodies BodyStore) Body {
 	redacted := RedactBytes(data, redact)
 	body.Size = len(redacted)
 	if bodies != nil {
-		body.ID = bodies.Put(redacted, ct)
+		body.ID = bodies.Put(redacted, data, ct)
 	}
 	return body
 }

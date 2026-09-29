@@ -19,8 +19,6 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-
-	"github.com/nhtera/sonde/desktop/internal/serverauth"
 )
 
 // HarnessService is the test-only binding set of the e2e harness and the
@@ -51,12 +49,17 @@ func init() {
 		return application.NewServiceWithOptions(&HarnessService{
 			waits:  map[string]string{},
 			bodies: map[string]*harnessBody{},
-		}, application.ServiceOptions{Name: "harness", Route: serverauth.BodyPrefix})
+		}, application.ServiceOptions{Name: "harness", Route: spikeBodyPrefix})
 	})
 }
 
 // Ping answers "pong <name>".
 func (s *HarnessService) Ping(name string) string { return "pong " + name }
+
+// spikeBodyPrefix serves the spikes' bodies: the app's own body route is
+// the bodies service's, and a page opened by navigation (the sandbox
+// check) carries no token, so the route is outside /_sonde/.
+const spikeBodyPrefix = "/spike/body/"
 
 // Emit sends the event harness:event with data.
 func (s *HarnessService) Emit(data string) {
@@ -95,7 +98,7 @@ func (s *HarnessService) setWait(id, state string) {
 // so a cancel lands mid-stream), "html" (a page whose script reports to
 // its opener or parent when it runs) or "control" (the same page without
 // the sandbox policy, proving the check can see a script run). It returns the id to fetch at
-// /_sonde/body/<id>.
+// /spike/body/<id>.
 func (s *HarnessService) NewBody(size int, kind string) (string, error) {
 	if size < 0 || size > 256<<20 {
 		return "", errors.New("size out of range")
@@ -146,7 +149,7 @@ func (s *HarnessService) BodyState(id string) BodyState {
 	return BodyState{Written: b.written, Finished: b.finished, Aborted: b.aborted}
 }
 
-// ServeHTTP serves /_sonde/body/<id> in 64 KiB chunks, stopping when the
+// ServeHTTP serves /spike/body/<id> in 64 KiB chunks, stopping when the
 // client goes away. The asset server strips the route, so the path is the
 // id.
 func (s *HarnessService) ServeHTTP(w http.ResponseWriter, r *http.Request) {

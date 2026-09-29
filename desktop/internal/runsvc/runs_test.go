@@ -109,7 +109,7 @@ type memBodies struct {
 	m  map[string][]byte
 }
 
-func (b *memBodies) Put(data []byte, _ string) string {
+func (b *memBodies) Put(data, _ []byte, _ string) string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	id := strconv.Itoa(len(b.m))

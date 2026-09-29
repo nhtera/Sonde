@@ -16,9 +16,11 @@ import (
 // Redactor masks every known secret in a string.
 type Redactor func(string) string
 
-// BodyStore keeps a redacted response body for its URL and returns its id.
+// BodyStore keeps a response body and returns its id: the redacted bytes
+// for its URL, the raw decoded bytes (in memory only) for the user's own
+// Save response.
 type BodyStore interface {
-	Put(redacted []byte, contentType string) (id string)
+	Put(redacted, raw []byte, contentType string) (id string)
 }
 
 // Event types, the "type" of every event DTO.

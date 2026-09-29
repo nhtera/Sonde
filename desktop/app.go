@@ -11,6 +11,7 @@ import (
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/bodies"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
@@ -43,6 +44,7 @@ type Host struct {
 	Workspace *workspace.Workspace
 	Handles   *handles.Table
 	Runs      *runsvc.Runs
+	Bodies    *bodies.Store
 }
 
 // version is the app's version (set at build time); it names the default
@@ -54,7 +56,8 @@ var version = "dev"
 func (h *Host) setup() error {
 	h.Handles = handles.New()
 	h.Workspace = workspace.New(h.Emit)
-	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, config.FromOSEnviron(), version, nil, h.Handles)
+	h.Bodies = bodies.New(h.Dirs.Cache())
+	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, config.FromOSEnviron(), version, h.Bodies, h.Handles)
 	if h.Root != "" {
 		if _, err := h.Workspace.Open(h.Root); err != nil {
 			return err

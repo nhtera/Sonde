@@ -48,7 +48,7 @@ export async function bodies(mb: number) {
 
   const jsonId = await call<string>("NewBody", size, "json");
   let t0 = performance.now();
-  const res = await fetch(`/_sonde/body/${jsonId}`);
+  const res = await fetch(`/spike/body/${jsonId}`);
   const buf = await res.arrayBuffer();
   const fetchMs = performance.now() - t0;
   t0 = performance.now();
@@ -63,7 +63,7 @@ export async function bodies(mb: number) {
 
   const binId = await call<string>("NewBody", size, "slow");
   const ctl = new AbortController();
-  const stream = await fetch(`/_sonde/body/${binId}`, { signal: ctl.signal });
+  const stream = await fetch(`/spike/body/${binId}`, { signal: ctl.signal });
   const reader = stream.body!.getReader();
   let read = 0;
   while (read < 1 << 20) {
@@ -100,7 +100,7 @@ async function sandboxHonored() {
 }
 
 async function scriptRuns(kind: string): Promise<{ iframe: boolean; popupOpened: boolean; popup: boolean }> {
-  const url = `/_sonde/body/${await call<string>("NewBody", 0, kind)}`;
+  const url = `/spike/body/${await call<string>("NewBody", 0, kind)}`;
   let ran = false;
   const onMessage = (e: MessageEvent) => {
     if (e.data === "body-script-ran") ran = true;
