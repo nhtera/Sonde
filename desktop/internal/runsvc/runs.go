@@ -72,6 +72,69 @@ func New(e emit.Emitter, project func() *sandbox.Root, env config.Env, version s
 	}
 }
 
+// Invocation is the `sonde` invocation of a run (Copy as prints it): the
+// command, env and data file, the file root (the project folder, "."),
+// the overrides, and for a full run of one file with keep cookies on its
+// kept jar as -b. Files are project paths.
+func (r *Runs) Invocation(cmd, env, data, kind string, files []string) runplan.Invocation {
+	inv := runplan.Invocation{Cmd: cmd, Env: env, Data: data, FileRoot: ".", Files: files, Set: map[string]bool{"file-root": true}}
+	if env != "" {
+		inv.Set["env"] = true
+	}
+	if data != "" {
+		inv.Set["data"] = true
+	}
+	if h := r.Hooks.Extend; h != nil {
+		h(&inv)
+	}
+	if k := r.Hooks.KeptJar; k != nil && kind == "run" && len(files) == 1 {
+		if jar := k(files[0]); jar != "" {
+			inv.Cookie = jar
+			inv.Set["cookie"] = true
+		}
+	}
+	return inv
+}
+
+// Planned is a planned run of one file, not run: the options with the
+// job's project layers merged (for rendering curl commands, which read
+// the options only) and its captures from the file's last run.
+func (r *Runs) Planned(ctx context.Context, file, source, env string, withCaptures bool) (engine.Options, error) {
+	root := r.project()
+	if root == nil {
+		return engine.Options{}, apperr.New(apperr.NotFound, "no project is open")
+	}
+	rn := &run{runs: r, root: root, summary: &Summary{Kind: "prepare"}}
+	if err := rn.plan(ctx, "run", env, "", []string{file}, map[string]string{file: source}); err != nil {
+		return engine.Options{}, apperr.Wrap(apperr.Invalid, err)
+	}
+	opts := rn.opts
+	var dataErr error
+	for job := range rn.planned.Jobs(nil, &dataErr) {
+		opts.Variables = merge(job.Variables, opts.Variables)
+		opts.Secrets = merge(job.Secrets, opts.Secrets)
+		break
+	}
+	if s := r.session(file, 0); withCaptures && s != nil {
+		plain, secret := s.layers()
+		var job engine.Job
+		runplan.ApplyCaptures(&opts, &job, plain, secret)
+	}
+	return opts, nil
+}
+
+// merge layers top over base (new maps).
+func merge[V any](base, top map[string]V) map[string]V {
+	out := make(map[string]V, len(base)+len(top))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range top {
+		out[k] = v
+	}
+	return out
+}
+
 // Prepare plans a run of file (its buffer source, in env) without running
 // it: the runner and job, for tools that act on one entry (gRPC methods,
 // an interactive WebSocket session).
@@ -352,24 +415,8 @@ type run struct {
 // plan builds the run like the CLI: cmd, env and data are the command,
 // --env and --data; sources maps project paths to their buffer text.
 func (rn *run) plan(ctx context.Context, cmd, env, data string, files []string, sources map[string]string) error {
-	inv := runplan.Invocation{Cmd: cmd, Env: env, Data: data, FileRoot: rn.root.Dir(), Set: map[string]bool{"file-root": true}}
-	if env != "" {
-		inv.Set["env"] = true
-	}
-	if data != "" {
-		inv.Set["data"] = true
-	}
-	if h := rn.runs.Hooks.Extend; h != nil {
-		h(&inv)
-	}
-	if k := rn.runs.Hooks.KeptJar; k != nil && rn.summary.Kind == "run" {
-		if len(files) == 1 {
-			if jar := k(files[0]); jar != "" {
-				inv.Cookie = jar
-				inv.Set["cookie"] = true
-			}
-		}
-	}
+	inv := rn.runs.Invocation(cmd, env, data, rn.summary.Kind, files)
+	inv.FileRoot = rn.root.Dir()
 	rn.files, rn.sources = map[string]string{}, map[string][]byte{}
 	files = slices.Sorted(slices.Values(files))
 	var inputs []runplan.Input
