@@ -306,6 +306,14 @@ linters:
             - github.com/nhtera/sonde/internal/datarow$
             - github.com/nhtera/sonde/internal/openapi$
             - github.com/nhtera/sonde/internal/syntax$
+        pkg-runflags:
+          list-mode: lax
+          files: ["**/internal/runflags/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/runflags may import only: internal/runplan (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/internal/runplan$
         pkg-config:
           list-mode: lax
           files: ["**/internal/config/**", "!$test"]
