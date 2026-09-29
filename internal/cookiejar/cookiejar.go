@@ -50,17 +50,22 @@ func (a *Accumulator) Cookies() []engine.Cookie {
 	return out
 }
 
-// Write writes cookies (already in the jar's final order) in Netscape
-// format to name inside root, each line passed through redact (the CLI
-// masks the run's secrets; the desktop keeps values). forFile is the last
-// input file the run processed, named in the file's header comment. The
-// file is written atomically with permission 0600.
-func Write(root *sandbox.Root, name, forFile string, cookies []engine.Cookie, redact func(string) string) error {
+// Format renders cookies (already in the jar's final order) as a Netscape
+// cookie file, each line passed through redact (the CLI masks the run's
+// secrets; the desktop keeps values). forFile is the last input file the
+// run processed, named in the file's header comment.
+func Format(forFile string, cookies []engine.Cookie, redact func(string) string) []byte {
 	var b strings.Builder
 	b.WriteString(header)
 	fmt.Fprintf(&b, "# Cookies for file <%s>\n", forFile)
 	for _, c := range cookies {
 		b.WriteString(redact(c.Netscape()) + "\n")
 	}
-	return root.WriteFileAtomic(name, []byte(b.String()), 0o600)
+	return []byte(b.String())
+}
+
+// Write writes the Format of cookies to name inside root, atomically with
+// permission 0600 (the desktop's jar).
+func Write(root *sandbox.Root, name, forFile string, cookies []engine.Cookie, redact func(string) string) error {
+	return root.WriteFileAtomic(name, Format(forFile, cookies, redact), 0o600)
 }

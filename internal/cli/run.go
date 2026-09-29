@@ -22,7 +22,6 @@ import (
 	"github.com/nhtera/sonde/internal/cookiejar"
 	"github.com/nhtera/sonde/internal/report"
 	"github.com/nhtera/sonde/internal/runplan"
-	"github.com/nhtera/sonde/internal/sandbox"
 	"github.com/nhtera/sonde/internal/testsummary"
 )
 
@@ -648,17 +647,15 @@ func cannotAccessErr(path string) error {
 	return NewExitError(ExitUsage, fmt.Errorf("Cannot access '%s': No such file or directory", path)) //nolint:staticcheck,revive // kept for CLI message-format compatibility
 }
 
-// writeCookieJar writes cookies to path (a command line path, not
-// confined), creating its directory, each line redacted with redact.
+// writeCookieJar writes cookies (already in the jar's final order) in
+// Netscape format to path, the way --cookie-jar does, redacting each line
+// with redact. path is a command line path, written as named: through a
+// symbolic link, to a device such as /dev/stdout.
 func writeCookieJar(path, forFile string, cookies []engine.Cookie, redact func(string) string) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return err
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return err
+		}
 	}
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = root.Close() }()
-	return cookiejar.Write(root, filepath.Base(path), forFile, cookies, redact)
+	return os.WriteFile(path, cookiejar.Format(forFile, cookies, redact), 0o600) //nolint:gosec // G304: the command line names the file
 }
