@@ -265,6 +265,20 @@ func (e *Envs) SetOverride(env, name, text string) error {
 	return nil
 }
 
+// SessionOverrides returns the session overrides (name -> value).
+func (e *Envs) SessionOverrides() map[string]string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	out := make(map[string]string, len(e.session)+1)
+	for k, v := range e.session {
+		out[k] = v
+	}
+	if e.mock != "" {
+		out["base_url"] = e.mock
+	}
+	return out
+}
+
 // RemoveOverride removes session override name.
 func (e *Envs) RemoveOverride(name string) {
 	e.mu.Lock()

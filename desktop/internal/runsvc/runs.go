@@ -72,6 +72,28 @@ func New(e emit.Emitter, project func() *sandbox.Root, env config.Env, version s
 	}
 }
 
+// Prepare plans a run of file (its buffer source, in env) without running
+// it: the runner and job, for tools that act on one entry (gRPC methods,
+// an interactive WebSocket session).
+func (r *Runs) Prepare(ctx context.Context, file, source, env string) (*engine.Runner, engine.Job, error) {
+	root := r.project()
+	if root == nil {
+		return nil, engine.Job{}, apperr.New(apperr.NotFound, "no project is open")
+	}
+	rn := &run{runs: r, root: root, summary: &Summary{Kind: "prepare"}}
+	if err := rn.plan(ctx, "run", env, "", []string{file}, map[string]string{file: source}); err != nil {
+		return nil, engine.Job{}, apperr.Wrap(apperr.Invalid, err)
+	}
+	opts := rn.opts
+	var dataErr error
+	for job := range rn.jobs(rn.planned.Jobs(nil, &dataErr), &opts) {
+		runner := engine.NewRunner(opts)
+		enginex.EnableHostEvents(runner)
+		return runner, job, nil
+	}
+	return nil, engine.Job{}, apperr.New(apperr.Invalid, "nothing to run")
+}
+
 // Cancel stops run runID: requests in flight are aborted.
 func (r *Runs) Cancel(runID string) {
 	r.mu.Lock()
@@ -85,7 +107,7 @@ func (r *Runs) Cancel(runID string) {
 // Run runs a file (entries 1…To).
 func (r *Runs) Run(ctx context.Context, req RunRequest) (*Summary, error) {
 	return r.start(ctx, req.RunID, "run", []string{req.File}, func(ctx context.Context, rn *run) error {
-		if err := rn.plan(ctx, "run", req.Env, "", map[string]string{req.File: req.Source}); err != nil {
+		if err := rn.plan(ctx, "run", req.Env, "", []string{req.File}, map[string]string{req.File: req.Source}); err != nil {
 			return err
 		}
 		rn.opts.ToEntry = req.To
@@ -108,7 +130,7 @@ func (r *Runs) Send(ctx context.Context, req SendRequest) (*Summary, error) {
 		return nil, apperr.New(apperr.Invalid, "there is no request "+strconv.Itoa(req.Entry))
 	}
 	return r.start(ctx, req.RunID, "send", []string{req.File}, func(ctx context.Context, rn *run) error {
-		if err := rn.plan(ctx, "run", req.Env, "", map[string]string{req.File: req.Source}); err != nil {
+		if err := rn.plan(ctx, "run", req.Env, "", []string{req.File}, map[string]string{req.File: req.Source}); err != nil {
 			return err
 		}
 		sess := r.session(req.File, 0)
@@ -154,7 +176,7 @@ func (r *Runs) RunTest(ctx context.Context, req TestRequest) (*Summary, error) {
 				sources[f] = s
 			}
 		}
-		if err := rn.plan(ctx, "test", req.Env, "", sources); err != nil {
+		if err := rn.plan(ctx, "test", req.Env, "", req.Files, sources); err != nil {
 			return err
 		}
 		rn.execute(ctx, nil)
@@ -169,7 +191,7 @@ func (r *Runs) RunData(ctx context.Context, req DataRequest) (*Summary, error) {
 		return nil, apperr.Wrap(apperr.Expired, err)
 	}
 	return r.start(ctx, req.RunID, "data", []string{req.File}, func(ctx context.Context, rn *run) error {
-		if err := rn.plan(ctx, "run", req.Env, data, map[string]string{req.File: req.Source}); err != nil {
+		if err := rn.plan(ctx, "run", req.Env, data, []string{req.File}, map[string]string{req.File: req.Source}); err != nil {
 			return err
 		}
 		rn.rows = req.Rows
@@ -267,6 +289,40 @@ func (r *Runs) session(file string, row int) *session {
 	return r.sessions[sessionKey(file, row)]
 }
 
+// Capture is a capture of a file's last run, for the variables list. A
+// redacted capture has no Value.
+type Capture struct {
+	Name   string
+	Value  string
+	Secret bool
+}
+
+// Captures returns the captures of file's last full run (and its Sends),
+// last writer winning; nil when it has none.
+func (r *Runs) Captures(file string) []Capture {
+	s := r.session(file, 0)
+	if s == nil {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	byName := map[string]int{}
+	var out []Capture
+	for _, c := range s.captures {
+		it := Capture{Name: c.name, Secret: c.secret}
+		if !c.secret {
+			it.Value = c.value.String()
+		}
+		if i, ok := byName[c.name]; ok {
+			out[i] = it
+			continue
+		}
+		byName[c.name] = len(out)
+		out = append(out, it)
+	}
+	return out
+}
+
 func (r *Runs) storeSession(file string, src []byte, env string, res *engine.UnitResult) {
 	s := newSession(src, env, r.overrides(), res)
 	r.mu.Lock()
@@ -295,7 +351,7 @@ type run struct {
 
 // plan builds the run like the CLI: cmd, env and data are the command,
 // --env and --data; sources maps project paths to their buffer text.
-func (rn *run) plan(ctx context.Context, cmd, env, data string, sources map[string]string) error {
+func (rn *run) plan(ctx context.Context, cmd, env, data string, files []string, sources map[string]string) error {
 	inv := runplan.Invocation{Cmd: cmd, Env: env, Data: data, FileRoot: rn.root.Dir(), Set: map[string]bool{"file-root": true}}
 	if env != "" {
 		inv.Set["env"] = true
@@ -307,7 +363,7 @@ func (rn *run) plan(ctx context.Context, cmd, env, data string, sources map[stri
 		h(&inv)
 	}
 	if k := rn.runs.Hooks.KeptJar; k != nil && rn.summary.Kind == "run" {
-		if files := rn.reserved(); len(files) == 1 {
+		if len(files) == 1 {
 			if jar := k(files[0]); jar != "" {
 				inv.Cookie = jar
 				inv.Set["cookie"] = true
@@ -315,7 +371,7 @@ func (rn *run) plan(ctx context.Context, cmd, env, data string, sources map[stri
 		}
 	}
 	rn.files, rn.sources = map[string]string{}, map[string][]byte{}
-	files := rn.reserved()
+	files = slices.Sorted(slices.Values(files))
 	var inputs []runplan.Input
 	for _, f := range files {
 		abs, err := rn.abs(f)
@@ -342,21 +398,6 @@ func (rn *run) plan(ctx context.Context, cmd, env, data string, sources map[stri
 	rn.summary.Warnings = p.Warnings
 	rn.summary.Env = env
 	return nil
-}
-
-// reserved is the run's files, sorted.
-func (rn *run) reserved() []string {
-	r := rn.runs
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	var files []string
-	for f, id := range r.busy {
-		if id == rn.summary.RunID {
-			files = append(files, f)
-		}
-	}
-	slices.Sort(files)
-	return files
 }
 
 // abs resolves a project path to the absolute path runplan runs.
