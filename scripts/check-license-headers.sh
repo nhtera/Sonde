@@ -2,9 +2,10 @@
 # Copyright 2026 The Sonde Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Fails if a Go file lacks "SPDX-License-Identifier: Apache-2.0" in its first
-# 3 lines. With arguments, checks those files; otherwise checks every tracked
-# or untracked-but-not-ignored .go file in the repository.
+# Fails if a source file lacks "SPDX-License-Identifier: Apache-2.0" in its
+# first 3 lines. With arguments, checks those files; otherwise checks every
+# tracked or untracked-but-not-ignored .go file in the repository and every
+# .ts, .tsx, .css and .grammar file under desktop/.
 set -euo pipefail
 
 if [ "$#" -gt 0 ]; then
@@ -15,13 +16,14 @@ else
   root="$(git rev-parse --show-toplevel)"
   listing="$(mktemp)"
   trap 'rm -f "$listing"' EXIT
-  git -C "$root" ls-files -z --cached --others --exclude-standard -- '*.go' > "$listing"
+  git -C "$root" ls-files -z --cached --others --exclude-standard -- '*.go' \
+    'desktop/*.ts' 'desktop/*.tsx' 'desktop/*.css' 'desktop/*.grammar' > "$listing"
   files=()
   while IFS= read -r -d '' f; do files+=("$root/$f"); done < "$listing"
 fi
 
 if [ "${#files[@]}" -eq 0 ]; then
-  echo "no Go files to check" >&2
+  echo "no source files to check" >&2
   exit 1
 fi
 
@@ -35,7 +37,7 @@ done
 
 if [ "$missing" -ne 0 ]; then
   cat >&2 <<'MSG'
-add this header to the files above:
+add this header to the files above (CSS: /* ... */ comments):
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 MSG

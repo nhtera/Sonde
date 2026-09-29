@@ -17,7 +17,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean tag-guards
+.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-check desktop-e2e desktop-vuln lint-desktop-native tag-guards
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -79,6 +79,41 @@ verify-install: ## Verify a published release installs and verifies (VERSION=vX.
 
 tag-guards: ## Check that no release tag namespace (editors/vscode/*, desktop/*) leaks into the CLI's tag lookups
 	scripts/check-tag-guards.sh
+
+# The desktop app is a nested module (desktop/go.mod) with a Wails runtime;
+# the root module never imports it. Its Go checks use the CGO-free builds
+# (server mode and the test harness); the native window build is checked
+# on macOS runners.
+DESKTOP_TAGS := server server,production server,e2eharness
+
+desktop-tools: ## Install the pinned desktop tools (wails3, task) into ./bin and verify them
+	BIN=$(BIN) desktop/scripts/tools.sh install
+
+desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses ## Desktop module: tidy, licenses, vet, tests, lint; frontend: install (no scripts), lint, typecheck, unit tests
+	cd desktop && go mod tidy -diff
+	cd desktop && $(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) --ignore github.com/nhtera/sonde
+	@test -f desktop/frontend/dist/index.html || { mkdir -p desktop/frontend/dist && echo '<!doctype html><title>Sonde</title>' > desktop/frontend/dist/index.html; }
+	cd desktop && for tags in $(DESKTOP_TAGS); do \
+	  CGO_ENABLED=0 go vet -tags $$tags ./... && CGO_ENABLED=0 go test -tags $$tags ./... && $(BIN)/golangci-lint run --build-tags $$tags ./... || exit 1; \
+	done
+	npm --prefix desktop/frontend ci --ignore-scripts --no-audit --no-fund
+	node desktop/scripts/check-install-scripts.mjs
+	npm --prefix desktop/frontend run lint
+	npm --prefix desktop/frontend run typecheck
+	npm --prefix desktop/frontend test
+
+desktop-vuln: $(BIN)/govulncheck ## Scan the desktop module (server build: the window build adds only platform webview code) for known vulnerabilities
+	cd desktop && $(BIN)/govulncheck -tags server ./...
+
+lint-desktop-native: $(BIN)/golangci-lint ## Lint the desktop module's native window build (needs cgo and the platform webview)
+	cd desktop && $(BIN)/golangci-lint run ./...
+
+desktop-e2e: ## Build server mode and the test-only harness, then run the browser tests (browsers: npx playwright install)
+	npm --prefix desktop/frontend run build
+	cd desktop && CGO_ENABLED=0 go build -tags server,production -o bin/sonde-desktop-server .
+	npm --prefix desktop/frontend run build:harness
+	cd desktop && CGO_ENABLED=0 go build -tags server,e2eharness -o bin/sonde-desktop-harness .
+	cd desktop/frontend && npx playwright test
 
 tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses $(BIN)/apidiff ## Install pinned tools into ./bin
 

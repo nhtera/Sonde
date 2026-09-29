@@ -13,9 +13,32 @@ trap 'rm -rf "$tmp"' EXIT
 printf '// Copyright 2026 The Sonde Authors\n// SPDX-License-Identifier: Apache-2.0\n\npackage x\n' > "$tmp/good.go"
 printf 'package x\n' > "$tmp/bad.go"
 
-"$script" "$tmp/good.go" > /dev/null || { echo "FAIL: header present but check failed" >&2; exit 1; }
-if "$script" "$tmp/bad.go" > /dev/null 2>&1; then
-  echo "FAIL: header missing but check passed" >&2
+printf '// Copyright 2026 The Sonde Authors\n// SPDX-License-Identifier: Apache-2.0\n\nexport {};\n' > "$tmp/good.ts"
+printf '/* Copyright 2026 The Sonde Authors */\n/* SPDX-License-Identifier: Apache-2.0 */\n' > "$tmp/good.css"
+printf 'export {};\n' > "$tmp/bad.tsx"
+
+for f in good.go good.ts good.css; do
+  "$script" "$tmp/$f" > /dev/null || { echo "FAIL: header present in $f but check failed" >&2; exit 1; }
+done
+for f in bad.go bad.tsx; do
+  if "$script" "$tmp/$f" > /dev/null 2>&1; then
+    echo "FAIL: header missing in $f but check passed" >&2
+    exit 1
+  fi
+done
+
+# Without arguments the check lists the repository's Go files and the
+# desktop frontend sources.
+repo="$tmp/repo"
+mkdir -p "$repo/desktop/frontend/src" "$repo/editors"
+cp "$tmp/good.go" "$repo/main.go"
+cp "$tmp/good.ts" "$repo/desktop/frontend/src/ok.ts"
+printf 'export {};\n' > "$repo/editors/elsewhere.ts" # outside desktop/: not checked
+git -C "$repo" init -q
+(cd "$repo" && "$script" > /dev/null) || { echo "FAIL: clean repository failed the check" >&2; exit 1; }
+cp "$tmp/bad.tsx" "$repo/desktop/frontend/src/bad.tsx"
+if (cd "$repo" && "$script" > /dev/null 2>&1); then
+  echo "FAIL: desktop/**/*.tsx without a header passed" >&2
   exit 1
 fi
 echo "check-license-headers self-test ok"
