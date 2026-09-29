@@ -4,7 +4,6 @@
 package postman
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -57,7 +56,7 @@ func (s FileSuggestion) Apply(name string, src []byte) ([]byte, error) {
 		if op.Login != nil {
 			res, err = syntaxedit.AddLoginEntry(name, src, op.Entry, *op.Login)
 		} else {
-			res, err = syntaxedit.AddRow(name, src, op.Entry, op.Section, op.Key, op.Value)
+			res, err = syntaxedit.ApplyEdits(name, src, []syntaxedit.RowInsert{{Entry: op.Entry, Section: op.Section, Key: op.Key, Value: op.Value}})
 		}
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", s.Label, err)
@@ -135,6 +134,7 @@ func (w *walker) entryOps(it item, a authState) entryOps {
 }
 
 var (
+	assignRE    = regexp.MustCompile(`^(?:(?:var|let|const) )?([A-Za-z_$][\w$]*) = `)
 	aliasRE     = regexp.MustCompile(`^(?:var|let|const) ([A-Za-z_$][\w$]*) = pm\.response\.json\(\)$`)
 	expectEqRE  = regexp.MustCompile(`^pm\.expect\((.+)\)\.to\.(?:eql|equal|deep\.equal|be\.equal)\((.+)\)$`)
 	headerHasRE = regexp.MustCompile(`^pm\.response\.to\.have\.header\((.+)\)$`)
@@ -151,9 +151,14 @@ func readScript(code string, ops *entryOps) {
 			aliases[m[1]] = true
 			continue
 		}
+		// Any other assignment of an alias ends it.
+		if m := assignRE.FindStringSubmatch(stmt); m != nil {
+			delete(aliases, m[1])
+			continue
+		}
 		if m := headerHasRE.FindStringSubmatch(stmt); m != nil {
-			if name, ok := jsString(m[1]); ok {
-				ops.asserts = append(ops.asserts, Op{Section: syntaxedit.Asserts, Value: "header " + quote(name) + " exists"})
+			if name, ok := jsQuoted(m[1]); ok {
+				ops.asserts = append(ops.asserts, Op{Section: syntaxedit.Asserts, Value: "header " + name + " exists"})
 			}
 			continue
 		}
@@ -163,8 +168,8 @@ func readScript(code string, ops *entryOps) {
 				continue
 			}
 			if h := headerGetRE.FindStringSubmatch(m[1]); h != nil {
-				if name, ok := jsString(h[1]); ok {
-					ops.asserts = append(ops.asserts, Op{Section: syntaxedit.Asserts, Value: "header " + quote(name) + " == " + want})
+				if name, ok := jsQuoted(h[1]); ok {
+					ops.asserts = append(ops.asserts, Op{Section: syntaxedit.Asserts, Value: "header " + name + " == " + want})
 				}
 				continue
 			}
@@ -173,7 +178,9 @@ func readScript(code string, ops *entryOps) {
 				continue
 			}
 			if path, ok := jsonPath(m[1], aliases); ok {
-				ops.asserts = append(ops.asserts, Op{Section: syntaxedit.Asserts, Value: "jsonpath " + quote(path) + " == " + want})
+				if q, ok := quote(path); ok {
+					ops.asserts = append(ops.asserts, Op{Section: syntaxedit.Asserts, Value: "jsonpath " + q + " == " + want})
+				}
 			}
 			continue
 		}
@@ -181,30 +188,103 @@ func readScript(code string, ops *entryOps) {
 			raw, _ := jsString(m[1])
 			name := convert.VariableName(raw)
 			if path, ok := jsonPath(m[2], aliases); ok && name != "" {
-				ops.captures = append(ops.captures, Op{Section: syntaxedit.Captures, Key: name, Value: "jsonpath " + quote(path)})
+				if q, ok := quote(path); ok {
+					ops.captures = append(ops.captures, Op{Section: syntaxedit.Captures, Key: name, Value: "jsonpath " + q})
+				}
 			}
 		}
 	}
 }
 
-// statements splits a script into statements in a canonical spacing:
-// comment lines dropped, split at `;`, `{`, `}` and line ends (see
-// normalize). A statement a split cuts wrongly (a string holding `;`)
-// matches no form, and is left alone.
+// jsQuoted is a JavaScript string literal as a quoted string of a request
+// file.
+func jsQuoted(lit string) (string, bool) {
+	s, ok := jsString(lit)
+	if !ok {
+		return "", false
+	}
+	return quote(s)
+}
+
+// statements returns the statements of a script that run whenever the
+// script does: at its top level or directly in a pm.test callback, never
+// inside an if, a loop, a function or a skipped test. Comments are
+// dropped, strings kept as written, and each statement normalized. A
+// statement is ended by `;`, a brace, or a line break not followed by a
+// `.` (a chained call on the next line).
 func statements(code string) []string {
 	var out []string
-	for _, line := range strings.Split(code, "\n") {
-		if t := strings.TrimSpace(line); strings.HasPrefix(t, "//") || strings.HasPrefix(t, "/*") || strings.HasPrefix(t, "*") {
-			continue
-		}
-		for _, part := range strings.FieldsFunc(line, func(r rune) bool { return r == ';' || r == '{' || r == '}' }) {
-			if s := normalize(part); s != "" {
-				out = append(out, s)
+	var blocks []bool // whether each open block runs its statements
+	var cur strings.Builder
+	runs := func() bool {
+		for _, b := range blocks {
+			if !b {
+				return false
 			}
 		}
+		return true
 	}
+	flush := func() {
+		if s := normalize(cur.String()); s != "" && runs() {
+			out = append(out, s)
+		}
+		cur.Reset()
+	}
+	for i := 0; i < len(code); i++ {
+		c := code[i]
+		switch {
+		case c == '/' && i+1 < len(code) && code[i+1] == '/':
+			for i < len(code) && code[i] != '\n' {
+				i++
+			}
+			i--
+		case c == '/' && i+1 < len(code) && code[i+1] == '*':
+			end := strings.Index(code[i+2:], "*/")
+			if end < 0 {
+				i = len(code)
+				break
+			}
+			i += 2 + end + 1
+			cur.WriteByte(' ')
+		case c == '"' || c == '\'' || c == '`':
+			j := i + 1
+			for j < len(code) && code[j] != c {
+				if code[j] == '\\' {
+					j++
+				}
+				j++
+			}
+			j = min(j+1, len(code))
+			cur.WriteString(code[i:j])
+			i = j - 1
+		case c == ';':
+			flush()
+		case c == '\n':
+			rest := strings.TrimLeft(code[i+1:], " \t\r\n")
+			if strings.HasPrefix(rest, ".") {
+				cur.WriteByte(' ')
+			} else {
+				flush()
+			}
+		case c == '{':
+			head := normalize(cur.String())
+			cur.Reset()
+			blocks = append(blocks, runs() && testCallbackRE.MatchString(head))
+		case c == '}':
+			flush()
+			if len(blocks) > 0 {
+				blocks = blocks[:len(blocks)-1]
+			}
+		default:
+			cur.WriteByte(c)
+		}
+	}
+	flush()
 	return out
 }
+
+// testCallbackRE is the start of a pm.test callback, before its `{`.
+var testCallbackRE = regexp.MustCompile(`^pm\.test\(("[^"]*"|'[^']*'), (?:async )?(?:function\(\)|\(\) =>)$`)
 
 // normalize writes a statement with no space around `(`, `)`, `.`, `[`,
 // `]`, one after `,` and around `=`, and none at its ends; the text of
@@ -237,6 +317,12 @@ func normalize(s string) string {
 		case c == ',':
 			b.WriteString(", ")
 			space = false
+		case c == '=' && i+1 < len(s) && s[i+1] == '>':
+			out := strings.TrimRight(b.String(), " ")
+			b.Reset()
+			b.WriteString(out + " =>")
+			i++
+			space = true
 		case c == '=':
 			out := strings.TrimRight(b.String(), " ")
 			b.Reset()
@@ -320,16 +406,36 @@ func literal(s string) (string, bool) {
 	if _, err := strconv.ParseFloat(s, 64); err == nil && !strings.ContainsAny(s, "xXeE_") {
 		return s, true
 	}
-	if v, ok := jsString(s); ok {
-		return quote(v), true
-	}
-	return "", false
+	return jsQuoted(s)
 }
 
-// quote writes s as a double-quoted string.
-func quote(s string) string {
-	b, _ := json.Marshal(s)
-	return strings.ReplaceAll(string(b), "{{", `\{\{`)
+// quote writes s as a double-quoted string of a request file; ok is false
+// for a string one can not hold ({{ starts a placeholder).
+func quote(s string) (string, bool) {
+	if strings.Contains(s, "{{") {
+		return "", false
+	}
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch {
+		case r == '"' || r == '\\':
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		case r == '\n':
+			b.WriteString(`\n`)
+		case r == '\t':
+			b.WriteString(`\t`)
+		case r == '\r':
+			b.WriteString(`\r`)
+		case r < 0x20 || r == 0x7f:
+			fmt.Fprintf(&b, `\u{%x}`, r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String(), true
 }
 
 // oauth2Login reads an oauth2 auth as a login entry capturing

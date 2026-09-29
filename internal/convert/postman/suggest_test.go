@@ -128,3 +128,38 @@ func TestNormalize(t *testing.T) {
 		}
 	}
 }
+
+// TestReadScriptContexts translates only statements that always run, and
+// leaves the others (comments, branches, skipped tests) alone.
+func TestReadScriptContexts(t *testing.T) {
+	for name, tc := range map[string]struct {
+		code string
+		want []string
+	}{
+		"block comment":         {"/*\npm.expect(pm.response.code).to.eql(201);\n*/\npm.response.to.have.header('A');", []string{`header "A" exists`}},
+		"line comment":          {"// pm.expect(pm.response.code).to.eql(201);", nil},
+		"if else":               {"if (x) { pm.expect(pm.response.code).to.eql(200) } else { pm.expect(pm.response.code).to.eql(404) }", nil},
+		"skipped test":          {"pm.test.skip('s', function () { pm.expect(pm.response.code).to.eql(500); });", nil},
+		"nested fn":             {"pm.test('t', function () { [1].forEach(function (x) { pm.expect(pm.response.code).to.eql(1); }); });", nil},
+		"arrow test":            {"pm.test('t', () => {\n  pm.expect(pm.response.json().a)\n    .to.eql(\"<b&c>\");\n});", []string{`jsonpath "$.a" == "<b&c>"`}},
+		"alias reassigned":      {"var d = pm.response.json();\nd = d.data;\npm.expect(d.id).to.eql(1);", nil},
+		"placeholder text":      {"pm.expect(pm.response.json().a).to.eql('{{x}}');", nil},
+		"control char":          {"pm.expect(pm.response.json().a).to.eql('a\tb');", []string{`jsonpath "$.a" == "a\tb"`}},
+		"string with semicolon": {"pm.expect(pm.response.json().a).to.eql('x; y');", []string{`jsonpath "$.a" == "x; y"`}},
+	} {
+		var ops entryOps
+		readScript(tc.code, &ops)
+		var got []string
+		for _, op := range ops.asserts {
+			got = append(got, op.Value)
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: %q, want %q", name, got, tc.want)
+		}
+		for _, v := range got {
+			if _, err := syntax.Parse("t.hurl", []byte("GET http://x\nHTTP 200\n[Asserts]\n"+v+"\n"), syntax.DialectHurl); err != nil {
+				t.Errorf("%s: %s does not parse: %v", name, v, err)
+			}
+		}
+	}
+}

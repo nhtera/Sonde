@@ -128,7 +128,9 @@ func Plan(dir string, out Output, opts Options) (*Result, []PlannedFile, error) 
 
 	// exists reports whether rel exists in dir (never, when dir does not).
 	exists := func(string) (bool, error) { return false, nil }
-	if _, err := os.Stat(dir); err == nil {
+	if _, err := os.Stat(dir); err != nil && !os.IsNotExist(err) {
+		return nil, nil, fmt.Errorf("convert: %w", err)
+	} else if err == nil {
 		root, err := os.OpenRoot(dir)
 		if err != nil {
 			return nil, nil, fmt.Errorf("convert: %w", err)
@@ -214,12 +216,14 @@ func Plan(dir string, out Output, opts Options) (*Result, []PlannedFile, error) 
 // filesystem. dir is created if missing; every other write is confined
 // inside it (including through a symbolic link) using os.Root.
 func Write(dir string, out Output, opts Options) (*Result, error) {
+	if !opts.DryRun {
+		if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // G301: output directories are 0o755, docs/guides/import-export.md
+			return nil, fmt.Errorf("convert: %w", err)
+		}
+	}
 	res, files, err := Plan(dir, out, opts)
 	if err != nil || opts.DryRun {
 		return res, err
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // G301: output directories are 0o755, docs/guides/import-export.md
-		return nil, fmt.Errorf("convert: %w", err)
 	}
 	root, err := os.OpenRoot(dir)
 	if err != nil {
