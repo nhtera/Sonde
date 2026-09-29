@@ -65,7 +65,10 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	link := &launchLink{dir: dirs.Cache(), guard: guard, port: port}
 	defer link.remove()
-	app := newServerApp(&Host{Mode: ModeServer, Root: root, Dirs: dirs}, port, guard)
+	app, err := newServerApp(&Host{Mode: ModeServer, Root: root, Dirs: dirs}, port, guard)
+	if err != nil {
+		return err
+	}
 
 	// The link is minted once the port is ours: a link to a port another
 	// program took would hand that program the nonce.

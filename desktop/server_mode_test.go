@@ -55,7 +55,10 @@ func TestServerMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	host := &Host{Mode: ModeServer, Root: t.TempDir(), Dirs: dirs}
-	app := newServerApp(host, port, guard)
+	app, err := newServerApp(host, port, guard)
+	if err != nil {
+		t.Fatal(err)
+	}
 	done := make(chan error, 1)
 	go func() { done <- app.Run() }()
 	defer func() {

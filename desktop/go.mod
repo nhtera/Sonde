@@ -21,6 +21,7 @@ require (
 	github.com/antchfx/xpath v1.3.8 // indirect
 	github.com/bufbuild/protocompile v0.14.1 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
+	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect

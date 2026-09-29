@@ -28,12 +28,15 @@ const loopback = "127.0.0.1"
 // request passing guard. Wails' own event socket (/wails/events) is
 // outside the guard, so app events go through the guarded event stream
 // (emit.StreamPath) instead: h.Emit is set to it.
-func newServerApp(h *Host, port int, guard *serverauth.Guard) *application.App {
+func newServerApp(h *Host, port int, guard *serverauth.Guard) (*application.App, error) {
 	// Wails lets these override the address; server mode's address is fixed.
 	_ = os.Unsetenv("WAILS_SERVER_HOST")
 	_ = os.Unsetenv("WAILS_SERVER_PORT")
 	stream := emit.NewStream()
 	h.Emit = stream
+	if err := h.setup(); err != nil {
+		return nil, err
+	}
 	opts := appOptions(h)
 	opts.Services = append(opts.Services, application.NewServiceWithOptions(&eventStream{stream},
 		application.ServiceOptions{Name: "events", Route: emit.StreamPath}))
@@ -50,7 +53,7 @@ func newServerApp(h *Host, port int, guard *serverauth.Guard) *application.App {
 	opts.Assets.Middleware = guard.Middleware
 	// Request logs would record launch links.
 	opts.Assets.DisableLogging = true
-	return application.New(opts)
+	return application.New(opts), nil
 }
 
 // eventStream serves the event stream. It binds nothing: its only method

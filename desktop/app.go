@@ -10,7 +10,10 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
+	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/emit"
+	"github.com/nhtera/sonde/desktop/internal/handles"
+	"github.com/nhtera/sonde/desktop/internal/workspace"
 )
 
 // Mode is how the app is hosted.
@@ -33,6 +36,23 @@ type Host struct {
 	// Emit sends app events to the frontend (Wails events in the window,
 	// the guarded event stream over HTTP).
 	Emit emit.Emitter
+
+	// Shared by the services; built by setup.
+	Workspace *workspace.Workspace
+	Handles   *handles.Table
+}
+
+// setup builds the parts services share, once Emit is set, and opens Root
+// when given.
+func (h *Host) setup() error {
+	h.Handles = handles.New()
+	h.Workspace = workspace.New(h.Emit)
+	if h.Root != "" {
+		if _, err := h.Workspace.Open(h.Root); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // registration is one service. Each services_*.go file registers its
@@ -79,6 +99,8 @@ func appOptions(h *Host) application.Options {
 		Name:        "Sonde",
 		Description: "Reads and runs .hurl files",
 		Services:    services(h),
+		// Coded errors reach the page as {code, message}.
+		MarshalError: apperr.Marshal,
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},

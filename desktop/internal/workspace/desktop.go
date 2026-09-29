@@ -1,0 +1,150 @@
+// Copyright 2026 The Sonde Authors
+// SPDX-License-Identifier: Apache-2.0
+
+package workspace
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"time"
+
+	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/handles"
+	"github.com/nhtera/sonde/desktop/internal/osfile"
+	"github.com/nhtera/sonde/internal/sandbox"
+)
+
+// recentFile keeps the recent projects in the app's config folder.
+const recentFile = "recent.json"
+
+// maxRecent is how many recent projects are kept.
+const maxRecent = 10
+
+// Recent is a recently opened project.
+type Recent struct {
+	ID       string    `json:"id"`
+	Name     string    `json:"name"`
+	Dir      string    `json:"dir"`
+	OpenedAt time.Time `json:"openedAt"`
+}
+
+// Desktop is the workspace bindings of the window app only: opening
+// folders, the recent list, and the file manager and trash. Server mode
+// serves the one project given with --root and has none of these.
+type Desktop struct {
+	ws      *Workspace
+	config  *sandbox.Root
+	handles *handles.Table
+	// pickFolder shows the native folder dialog; "" when canceled.
+	pickFolder func() (string, error)
+}
+
+// NewDesktop returns the window-only bindings over ws. config is the
+// app's config folder; pickFolder shows the native folder dialog.
+func NewDesktop(ws *Workspace, config *sandbox.Root, h *handles.Table, pickFolder func() (string, error)) *Desktop {
+	return &Desktop{ws: ws, config: config, handles: h, pickFolder: pickFolder}
+}
+
+// OpenFolder asks for a folder and opens it; nil when canceled.
+func (d *Desktop) OpenFolder() (*Project, error) {
+	dir, err := d.pickFolder()
+	if err != nil || dir == "" {
+		return nil, err
+	}
+	return d.open(dir)
+}
+
+// OpenRecent opens the recent project id.
+func (d *Desktop) OpenRecent(id string) (*Project, error) {
+	for _, r := range d.Recent() {
+		if r.ID == id {
+			return d.open(r.Dir)
+		}
+	}
+	return nil, apperr.New(apperr.NotFound, "that project is no longer in the recent list")
+}
+
+func (d *Desktop) open(dir string) (*Project, error) {
+	p, err := d.ws.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+	d.remember(p)
+	return p, nil
+}
+
+// Recent lists the recent projects, newest first.
+func (d *Desktop) Recent() []Recent {
+	out := []Recent{}
+	if data, err := d.config.ReadFile(recentFile); err == nil {
+		_ = json.Unmarshal(data, &out)
+	}
+	return out
+}
+
+func (d *Desktop) remember(p *Project) {
+	sum := sha256.Sum256([]byte(p.Dir))
+	id := hex.EncodeToString(sum[:8])
+	list := slices.DeleteFunc(d.Recent(), func(r Recent) bool { return r.ID == id })
+	list = append([]Recent{{ID: id, Name: p.Name, Dir: p.Dir, OpenedAt: time.Now().UTC()}}, list...)
+	if len(list) > maxRecent {
+		list = list[:maxRecent]
+	}
+	if data, err := json.MarshalIndent(list, "", "  "); err == nil {
+		_ = d.config.WriteFileAtomic(recentFile, data, 0o600)
+	}
+}
+
+// Reveal shows file in the system file manager.
+func (d *Desktop) Reveal(ctx context.Context, file string) error {
+	p, err := d.ws.abs(file)
+	if err != nil {
+		return err
+	}
+	return osfile.Reveal(ctx, p)
+}
+
+// Trash moves file (or folder) to the system trash.
+func (d *Desktop) Trash(ctx context.Context, file string) error {
+	p, err := d.ws.abs(file)
+	if err != nil {
+		return err
+	}
+	return osfile.Trash(ctx, p)
+}
+
+// CopyIntoProject copies the file picked in a dialog (handle) into folder
+// dir of the project and returns its path.
+func (d *Desktop) CopyIntoProject(handle, dir string) (string, error) {
+	src, err := d.handles.Take(handle, handles.OpenFile)
+	if err != nil {
+		return "", apperr.Wrap(apperr.Expired, err)
+	}
+	fi, err := os.Stat(src)
+	if err != nil {
+		return "", err
+	}
+	if !fi.Mode().IsRegular() {
+		return "", apperr.New(apperr.Invalid, "not a file: "+filepath.Base(src))
+	}
+	data, err := os.ReadFile(src) //nolint:gosec // G304: a file the user picked in the native dialog
+	if err != nil {
+		return "", err
+	}
+	rel := path.Join(dir, filepath.Base(src))
+	if _, err := d.ws.Save(rel, string(data), ""); err != nil {
+		var e *apperr.Error
+		if errors.As(err, &e) && e.Code == apperr.Conflict {
+			return "", apperr.New(apperr.Conflict, rel+" already exists")
+		}
+		return "", err
+	}
+	return rel, nil
+}

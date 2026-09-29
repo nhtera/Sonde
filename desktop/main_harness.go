@@ -58,7 +58,10 @@ func run(args []string) error {
 	}
 	defer dirs.Close()
 	guard := serverauth.NewFixed(port, HarnessToken)
-	app := newServerApp(&Host{Mode: ModeHarness, Root: root, Dirs: dirs}, port, guard)
+	app, err := newServerApp(&Host{Mode: ModeHarness, Root: root, Dirs: dirs}, port, guard)
+	if err != nil {
+		return err
+	}
 	go func() {
 		if err := waitListening(port, 30*time.Second); err != nil {
 			fmt.Println(err)

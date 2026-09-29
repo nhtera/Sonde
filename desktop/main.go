@@ -31,7 +31,11 @@ func run() error {
 		return err
 	}
 	defer dirs.Close()
-	app := application.New(appOptions(&Host{Mode: ModeDesktop, Dirs: dirs, Emit: emit.Wails{}}))
+	h := &Host{Mode: ModeDesktop, Dirs: dirs, Emit: emit.Wails{}}
+	if err := h.setup(); err != nil {
+		return err
+	}
+	app := application.New(appOptions(h))
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "Sonde",
 		Width:     1280,
