@@ -314,6 +314,14 @@ linters:
               desc: "internal/runflags may import only: internal/runplan (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/runplan$
+        pkg-syntaxedit:
+          list-mode: lax
+          files: ["**/internal/syntaxedit/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/syntaxedit may import only: internal/syntax (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/internal/syntax$
         pkg-config:
           list-mode: lax
           files: ["**/internal/config/**", "!$test"]
