@@ -79,6 +79,40 @@ type MessageReceived struct {
 	Message exchange.Message
 }
 
+// Host events are sent only to a runner switched on through
+// enginex.EnableHostEvents (the desktop app); they are unexported so the
+// public API does not freeze their shape.
+
+// unitStarted is the first event of a unit. redact masks the unit's
+// secrets as they are known when it is called: the run's, the data
+// row's, and the `redact` captures and credentials found so far.
+type unitStarted struct{ redact func(string) string }
+
+// requestSent is sent as the call-th request (1-based: redirects count)
+// of an attempt of entry index is written. Like results, it holds raw
+// values.
+type requestSent struct {
+	index, call int
+	req         exchange.Request
+}
+
+// entrySkipped is sent for an entry that does not run: reason is
+// "option" (skip) or "repeat-zero" (repeat: 0).
+type entrySkipped struct {
+	index  int
+	reason string
+}
+
+// entryRedacts follows EntryStarted for an entry with a `redact` capture:
+// until its EntryFinished, its events may hold a value the capture then
+// makes secret, which the unit's redactor does not know yet.
+type entryRedacts struct{ index int }
+
+func (entryRedacts) isEvent() {}
+func (unitStarted) isEvent()  {}
+func (requestSent) isEvent()  {}
+func (entrySkipped) isEvent() {}
+
 func (Log) isEvent()             {}
 func (EntryStarted) isEvent()    {}
 func (EntryFinished) isEvent()   {}

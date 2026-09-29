@@ -26,7 +26,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 |---|---|---|
 | `cmd/sonde` | `main` → `cli.Execute()` | `internal/cli` |
 | `engine` (**public**) | `Runner` (`RunFile`, `RunSource`, `RunAll`, `RenderCurl`), `Options`, `HTTPOptions`, events, results (`Error`, `Value`), `ResponseValidator`, `Violation` | syntax, value, redact, template, query, filter, predicate, runerr, exchange, httpx, stream, grpcx, sandbox, enginex |
-| `internal/enginex` | constructors of engine result values for internal tests, set by `engine` | runerr, syntax, value |
+| `internal/enginex` | constructors of engine result values for internal tests, and engine settings and host hooks kept out of the public API (host allowlist, desktop events, WebSocket sessions, gRPC descriptors), set by `engine` | exchange, runerr, syntax, value, netpolicy, grpcx, stream |
 | `exchange` (**public**) | transport-neutral `Request`/`Response`/`Timings`/`CertInfo`/`Cookie`/`Stream`/`GRPCStatus` model; decoded body (br/gzip/deflate/zstd), charset-decoded text, `Set-Cookie` parsing | charset, codec |
 | `internal/syntax` | reader, parser, AST, lossless printer, canonical formatter, diagnostics, dialect gate | regex, styled |
 | `internal/regex` | regex validity rules shared by parser and evaluation | — (leaf) |

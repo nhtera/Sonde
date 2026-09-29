@@ -131,7 +131,10 @@ func (u *unit) grpcCall(ctx context.Context, e *syntax.Entry, s *syntax.Section,
 	callOpts := *opts
 	callOpts.GRPC, callOpts.ReadStream = true, nil
 
-	d, rerr := u.grpcDescriptors(ctx, s, target, metadata, &callOpts, timeout)
+	// Reflection calls are not the entry's request: no OnSend.
+	descOpts := callOpts
+	descOpts.OnSend = nil
+	d, rerr := u.grpcDescriptors(ctx, s, target, metadata, &descOpts, timeout)
 	if rerr != nil {
 		return nil, rerr
 	}
@@ -161,6 +164,12 @@ func (u *unit) grpcCall(ctx context.Context, e *syntax.Entry, s *syntax.Section,
 		so.Timeout, so.MaxBytes = timeout+time.Minute, maxBody(opts)
 	}
 	r := grpcReader{d: d, method: method, lim: so, maxBody: maxBody(opts), start: time.Now(), deadline: deadline}
+	if send := callOpts.OnSend; send != nil { // report the body as the Call records it
+		callOpts.OnSend = func(req exchange.Request) {
+			req.Body = requestJSON
+			send(req)
+		}
+	}
 	*opts = callOpts
 	opts.ReadStream = r.read
 	calls, err := u.client.Execute(ctx, spec, opts)
@@ -213,11 +222,23 @@ func maxBody(opts *httpx.Options) int64 {
 // files (once per run), or by server reflection (once per unit and
 // server).
 func (u *unit) grpcDescriptors(ctx context.Context, s *syntax.Section, target *neturl.URL, metadata []exchange.Header, opts *httpx.Options, timeout time.Duration) (*grpcx.Descriptors, *runerr.Error) {
+	files, rerr := u.grpcFiles(s)
+	if rerr != nil {
+		return nil, rerr
+	}
+	if len(files.Protos) == 0 && len(files.Protosets) == 0 {
+		return u.reflect(ctx, s, target, metadata, opts, timeout)
+	}
+	return u.loadGrpcFiles(ctx, s, files)
+}
+
+// grpcFiles renders the descriptor files a [SondeGrpc] section names.
+func (u *unit) grpcFiles(s *syntax.Section) (grpcx.Files, *runerr.Error) {
 	var files grpcx.Files
 	for _, kv := range s.KeyValues {
 		key, value, err := u.keyValue(kv)
 		if err != nil {
-			return nil, asRunErr(err, kv.Value.Span)
+			return files, asRunErr(err, kv.Value.Span)
 		}
 		switch key {
 		case "proto":
@@ -228,9 +249,12 @@ func (u *unit) grpcDescriptors(ctx context.Context, s *syntax.Section, target *n
 			files.Protosets = append(files.Protosets, value)
 		}
 	}
-	if len(files.Protos) == 0 && len(files.Protosets) == 0 {
-		return u.reflect(ctx, s, target, metadata, opts, timeout)
-	}
+	return files, nil
+}
+
+// loadGrpcFiles loads descriptors from files, once per run while they are
+// unchanged.
+func (u *unit) loadGrpcFiles(ctx context.Context, s *syntax.Section, files grpcx.Files) (*grpcx.Descriptors, *runerr.Error) {
 	f := u.runner.grpc.entry(u.root.Dir() + "\x02" + files.Key())
 	f.mu.Lock()
 	defer f.mu.Unlock()

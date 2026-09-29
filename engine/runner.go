@@ -35,6 +35,15 @@ type Runner struct {
 	// hosts restricts the hosts a run may contact (`sonde mcp`), set
 	// through enginex.SetHosts. Nil: unrestricted.
 	hosts *netpolicy.Policy
+	// hostEvents sends the host events (events.go) to the runner's event
+	// handlers, set through enginex.EnableHostEvents.
+	hostEvents bool
+	// seedCookies are stored in the cookie store of every unit before its
+	// first entry, set through enginex.SeedCookies.
+	seedCookies []Cookie
+	// revealCurl renders RenderCurl commands without masking secrets, set
+	// through enginex.RevealCurl.
+	revealCurl bool
 }
 
 // NewRunner returns a runner.
@@ -87,7 +96,7 @@ type unitIO struct {
 }
 
 func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio unitIO) (*UnitResult, error) {
-	res := &UnitResult{File: name, Source: src, Timestamp: time.Now(), runSecrets: r.secrets}
+	res := &UnitResult{File: name, Source: src, Timestamp: time.Now(), runSecrets: r.secrets, redacted: map[*EntryResult][]bool{}}
 	if uio.row != nil {
 		res.Row = uio.row.Index
 		res.rowSecrets = redact.New()
@@ -113,21 +122,11 @@ func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio uni
 		return nil, err
 	}
 	defer root.Close() //nolint:errcheck // read-only use
-	u := &unit{runner: r, file: f, name: name, src: src, root: root, rootDir: rootDir, io: uio, rowSecrets: res.rowSecrets}
-	client, err := httpx.NewClient(httpx.ClientConfig{
-		Sandbox:       root,
-		CookieFile:    r.opt.CookieFile,
-		NoCookieStore: r.opt.NoCookieStore,
-		Version:       moduleVersion(),
-		UserAgent:     r.opt.DefaultUserAgent,
-		Debug: func(line string) {
-			if u.verbosity >= VeryVerbose {
-				u.log(LogDebug, line)
-			}
-		},
-		Warn:  func(msg string) { u.log(LogWarning, msg) },
-		Hosts: r.hosts,
-	})
+	u := &unit{runner: r, file: f, name: name, src: src, root: root, rootDir: rootDir, io: uio, rowSecrets: res.rowSecrets, redacted: res.redacted}
+	if r.hostEvents {
+		u.emit(unitStarted{redact: u.redact})
+	}
+	client, err := u.newClient()
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +144,36 @@ func (r *Runner) runSource(ctx context.Context, name string, src []byte, uio uni
 		res.Cookies = append(res.Cookies, Cookie(c))
 	}
 	return res, nil
+}
+
+// newClient returns the HTTP client of a unit, its cookie store holding
+// the runner's seed cookies.
+func (u *unit) newClient() (*httpx.Client, error) {
+	r := u.runner
+	client, err := httpx.NewClient(httpx.ClientConfig{
+		Sandbox:       u.root,
+		CookieFile:    r.opt.CookieFile,
+		NoCookieStore: r.opt.NoCookieStore,
+		Version:       moduleVersion(),
+		UserAgent:     r.opt.DefaultUserAgent,
+		Debug: func(line string) {
+			if u.verbosity >= VeryVerbose {
+				u.log(LogDebug, line)
+			}
+		},
+		Warn:  func(msg string) { u.log(LogWarning, msg) },
+		Hosts: r.hosts,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range r.seedCookies {
+		if client.AddCookie(c.Netscape()) != nil { // the error would quote the value
+			_ = client.Close()
+			return nil, fmt.Errorf("seed cookie %s: invalid cookie", c.Name)
+		}
+	}
+	return client, nil
 }
 
 // variables builds the initial variables: the job's, the runner's
@@ -253,6 +282,9 @@ type unit struct {
 	// reflected are the gRPC descriptors loaded by server reflection, by
 	// server and service.
 	reflected map[string]*grpcx.Descriptors
+	// redacted records, for each attempt with a `redact` capture, which of
+	// its captures are secret (UnitResult.redacted).
+	redacted map[*EntryResult][]bool
 }
 
 // addSecret registers a secret found while running: with the row's
@@ -385,12 +417,14 @@ func (u *unit) run(ctx context.Context, res *UnitResult) {
 		if eo.skip {
 			u.debug("")
 			u.debugImportant(fmt.Sprintf("Entry %d has been skipped", current))
+			u.skipped(current, "option")
 			current++
 			continue
 		}
 		if eo.repeat != nil && *eo.repeat == 0 {
 			u.debug("")
 			u.debugImportant(fmt.Sprintf("Entry %d is skipped (repeat 0 times)", current))
+			u.skipped(current, "repeat-zero")
 			current++
 			continue
 		}
@@ -428,6 +462,13 @@ func (u *unit) run(ctx context.Context, res *UnitResult) {
 	}
 }
 
+// skipped sends the host event of an entry that does not run.
+func (u *unit) skipped(index int, reason string) {
+	if u.runner.hostEvents {
+		u.emit(entrySkipped{index: index, reason: reason})
+	}
+}
+
 // success reports whether every attempt that was not retried has no
 // error.
 func success(entries []*EntryResult) bool {
@@ -455,6 +496,9 @@ func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int,
 	var results []*EntryResult
 	for retry := 0; ; retry++ {
 		u.emit(EntryStarted{Index: index, Retry: retry, Last: u.last})
+		if u.runner.hostEvents && entry.Response != nil && slices.ContainsFunc(captures(entry.Response), func(c *syntax.Capture) bool { return c.Redact }) {
+			u.emit(entryRedacts{index: index})
+		}
 		res := u.runEntry(ctx, entry, index, eo)
 		hasError := len(res.Errors) > 0
 		maxReached := eo.retry >= 0 && retry >= eo.retry

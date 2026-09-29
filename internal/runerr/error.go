@@ -117,6 +117,11 @@ type Error struct {
 	TypeMismatch bool
 	Value        string
 	Reason       string
+	// Transport classifies a failed exchange for front ends: connect,
+	// resolve, timeout, tls, host-denied, canceled or other; empty when
+	// the error is not a transport failure. It never changes the kind,
+	// the message or a report.
+	Transport string
 }
 
 // New returns an error of kind k at span.

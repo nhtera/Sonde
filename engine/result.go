@@ -37,6 +37,9 @@ type UnitResult struct {
 
 	// runSecrets and rowSecrets are the registries Redact masks.
 	runSecrets, rowSecrets *redact.Registry
+	// redacted tells, for an attempt with a `redact` capture, which of
+	// its Captures are secret (enginex.CaptureRedacted).
+	redacted map[*EntryResult][]bool
 }
 
 // Label names the run in output and reports: the file, and its data row

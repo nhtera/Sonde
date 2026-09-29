@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -51,6 +52,11 @@ type upgradeTransport struct {
 }
 
 func (t *upgradeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.u.opts.OnSend != nil {
+		sent := t.u.Request
+		sent.Headers = append(slices.Clip(sent.Headers), libraryHeaders(req.Header)...)
+		t.u.opts.OnSend(sent)
+	}
 	resp, err := t.rt.RoundTrip(req)
 	if err != nil || resp.StatusCode == http.StatusSwitchingProtocols {
 		return resp, err
@@ -134,14 +140,22 @@ func (u *Upgrade) Response(resp *http.Response) *exchange.Response {
 		Timings:        exchange.Timings{Begin: u.start, End: end, Total: end.Sub(u.start)},
 	}
 	if resp.Request != nil {
-		for _, name := range handshakeHeaders {
-			for _, v := range resp.Request.Header.Values(name) {
-				u.Request.Headers = append(u.Request.Headers, exchange.Header{Name: name, Value: v})
-			}
-		}
+		u.Request.Headers = append(u.Request.Headers, libraryHeaders(resp.Request.Header)...)
 	}
 	u.client.jar.updateFromResponse(u.url, r, u.start)
 	return r
+}
+
+// libraryHeaders returns the handshake headers the WebSocket library
+// added to h.
+func libraryHeaders(h http.Header) []exchange.Header {
+	var out []exchange.Header
+	for _, name := range handshakeHeaders {
+		for _, v := range h.Values(name) {
+			out = append(out, exchange.Header{Name: name, Value: v})
+		}
+	}
+	return out
 }
 
 // handshakeHeaders are the headers the WebSocket library adds.

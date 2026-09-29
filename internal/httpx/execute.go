@@ -266,6 +266,9 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 		prep.req.Body = io.NopCloser(newRateLimitedReader(reqCtx, prep.req.Body, opts.MaxSendSpeed))
 	}
 
+	if opts.OnSend != nil {
+		opts.OnSend(exchange.Request{Method: prep.req.Method, URL: prep.req.URL.String(), Headers: prep.headers, Body: prep.body})
+	}
 	resp, err := built.rt.RoundTrip(prep.req)
 	timings.stop()
 	if err != nil {

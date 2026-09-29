@@ -129,6 +129,7 @@ func (u *unit) send(ctx context.Context, e *syntax.Entry, index int, spec *httpx
 // allowlist is final: retrying the entry would be refused the same way.
 func httpError(span syntax.Span, err error) *runerr.Error {
 	e := runerr.New(span, runerr.HTTP, false)
+	e.Transport = transportClass(err)
 	var he *httpx.Error
 	if errors.As(err, &he) {
 		e.Value, e.Reason = he.Description, he.Msg
@@ -139,25 +140,35 @@ func httpError(span syntax.Span, err error) *runerr.Error {
 	return e
 }
 
+// transportClass names the class of a transport failure (see
+// runerr.Error.Transport).
+func transportClass(err error) string {
+	if errors.Is(err, context.Canceled) {
+		return "canceled"
+	}
+	var he *httpx.Error
+	if !errors.As(err, &he) {
+		return "other"
+	}
+	switch he.Kind {
+	case httpx.ErrConnect:
+		return "connect"
+	case httpx.ErrResolve:
+		return "resolve"
+	case httpx.ErrTimeout:
+		return "timeout"
+	case httpx.ErrTLS:
+		return "tls"
+	case httpx.ErrHostDenied:
+		return "host-denied"
+	}
+	return "other"
+}
+
 // webSocket runs the [SondeMessages] steps of an entry.
 func (u *unit) webSocket(ctx context.Context, e *syntax.Entry, s *syntax.Section, spec *httpx.RequestSpec, opts *httpx.Options, so stream.Options) ([]httpx.Call, *runerr.Error) {
-	req := e.Request
-	invalid := func(span syntax.Span, reason string) *runerr.Error {
-		re := runerr.New(span, runerr.Stream, false)
-		re.Value, re.Reason = "WebSocket", reason
-		return re
-	}
-	if req.Method.Value != "GET" {
-		return nil, invalid(req.Method.Span, "a WebSocket entry must use GET")
-	}
-	if req.Body != nil {
-		return nil, invalid(req.Body.Span, "a WebSocket entry has no request body: send messages with `send` steps")
-	}
-	for _, sec := range req.Sections {
-		switch sec.Kind {
-		case syntax.SectionFormParams, syntax.SectionMultipart:
-			return nil, invalid(sec.Span, "a WebSocket entry has no request body: send messages with `send` steps")
-		}
+	if re := invalidWebSocket(e.Request); re != nil {
+		return nil, re
 	}
 	steps := make([]stream.Step, len(s.Messages))
 	for i, m := range s.Messages {
@@ -190,6 +201,29 @@ func (u *unit) webSocket(ctx context.Context, e *syntax.Entry, s *syntax.Section
 		return calls, re
 	}
 	return nil, httpError(e.Request.URL.Span, err)
+}
+
+// invalidWebSocket checks what a WebSocket entry can not have: a method
+// other than GET, or a request body.
+func invalidWebSocket(req *syntax.Request) *runerr.Error {
+	invalid := func(span syntax.Span, reason string) *runerr.Error {
+		re := runerr.New(span, runerr.Stream, false)
+		re.Value, re.Reason = "WebSocket", reason
+		return re
+	}
+	if req.Method.Value != "GET" {
+		return invalid(req.Method.Span, "a WebSocket entry must use GET")
+	}
+	if req.Body != nil {
+		return invalid(req.Body.Span, "a WebSocket entry has no request body: send messages with `send` steps")
+	}
+	for _, sec := range req.Sections {
+		switch sec.Kind {
+		case syntax.SectionFormParams, syntax.SectionMultipart:
+			return invalid(sec.Span, "a WebSocket entry has no request body: send messages with `send` steps")
+		}
+	}
+	return nil
 }
 
 // step renders a [SondeMessages] step.

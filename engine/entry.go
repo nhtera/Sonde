@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -67,6 +68,13 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 	}
 	opts := eo.http
 	opts.Verbose = u.verbosity >= Verbose
+	if u.runner.hostEvents {
+		call := 0
+		opts.OnSend = func(req exchange.Request) {
+			call++
+			u.emit(requestSent{index: index, call: call, req: req})
+		}
+	}
 	res.Curl = u.entryCurl(e, spec, &opts, eo)
 	u.logRequest(spec, res.Curl)
 
@@ -102,8 +110,11 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 	}
 	qctx := query.NewContext(responses, u.env)
 	if resp != nil {
-		caps, err := u.captures(resp, qctx)
+		caps, secret, err := u.captures(resp, qctx)
 		res.Captures = caps
+		if slices.Contains(secret, true) && u.redacted != nil {
+			u.redacted[res] = secret
+		}
 		u.logCaptures(caps)
 		if err != nil {
 			res.Errors = append(res.Errors, &Error{run: err})
@@ -173,28 +184,28 @@ func versionStatusAsserts(r *syntax.Response, final *exchange.Response) []Assert
 }
 
 // captures evaluates the captures of a response and defines their
-// variables; `redact` captures become secrets.
-func (u *unit) captures(r *syntax.Response, qctx *query.Context) ([]Capture, *runerr.Error) {
-	var caps []Capture
+// variables; `redact` captures become secrets, and secret tells which
+// captures they are.
+func (u *unit) captures(r *syntax.Response, qctx *query.Context) (caps []Capture, secret []bool, _ *runerr.Error) {
 	for _, c := range captures(r) {
 		name, err := u.env.Render(c.Name)
 		if err != nil {
-			return caps, asRunErr(err, c.Name.Span)
+			return caps, secret, asRunErr(err, c.Name.Span)
 		}
 		v, err := qctx.Eval(c.Query)
 		if err != nil {
-			return caps, asRunErr(err, c.Query.Span)
+			return caps, secret, asRunErr(err, c.Query.Span)
 		}
 		if v == nil {
-			return caps, runerr.New(c.Query.Span, runerr.NoQueryResult, false)
+			return caps, secret, runerr.New(c.Query.Span, runerr.NoQueryResult, false)
 		}
 		if len(c.Filters) > 0 {
 			if v, err = filter.Apply(c.Filters, v, u.env, false); err != nil {
-				return caps, asRunErr(err, c.Query.Span)
+				return caps, secret, asRunErr(err, c.Query.Span)
 			}
 			if v == nil {
 				span := syntax.Span{Start: c.Filters[0].Filter.Span.Start, End: c.Filters[len(c.Filters)-1].Filter.Span.End}
-				return caps, runerr.New(span, runerr.NoFilterResult, false)
+				return caps, secret, runerr.New(span, runerr.NoFilterResult, false)
 			}
 		}
 		if c.Redact {
@@ -202,7 +213,7 @@ func (u *unit) captures(r *syntax.Response, qctx *query.Context) ([]Capture, *ru
 			if !ok {
 				e := runerr.New(c.Name.Span, runerr.UnsupportedSecretType, false)
 				e.Actual = v.Kind().String()
-				return caps, e
+				return caps, secret, e
 			}
 			u.env.Vars.SetSecret(name, string(s))
 			u.addSecret(name, string(s))
@@ -210,8 +221,9 @@ func (u *unit) captures(r *syntax.Response, qctx *query.Context) ([]Capture, *ru
 			u.env.Vars.Set(name, v)
 		}
 		caps = append(caps, Capture{Name: name, Value: Value{v: v}})
+		secret = append(secret, c.Redact)
 	}
-	return caps, nil
+	return caps, secret, nil
 }
 
 // asserts evaluates the implicit header and body asserts, then the explicit

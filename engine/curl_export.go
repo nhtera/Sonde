@@ -179,7 +179,7 @@ func (r *Runner) renderCurl(ctx context.Context, name string, src []byte, file *
 	// after the run" contract, rather than each entry's own partial view
 	// of the secret registry as it was rendered.
 	for i := range out {
-		if out[i].Err == nil {
+		if out[i].Err == nil && !r.revealCurl {
 			out[i].Command = r.Redact(out[i].Command)
 		}
 	}

@@ -190,12 +190,15 @@ linters:
           files: ["**/internal/enginex/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/enginex may import only: internal/runerr, internal/syntax, internal/value, internal/netpolicy (architecture §2)"
+              desc: "internal/enginex may import only: exchange, internal/runerr, internal/syntax, internal/value, internal/netpolicy, internal/grpcx, internal/stream (architecture §2)"
           allow:
+            - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/runerr$
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/internal/value$
             - github.com/nhtera/sonde/internal/netpolicy$
+            - github.com/nhtera/sonde/internal/grpcx$
+            - github.com/nhtera/sonde/internal/stream$
         pkg-runerr:
           list-mode: lax
           files: ["**/internal/runerr/**", "!$test"]

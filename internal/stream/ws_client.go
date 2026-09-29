@@ -51,24 +51,11 @@ func WebSocket(ctx context.Context, u *httpx.Upgrade, steps []Step, lim Options)
 	lim = lim.withDefaults()
 	ctx, cancel := context.WithTimeout(ctx, u.MaxTime())
 	defer cancel()
-	client, raw := recordConn(u.Client)
-	conn, resp, err := websocket.Dial(ctx, u.URL, &websocket.DialOptions{
-		HTTPClient: client, HTTPHeader: u.Header, Host: u.Host,
-		CompressionMode: websocket.CompressionDisabled,
-	})
-	if resp == nil {
-		return nil, u.Error(err)
+	conn, raw, r, err := dial(ctx, u)
+	if conn == nil {
+		return r, err
 	}
-	if err != nil {
-		r := u.Response(resp)
-		if resp.StatusCode == http.StatusSwitchingProtocols {
-			return r, fmt.Errorf("invalid WebSocket handshake: %w", err)
-		}
-		return r, nil
-	}
-	r := u.Response(resp)
-	r.Stream = &exchange.Stream{Protocol: exchange.ProtocolWebSocket}
-	s := &session{conn: conn, raw: *raw, stream: r.Stream, start: time.Now(), deadline: time.Now().Add(lim.Timeout), opts: lim, notify: make(chan struct{}, 1)}
+	s := &session{conn: conn, raw: raw, stream: r.Stream, start: time.Now(), deadline: time.Now().Add(lim.Timeout), opts: lim, notify: make(chan struct{}, 1)}
 	conn.SetReadLimit(lim.MaxBytes)
 	readCtx, stopRead := context.WithCancel(context.Background())
 	s.stopRead = stopRead
@@ -87,6 +74,30 @@ func WebSocket(ctx context.Context, u *httpx.Upgrade, steps []Step, lim Options)
 	}
 	r.Stream.StopReason = exchange.StopScript
 	return r, nil
+}
+
+// dial performs the handshake prepared by u. On success it returns the
+// connection, the raw upgraded connection and the handshake response,
+// which has an empty WebSocket Stream. A refused upgrade returns only the
+// response, a failed handshake the response (if any) and an error.
+func dial(ctx context.Context, u *httpx.Upgrade) (*websocket.Conn, io.Closer, *exchange.Response, error) {
+	client, raw := recordConn(u.Client)
+	conn, resp, err := websocket.Dial(ctx, u.URL, &websocket.DialOptions{
+		HTTPClient: client, HTTPHeader: u.Header, Host: u.Host,
+		CompressionMode: websocket.CompressionDisabled,
+	})
+	if resp == nil {
+		return nil, nil, nil, u.Error(err)
+	}
+	r := u.Response(resp)
+	if err != nil {
+		if resp.StatusCode == http.StatusSwitchingProtocols {
+			return nil, nil, r, fmt.Errorf("invalid WebSocket handshake: %w", err)
+		}
+		return nil, nil, r, nil
+	}
+	r.Stream = &exchange.Stream{Protocol: exchange.ProtocolWebSocket}
+	return conn, *raw, r, nil
 }
 
 // recordConn returns a copy of client that records the connection of a

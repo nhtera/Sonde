@@ -153,6 +153,12 @@ type Options struct {
 	// prior knowledge for http://), never follows redirects, and its
 	// response headers include the trailers.
 	GRPC bool
+	// OnSend, when set, receives each request as it is sent (every
+	// redirect hop, and a WebSocket handshake), exactly as the Call
+	// reporting it records it. It is called on the goroutine of Execute or
+	// of the handshake, before the request is written. req shares its
+	// slices with the Call: it must not be modified.
+	OnSend func(req exchange.Request)
 }
 
 // Call is one HTTP exchange of an entry; redirects produce several.
