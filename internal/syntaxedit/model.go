@@ -135,6 +135,7 @@ func EntryAt(models []EntryModel, offset int) int {
 type doc struct {
 	name    string
 	src     []byte
+	nl      string // the line ending of the source: "\r\n" or "\n"
 	file    *syntax.File
 	off     *offsets
 	entries []*entry
@@ -177,12 +178,15 @@ func parse(name string, src []byte) (*doc, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &doc{name: name, src: src, file: f, off: newOffsets(src)}
+	d := &doc{name: name, src: src, file: f, off: newOffsets(src), nl: "\n"}
+	if i := bytes.IndexByte(src, '\n'); i > 0 && src[i-1] == '\r' {
+		d.nl = "\r\n"
+	}
 	for i, e := range f.Entries {
 		next := len(src)
 		if i+1 < len(f.Entries) {
-			next = f.Entries[i+1].Request.Method.Span.Start.Offset
-			next = d.lineStart(next)
+			// The comment lines right above the next method are its own.
+			next = d.firstLineAbove(f.Entries[i+1].Request.Method.Span.Start.Offset)
 		}
 		d.entries = append(d.entries, d.layout(e, next))
 	}
@@ -192,6 +196,20 @@ func parse(name string, src []byte) (*doc, error) {
 // lineStart returns the offset of the start of the line holding off.
 func (d *doc) lineStart(off int) int {
 	return bytes.LastIndexByte(d.src[:off], '\n') + 1
+}
+
+// firstLineAbove is the start of the first of the comment lines directly
+// above the line holding off (no blank line between), or of that line.
+func (d *doc) firstLineAbove(off int) int {
+	start := d.lineStart(off)
+	for start > 0 {
+		prev := d.lineStart(start - 1)
+		if !strings.HasPrefix(strings.TrimSpace(string(d.src[prev:start])), "#") {
+			break
+		}
+		start = prev
+	}
+	return start
 }
 
 // lineEndAfter returns the offset after the newline ending the line
@@ -370,9 +388,25 @@ func (d *doc) findDisabled(en *entry, next int) {
 }
 
 // scanDisabled adds the disabled rows of section name found in the lines
-// of [from, to), in order among its rows.
+// of [from, to), in order among its rows: comment lines outside its rows'
+// own text (a multi-line value), before the first blank line that follows
+// the section's content.
 func (d *doc) scanDisabled(en *entry, name Section, from, to int) {
 	s := en.sections[name]
+	var covered [][2]int
+	contentEnd := from
+	for _, r := range s.rows {
+		covered = append(covered, [2]int{r.lineStart, r.lineEnd})
+		contentEnd = max(contentEnd, r.lineEnd)
+	}
+	inRow := func(pos int) bool {
+		for _, c := range covered {
+			if pos >= c[0] && pos < c[1] {
+				return true
+			}
+		}
+		return false
+	}
 	for pos := from; pos < to; {
 		end := d.lineEndAfter(pos)
 		if end > to {
@@ -381,6 +415,13 @@ func (d *doc) scanDisabled(en *entry, name Section, from, to int) {
 		line := string(d.src[pos:end])
 		body := strings.TrimRight(line, "\r\n")
 		trimmed := strings.TrimLeft(body, " \t")
+		if trimmed == "" && pos >= contentEnd {
+			return
+		}
+		if inRow(pos) {
+			pos = end
+			continue
+		}
 		if rest, ok := strings.CutPrefix(trimmed, "#"); ok {
 			text := strings.TrimPrefix(rest, " ")
 			if key, value, ok := readRow(d.name, name, text); ok {
@@ -390,6 +431,7 @@ func (d *doc) scanDisabled(en *entry, name Section, from, to int) {
 				r.Key, r.Value, r.Disabled = key, value, true
 				r.Range = d.off.rng(r.start, r.end)
 				s.rows = insertRow(s.rows, r)
+				contentEnd = max(contentEnd, end)
 				if end > s.end {
 					s.end = end
 					en.bump(name, end)

@@ -190,26 +190,58 @@ func TestRefused(t *testing.T) {
 
 func TestApplyEdits(t *testing.T) {
 	src := sample
-	at := u16(src, strings.Index(src, "[Options]"))
-	res, err := ApplyEdits("t.hurl", []byte(src), []TextEdit{{Range: Range{at, at}, NewText: "limit: 5\n"}})
+	res := apply(t, src, func(b []byte) (*Result, error) {
+		return ApplyEdits("t.hurl", b, []RowInsert{
+			{Entry: 1, Section: Query, Key: "limit", Value: "5"},
+			{Entry: 2, Section: Asserts, Value: "status == 200"},
+		})
+	})
+	if !strings.Contains(res, "# page: 2\nlimit: 5\n[Options]") || !strings.Contains(res, "users\nHTTP *\n[Asserts]\nstatus == 200\n") {
+		t.Errorf("result:\n%s", res)
+	}
+	for name, r := range map[string]RowInsert{
+		"options":    {Entry: 1, Section: Options, Key: "output", Value: "/etc/x"},
+		"multipart":  {Entry: 1, Section: Multipart, Key: "f", Value: "file,/etc/passwd;"},
+		"basic auth": {Entry: 1, Section: BasicAuth, Key: "u", Value: "p"},
+		"two lines":  {Entry: 1, Section: Headers, Key: "A", Value: "1\nB: 2"},
+		"comment":    {Entry: 1, Section: Headers, Key: "A", Value: "1 # x"},
+		"new entry":  {Entry: 1, Section: Asserts, Value: "status == 200\nGET http://evil"},
+	} {
+		if _, err := ApplyEdits("t.hurl", []byte(src), []RowInsert{r}); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// TestCommentsAreNotRows checks comments that only look like rows: after
+// a blank line, above the next entry, inside a multi-line value.
+func TestCommentsAreNotRows(t *testing.T) {
+	src := "GET http://x\nA: 1\n\n# Note: next call\n# TODO: remove\nGET http://y\nHTTP 200\n[Asserts]\nbody == ```\n# status == 200\n```\n"
+	ms, err := Model("t.hurl", []byte(src))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(res.Source), "# page: 2\nlimit: 5\n[Options]") {
-		t.Errorf("result:\n%s", res.Source)
+	if rows := ms[0].Rows[Headers]; len(rows) != 1 {
+		t.Errorf("headers of entry 1: %+v", rows)
 	}
-	for name, e := range map[string]TextEdit{
-		"two lines":     {Range{at, at}, "a: 1\nb: 2\n"},
-		"no newline":    {Range{at, at}, "a: 1"},
-		"mid line":      {Range{at + 1, at + 1}, "a: 1\n"},
-		"replace":       {Range{at, at + 3}, "a: 1\n"},
-		"new entry":     {Range{at, at}, "GET http://evil\n"},
-		"comment only":  {Range{at, at}, "# a: 1\n"},
-		"section start": {Range{at, at}, "[Cookies]\n"},
-	} {
-		if _, err := ApplyEdits("t.hurl", []byte(src), []TextEdit{e}); err == nil {
-			t.Errorf("%s: accepted", name)
-		}
+	if rows := ms[1].Rows[Asserts]; len(rows) != 1 {
+		t.Errorf("asserts of entry 2: %+v", rows)
+	}
+	if rows := ms[1].Rows[Headers]; len(rows) != 0 {
+		t.Errorf("headers of entry 2: %+v", rows)
+	}
+}
+
+// TestCRLF inserts lines with the source's line endings.
+func TestCRLF(t *testing.T) {
+	src := strings.ReplaceAll("GET http://x\nA: 1\n", "\n", "\r\n")
+	out := apply(t, src, func(b []byte) (*Result, error) { return AddRow("t.hurl", b, 1, Query, "q", "1") })
+	if out != "GET http://x\r\nA: 1\r\n[Query]\r\nq: 1\r\n" {
+		t.Errorf("result %q", out)
+	}
+	out = apply(t, out, func(b []byte) (*Result, error) { return SetBody("t.hurl", b, 1, "```\na\n```") })
+	if strings.Count(out, "\n") != strings.Count(out, "\r\n") {
+		t.Errorf("mixed line endings %q", out)
 	}
 }
 
@@ -237,8 +269,6 @@ func TestOffsets(t *testing.T) {
 		t.Errorf("long: %d", got)
 	}
 }
-
-func utf8Start(b byte) bool { return b&0xC0 != 0x80 }
 
 // TestEditsReparse runs every row operation on every row of the sample:
 // each result parses, prints back and changes only its edit.
@@ -276,10 +306,7 @@ func FuzzOps(f *testing.F) {
 			func() (*Result, error) { return SetBody("t.hurl", []byte(src), 1, value) },
 			func() (*Result, error) { return AddAssert("t.hurl", []byte(src), 1, value) },
 		}
-		if which < 0 {
-			which = -which
-		}
-		res, err := ops[which%len(ops)]()
+		res, err := ops[uint(which)%uint(len(ops))]()
 		if err != nil {
 			return
 		}
@@ -291,4 +318,20 @@ func FuzzOps(f *testing.F) {
 			t.Fatal("result does not print back")
 		}
 	})
+}
+
+func TestAddLoginEntryGolden(t *testing.T) {
+	src := "# Users\nGET https://api.test/users\nAuthorization: Bearer {{token}}\n"
+	out := apply(t, src, func(b []byte) (*Result, error) {
+		return AddLoginEntry("t.hurl", b, 1, LoginSpec{
+			Request: syntax.EntrySpec{Method: "POST", URL: syntax.PlainText("https://auth.test/token"),
+				Form: []syntax.Field{syntax.KV("grant_type", "client_credentials"), {Key: syntax.PlainText("client_id"), Value: syntax.Text{syntax.Var("client_id")}}}},
+			Capture: "token", JSONPath: `$["access token"]`, Redact: true,
+		})
+	})
+	want := "POST https://auth.test/token\n[Form]\ngrant_type: client_credentials\nclient_id: {{client_id}}\nHTTP 200\n" +
+		"[Captures]\ntoken: jsonpath \"$[\\\"access token\\\"]\" redact\n\n# Users\nGET https://api.test/users\nAuthorization: Bearer {{token}}\n"
+	if out != want {
+		t.Errorf("result:\n%s\nwant:\n%s", out, want)
+	}
 }

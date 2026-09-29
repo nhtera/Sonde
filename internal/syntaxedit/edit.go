@@ -6,7 +6,6 @@ package syntaxedit
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/nhtera/sonde/internal/syntax"
@@ -24,6 +23,7 @@ var ErrInvalid = errors.New("syntaxedit: invalid edit")
 // splice replaces src[start:end] with text and checks the result with
 // check (nil: parsing is enough).
 func (d *doc) splice(start, end int, text string, check func(*doc) error) (*Result, error) {
+	text = d.eol(text)
 	out := make([]byte, 0, len(d.src)-(end-start)+len(text))
 	out = append(out, d.src[:start]...)
 	out = append(out, text...)
@@ -38,6 +38,14 @@ func (d *doc) splice(start, end int, text string, check func(*doc) error) (*Resu
 		}
 	}
 	return &Result{Source: out, Edits: []TextEdit{{Range: d.off.rng(start, end), NewText: text}}}, nil
+}
+
+// eol writes the line breaks of text as the source does.
+func (d *doc) eol(text string) string {
+	if d.nl == "\n" {
+		return text
+	}
+	return strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\n", d.nl)
 }
 
 // load parses src and returns entry n (1-based).
@@ -357,7 +365,7 @@ func SetBody(name string, src []byte, n int, body string) (*Result, error) {
 	check := both(sameEntries(d), func(nd *doc) error {
 		b := nd.entries[n-1].e.Request.Body
 		switch {
-		case body == "" && b != nil, body != "" && (b == nil || nd.text(b.Span) != body):
+		case body == "" && b != nil, body != "" && (b == nil || nd.text(b.Span) != d.eol(body)):
 			return fmt.Errorf("%w: the body does not read back as written", ErrInvalid)
 		}
 		return nil
@@ -442,81 +450,64 @@ func RemoveEntry(name string, src []byte, n int) (*Result, error) {
 	})
 }
 
-// firstLineOf is the start of the first comment line directly above en's
+// firstLineOf is the start of the comment lines directly above en's
 // method (no blank line between).
-func (d *doc) firstLineOf(en *entry) int {
-	start := d.lineStart(en.start)
-	for start > 0 {
-		prev := d.lineStart(start - 1)
-		line := strings.TrimSpace(string(d.src[prev:start]))
-		if !strings.HasPrefix(line, "#") {
-			break
-		}
-		start = prev
-	}
-	return start
+func (d *doc) firstLineOf(en *entry) int { return d.firstLineAbove(en.start) }
+
+// RowInsert is a row an edit made elsewhere (an import suggestion) adds
+// to a file: Key and Value are source text, rendered like AddRow's.
+type RowInsert struct {
+	Entry      int
+	Section    Section
+	Key, Value string
 }
 
-// ApplyEdits applies edits that each insert one row (a whole line, as a
-// builder renders it) at the start of a line, and checks that the result
-// has exactly one more row per edit and the same entries. It is the only
-// way an edit made elsewhere (an import suggestion) reaches a file.
-func ApplyEdits(name string, src []byte, edits []TextEdit) (*Result, error) {
+// applicable are the sections ApplyEdits adds rows to: never [Options],
+// [Multipart] or [BasicAuth], whose rows can reroute requests, read or
+// write files, or send credentials.
+var applicable = map[Section]bool{
+	Headers: true, Query: true, Form: true, Cookies: true,
+	ResponseHeaders: true, Captures: true, Asserts: true,
+}
+
+// ApplyEdits adds rows to a file, each rendered and checked like AddRow
+// (one more row in its section, the same entries), in order. It is the
+// only way an edit made elsewhere (an import suggestion) reaches a file.
+// The result has one edit from src.
+func ApplyEdits(name string, src []byte, rows []RowInsert) (*Result, error) {
 	d, err := parse(name, src)
 	if err != nil {
 		return nil, err
 	}
-	type splice struct {
-		at   int
-		text string
-	}
-	var ss []splice
-	for _, e := range edits {
-		if e.Range.Start != e.Range.End {
-			return nil, fmt.Errorf("%w: an edit may only insert", ErrInvalid)
+	out := src
+	for _, r := range rows {
+		if !applicable[r.Section] {
+			return nil, fmt.Errorf("%w: rows are not added to the %s section from elsewhere", ErrInvalid, r.Section)
 		}
-		at, err := d.off.toByte(e.Range.Start)
+		res, err := AddRow(name, out, r.Entry, r.Section, r.Key, r.Value)
 		if err != nil {
 			return nil, err
 		}
-		if at != d.lineStart(at) || !strings.HasSuffix(e.NewText, "\n") || strings.Count(e.NewText, "\n") != 1 || strings.Contains(e.NewText, "\r") {
-			return nil, fmt.Errorf("%w: an edit must insert one whole line at a line start", ErrInvalid)
-		}
-		ss = append(ss, splice{at, e.NewText})
+		out = res.Source
 	}
-	sort.SliceStable(ss, func(i, j int) bool { return ss[i].at < ss[j].at })
-	var out []byte
-	prev := 0
-	for _, s := range ss {
-		out = append(out, src[prev:s.at]...)
-		out = append(out, s.text...)
-		prev = s.at
+	// One edit: the part of src that changed.
+	pre := 0
+	for pre < len(src) && pre < len(out) && src[pre] == out[pre] {
+		pre++
 	}
-	out = append(out, src[prev:]...)
-	nd, err := parse(name, out)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
+	post := 0
+	for post < len(src)-pre && post < len(out)-pre && src[len(src)-1-post] == out[len(out)-1-post] {
+		post++
 	}
-	if len(nd.entries) != len(d.entries) {
-		return nil, fmt.Errorf("%w: the edits change the entries of the file", ErrInvalid)
+	for pre > 0 && pre < len(src) && !utf8Start(src[pre]) { // keep the edit on rune boundaries
+		pre--
 	}
-	if got, want := nd.enabledRows(), d.enabledRows()+len(edits); got != want {
-		return nil, fmt.Errorf("%w: the edits add %d rows, not %d", ErrInvalid, got-d.enabledRows(), len(edits))
+	for post > 0 && !utf8Start(src[len(src)-post]) {
+		post--
 	}
-	return &Result{Source: out, Edits: edits}, nil
+	edit := TextEdit{Range: d.off.rng(pre, len(src)-post), NewText: string(out[pre : len(out)-post])}
+	return &Result{Source: out, Edits: []TextEdit{edit}}, nil
 }
 
-// enabledRows counts the rows of every entry, disabled rows excepted.
-func (d *doc) enabledRows() int {
-	n := 0
-	for _, en := range d.entries {
-		for _, s := range en.sections {
-			for _, r := range s.rows {
-				if !r.Disabled {
-					n++
-				}
-			}
-		}
-	}
-	return n
-}
+// utf8Start reports whether b starts a UTF-8 sequence.
+func utf8Start(b byte) bool { return b&0xC0 != 0x80 }
