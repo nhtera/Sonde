@@ -20,8 +20,12 @@ import (
 
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
+	"github.com/nhtera/sonde/internal/cookiejar"
+	"github.com/nhtera/sonde/internal/datarow"
 	"github.com/nhtera/sonde/internal/report"
+	"github.com/nhtera/sonde/internal/sandbox"
 	"github.com/nhtera/sonde/internal/syntax"
+	"github.com/nhtera/sonde/internal/testsummary"
 )
 
 // newRunCmd returns the explicit `sonde run [options] FILE...` alias; its
@@ -93,7 +97,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	}
 	if rc.data != nil {
 		for name, e := range extras {
-			if err := rc.data.checkSecrets(e.secrets); err != nil {
+			if err := rc.data.CheckSecrets(e.secrets); err != nil {
 				return NewExitError(ExitUsage, fmt.Errorf("%s: %w (sonde.yaml)", name, err))
 			}
 		}
@@ -160,7 +164,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	aborted := false
 	total, succeeded, requests := 0, 0, 0
 	start := time.Now()
-	cookies := &cookieJarAccumulator{}
+	cookies := &cookiejar.Accumulator{}
 	// maxSeqFile is the input file of whichever job has the highest seq
 	// finished so far, for the cookie jar's "Cookies for file <FILE>"
 	// header: a plain running max, not a per-seq history (that would grow
@@ -181,9 +185,9 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	barMode := newProgressMode(rc.test, rc.progressBar, isTerminalWriter(stderr))
 	units := len(files)
 	if rc.data != nil {
-		units *= rc.data.rows
-		if rc.data.rows == 0 {
-			newEventLogger(stderr, rc.color, false).writePrefixedMessage(ansiYellowBold, "warning", rc.data.path+": no data rows")
+		units *= rc.data.Rows()
+		if rc.data.Rows() == 0 {
+			newEventLogger(stderr, rc.color, false).writePrefixedMessage(ansiYellowBold, "warning", rc.data.Path()+": no data rows")
 		}
 	}
 	pb := newProgressBar(barMode, rc.color, progressMaxWidth(), newJobTotal(units, rc.repeat))
@@ -292,7 +296,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 					curlBySeq[seq] = append(curlBySeq[seq], res.Redact(e.Curl))
 				}
 			}
-			cookies.add(res.Cookies, res.Redact)
+			cookies.Add(res.Cookies, res.Redact)
 
 			outSink := sink
 			if jb != nil {
@@ -314,7 +318,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			}
 
 			if rc.test {
-				printTestLine(stderr, rc.color, res)
+				_, _ = fmt.Fprint(stderr, testsummary.Line(res, rc.color))
 			}
 			worst = worstCode(worst, classifyResult(res))
 			return true
@@ -362,13 +366,13 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	}
 	if rc.cookieJar != "" {
 		logWriting(stderr, rc.color, verbose, "cookies", rc.cookieJar)
-		if err := writeCookieJar(rc.cookieJar, maxSeqFile, cookies.cookies(), runner); err != nil {
+		if err := writeCookieJar(rc.cookieJar, maxSeqFile, cookies.Cookies(), runner.Redact); err != nil {
 			return NewExitError(ExitUndefined, fmt.Errorf("Issue writing to %s: %v", rc.cookieJar, err)) //nolint:staticcheck,revive // kept for CLI message-format compatibility
 		}
 	}
 
 	if rc.test {
-		_, _ = fmt.Fprint(stderr, testSummary(total, succeeded, requests, duration))
+		_, _ = fmt.Fprint(stderr, testsummary.Summary(total, succeeded, requests, duration))
 	}
 
 	if worst != ExitOK {
@@ -669,7 +673,7 @@ func logWriting(stderr io.Writer, color, verbose bool, what, path string) {
 //
 // With a data file, each file runs once per row; a data file that fails
 // to read midway ends the sequence and sets *dataErr.
-func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[string]jobExtras, data *dataRun, dataErr *error) iter.Seq[engine.Job] {
+func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[string]jobExtras, data *datarow.Run, dataErr *error) iter.Seq[engine.Job] {
 	return func(yield func(engine.Job) bool) {
 		for pass := 0; repeat < 0 || pass < repeat; pass++ {
 			yielded := false
@@ -694,7 +698,7 @@ func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[strin
 					// read it again and report the error.
 					job.Source = readSourceOnce(f.name)
 				}
-				stopped, err := data.each(func(row *engine.Row) bool {
+				stopped, err := data.Each(func(row *engine.Row) bool {
 					job.Row = row
 					yielded = true
 					return yield(job)
@@ -714,53 +718,21 @@ func buildJobs(files []*inputFile, stdinSrc []byte, repeat int, extras map[strin
 	}
 }
 
-// cookieJarAccumulator merges the end-of-run cookie stores of every file a
-// run processed into one ordered list: a cookie's first appearance fixes
-// its position, later files' values for the same domain/path/name replace
-// it in place, matching a Netscape cookie jar's own semantics.
-type cookieJarAccumulator struct {
-	order []string
-	byKey map[string]engine.Cookie
-}
-
-// add merges cs, their values redacted with redact.
-func (a *cookieJarAccumulator) add(cs []engine.Cookie, redact func(string) string) {
-	if a.byKey == nil {
-		a.byKey = map[string]engine.Cookie{}
-	}
-	for _, c := range cs {
-		k := c.Domain + "\x00" + c.Path + "\x00" + c.Name
-		if _, ok := a.byKey[k]; !ok {
-			a.order = append(a.order, k)
-		}
-		c.Value = redact(c.Value)
-		a.byKey[k] = c
-	}
-}
-
-func (a *cookieJarAccumulator) cookies() []engine.Cookie {
-	out := make([]engine.Cookie, 0, len(a.order))
-	for _, k := range a.order {
-		out = append(out, a.byKey[k])
-	}
-	return out
-}
-
 // worstCode keeps the most severe of two exit codes, in the documented
 // severity order: parse error > runtime error > assert failure > success.
 func worstCode(a, b int) int {
-	rank := func(c int) int {
+	outcome := func(c int) testsummary.Outcome {
 		switch c {
 		case ExitParse:
-			return 3
+			return testsummary.Parse
 		case ExitRuntime:
-			return 2
+			return testsummary.Runtime
 		case ExitAssert:
-			return 1
+			return testsummary.Assert
 		}
-		return 0
+		return testsummary.OK
 	}
-	if rank(b) > rank(a) {
+	if testsummary.Worst(outcome(a), outcome(b)) != outcome(a) {
 		return b
 	}
 	return a
@@ -770,18 +742,15 @@ func worstCode(a, b int) int {
 // ExitOK on success, ExitAssert when every decisive error is an assert
 // failure, ExitRuntime when at least one is not.
 func classifyResult(res *engine.UnitResult) int {
-	if res.ParseError != nil {
+	switch testsummary.Classify(res) {
+	case testsummary.Parse:
 		return ExitParse
+	case testsummary.Runtime:
+		return ExitRuntime
+	case testsummary.Assert:
+		return ExitAssert
 	}
-	if res.Success {
-		return ExitOK
-	}
-	for _, e := range res.Errors() {
-		if !e.Assert() {
-			return ExitRuntime
-		}
-	}
-	return ExitAssert
+	return ExitOK
 }
 
 func outputName(output string) string {
@@ -789,59 +758,6 @@ func outputName(output string) string {
 		return "-"
 	}
 	return output
-}
-
-// printTestLine prints a one-line per-file status in --test mode, colored
-// like the reference CLI's own ParProgress::print_completed when color is
-// on: a bold green "Success" or bold red "Failure", the filename bold.
-func printTestLine(stderr io.Writer, color bool, res *engine.UnitResult) {
-	status, style := "Success", ansiGreenBold
-	if !res.Success {
-		status, style = "Failure", ansiRedBold
-	}
-	n := 0
-	for _, e := range res.Entries {
-		n += len(e.Calls)
-	}
-	if !color {
-		_, _ = fmt.Fprintf(stderr, "%s %s (%d request(s) in %d ms)\n", status, res.Label(), n, res.Duration.Milliseconds())
-		return
-	}
-	_, _ = fmt.Fprintf(stderr, "%s%s%s %s%s%s (%d request(s) in %d ms)\n",
-		style, status, ansiReset, ansiBold, res.Label(), ansiReset, n, res.Duration.Milliseconds())
-}
-
-// testSummary is --test's final block: the documented wording and number
-// formatting, reproduced exactly.
-func testSummary(totalFiles, succeededFiles, totalRequests int, duration time.Duration) string {
-	failed := totalFiles - succeededFiles
-	var successPct, failedPct float64
-	if totalFiles > 0 {
-		successPct = 100 * float64(succeededFiles) / float64(totalFiles)
-		failedPct = 100 * float64(failed) / float64(totalFiles)
-	}
-	ms := duration.Milliseconds()
-	var rate float64
-	if ms > 0 {
-		rate = 1000 * float64(totalRequests) / float64(ms)
-	}
-	return fmt.Sprintf(
-		"--------------------------------------------------------------------------------\n"+
-			"Executed files:    %d\n"+
-			"Executed requests: %d (%.1f/s)\n"+
-			"Succeeded files:   %d (%.1f%%)\n"+
-			"Failed files:      %d (%.1f%%)\n"+
-			"Duration:          %d ms (%s)\n\n",
-		totalFiles, totalRequests, rate, succeededFiles, successPct, failed, failedPct, ms, formatDurationHMS(duration))
-}
-
-func formatDurationHMS(d time.Duration) string {
-	total := d.Milliseconds()
-	hours := total / 3600000
-	minutes := (total % 3600000) / 60000
-	seconds := (total % 60000) / 1000
-	millis := total % 1000
-	return fmt.Sprintf("%dh:%dm:%ds:%dms", hours, minutes, seconds, millis)
 }
 
 // inputFile is one file (or stdin) `sonde run` will run.
@@ -949,4 +865,19 @@ func readLimitedFrom(r io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("file is larger than %d MiB", syntax.MaxFileSize>>20)
 	}
 	return src, nil
+}
+
+// writeCookieJar writes cookies to path (a command line path, not
+// confined), creating its directory, each line redacted with redact.
+func writeCookieJar(path, forFile string, cookies []engine.Cookie, redact func(string) string) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return err
+	}
+	root, err := sandbox.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+	return cookiejar.Write(root, filepath.Base(path), forFile, cookies, redact)
 }

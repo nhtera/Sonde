@@ -266,6 +266,34 @@ linters:
           allow:
             - github.com/nhtera/sonde/engine$
             - github.com/nhtera/sonde/exchange$
+        pkg-testsummary:
+          list-mode: lax
+          files: ["**/internal/testsummary/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/testsummary may import only: engine (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/engine$
+        pkg-cookiejar:
+          list-mode: lax
+          files: ["**/internal/cookiejar/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/cookiejar may import only: engine, internal/sandbox (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/engine$
+            - github.com/nhtera/sonde/internal/sandbox$
+        pkg-datarow:
+          list-mode: lax
+          files: ["**/internal/datarow/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/datarow may import only: engine, internal/config, internal/dataset, internal/value (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/engine$
+            - github.com/nhtera/sonde/internal/config$
+            - github.com/nhtera/sonde/internal/dataset$
+            - github.com/nhtera/sonde/internal/value$
         pkg-config:
           list-mode: lax
           files: ["**/internal/config/**", "!$test"]

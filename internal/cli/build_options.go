@@ -14,6 +14,7 @@ import (
 
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
+	"github.com/nhtera/sonde/internal/datarow"
 )
 
 // runContext is everything a run of one or more files needs: the engine
@@ -53,7 +54,7 @@ type runContext struct {
 	env        string
 	configFile string
 	// data is the --data file, checked in full (nil: none).
-	data *dataRun
+	data *datarow.Run
 }
 
 // hasReport reports whether any --report-* flag was given: results are
@@ -133,7 +134,7 @@ func buildRunContext(cmd *cobra.Command, o *runOptions, env config.Env, stdout i
 	if err := config.CheckNoClash(variables, secrets); err != nil {
 		return nil, NewExitError(ExitUsage, err)
 	}
-	if rc.data, err = newDataRun(o.data, o.dataSecrets, o.variables, secrets); err != nil {
+	if rc.data, err = datarow.Open(o.data, o.dataSecrets, variableNames(o.variables), secrets); err != nil {
 		return nil, NewExitError(ExitUsage, err)
 	}
 	engineVars := make(map[string]any, len(variables))
@@ -480,4 +481,15 @@ func defaultUserAgent(env config.Env) string {
 		return ua
 	}
 	return "sonde/" + currentBuildInfo().Version
+}
+
+// variableNames returns the names of --variable assignments.
+func variableNames(variables []string) []string {
+	var names []string
+	for _, s := range variables {
+		if a, err := config.ParseAssignment(s, config.Inferred); err == nil {
+			names = append(names, a.Name)
+		}
+	}
+	return names
 }
