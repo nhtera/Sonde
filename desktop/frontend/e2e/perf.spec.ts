@@ -47,3 +47,46 @@ test("filters 1000 files in under 100 ms", async ({ page }) => {
   });
   expect(ms).toBeLessThan(100);
 });
+
+test("types in a 5,000-line file: each keystroke's work well under a frame (p95)", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  // Opened from the palette: the tree lists 1,000 files before it.
+  await expect(page.getByRole("tree", { name: "Project files" })).toContainText("folder01");
+  await page.keyboard.press("ControlOrMeta+KeyK");
+  await page.keyboard.type("big.hurl");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".cm-content")).toBeVisible();
+  // The middle of the file.
+  await page.keyboard.press("ControlOrMeta+KeyG");
+  await page.getByLabel("Line number").fill("2500");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".statusbar")).toContainText("Ln 2500, Col 1");
+  // Event Timing, per keystroke (its keydown, keypress and input entries
+  // share a start): the app's work (processing), and the time until the
+  // next paint (rounded to 8 ms, frame-bound: 16 at 60 Hz). The paint time
+  // also carries the headless browser's frame scheduling; the native check
+  // is in the release checks.
+  await page.evaluate(() => {
+    const w = window as unknown as { keys: Map<number, { work: number; paint: number }> };
+    w.keys = new Map();
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries() as PerformanceEventTiming[]) {
+        if (!["keydown", "keypress", "beforeinput", "input", "keyup"].includes(e.name)) continue;
+        const k = Math.round(e.startTime);
+        const had = w.keys.get(k) ?? { work: 0, paint: 0 };
+        w.keys.set(k, { work: had.work + (e.processingEnd - e.processingStart), paint: Math.max(had.paint, e.duration) });
+      }
+    }).observe({ type: "event", durationThreshold: 16, buffered: false } as PerformanceObserverInit);
+  });
+  const typed = "X-Trace: {{trace_id}} typed in the middle of a big file, twice as long as a line";
+  await page.keyboard.type(typed, { delay: 40 });
+  await page.waitForTimeout(300);
+  const keys = await page.evaluate(() => [...(window as unknown as { keys: Map<number, { work: number; paint: number }> }).keys.values()]);
+  // Only keystrokes over 16 ms are reported; the rest are faster.
+  const work = [...keys.map((k) => k.work), ...Array(Math.max(0, typed.length - keys.length)).fill(0)].sort((a, b) => a - b);
+  const p95 = work[Math.floor(work.length * 0.95)];
+  const overFrame = keys.filter((k) => k.paint > 16).length;
+  console.log(`keystrokes: ${typed.length}; work p95 ${p95.toFixed(1)} ms; painted after more than a frame: ${overFrame}`);
+  expect(p95).toBeLessThan(16);
+});

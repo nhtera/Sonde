@@ -25,7 +25,7 @@ test("opens the project and a file", async ({ page }) => {
   await expect(page.getByRole("tree", { name: "Project files" })).toContainText("checkout.hurl");
   await open(page);
   await expect(page.getByRole("navigation", { name: "Path" })).toHaveText("checkout.hurl");
-  await expect(page.getByLabel("File text")).toContainText("POST {{base_url}}/login");
+  await expect(page.locator(".cm-content")).toContainText("POST {{base_url}}/login");
   // Requests are listed under the open file.
   await expect(page.locator(".tree-row.req")).toHaveCount(5);
 });

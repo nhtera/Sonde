@@ -16,12 +16,23 @@ const harness = process.env.E2E_HARNESS_BIN ?? "../bin/sonde-desktop-harness";
 const fixtureServer = process.env.E2E_FIXTURE_BIN ?? "../bin/fixture-server";
 export const shellPort = Number(process.env.E2E_SHELL_PORT) || 34116;
 const shellURL = process.env.E2E_SHELL_URL ?? `http://127.0.0.1:${shellPort}`;
-// e2e/perf.spec.ts: a generated project of 1000 request files in 20 folders.
+// e2e/editor.spec.ts in WebKit (the macOS app's engine), on its own harness.
+const webkitEditorPort = Number(process.env.E2E_EDITOR_WEBKIT_PORT) || 34119;
+const webkitEditorURL = `http://127.0.0.1:${webkitEditorPort}`;
+/** A harness over a fresh copy of shop-api (tests never change the repo);
+ * the copy and the harness's data go when the server stops. */
+const shopHarness = (port: number) =>
+  `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
+  `mkdir "$t/shop-api" && cp -R ../testdata/shop-api/. "$t/shop-api" && ${harness} --root "$t/shop-api" --data "$t/data" --port ${port}'`;
+// e2e/perf.spec.ts: a generated project of 1000 request files in 20
+// folders, and big.hurl (5,000 lines).
 const perfPort = Number(process.env.E2E_PERF_PORT) || 34117;
 const perfURL = `http://127.0.0.1:${perfPort}`;
 const bigProject =
   `d=$(mktemp -d) && for f in $(seq -w 1 20); do mkdir "$d/folder$f"; ` +
-  `for i in $(seq -w 1 50); do printf "GET {{base_url}}/items/%s/%s\\nHTTP 204\\n" $f $i > "$d/folder$f/request$i.hurl"; done; done`;
+  `for i in $(seq -w 1 50); do printf "GET {{base_url}}/items/%s/%s\\nHTTP 204\\n" $f $i > "$d/folder$f/request$i.hurl"; done; done && ` +
+  // big.hurl: 5,000 lines for typing in the editor.
+  `for i in $(seq 1 385); do printf "# Order %s\\nPOST {{base_url}}/orders?page=%s\\nAuthorization: Bearer {{token}}\\n{\\n  \\"sku\\": \\"TEA-%s\\",\\n  \\"quantity\\": {{quantity}}\\n}\\nHTTP 201\\n[Captures]\\norder_id: jsonpath \\"\\$.id\\"\\n[Asserts]\\njsonpath \\"\\$.status\\" == \\"created\\"\\n\\n" $i $i $i; done > "$d/big.hurl"`;
 
 export default defineConfig({
   testDir: "e2e",
@@ -30,12 +41,13 @@ export default defineConfig({
   reporter: process.env.CI ? "list" : "line",
   use: { baseURL },
   projects: [
-    { name: "chromium", testIgnore: /server-mode|shell|perf/, use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", testIgnore: /server-mode|shell|perf/, use: { ...devices["Desktop Safari"] } },
+    { name: "chromium", testIgnore: /server-mode|shell|editor|perf/, use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: /server-mode|shell|editor|perf/, use: { ...devices["Desktop Safari"] } },
     { name: "perf", testMatch: /perf/, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: perfURL } },
     // The shell's tests share one harness (its settings, its runs): one
     // browser, one worker, repeats included.
-    { name: "shell", testMatch: /shell/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: shellURL } },
+    { name: "shell", testMatch: /shell|editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: shellURL } },
+    { name: "editor-webkit", testMatch: /editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Safari"], baseURL: webkitEditorURL } },
     // Server mode's sign-in (E2E_SERVER_BIN, a server build).
     { name: "server-chromium", testMatch: /server-mode/, use: { ...devices["Desktop Chrome"] } },
     { name: "server-webkit", testMatch: /server-mode/, use: { ...devices["Desktop Safari"] } },
@@ -44,28 +56,43 @@ export default defineConfig({
     ? undefined
     : [
         {
-          command: `${harness} --root e2e/fixture --port ${port}`,
+          command: `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ${harness} --root e2e/fixture --data "$t" --port ${port}'`,
           url: `${baseURL}/health`,
           reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
           timeout: 30_000,
         },
         {
           command: `${fixtureServer} --port 34120`,
           url: "http://127.0.0.1:34120/health",
           reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
           timeout: 30_000,
         },
         {
-          // A copy of shop-api, so a test that writes never changes the repo.
-          command: `sh -c 'd=$(mktemp -d)/shop-api && mkdir "$d" && cp -R ../testdata/shop-api/. "$d" && exec ${harness} --root "$d" --port ${shellPort}'`,
+          command: shopHarness(shellPort),
           url: `${shellURL}/health`,
           reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
           timeout: 30_000,
         },
         {
-          command: `sh -c '${bigProject} && exec ${harness} --root "$d" --port ${perfPort}'`,
+          command: shopHarness(webkitEditorPort),
+          url: `${webkitEditorURL}/health`,
+          reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
+          timeout: 30_000,
+        },
+        {
+          command: `sh -c '${bigProject} && trap "rm -rf \\"$d\\"" EXIT INT TERM && ${harness} --root "$d" --data "$d/.data" --port ${perfPort}'`,
           url: `${perfURL}/health`,
           reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
           timeout: 30_000,
         },
       ],
