@@ -1,0 +1,1477 @@
+[
+ {
+  "topic": "run:data-login",
+  "data": {
+   "runId": "data-login",
+   "items": [
+    {
+     "seq": 1,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Variables:"
+     }
+    },
+    {
+     "seq": 2,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    base_url: http://localhost:8080"
+     }
+    },
+    {
+     "seq": 3,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    data_row: 1"
+     }
+    },
+    {
+     "seq": 4,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    user: ada"
+     }
+    },
+    {
+     "seq": 5,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "------------------------------------------------------------------------------"
+     }
+    },
+    {
+     "seq": 6,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Executing entry 1"
+     }
+    },
+    {
+     "seq": 7,
+     "unit": 0,
+     "event": {
+      "type": "entryStarted",
+      "entry": 1,
+      "retry": 0,
+      "last": 1
+     }
+    },
+    {
+     "seq": 8,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 9,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Cookie store:"
+     }
+    },
+    {
+     "seq": 10,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 11,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Request:"
+     }
+    },
+    {
+     "seq": 12,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "POST http://localhost:8080/login"
+     }
+    },
+    {
+     "seq": 13,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 14,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "Request can be run with the following curl command:"
+     }
+    },
+    {
+     "seq": 15,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "curl --header 'Content-Type: application/json' --data '{\"user\": \"ada\", \"password\": \"***\"}' 'http://localhost:8080/login'"
+     }
+    },
+    {
+     "seq": 16,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 17,
+     "unit": 0,
+     "event": {
+      "type": "requestSent",
+      "entry": 1,
+      "call": 1,
+      "request": {
+       "cookies": [],
+       "headers": [
+        {
+         "name": "Host",
+         "value": "127.0.0.1:50924"
+        },
+        {
+         "name": "Accept",
+         "value": "*/*"
+        },
+        {
+         "name": "Content-Type",
+         "value": "application/json"
+        },
+        {
+         "name": "User-Agent",
+         "value": "sonde/dev"
+        },
+        {
+         "name": "Content-Length",
+         "value": "52"
+        }
+       ],
+       "method": "POST",
+       "query_string": [],
+       "url": "http://localhost:8080/login"
+      }
+     }
+    },
+    {
+     "seq": 18,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "requestLine",
+      "text": "POST /login HTTP/1.1"
+     }
+    },
+    {
+     "seq": 19,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Host: 127.0.0.1:50924"
+     }
+    },
+    {
+     "seq": 20,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Accept: */*"
+     }
+    },
+    {
+     "seq": 21,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 22,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "User-Agent: sonde/dev"
+     }
+    },
+    {
+     "seq": 23,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Content-Length: 52"
+     }
+    },
+    {
+     "seq": 24,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": ""
+     }
+    },
+    {
+     "seq": 25,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Response: (received 102 bytes in 0 ms)"
+     }
+    },
+    {
+     "seq": 26,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 27,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "responseLine",
+      "text": "HTTP/1.1 200 OK"
+     }
+    },
+    {
+     "seq": 28,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Content-Length: 102"
+     }
+    },
+    {
+     "seq": 29,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 30,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Date: Tue, 29 Sep 2026 22:14:31 GMT"
+     }
+    },
+    {
+     "seq": 31,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Set-Cookie: sid=fixture-session-2718; Path=/; HttpOnly"
+     }
+    },
+    {
+     "seq": 32,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": ""
+     }
+    },
+    {
+     "seq": 33,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Captures:"
+     }
+    },
+    {
+     "seq": 34,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "capture",
+      "text": "session_token: ***"
+     }
+    },
+    {
+     "seq": 35,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 36,
+     "unit": 0,
+     "event": {
+      "type": "entryFinished",
+      "entry": {
+       "asserts": [
+        {
+         "line": 4,
+         "success": true
+        }
+       ],
+       "calls": [
+        {
+         "request": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Host",
+            "value": "127.0.0.1:50924"
+           },
+           {
+            "name": "Accept",
+            "value": "*/*"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "User-Agent",
+            "value": "sonde/dev"
+           },
+           {
+            "name": "Content-Length",
+            "value": "52"
+           }
+          ],
+          "method": "POST",
+          "query_string": [],
+          "url": "http://localhost:8080/login"
+         },
+         "response": {
+          "cookies": [
+           {
+            "httponly": true,
+            "name": "sid",
+            "path": "/",
+            "value": "fixture-session-2718"
+           }
+          ],
+          "headers": [
+           {
+            "name": "Content-Length",
+            "value": "102"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "Date",
+            "value": "Tue, 29 Sep 2026 22:14:31 GMT"
+           },
+           {
+            "name": "Set-Cookie",
+            "value": "sid=fixture-session-2718; Path=/; HttpOnly"
+           }
+          ],
+          "http_version": "HTTP/1.1",
+          "status": 200
+         },
+         "timings": {
+          "app_connect": 0,
+          "begin_call": "2026-09-29T22:14:31.027711Z",
+          "connect": 0,
+          "end_call": "2026-09-29T22:14:31.028091Z",
+          "name_lookup": 0,
+          "pre_transfer": 0,
+          "start_transfer": 0,
+          "total": 0
+         }
+        }
+       ],
+       "captures": [
+        {
+         "name": "session_token",
+         "value": "***"
+        }
+       ],
+       "curl_cmd": "curl --header 'Content-Type: application/json' --data '{\"user\": \"ada\", \"password\": \"***\"}' 'http://localhost:8080/login'",
+       "index": 1,
+       "line": 2,
+       "time": 0,
+       "bodies": [
+        {
+         "id": "7e6c181c4ec785a33298411776b0cab6",
+         "size": 45,
+         "contentType": "application/json"
+        }
+       ],
+       "errors": [],
+       "success": true,
+       "retried": false
+      }
+     }
+    },
+    {
+     "seq": 37,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Variables:"
+     }
+    },
+    {
+     "seq": 38,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    base_url: http://localhost:8080"
+     }
+    },
+    {
+     "seq": 39,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    data_row: 2"
+     }
+    },
+    {
+     "seq": 40,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    user: ada"
+     }
+    },
+    {
+     "seq": 41,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "------------------------------------------------------------------------------"
+     }
+    },
+    {
+     "seq": 42,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Executing entry 1"
+     }
+    },
+    {
+     "seq": 43,
+     "unit": 1,
+     "event": {
+      "type": "entryStarted",
+      "entry": 1,
+      "retry": 0,
+      "last": 1
+     }
+    },
+    {
+     "seq": 44,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 45,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Cookie store:"
+     }
+    },
+    {
+     "seq": 46,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 47,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Request:"
+     }
+    },
+    {
+     "seq": 48,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "POST http://localhost:8080/login"
+     }
+    },
+    {
+     "seq": 49,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 50,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "Request can be run with the following curl command:"
+     }
+    },
+    {
+     "seq": 51,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "curl --header 'Content-Type: application/json' --data '{\"user\": \"ada\", \"password\": \"***\"}' 'http://localhost:8080/login'"
+     }
+    },
+    {
+     "seq": 52,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 53,
+     "unit": 1,
+     "event": {
+      "type": "requestSent",
+      "entry": 1,
+      "call": 1,
+      "request": {
+       "cookies": [],
+       "headers": [
+        {
+         "name": "Host",
+         "value": "127.0.0.1:50924"
+        },
+        {
+         "name": "Accept",
+         "value": "*/*"
+        },
+        {
+         "name": "Content-Type",
+         "value": "application/json"
+        },
+        {
+         "name": "User-Agent",
+         "value": "sonde/dev"
+        },
+        {
+         "name": "Content-Length",
+         "value": "36"
+        }
+       ],
+       "method": "POST",
+       "query_string": [],
+       "url": "http://localhost:8080/login"
+      }
+     }
+    },
+    {
+     "seq": 54,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "requestLine",
+      "text": "POST /login HTTP/1.1"
+     }
+    },
+    {
+     "seq": 55,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Host: 127.0.0.1:50924"
+     }
+    },
+    {
+     "seq": 56,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Accept: */*"
+     }
+    },
+    {
+     "seq": 57,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 58,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "User-Agent: sonde/dev"
+     }
+    },
+    {
+     "seq": 59,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Content-Length: 36"
+     }
+    },
+    {
+     "seq": 60,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": ""
+     }
+    },
+    {
+     "seq": 61,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Response: (received 28 bytes in 0 ms)"
+     }
+    },
+    {
+     "seq": 62,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 63,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "responseLine",
+      "text": "HTTP/1.1 401 Unauthorized"
+     }
+    },
+    {
+     "seq": 64,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Content-Length: 28"
+     }
+    },
+    {
+     "seq": 65,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 66,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Date: Tue, 29 Sep 2026 22:14:31 GMT"
+     }
+    },
+    {
+     "seq": 67,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": ""
+     }
+    },
+    {
+     "seq": 68,
+     "unit": 1,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "error",
+      "text": "No query result\n  --\u003e /project/data-login.hurl:6:16\n   |\n   | POST {{base_url}}/login\n   | ...\n 6 | session_token: jsonpath \"$.token\" redact\n   |                ^^^^^^^^^^^^^^^^^^ query didn't return any result\n   |"
+     }
+    },
+    {
+     "seq": 69,
+     "unit": 1,
+     "event": {
+      "type": "entryFinished",
+      "entry": {
+       "asserts": [
+        {
+         "line": 4,
+         "success": true
+        }
+       ],
+       "calls": [
+        {
+         "request": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Host",
+            "value": "127.0.0.1:50924"
+           },
+           {
+            "name": "Accept",
+            "value": "*/*"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "User-Agent",
+            "value": "sonde/dev"
+           },
+           {
+            "name": "Content-Length",
+            "value": "36"
+           }
+          ],
+          "method": "POST",
+          "query_string": [],
+          "url": "http://localhost:8080/login"
+         },
+         "response": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Content-Length",
+            "value": "28"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "Date",
+            "value": "Tue, 29 Sep 2026 22:14:31 GMT"
+           }
+          ],
+          "http_version": "HTTP/1.1",
+          "status": 401
+         },
+         "timings": {
+          "app_connect": 0,
+          "begin_call": "2026-09-29T22:14:31.028228Z",
+          "connect": 0,
+          "end_call": "2026-09-29T22:14:31.028435Z",
+          "name_lookup": 0,
+          "pre_transfer": 0,
+          "start_transfer": 0,
+          "total": 0
+         }
+        }
+       ],
+       "captures": [],
+       "curl_cmd": "curl --header 'Content-Type: application/json' --data '{\"user\": \"ada\", \"password\": \"***\"}' 'http://localhost:8080/login'",
+       "index": 1,
+       "line": 2,
+       "time": 0,
+       "bodies": [
+        {
+         "id": "c97379ff3b9a1b5448c3646fca6bfe05",
+         "size": 28,
+         "contentType": "application/json"
+        }
+       ],
+       "errors": [
+        {
+         "line": 6,
+         "column": 16,
+         "kind": "no-query-result",
+         "assert": false,
+         "description": "No query result",
+         "message": "query didn't return any result"
+        }
+       ],
+       "success": false,
+       "retried": false
+      }
+     }
+    },
+    {
+     "seq": 70,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Variables:"
+     }
+    },
+    {
+     "seq": 71,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    base_url: http://localhost:8080"
+     }
+    },
+    {
+     "seq": 72,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    data_row: 3"
+     }
+    },
+    {
+     "seq": 73,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    user: ada"
+     }
+    },
+    {
+     "seq": 74,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "------------------------------------------------------------------------------"
+     }
+    },
+    {
+     "seq": 75,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Executing entry 1"
+     }
+    },
+    {
+     "seq": 76,
+     "unit": 2,
+     "event": {
+      "type": "entryStarted",
+      "entry": 1,
+      "retry": 0,
+      "last": 1
+     }
+    },
+    {
+     "seq": 77,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 78,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Cookie store:"
+     }
+    },
+    {
+     "seq": 79,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 80,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Request:"
+     }
+    },
+    {
+     "seq": 81,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "POST http://localhost:8080/login"
+     }
+    },
+    {
+     "seq": 82,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 83,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "Request can be run with the following curl command:"
+     }
+    },
+    {
+     "seq": 84,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "curl --header 'Content-Type: application/json' --data '{\"user\": \"ada\", \"password\": \"***\"}' 'http://localhost:8080/login'"
+     }
+    },
+    {
+     "seq": 85,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 86,
+     "unit": 2,
+     "event": {
+      "type": "requestSent",
+      "entry": 1,
+      "call": 1,
+      "request": {
+       "cookies": [],
+       "headers": [
+        {
+         "name": "Host",
+         "value": "127.0.0.1:50924"
+        },
+        {
+         "name": "Accept",
+         "value": "*/*"
+        },
+        {
+         "name": "Content-Type",
+         "value": "application/json"
+        },
+        {
+         "name": "User-Agent",
+         "value": "sonde/dev"
+        },
+        {
+         "name": "Content-Length",
+         "value": "52"
+        }
+       ],
+       "method": "POST",
+       "query_string": [],
+       "url": "http://localhost:8080/login"
+      }
+     }
+    },
+    {
+     "seq": 87,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "requestLine",
+      "text": "POST /login HTTP/1.1"
+     }
+    },
+    {
+     "seq": 88,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Host: 127.0.0.1:50924"
+     }
+    },
+    {
+     "seq": 89,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Accept: */*"
+     }
+    },
+    {
+     "seq": 90,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 91,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "User-Agent: sonde/dev"
+     }
+    },
+    {
+     "seq": 92,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Content-Length: 52"
+     }
+    },
+    {
+     "seq": 93,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": ""
+     }
+    },
+    {
+     "seq": 94,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Response: (received 102 bytes in 0 ms)"
+     }
+    },
+    {
+     "seq": 95,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 96,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "responseLine",
+      "text": "HTTP/1.1 200 OK"
+     }
+    },
+    {
+     "seq": 97,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Content-Length: 102"
+     }
+    },
+    {
+     "seq": 98,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 99,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Date: Tue, 29 Sep 2026 22:14:31 GMT"
+     }
+    },
+    {
+     "seq": 100,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Set-Cookie: sid=fixture-session-2718; Path=/; HttpOnly"
+     }
+    },
+    {
+     "seq": 101,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": ""
+     }
+    },
+    {
+     "seq": 102,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Captures:"
+     }
+    },
+    {
+     "seq": 103,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "capture",
+      "text": "session_token: ***"
+     }
+    },
+    {
+     "seq": 104,
+     "unit": 2,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 105,
+     "unit": 2,
+     "event": {
+      "type": "entryFinished",
+      "entry": {
+       "asserts": [
+        {
+         "line": 4,
+         "success": true
+        }
+       ],
+       "calls": [
+        {
+         "request": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Host",
+            "value": "127.0.0.1:50924"
+           },
+           {
+            "name": "Accept",
+            "value": "*/*"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "User-Agent",
+            "value": "sonde/dev"
+           },
+           {
+            "name": "Content-Length",
+            "value": "52"
+           }
+          ],
+          "method": "POST",
+          "query_string": [],
+          "url": "http://localhost:8080/login"
+         },
+         "response": {
+          "cookies": [
+           {
+            "httponly": true,
+            "name": "sid",
+            "path": "/",
+            "value": "fixture-session-2718"
+           }
+          ],
+          "headers": [
+           {
+            "name": "Content-Length",
+            "value": "102"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "Date",
+            "value": "Tue, 29 Sep 2026 22:14:31 GMT"
+           },
+           {
+            "name": "Set-Cookie",
+            "value": "sid=fixture-session-2718; Path=/; HttpOnly"
+           }
+          ],
+          "http_version": "HTTP/1.1",
+          "status": 200
+         },
+         "timings": {
+          "app_connect": 0,
+          "begin_call": "2026-09-29T22:14:31.028680Z",
+          "connect": 0,
+          "end_call": "2026-09-29T22:14:31.029047Z",
+          "name_lookup": 0,
+          "pre_transfer": 0,
+          "start_transfer": 0,
+          "total": 0
+         }
+        }
+       ],
+       "captures": [
+        {
+         "name": "session_token",
+         "value": "***"
+        }
+       ],
+       "curl_cmd": "curl --header 'Content-Type: application/json' --data '{\"user\": \"ada\", \"password\": \"***\"}' 'http://localhost:8080/login'",
+       "index": 1,
+       "line": 2,
+       "time": 0,
+       "bodies": [
+        {
+         "id": "497031f8067ff2ef6761c3245832a263",
+         "size": 45,
+         "contentType": "application/json"
+        }
+       ],
+       "errors": [],
+       "success": true,
+       "retried": false
+      }
+     }
+    }
+   ],
+   "dropped": 0
+  }
+ },
+ {
+  "topic": "history:changed",
+  "data": "20260929T221431.027345000Z-data-login"
+ },
+ {
+  "topic": "run:data-login:done",
+  "data": {
+   "runId": "data-login",
+   "lastSeq": 105,
+   "summary": {
+    "runId": "data-login",
+    "kind": "data",
+    "env": "local",
+    "outcome": "failed",
+    "startedAt": "2026-09-29T22:14:31.027345Z",
+    "files": 3,
+    "succeeded": 2,
+    "requests": 3,
+    "durationMs": 1,
+    "units": [
+     {
+      "file": "data-login.hurl",
+      "row": 1,
+      "success": true,
+      "interrupted": false,
+      "canceled": false,
+      "requests": 1,
+      "durationMs": 0
+     },
+     {
+      "file": "data-login.hurl",
+      "row": 2,
+      "success": false,
+      "interrupted": false,
+      "canceled": false,
+      "requests": 1,
+      "durationMs": 0
+     },
+     {
+      "file": "data-login.hurl",
+      "row": 3,
+      "success": true,
+      "interrupted": false,
+      "canceled": false,
+      "requests": 1,
+      "durationMs": 0
+     }
+    ]
+   }
+  }
+ }
+]

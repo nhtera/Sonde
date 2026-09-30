@@ -3,3 +3,4 @@ dist/
 bindings/
 test-results/
 playwright-report/
+e2e-candidates/

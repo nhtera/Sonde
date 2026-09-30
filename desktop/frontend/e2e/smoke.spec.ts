@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 
 test("loads the app, calls a binding, receives an event", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Sonde" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Search files and commands" })).toBeVisible();
   await page.waitForFunction(() => document.documentElement.dataset.harness === "ready");
 
   const pong = await page.evaluate(() => window.sondeHarness!.call("Ping", "e2e"));

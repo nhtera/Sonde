@@ -52,7 +52,7 @@ test("launch file, cookie and token, runtime call", async ({ page }, info) => {
 
   await page.goto(pathToFileURL(launch).href);
   await page.waitForURL(`${origin}/`);
-  await expect(page.getByRole("heading", { name: "Sonde" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Search files and commands" })).toBeVisible();
   expect(existsSync(launch)).toBe(false); // used once, then removed
 
   const result = await page.evaluate(async () => {

@@ -1,0 +1,2348 @@
+[
+ {
+  "topic": "run:checkout",
+  "data": {
+   "runId": "checkout",
+   "items": [
+    {
+     "seq": 1,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Variables:"
+     }
+    },
+    {
+     "seq": 2,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    base_url: http://localhost:8080"
+     }
+    },
+    {
+     "seq": 3,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debug",
+      "text": "    user: ada"
+     }
+    },
+    {
+     "seq": 4,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "------------------------------------------------------------------------------"
+     }
+    },
+    {
+     "seq": 5,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Executing entry 1"
+     }
+    },
+    {
+     "seq": 6,
+     "unit": 0,
+     "event": {
+      "type": "entryStarted",
+      "entry": 1,
+      "retry": 0,
+      "last": 5
+     }
+    },
+    {
+     "seq": 7,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 8,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Cookie store:"
+     }
+    },
+    {
+     "seq": 9,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 10,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Request:"
+     }
+    },
+    {
+     "seq": 11,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "POST http://localhost:8080/login"
+     }
+    },
+    {
+     "seq": 12,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 13,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "Request can be run with the following curl command:"
+     }
+    },
+    {
+     "seq": 14,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": "curl --header 'Content-Type: application/json' --data '{\"user\": \"ada\", \"password\": \"***\"}' 'http://localhost:8080/login'"
+     }
+    },
+    {
+     "seq": 15,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 16,
+     "unit": 0,
+     "event": {
+      "type": "requestSent",
+      "entry": 1,
+      "call": 1,
+      "request": {
+       "cookies": [],
+       "headers": [
+        {
+         "name": "Host",
+         "value": "127.0.0.1:50924"
+        },
+        {
+         "name": "Accept",
+         "value": "*/*"
+        },
+        {
+         "name": "Content-Type",
+         "value": "application/json"
+        },
+        {
+         "name": "User-Agent",
+         "value": "sonde/dev"
+        },
+        {
+         "name": "Content-Length",
+         "value": "52"
+        }
+       ],
+       "method": "POST",
+       "query_string": [],
+       "url": "http://localhost:8080/login"
+      }
+     }
+    },
+    {
+     "seq": 17,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "requestLine",
+      "text": "POST /login HTTP/1.1"
+     }
+    },
+    {
+     "seq": 18,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Host: 127.0.0.1:50924"
+     }
+    },
+    {
+     "seq": 19,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Accept: */*"
+     }
+    },
+    {
+     "seq": 20,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 21,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "User-Agent: sonde/dev"
+     }
+    },
+    {
+     "seq": 22,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": "Content-Length: 52"
+     }
+    },
+    {
+     "seq": 23,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "request",
+      "text": ""
+     }
+    },
+    {
+     "seq": 24,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Response: (received 102 bytes in 0 ms)"
+     }
+    },
+    {
+     "seq": 25,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 26,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "responseLine",
+      "text": "HTTP/1.1 200 OK"
+     }
+    },
+    {
+     "seq": 27,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Content-Length: 102"
+     }
+    },
+    {
+     "seq": 28,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 29,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Date: Tue, 29 Sep 2026 22:14:31 GMT"
+     }
+    },
+    {
+     "seq": 30,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": "Set-Cookie: sid=fixture-session-2718; Path=/; HttpOnly"
+     }
+    },
+    {
+     "seq": 31,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "response",
+      "text": ""
+     }
+    },
+    {
+     "seq": 32,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debugImportant",
+      "text": "Captures:"
+     }
+    },
+    {
+     "seq": 33,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "capture",
+      "text": "token: ***"
+     }
+    },
+    {
+     "seq": 34,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "capture",
+      "text": "user_id: 7"
+     }
+    },
+    {
+     "seq": 35,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 1,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 36,
+     "unit": 0,
+     "event": {
+      "type": "entryFinished",
+      "entry": {
+       "asserts": [
+        {
+         "line": 4,
+         "success": true
+        },
+        {
+         "line": 4,
+         "success": true
+        }
+       ],
+       "calls": [
+        {
+         "request": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Host",
+            "value": "127.0.0.1:50924"
+           },
+           {
+            "name": "Accept",
+            "value": "*/*"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "User-Agent",
+            "value": "sonde/dev"
+           },
+           {
+            "name": "Content-Length",
+            "value": "52"
+           }
+          ],
+          "method": "POST",
+          "query_string": [],
+          "url": "http://localhost:8080/login"
+         },
+         "response": {
+          "cookies": [
+           {
+            "httponly": true,
+            "name": "sid",
+            "path": "/",
+            "value": "fixture-session-2718"
+           }
+          ],
+          "headers": [
+           {
+            "name": "Content-Length",
+            "value": "102"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "Date",
+            "value": "Tue, 29 Sep 2026 22:14:31 GMT"
+           },
+           {
+            "name": "Set-Cookie",
+            "value": "sid=fixture-session-2718; Path=/; HttpOnly"
+           }
+          ],
+          "http_version": "HTTP/1.1",
+          "status": 200
+         },
+         "timings": {
+          "app_connect": 0,
+          "begin_call": "2026-09-29T22:14:31.007436Z",
+          "connect": 0,
+          "end_call": "2026-09-29T22:14:31.008167Z",
+          "name_lookup": 0,
+          "pre_transfer": 0,
+          "start_transfer": 0,
+          "total": 0
+         }
+        }
+       ],
+       "captures": [
+        {
+         "name": "token",
+         "value": "***"
+        },
+        {
+         "name": "user_id",
+         "value": 7
+        }
+       ],
+       "curl_cmd": "curl --header 'Content-Type: application/json' --data '{\"user\": \"ada\", \"password\": \"***\"}' 'http://localhost:8080/login'",
+       "index": 1,
+       "line": 2,
+       "time": 0,
+       "bodies": [
+        {
+         "id": "008912cda69e7c8828e16922e5da3dfc",
+         "size": 45,
+         "contentType": "application/json"
+        }
+       ],
+       "errors": [],
+       "success": true,
+       "retried": false
+      }
+     }
+    },
+    {
+     "seq": 37,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "------------------------------------------------------------------------------"
+     }
+    },
+    {
+     "seq": 38,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Executing entry 2"
+     }
+    },
+    {
+     "seq": 39,
+     "unit": 0,
+     "event": {
+      "type": "entryStarted",
+      "entry": 2,
+      "retry": 0,
+      "last": 5
+     }
+    },
+    {
+     "seq": 40,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 41,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debugImportant",
+      "text": "Cookie store:"
+     }
+    },
+    {
+     "seq": 42,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": "#HttpOnly_127.0.0.1\tFALSE\t/\tFALSE\t0\tsid\tfixture-session-2718"
+     }
+    },
+    {
+     "seq": 43,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 44,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debugImportant",
+      "text": "Request:"
+     }
+    },
+    {
+     "seq": 45,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": "GET http://localhost:8080/users/7"
+     }
+    },
+    {
+     "seq": 46,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": "Authorization: Bearer ***"
+     }
+    },
+    {
+     "seq": 47,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 48,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": "Request can be run with the following curl command:"
+     }
+    },
+    {
+     "seq": 49,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": "curl --header 'Authorization: Bearer ***' --cookie 'sid=fixture-session-2718' 'http://localhost:8080/users/7'"
+     }
+    },
+    {
+     "seq": 50,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 51,
+     "unit": 0,
+     "event": {
+      "type": "requestSent",
+      "entry": 2,
+      "call": 1,
+      "request": {
+       "cookies": [
+        {
+         "name": "sid",
+         "value": "fixture-session-2718"
+        }
+       ],
+       "headers": [
+        {
+         "name": "Host",
+         "value": "127.0.0.1:50924"
+        },
+        {
+         "name": "Accept",
+         "value": "*/*"
+        },
+        {
+         "name": "Cookie",
+         "value": "sid=fixture-session-2718"
+        },
+        {
+         "name": "Authorization",
+         "value": "Bearer ***"
+        },
+        {
+         "name": "User-Agent",
+         "value": "sonde/dev"
+        }
+       ],
+       "method": "GET",
+       "query_string": [],
+       "url": "http://localhost:8080/users/7"
+      }
+     }
+    },
+    {
+     "seq": 52,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "requestLine",
+      "text": "GET /users/7 HTTP/1.1"
+     }
+    },
+    {
+     "seq": 53,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "request",
+      "text": "Host: 127.0.0.1:50924"
+     }
+    },
+    {
+     "seq": 54,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "request",
+      "text": "Accept: */*"
+     }
+    },
+    {
+     "seq": 55,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "request",
+      "text": "Cookie: sid=fixture-session-2718"
+     }
+    },
+    {
+     "seq": 56,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "request",
+      "text": "Authorization: Bearer ***"
+     }
+    },
+    {
+     "seq": 57,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "request",
+      "text": "User-Agent: sonde/dev"
+     }
+    },
+    {
+     "seq": 58,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "request",
+      "text": ""
+     }
+    },
+    {
+     "seq": 59,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debugImportant",
+      "text": "Response: (received 49 bytes in 0 ms)"
+     }
+    },
+    {
+     "seq": 60,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 61,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "responseLine",
+      "text": "HTTP/1.1 200 OK"
+     }
+    },
+    {
+     "seq": 62,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "response",
+      "text": "Content-Length: 49"
+     }
+    },
+    {
+     "seq": 63,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "response",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 64,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "response",
+      "text": "Date: Tue, 29 Sep 2026 22:14:31 GMT"
+     }
+    },
+    {
+     "seq": 65,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "response",
+      "text": ""
+     }
+    },
+    {
+     "seq": 66,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 2,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 67,
+     "unit": 0,
+     "event": {
+      "type": "entryFinished",
+      "entry": {
+       "asserts": [
+        {
+         "line": 12,
+         "success": true
+        },
+        {
+         "line": 12,
+         "success": true
+        }
+       ],
+       "calls": [
+        {
+         "request": {
+          "cookies": [
+           {
+            "name": "sid",
+            "value": "fixture-session-2718"
+           }
+          ],
+          "headers": [
+           {
+            "name": "Host",
+            "value": "127.0.0.1:50924"
+           },
+           {
+            "name": "Accept",
+            "value": "*/*"
+           },
+           {
+            "name": "Cookie",
+            "value": "sid=fixture-session-2718"
+           },
+           {
+            "name": "Authorization",
+            "value": "Bearer ***"
+           },
+           {
+            "name": "User-Agent",
+            "value": "sonde/dev"
+           }
+          ],
+          "method": "GET",
+          "query_string": [],
+          "url": "http://localhost:8080/users/7"
+         },
+         "response": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Content-Length",
+            "value": "49"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "Date",
+            "value": "Tue, 29 Sep 2026 22:14:31 GMT"
+           }
+          ],
+          "http_version": "HTTP/1.1",
+          "status": 200
+         },
+         "timings": {
+          "app_connect": 0,
+          "begin_call": "2026-09-29T22:14:31.008364Z",
+          "connect": 0,
+          "end_call": "2026-09-29T22:14:31.008473Z",
+          "name_lookup": 0,
+          "pre_transfer": 0,
+          "start_transfer": 0,
+          "total": 0
+         }
+        }
+       ],
+       "captures": [],
+       "curl_cmd": "curl --header 'Authorization: Bearer ***' --cookie 'sid=fixture-session-2718' 'http://localhost:8080/users/7'",
+       "index": 2,
+       "line": 10,
+       "time": 0,
+       "bodies": [
+        {
+         "id": "36358222014138e655c542d26cd3d96a",
+         "size": 49,
+         "contentType": "application/json"
+        }
+       ],
+       "errors": [],
+       "success": true,
+       "retried": false
+      }
+     }
+    },
+    {
+     "seq": 68,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "------------------------------------------------------------------------------"
+     }
+    },
+    {
+     "seq": 69,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Executing entry 3"
+     }
+    },
+    {
+     "seq": 70,
+     "unit": 0,
+     "event": {
+      "type": "entryStarted",
+      "entry": 3,
+      "retry": 0,
+      "last": 5
+     }
+    },
+    {
+     "seq": 71,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 72,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debugImportant",
+      "text": "Cookie store:"
+     }
+    },
+    {
+     "seq": 73,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": "#HttpOnly_127.0.0.1\tFALSE\t/\tFALSE\t0\tsid\tfixture-session-2718"
+     }
+    },
+    {
+     "seq": 74,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 75,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debugImportant",
+      "text": "Request:"
+     }
+    },
+    {
+     "seq": 76,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": "POST http://localhost:8080/carts"
+     }
+    },
+    {
+     "seq": 77,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": "Authorization: Bearer ***"
+     }
+    },
+    {
+     "seq": 78,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 79,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": "Request can be run with the following curl command:"
+     }
+    },
+    {
+     "seq": 80,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": "curl --request POST --header 'Authorization: Bearer ***' --cookie 'sid=fixture-session-2718' 'http://localhost:8080/carts'"
+     }
+    },
+    {
+     "seq": 81,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 82,
+     "unit": 0,
+     "event": {
+      "type": "requestSent",
+      "entry": 3,
+      "call": 1,
+      "request": {
+       "cookies": [
+        {
+         "name": "sid",
+         "value": "fixture-session-2718"
+        }
+       ],
+       "headers": [
+        {
+         "name": "Host",
+         "value": "127.0.0.1:50924"
+        },
+        {
+         "name": "Accept",
+         "value": "*/*"
+        },
+        {
+         "name": "Cookie",
+         "value": "sid=fixture-session-2718"
+        },
+        {
+         "name": "Authorization",
+         "value": "Bearer ***"
+        },
+        {
+         "name": "User-Agent",
+         "value": "sonde/dev"
+        }
+       ],
+       "method": "POST",
+       "query_string": [],
+       "url": "http://localhost:8080/carts"
+      }
+     }
+    },
+    {
+     "seq": 83,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "requestLine",
+      "text": "POST /carts HTTP/1.1"
+     }
+    },
+    {
+     "seq": 84,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "request",
+      "text": "Host: 127.0.0.1:50924"
+     }
+    },
+    {
+     "seq": 85,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "request",
+      "text": "Accept: */*"
+     }
+    },
+    {
+     "seq": 86,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "request",
+      "text": "Cookie: sid=fixture-session-2718"
+     }
+    },
+    {
+     "seq": 87,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "request",
+      "text": "Authorization: Bearer ***"
+     }
+    },
+    {
+     "seq": 88,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "request",
+      "text": "User-Agent: sonde/dev"
+     }
+    },
+    {
+     "seq": 89,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "request",
+      "text": ""
+     }
+    },
+    {
+     "seq": 90,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debugImportant",
+      "text": "Response: (received 12 bytes in 0 ms)"
+     }
+    },
+    {
+     "seq": 91,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 92,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "responseLine",
+      "text": "HTTP/1.1 201 Created"
+     }
+    },
+    {
+     "seq": 93,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "response",
+      "text": "Content-Length: 12"
+     }
+    },
+    {
+     "seq": 94,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "response",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 95,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "response",
+      "text": "Date: Tue, 29 Sep 2026 22:14:31 GMT"
+     }
+    },
+    {
+     "seq": 96,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "response",
+      "text": ""
+     }
+    },
+    {
+     "seq": 97,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debugImportant",
+      "text": "Captures:"
+     }
+    },
+    {
+     "seq": 98,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "capture",
+      "text": "cart_id: c1"
+     }
+    },
+    {
+     "seq": 99,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 3,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 100,
+     "unit": 0,
+     "event": {
+      "type": "entryFinished",
+      "entry": {
+       "asserts": [
+        {
+         "line": 17,
+         "success": true
+        },
+        {
+         "line": 17,
+         "success": true
+        }
+       ],
+       "calls": [
+        {
+         "request": {
+          "cookies": [
+           {
+            "name": "sid",
+            "value": "fixture-session-2718"
+           }
+          ],
+          "headers": [
+           {
+            "name": "Host",
+            "value": "127.0.0.1:50924"
+           },
+           {
+            "name": "Accept",
+            "value": "*/*"
+           },
+           {
+            "name": "Cookie",
+            "value": "sid=fixture-session-2718"
+           },
+           {
+            "name": "Authorization",
+            "value": "Bearer ***"
+           },
+           {
+            "name": "User-Agent",
+            "value": "sonde/dev"
+           }
+          ],
+          "method": "POST",
+          "query_string": [],
+          "url": "http://localhost:8080/carts"
+         },
+         "response": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Content-Length",
+            "value": "12"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "Date",
+            "value": "Tue, 29 Sep 2026 22:14:31 GMT"
+           }
+          ],
+          "http_version": "HTTP/1.1",
+          "status": 201
+         },
+         "timings": {
+          "app_connect": 0,
+          "begin_call": "2026-09-29T22:14:31.008511Z",
+          "connect": 0,
+          "end_call": "2026-09-29T22:14:31.008596Z",
+          "name_lookup": 0,
+          "pre_transfer": 0,
+          "start_transfer": 0,
+          "total": 0
+         }
+        }
+       ],
+       "captures": [
+        {
+         "name": "cart_id",
+         "value": "c1"
+        }
+       ],
+       "curl_cmd": "curl --request POST --header 'Authorization: Bearer ***' --cookie 'sid=fixture-session-2718' 'http://localhost:8080/carts'",
+       "index": 3,
+       "line": 15,
+       "time": 0,
+       "bodies": [
+        {
+         "id": "ffa4070553681c2701f2f0047376c5a0",
+         "size": 12,
+         "contentType": "application/json"
+        }
+       ],
+       "errors": [],
+       "success": true,
+       "retried": false
+      }
+     }
+    },
+    {
+     "seq": 101,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "------------------------------------------------------------------------------"
+     }
+    },
+    {
+     "seq": 102,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Executing entry 4"
+     }
+    },
+    {
+     "seq": 103,
+     "unit": 0,
+     "event": {
+      "type": "entryStarted",
+      "entry": 4,
+      "retry": 0,
+      "last": 5
+     }
+    },
+    {
+     "seq": 104,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 105,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debugImportant",
+      "text": "Cookie store:"
+     }
+    },
+    {
+     "seq": 106,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": "#HttpOnly_127.0.0.1\tFALSE\t/\tFALSE\t0\tsid\tfixture-session-2718"
+     }
+    },
+    {
+     "seq": 107,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 108,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debugImportant",
+      "text": "Request:"
+     }
+    },
+    {
+     "seq": 109,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": "POST http://localhost:8080/carts/c1/items"
+     }
+    },
+    {
+     "seq": 110,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": "Authorization: Bearer ***"
+     }
+    },
+    {
+     "seq": 111,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 112,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": "Request can be run with the following curl command:"
+     }
+    },
+    {
+     "seq": 113,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": "curl --header 'Authorization: Bearer ***' --header 'Content-Type: application/json' --data '{\"sku\": \"tea\"}' --cookie 'sid=fixture-session-2718' 'http://localhost:8080/carts/c1/items'"
+     }
+    },
+    {
+     "seq": 114,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 115,
+     "unit": 0,
+     "event": {
+      "type": "requestSent",
+      "entry": 4,
+      "call": 1,
+      "request": {
+       "cookies": [
+        {
+         "name": "sid",
+         "value": "fixture-session-2718"
+        }
+       ],
+       "headers": [
+        {
+         "name": "Host",
+         "value": "127.0.0.1:50924"
+        },
+        {
+         "name": "Accept",
+         "value": "*/*"
+        },
+        {
+         "name": "Cookie",
+         "value": "sid=fixture-session-2718"
+        },
+        {
+         "name": "Authorization",
+         "value": "Bearer ***"
+        },
+        {
+         "name": "Content-Type",
+         "value": "application/json"
+        },
+        {
+         "name": "User-Agent",
+         "value": "sonde/dev"
+        },
+        {
+         "name": "Content-Length",
+         "value": "14"
+        }
+       ],
+       "method": "POST",
+       "query_string": [],
+       "url": "http://localhost:8080/carts/c1/items"
+      }
+     }
+    },
+    {
+     "seq": 116,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "requestLine",
+      "text": "POST /carts/c1/items HTTP/1.1"
+     }
+    },
+    {
+     "seq": 117,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "request",
+      "text": "Host: 127.0.0.1:50924"
+     }
+    },
+    {
+     "seq": 118,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "request",
+      "text": "Accept: */*"
+     }
+    },
+    {
+     "seq": 119,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "request",
+      "text": "Cookie: sid=fixture-session-2718"
+     }
+    },
+    {
+     "seq": 120,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "request",
+      "text": "Authorization: Bearer ***"
+     }
+    },
+    {
+     "seq": 121,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "request",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 122,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "request",
+      "text": "User-Agent: sonde/dev"
+     }
+    },
+    {
+     "seq": 123,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "request",
+      "text": "Content-Length: 14"
+     }
+    },
+    {
+     "seq": 124,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "request",
+      "text": ""
+     }
+    },
+    {
+     "seq": 125,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debugImportant",
+      "text": "Response: (received 24 bytes in 0 ms)"
+     }
+    },
+    {
+     "seq": 126,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 127,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "responseLine",
+      "text": "HTTP/1.1 200 OK"
+     }
+    },
+    {
+     "seq": 128,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "response",
+      "text": "Content-Length: 24"
+     }
+    },
+    {
+     "seq": 129,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "response",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 130,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "response",
+      "text": "Date: Tue, 29 Sep 2026 22:14:31 GMT"
+     }
+    },
+    {
+     "seq": 131,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "response",
+      "text": ""
+     }
+    },
+    {
+     "seq": 132,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 4,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 133,
+     "unit": 0,
+     "event": {
+      "type": "entryFinished",
+      "entry": {
+       "asserts": [
+        {
+         "line": 25,
+         "success": true
+        },
+        {
+         "line": 25,
+         "success": true
+        }
+       ],
+       "calls": [
+        {
+         "request": {
+          "cookies": [
+           {
+            "name": "sid",
+            "value": "fixture-session-2718"
+           }
+          ],
+          "headers": [
+           {
+            "name": "Host",
+            "value": "127.0.0.1:50924"
+           },
+           {
+            "name": "Accept",
+            "value": "*/*"
+           },
+           {
+            "name": "Cookie",
+            "value": "sid=fixture-session-2718"
+           },
+           {
+            "name": "Authorization",
+            "value": "Bearer ***"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "User-Agent",
+            "value": "sonde/dev"
+           },
+           {
+            "name": "Content-Length",
+            "value": "14"
+           }
+          ],
+          "method": "POST",
+          "query_string": [],
+          "url": "http://localhost:8080/carts/c1/items"
+         },
+         "response": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Content-Length",
+            "value": "24"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "Date",
+            "value": "Tue, 29 Sep 2026 22:14:31 GMT"
+           }
+          ],
+          "http_version": "HTTP/1.1",
+          "status": 200
+         },
+         "timings": {
+          "app_connect": 0,
+          "begin_call": "2026-09-29T22:14:31.008635Z",
+          "connect": 0,
+          "end_call": "2026-09-29T22:14:31.008748Z",
+          "name_lookup": 0,
+          "pre_transfer": 0,
+          "start_transfer": 0,
+          "total": 0
+         }
+        }
+       ],
+       "captures": [],
+       "curl_cmd": "curl --header 'Authorization: Bearer ***' --header 'Content-Type: application/json' --data '{\"sku\": \"tea\"}' --cookie 'sid=fixture-session-2718' 'http://localhost:8080/carts/c1/items'",
+       "index": 4,
+       "line": 22,
+       "time": 0,
+       "bodies": [
+        {
+         "id": "5172b4db30aad1c1073885cf751ad70a",
+         "size": 24,
+         "contentType": "application/json"
+        }
+       ],
+       "errors": [],
+       "success": true,
+       "retried": false
+      }
+     }
+    },
+    {
+     "seq": 134,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "------------------------------------------------------------------------------"
+     }
+    },
+    {
+     "seq": 135,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 0,
+      "level": "debugImportant",
+      "text": "Executing entry 5"
+     }
+    },
+    {
+     "seq": 136,
+     "unit": 0,
+     "event": {
+      "type": "entryStarted",
+      "entry": 5,
+      "retry": 0,
+      "last": 5
+     }
+    },
+    {
+     "seq": 137,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 138,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debugImportant",
+      "text": "Cookie store:"
+     }
+    },
+    {
+     "seq": 139,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": "#HttpOnly_127.0.0.1\tFALSE\t/\tFALSE\t0\tsid\tfixture-session-2718"
+     }
+    },
+    {
+     "seq": 140,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 141,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debugImportant",
+      "text": "Request:"
+     }
+    },
+    {
+     "seq": 142,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": "POST http://localhost:8080/carts/c1/checkout"
+     }
+    },
+    {
+     "seq": 143,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": "Authorization: Bearer ***"
+     }
+    },
+    {
+     "seq": 144,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 145,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": "Request can be run with the following curl command:"
+     }
+    },
+    {
+     "seq": 146,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": "curl --request POST --header 'Authorization: Bearer ***' --cookie 'sid=fixture-session-2718' 'http://localhost:8080/carts/c1/checkout'"
+     }
+    },
+    {
+     "seq": 147,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 148,
+     "unit": 0,
+     "event": {
+      "type": "requestSent",
+      "entry": 5,
+      "call": 1,
+      "request": {
+       "cookies": [
+        {
+         "name": "sid",
+         "value": "fixture-session-2718"
+        }
+       ],
+       "headers": [
+        {
+         "name": "Host",
+         "value": "127.0.0.1:50924"
+        },
+        {
+         "name": "Accept",
+         "value": "*/*"
+        },
+        {
+         "name": "Cookie",
+         "value": "sid=fixture-session-2718"
+        },
+        {
+         "name": "Authorization",
+         "value": "Bearer ***"
+        },
+        {
+         "name": "User-Agent",
+         "value": "sonde/dev"
+        }
+       ],
+       "method": "POST",
+       "query_string": [],
+       "url": "http://localhost:8080/carts/c1/checkout"
+      }
+     }
+    },
+    {
+     "seq": 149,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "requestLine",
+      "text": "POST /carts/c1/checkout HTTP/1.1"
+     }
+    },
+    {
+     "seq": 150,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "request",
+      "text": "Host: 127.0.0.1:50924"
+     }
+    },
+    {
+     "seq": 151,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "request",
+      "text": "Accept: */*"
+     }
+    },
+    {
+     "seq": 152,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "request",
+      "text": "Cookie: sid=fixture-session-2718"
+     }
+    },
+    {
+     "seq": 153,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "request",
+      "text": "Authorization: Bearer ***"
+     }
+    },
+    {
+     "seq": 154,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "request",
+      "text": "User-Agent: sonde/dev"
+     }
+    },
+    {
+     "seq": 155,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "request",
+      "text": ""
+     }
+    },
+    {
+     "seq": 156,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debugImportant",
+      "text": "Response: (received 36 bytes in 0 ms)"
+     }
+    },
+    {
+     "seq": 157,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 158,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "responseLine",
+      "text": "HTTP/1.1 200 OK"
+     }
+    },
+    {
+     "seq": 159,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "response",
+      "text": "Content-Length: 36"
+     }
+    },
+    {
+     "seq": 160,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "response",
+      "text": "Content-Type: application/json"
+     }
+    },
+    {
+     "seq": 161,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "response",
+      "text": "Date: Tue, 29 Sep 2026 22:14:31 GMT"
+     }
+    },
+    {
+     "seq": 162,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "response",
+      "text": ""
+     }
+    },
+    {
+     "seq": 163,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "debug",
+      "text": ""
+     }
+    },
+    {
+     "seq": 164,
+     "unit": 0,
+     "event": {
+      "type": "log",
+      "entry": 5,
+      "level": "error",
+      "text": "Assert failure\n  --\u003e /project/checkout.hurl:32:0\n   |\n   | POST {{base_url}}/carts/{{cart_id}}/checkout\n   | ...\n32 | jsonpath \"$.status\" == \"paid\"\n   |   actual:   string \u003cpending\u003e\n   |   expected: string \u003cpaid\u003e\n   |"
+     }
+    },
+    {
+     "seq": 165,
+     "unit": 0,
+     "event": {
+      "type": "entryFinished",
+      "entry": {
+       "asserts": [
+        {
+         "line": 30,
+         "success": true
+        },
+        {
+         "line": 30,
+         "success": true
+        },
+        {
+         "line": 32,
+         "message": "Assert failure\n  --\u003e /project/checkout.hurl:32:0\n   |\n   | POST {{base_url}}/carts/{{cart_id}}/checkout\n   | ...\n32 | jsonpath \"$.status\" == \"paid\"\n   |   actual:   string \u003cpending\u003e\n   |   expected: string \u003cpaid\u003e\n   |",
+         "success": false
+        }
+       ],
+       "calls": [
+        {
+         "request": {
+          "cookies": [
+           {
+            "name": "sid",
+            "value": "fixture-session-2718"
+           }
+          ],
+          "headers": [
+           {
+            "name": "Host",
+            "value": "127.0.0.1:50924"
+           },
+           {
+            "name": "Accept",
+            "value": "*/*"
+           },
+           {
+            "name": "Cookie",
+            "value": "sid=fixture-session-2718"
+           },
+           {
+            "name": "Authorization",
+            "value": "Bearer ***"
+           },
+           {
+            "name": "User-Agent",
+            "value": "sonde/dev"
+           }
+          ],
+          "method": "POST",
+          "query_string": [],
+          "url": "http://localhost:8080/carts/c1/checkout"
+         },
+         "response": {
+          "cookies": [],
+          "headers": [
+           {
+            "name": "Content-Length",
+            "value": "36"
+           },
+           {
+            "name": "Content-Type",
+            "value": "application/json"
+           },
+           {
+            "name": "Date",
+            "value": "Tue, 29 Sep 2026 22:14:31 GMT"
+           }
+          ],
+          "http_version": "HTTP/1.1",
+          "status": 200
+         },
+         "timings": {
+          "app_connect": 0,
+          "begin_call": "2026-09-29T22:14:31.008788Z",
+          "connect": 0,
+          "end_call": "2026-09-29T22:14:31.008879Z",
+          "name_lookup": 0,
+          "pre_transfer": 0,
+          "start_transfer": 0,
+          "total": 0
+         }
+        }
+       ],
+       "captures": [],
+       "curl_cmd": "curl --request POST --header 'Authorization: Bearer ***' --cookie 'sid=fixture-session-2718' 'http://localhost:8080/carts/c1/checkout'",
+       "index": 5,
+       "line": 28,
+       "time": 0,
+       "bodies": [
+        {
+         "id": "089f286cb701728d307bd537fbb83f69",
+         "size": 36,
+         "contentType": "application/json"
+        }
+       ],
+       "errors": [
+        {
+         "line": 32,
+         "column": 0,
+         "kind": "assert-failure",
+         "assert": true,
+         "description": "Assert failure",
+         "message": "   actual:   string \u003cpending\u003e\n   expected: string \u003cpaid\u003e"
+        }
+       ],
+       "success": false,
+       "retried": false
+      }
+     }
+    }
+   ],
+   "dropped": 0
+  }
+ },
+ {
+  "topic": "history:changed",
+  "data": "20260929T221431.006541000Z-checkout"
+ },
+ {
+  "topic": "run:checkout:done",
+  "data": {
+   "runId": "checkout",
+   "lastSeq": 165,
+   "summary": {
+    "runId": "checkout",
+    "kind": "run",
+    "env": "local",
+    "outcome": "failed",
+    "startedAt": "2026-09-29T22:14:31.006541Z",
+    "files": 1,
+    "succeeded": 0,
+    "requests": 5,
+    "durationMs": 2,
+    "units": [
+     {
+      "file": "checkout.hurl",
+      "success": false,
+      "interrupted": false,
+      "canceled": false,
+      "requests": 5,
+      "durationMs": 1
+     }
+    ]
+   }
+  }
+ }
+]
