@@ -13,6 +13,7 @@ require (
 	github.com/nhtera/sonde v0.0.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/wailsapp/wails/v3 v3.0.0-beta.26
+	go.uber.org/goleak v1.3.0
 	golang.org/x/sys v0.48.0
 )
 

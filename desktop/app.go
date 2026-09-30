@@ -22,6 +22,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/desktop/internal/settings"
 	"github.com/nhtera/sonde/desktop/internal/workspace"
+	"github.com/nhtera/sonde/desktop/internal/wsession"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
 )
@@ -57,6 +58,7 @@ type Host struct {
 	History   *history.History
 	Envs      *envsvc.Envs
 	Mocks     *mocksvc.Mocks
+	Sessions  *wsession.Sessions
 }
 
 // version is the app's version (set at build time); it names the default
@@ -86,8 +88,10 @@ func (h *Host) setup() error {
 			h.Mocks.Observe(results)
 		},
 	}
+	h.Sessions = wsession.New(h.Emit, h.Runs.Prepare)
 	h.Workspace.Secret = h.Envs.IsSecretFile
 	h.Workspace.Opened = func() {
+		h.Sessions.CloseAll()
 		h.Mocks.Stop()
 		h.Runs.Reset()
 		h.Envs.Opened()

@@ -85,10 +85,23 @@ type EntryFinished struct {
 type Entry struct {
 	report.Entry
 	// Bodies has one item per call: the redacted response body's id.
-	Bodies  []Body  `json:"bodies"`
-	Errors  []Error `json:"errors"`
-	Success bool    `json:"success"`
-	Retried bool    `json:"retried"`
+	Bodies []Body `json:"bodies"`
+	// Timings has one item per call, in microseconds (the report's are
+	// whole milliseconds, too coarse for a local request's waterfall).
+	Timings []Timings `json:"timings"`
+	Errors  []Error   `json:"errors"`
+	Success bool      `json:"success"`
+	Retried bool      `json:"retried"`
+}
+
+// Timings are a call's phases, in microseconds since it began.
+type Timings struct {
+	NameLookup    int64 `json:"name_lookup"`
+	Connect       int64 `json:"connect"`
+	AppConnect    int64 `json:"app_connect"`
+	PreTransfer   int64 `json:"pre_transfer"`
+	StartTransfer int64 `json:"start_transfer"`
+	Total         int64 `json:"total"`
 }
 
 // Body is a stored response body, fetched at /_sonde/body/<id>. ID is

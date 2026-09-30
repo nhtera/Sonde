@@ -191,6 +191,10 @@ func (g *Guard) Middleware(next http.Handler) http.Handler {
 				return
 			}
 			h.Set("Cache-Control", "no-store")
+			// The Results preview frames a body (sandboxed, by the body's
+			// own CSP): the app's page may frame it, no other page.
+			h.Set("Content-Security-Policy", "frame-ancestors 'self'")
+			h.Set("X-Frame-Options", "SAMEORIGIN")
 			next.ServeHTTP(w, r)
 		case needsToken(path):
 			if !g.cookieOK(r) || !g.tokenOK(r) {

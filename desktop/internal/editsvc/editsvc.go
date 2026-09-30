@@ -11,9 +11,12 @@ package editsvc
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/engine"
@@ -252,6 +255,89 @@ func quote(s string) string {
 	return b.String()
 }
 
+// AppendMessages writes a message sent in an interactive session into
+// the [SondeMessages] steps of an entry: `send: <message>` then
+// `receive: 1`, before a final `close` step, else after the last step.
+// Text is written as is when it is JSON, else as a `…` string; binary is
+// hex digits.
+func (e *Edits) AppendMessages(b Buffer, entry int, data string, binary bool) (*Result, error) {
+	src := []byte(b.Text)
+	f, err := syntax.Parse(b.File, src, syntax.DialectFor(b.File))
+	if err != nil {
+		return nil, apperr.Wrap(apperr.Invalid, err)
+	}
+	if entry < 1 || entry > len(f.Entries) {
+		return nil, apperr.New(apperr.NotFound, "no request "+strconv.Itoa(entry))
+	}
+	var sec *syntax.Section
+	for _, s := range f.Entries[entry-1].Request.Sections {
+		if s.Kind == syntax.SectionMessages {
+			sec = s
+		}
+	}
+	if sec == nil {
+		return nil, apperr.New(apperr.NotFound, "request "+strconv.Itoa(entry)+" has no [SondeMessages]")
+	}
+	value, err := messageValue(data, binary)
+	if err != nil {
+		return nil, err
+	}
+	nl := "\n"
+	if strings.Contains(b.Text, "\r\n") {
+		nl = "\r\n"
+	}
+	at := sec.LineTerminator0.Newline.Span.End.Offset
+	if n := len(sec.Messages); n > 0 {
+		last := sec.Messages[n-1]
+		at = last.LineTerminator0.Newline.Span.End.Offset
+		if last.Kind == syntax.StepClose {
+			at = strings.LastIndexByte(b.Text[:last.Span.Start.Offset], '\n') + 1
+		}
+	}
+	text := "send: " + value + nl + "receive: 1" + nl
+	if at > 0 && src[at-1] != '\n' {
+		text = nl + text // the step ends the file without a newline
+	}
+	out := b.Text[:at] + text + b.Text[at:]
+	if _, err := syntax.Parse(b.File, []byte(out), syntax.DialectFor(b.File)); err != nil {
+		return nil, apperr.New(apperr.Invalid, "this message cannot be written as a step: "+err.Error())
+	}
+	pos := utf16Len(b.Text[:at])
+	return &Result{
+		Version: b.Version,
+		Edits:   []syntaxedit.TextEdit{{Range: syntaxedit.Range{Start: pos, End: pos}, NewText: text}},
+		Text:    out,
+	}, nil
+}
+
+// messageValue is the step value of a message.
+func messageValue(data string, binary bool) (string, error) {
+	if binary {
+		digits := strings.Join(strings.Fields(data), "")
+		if _, err := hex.DecodeString(digits); err != nil || digits == "" {
+			return "", apperr.New(apperr.Invalid, "binary messages are hex digits, e.g. 01 ff")
+		}
+		return "hex," + digits + ";", nil
+	}
+	trimmed := strings.TrimSpace(data)
+	if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Valid([]byte(trimmed)) && !strings.Contains(trimmed, "{{") {
+		return trimmed, nil
+	}
+	if strings.ContainsAny(data, "`\\\n\r") || strings.Contains(data, "{{") {
+		return "", apperr.New(apperr.Invalid, "only one-line text without backticks, backslashes or {{ can be written to the file")
+	}
+	return "`" + data + "`", nil
+}
+
+// utf16Len is the length of s in UTF-16 code units.
+func utf16Len(s string) int {
+	n := 0
+	for _, r := range s {
+		n += utf16.RuneLen(r)
+	}
+	return n
+}
+
 // Methods lists the gRPC services and methods an entry of the buffer can
 // call (from the server's reflection or its proto files), in env.
 func (e *Edits) Methods(ctx context.Context, b Buffer, entry int, env string) ([]grpcx.Service, error) {
@@ -288,6 +374,11 @@ func (s *Service) Apply(b Buffer, op Op) (*Result, error) { return s.e.Apply(b, 
 // AssertValue adds an assert or capture on a response body's value.
 func (s *Service) AssertValue(b Buffer, req FromBody) (*Result, error) {
 	return s.e.AssertValue(b, req)
+}
+
+// AppendMessages writes a session's message into an entry's steps.
+func (s *Service) AppendMessages(b Buffer, entry int, data string, binary bool) (*Result, error) {
+	return s.e.AppendMessages(b, entry, data, binary)
 }
 
 // Methods lists an entry's gRPC methods.

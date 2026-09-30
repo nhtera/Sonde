@@ -14,7 +14,7 @@ import (
 // bodies, and its errors.
 func ConvertEntry(file string, e *engine.EntryResult, redact Redactor, bodies BodyStore) Entry {
 	unit := &engine.UnitResult{File: file, Entries: []*engine.EntryResult{e}}
-	out := Entry{Bodies: []Body{}, Errors: []Error{}, Success: len(e.Errors) == 0, Retried: e.Retried}
+	out := Entry{Bodies: []Body{}, Timings: []Timings{}, Errors: []Error{}, Success: len(e.Errors) == 0, Retried: e.Retried}
 	if r, err := report.JSON(unit, redact, nil); err == nil && len(r.Entries) == 1 {
 		out.Entry = r.Entries[0]
 	} else {
@@ -22,6 +22,11 @@ func ConvertEntry(file string, e *engine.EntryResult, redact Redactor, bodies Bo
 	}
 	for _, call := range e.Calls {
 		out.Bodies = append(out.Bodies, storeBody(call, redact, bodies))
+		t := call.Timings
+		out.Timings = append(out.Timings, Timings{
+			NameLookup: t.NameLookup.Microseconds(), Connect: t.Connect.Microseconds(), AppConnect: t.AppConnect.Microseconds(),
+			PreTransfer: t.PreTransfer.Microseconds(), StartTransfer: t.StartTransfer.Microseconds(), Total: t.Total.Microseconds(),
+		})
 	}
 	for _, err := range e.Errors {
 		out.Errors = append(out.Errors, ConvertError(err, redact))

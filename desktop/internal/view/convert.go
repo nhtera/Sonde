@@ -129,9 +129,9 @@ func (c *Converter) convert(ev engine.Event, entry int) (any, bool) {
 	case engine.Log:
 		return Log{Type: TypeLog, Entry: entry, Level: levels[e.Level], Text: redact(e.Text)}, true
 	case engine.MessageSent:
-		return Message{Type: TypeMessage, Entry: e.Index, Message: message(e.Message, redact)}, true
+		return Message{Type: TypeMessage, Entry: e.Index, Message: StreamMessage(e.Message, redact)}, true
 	case engine.MessageReceived:
-		return Message{Type: TypeMessage, Entry: e.Index, Message: message(e.Message, redact)}, true
+		return Message{Type: TypeMessage, Entry: e.Index, Message: StreamMessage(e.Message, redact)}, true
 	case engine.EntryFinished:
 		if e.Result == nil {
 			return nil, false
@@ -151,9 +151,9 @@ func request(file string, req exchange.Request, redact Redactor) report.Request 
 	return r.Entries[0].Calls[0].Request
 }
 
-// message projects a stream message as the report does: binary data is
+// StreamMessage projects a stream message as the report does: binary data is
 // redacted, then base64-encoded.
-func message(m exchange.Message, redact Redactor) report.StreamMessage {
+func StreamMessage(m exchange.Message, redact Redactor) report.StreamMessage {
 	out := report.StreamMessage{
 		Binary: m.Binary, Direction: m.Direction.String(),
 		Event: redact(m.Event), ID: redact(m.ID), Retry: m.Retry, Time: m.At.Milliseconds(),

@@ -187,6 +187,23 @@ func TestFramingDenied(t *testing.T) {
 	}
 }
 
+// TestBodyFramedBySelfOnly: the Results preview frames a body; only the
+// app's own page may, and a body without the session is still refused.
+func TestBodyFramedBySelfOnly(t *testing.T) {
+	g := newGuard(t)
+	w := g.do(t, req{path: BodyPrefix + "abc", cookie: true})
+	if got := w.Header().Get("Content-Security-Policy"); got != "frame-ancestors 'self'" {
+		t.Errorf("CSP %q", got)
+	}
+	if got := w.Header().Get("X-Frame-Options"); got != "SAMEORIGIN" {
+		t.Errorf("X-Frame-Options %q", got)
+	}
+	w = g.do(t, req{path: BodyPrefix + "abc"})
+	if w.Code != http.StatusUnauthorized || w.Header().Get("X-Frame-Options") != "DENY" {
+		t.Errorf("no session: %d, X-Frame-Options %q", w.Code, w.Header().Get("X-Frame-Options"))
+	}
+}
+
 func TestNonceExchange(t *testing.T) {
 	g := newGuard(t)
 	done := 0
