@@ -1,0 +1,159 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* Design tokens (Sonde Design System v0.2). Calm surfaces, loud results:
+   chrome recedes into navy; color is reserved for what the run tells you.
+   Dark is the default; light has equal quality. */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --backdrop: #070b12;
+  --bg: #0b111c;
+  --panel: #101826;
+  --raised: #172236;
+  --hover: #1a263b;
+  --line: #22304a;
+  --line2: #19243a;
+  --text: #d8e1ee;
+  --muted: #8593ab;
+  --faint: #5a6882;
+  --accent: #5dc9b8;
+  --accent-ink: #062a26;
+  --accent-kbd: rgba(6, 42, 38, 0.16);
+  --accent-soft: rgba(93, 201, 184, 0.12);
+  --accent-line: rgba(93, 201, 184, 0.4);
+  --pass: #5bd08f;
+  --fail: #f07268;
+  --warn: #e6b450;
+  --info: #7aa7f5;
+  --pass-soft: rgba(91, 208, 143, 0.12);
+  --fail-soft: rgba(240, 114, 104, 0.1);
+  --fail-line: rgba(240, 114, 104, 0.32);
+  --fail-row: rgba(240, 114, 104, 0.07);
+  --warn-soft: rgba(230, 180, 80, 0.11);
+  --warn-line: rgba(230, 180, 80, 0.6);
+  --curline: rgba(255, 255, 255, 0.03);
+  --scrim: rgba(3, 6, 12, 0.55);
+  --m-get: #5bd08f;
+  --m-post: #e6b450;
+  --m-put: #7aa7f5;
+  --m-patch: #b99af3;
+  --m-delete: #f07268;
+  --t-sec: #b99af3;
+  --t-key: #7aa7f5;
+  --t-str: #a9d8a0;
+  --t-num: #f2a869;
+  --t-var: #5dc9b8;
+  --t-q: #c9a8ff;
+  --t-op: #f59e8b;
+  --t-f: #e0c274;
+  --t-http: #b99af3;
+  --t-com: #5f6e88;
+  --shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.8);
+  --pop: 0 18px 44px -12px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --backdrop: #dde3ea;
+  --bg: #ffffff;
+  --panel: #f6f8fb;
+  --raised: #eaeff5;
+  --hover: #e6ebf2;
+  --line: #d5dde8;
+  --line2: #e3e8ef;
+  --text: #121a2b;
+  --muted: #56657c;
+  --faint: #8b97aa;
+  --accent: #1f7f72;
+  --accent-ink: #ffffff;
+  --accent-kbd: rgba(255, 255, 255, 0.18);
+  --accent-soft: rgba(31, 127, 114, 0.1);
+  --accent-line: rgba(31, 127, 114, 0.4);
+  --pass: #1b8f55;
+  --fail: #cc3d33;
+  --warn: #9a6a0e;
+  --info: #2f64c9;
+  --pass-soft: rgba(27, 143, 85, 0.1);
+  --fail-soft: rgba(204, 61, 51, 0.07);
+  --fail-line: rgba(204, 61, 51, 0.28);
+  --fail-row: rgba(204, 61, 51, 0.06);
+  --warn-soft: rgba(154, 106, 14, 0.09);
+  --warn-line: rgba(154, 106, 14, 0.55);
+  --curline: rgba(18, 26, 43, 0.035);
+  --scrim: rgba(18, 26, 43, 0.28);
+  --m-get: #1b8f55;
+  --m-post: #9a6a0e;
+  --m-put: #2f64c9;
+  --m-patch: #7a4fd0;
+  --m-delete: #cc3d33;
+  --t-sec: #7a4fd0;
+  --t-key: #2f64c9;
+  --t-str: #2e7d4f;
+  --t-num: #b4540f;
+  --t-var: #1f7f72;
+  --t-q: #7a4fd0;
+  --t-op: #c2410c;
+  --t-f: #8a6a00;
+  --t-http: #7a4fd0;
+  --t-com: #8b97a8;
+  --shadow: 0 40px 90px -30px rgba(18, 26, 43, 0.45);
+  --pop: 0 18px 44px -12px rgba(18, 26, 43, 0.3);
+}
+
+:root {
+  --font-ui: Geist, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --r-chip: 4px;
+  --r-control: 6px;
+  --r-row: 8px;
+  --r-card: 10px;
+  --r-window: 12px;
+}
+
+/* Ligatures off everywhere: == stays ==. Tabular figures for numbers. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--panel);
+  color: var(--text);
+  font: 13px/1.45 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+code,
+kbd,
+pre,
+.mono {
+  font-family: var(--font-code);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 1px;
+}

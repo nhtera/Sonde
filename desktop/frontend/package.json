@@ -14,13 +14,25 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource/geist": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@radix-ui/react-context-menu": "2.3.7",
+    "@radix-ui/react-dialog": "1.1.23",
+    "@radix-ui/react-dropdown-menu": "2.1.24",
+    "@tanstack/react-virtual": "3.14.13",
     "@wailsio/runtime": "3.0.0-beta.26",
+    "cmdk": "1.1.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "tinykeys": "4.0.1",
+    "zustand": "5.0.15"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
     "@types/node": "22.20.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

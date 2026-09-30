@@ -1,0 +1,63 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* The run components shared by the Results and Test run panels. */
+
+.run-header { padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 6px; }
+.run-title { display: flex; align-items: center; gap: 8px; }
+.run-title h2 { margin: 0; font: 600 14px var(--font-ui); }
+.outcome { font: 500 11px var(--font-ui); padding: 2px 7px; border-radius: 5px; background: var(--raised); color: var(--muted); }
+.outcome-passed { background: var(--pass-soft); color: var(--pass); }
+.outcome-failed, .outcome-error { background: var(--fail-soft); color: var(--fail); }
+.outcome-running { background: var(--accent-soft); color: var(--accent); }
+.env-chip { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 5px; background: var(--raised); font: 500 11px var(--font-code); color: var(--muted); }
+.run-counts { display: flex; gap: 12px; font-size: 12.5px; color: var(--muted); }
+.run-counts b { font-weight: 600; color: var(--text); }
+.run-counts b.pass { color: var(--pass); }
+.run-counts b.fail { color: var(--fail); }
+.run-note { font-size: 11.5px; color: var(--faint); }
+
+.request-list { list-style: none; margin: 0; padding: 4px 8px; }
+.req-row {
+  display: grid; grid-template-columns: 22px 52px minmax(0, 1fr) auto auto 14px; align-items: center; column-gap: 8px;
+  min-height: 34px; padding: 6px 8px; border-radius: 8px; font-size: 12px; cursor: default;
+}
+.req-row:hover { background: var(--hover); }
+.req-row[aria-selected="true"] { background: var(--raised); }
+.req-row.state-failed[aria-selected="true"] { background: var(--fail-soft); box-shadow: inset 0 0 0 1px var(--fail-line); }
+.req-row .idx { color: var(--faint); font-size: 11px; }
+.req-row .mth { font: 600 10.5px var(--font-code); }
+.req-row .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.req-row .code.pass { color: var(--pass); }
+.req-row .code.fail { color: var(--fail); }
+.req-row .ms, .req-row .skip { color: var(--muted); font-size: 11.5px; }
+.req-row .mark { text-align: center; color: var(--faint); }
+.req-row.state-passed .mark { color: var(--pass); }
+.req-row.state-failed .mark { color: var(--fail); }
+.req-row.state-skipped, .req-row.state-pending { color: var(--faint); }
+.req-row .vars { grid-column: 3 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.var-chip { font: 500 10.5px var(--font-code); padding: 1px 5px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.var-chip.out { background: var(--accent-soft); box-shadow: none; color: var(--accent); }
+
+.row-pills { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+.row-pill {
+  display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 9px; border: 0; border-radius: 6px;
+  background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 500 12px var(--font-ui);
+}
+.row-pill.state-failed .dot { background: var(--fail); }
+.row-pill.state-pending .dot, .row-pill.state-running .dot { background: var(--faint); }
+.row-pill[aria-selected="true"] { background: var(--raised); }
+.row-pill.state-failed[aria-selected="true"] { background: var(--fail-soft); box-shadow: inset 0 0 0 1px var(--fail-line); }
+
+.failure-box { margin: 10px 16px; padding: 14px; border-radius: 10px; background: var(--fail-soft); box-shadow: inset 0 0 0 1px var(--fail-line); display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; }
+.failure-title { display: flex; gap: 8px; align-items: baseline; }
+.failure-title b { color: var(--fail); font-weight: 600; }
+.failure-title span { color: var(--muted); }
+.failure-code { font-size: 12.5px; }
+.failure-values { display: grid; grid-template-columns: 74px 1fr; gap: 4px 12px; margin: 0; }
+.failure-values dt { color: var(--muted); }
+.failure-values dd { margin: 0; }
+.failure-values .fail { color: var(--fail); }
+.failure-message { margin: 0; white-space: pre-wrap; font: 12px var(--font-code); color: var(--muted); }
+.failure-actions { display: flex; gap: 8px; }
+.run-error { margin: 0 16px 8px; color: var(--fail); font-size: 12.5px; }

@@ -6,8 +6,20 @@ import "./transport/server-auth";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
-import "./styles.css";
+import "./app/theme/fonts";
+import "./app/theme/tokens.css";
+import "./app/shell.css";
+import "./components/run/run.css";
+import "./features/palette/palette.css";
+// The shell's commands and panels, then each feature's (they register
+// through app/registry; the shell never imports a feature's internals).
+import "./app/core";
+import "./features/editor";
+import "./features/results";
+import "./features/form";
+import "./features/panels";
+import "./features/import";
+import { App } from "./app/app";
 
 // The test harness build (vite --mode harness) adds the spike and e2e
 // hooks; other builds drop this branch.
