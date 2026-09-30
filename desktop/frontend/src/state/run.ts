@@ -7,6 +7,7 @@
 import { create } from "zustand";
 import { Runs, appError, type Summary } from "../lib/api";
 import { startRun } from "../lib/run-bridge";
+import { flushEdits } from "./edits";
 import { apply, type FileRun } from "./run-model";
 import { useEnv } from "./env";
 import { useTabs } from "./tabs";
@@ -94,19 +95,19 @@ export const useRuns = create<RunState>((set, get) => {
   return {
     runs: {},
     run: (file, to = 0) => {
-      const text = useTabs.getState().tabs.find((t) => t.path === file)?.text ?? "";
-      return begin(file, "run", (runId) =>
-        Runs.Run({ runId, file, source: text, env: useEnv.getState().current, to }),
-      );
+      const go = () => {
+        const text = useTabs.getState().tabs.find((t) => t.path === file)?.text ?? "";
+        return begin(file, "run", (runId) => Runs.Run({ runId, file, source: text, env: useEnv.getState().current, to }));
+      };
+      // What runs is the text the user sees (a form field being typed in).
+      return flushEdits(file)?.then(go) ?? go();
     },
     send: (file, entry) => {
-      const text = useTabs.getState().tabs.find((t) => t.path === file)?.text ?? "";
-      return begin(
-        file,
-        "send",
-        (runId) => Runs.Send({ runId, file, source: text, env: useEnv.getState().current, entry }),
-        entry,
-      );
+      const go = () => {
+        const text = useTabs.getState().tabs.find((t) => t.path === file)?.text ?? "";
+        return begin(file, "send", (runId) => Runs.Send({ runId, file, source: text, env: useEnv.getState().current, entry }), entry);
+      };
+      return flushEdits(file)?.then(go) ?? go();
     },
     cancel: (file) => handles.get(file)?.(),
     reset: () => {

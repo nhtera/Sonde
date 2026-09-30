@@ -10,6 +10,7 @@
 import { create } from "zustand";
 import { Workspace, appError } from "../lib/api";
 import { on } from "../lib/events";
+import { flushEdits } from "./edits";
 import { useUI } from "./ui";
 
 export interface Tab {
@@ -62,6 +63,7 @@ export const useTabs = create<TabsState>((set, get) => ({
   setText: (path, text) =>
     set({ tabs: get().tabs.map((t) => (t.path === path ? { ...t, text, version: t.version + 1 } : t)) }),
   save: async (path) => {
+    await flushEdits(path);
     const tab = get().tabs.find((t) => t.path === path);
     if (!tab) return false;
     try {

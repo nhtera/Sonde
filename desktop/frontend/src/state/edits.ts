@@ -58,6 +58,26 @@ export function undoEdit(path: string) {
   targets.get(path)?.undo();
 }
 
+/** Brings a view's pending changes into a tab's text (the form's field
+ * being typed in): null when there is nothing to wait for. */
+export type Flusher = (path: string) => Promise<void> | null;
+
+const flushers = new Set<Flusher>();
+
+/** Registers a flusher; returns the unregister function. */
+export function registerFlusher(f: Flusher): () => void {
+  flushers.add(f);
+  return () => flushers.delete(f);
+}
+
+/** Waits for every view's pending changes of path, so a run or a save
+ * takes the text the user sees; null when none is pending (the caller
+ * then goes on at once). */
+export function flushEdits(path: string): Promise<void> | null {
+  const waits = [...flushers].map((f) => f(path)).filter((p): p is Promise<void> => p !== null);
+  return waits.length ? Promise.all(waits).then(() => undefined) : null;
+}
+
 /** The 1-based line of a UTF-16 offset of text. */
 export function lineAt(text: string, offset: number): number {
   let line = 1;
