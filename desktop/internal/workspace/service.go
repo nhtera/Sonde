@@ -20,6 +20,10 @@ func (s *Service) Tree() (*Node, error) { return s.w.Tree() }
 // Index lists every request of every request file, for search.
 func (s *Service) Index() ([]Request, error) { return s.w.Index() }
 
+// Filter returns the requests whose text holds query (method, URL,
+// headers, body…), with the first matching line of each.
+func (s *Service) Filter(query string) ([]Match, error) { return s.w.Filter(query) }
+
 // Requests lists the requests of file.
 func (s *Service) Requests(file string) ([]Request, error) { return s.w.Requests(file) }
 

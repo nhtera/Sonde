@@ -15,7 +15,7 @@ import (
 // File kinds in the tree.
 const (
 	KindDir     = "dir"
-	KindRequest = "request" // .hurl
+	KindRequest = "request" // .hurl, .sonde
 	KindConfig  = "config"  // sonde.yaml
 	KindSecrets = "secrets" // *.secrets
 	KindData    = "data"    // .csv, .json
@@ -89,7 +89,7 @@ func tree(root *sandbox.Root) (*Node, error) {
 
 func kindOf(name string) string {
 	switch ext := strings.ToLower(path.Ext(name)); {
-	case ext == ".hurl":
+	case ext == ".hurl" || ext == ".sonde":
 		return KindRequest
 	case name == "sonde.yaml" || name == "sonde.yml":
 		return KindConfig

@@ -76,6 +76,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := strings.Trim(r.URL.Path, "/")
 	parts := strings.Split(p, "/")
 	switch {
+	case p == "health": // readiness, for the browser tests
+		w.WriteHeader(http.StatusNoContent)
 	case r.Method == "POST" && p == "login":
 		var body struct{ User, Password string }
 		_ = json.NewDecoder(r.Body).Decode(&body)

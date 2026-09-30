@@ -47,6 +47,9 @@ type Appearance struct {
 	Theme        string `json:"theme"` // "system", "light" or "dark"
 	UIFontSize   int    `json:"uiFontSize"`
 	CodeFontSize int    `json:"codeFontSize"`
+	// SideWidth and ResultsWidth are the split panes' widths in CSS pixels.
+	SideWidth    int `json:"sideWidth"`
+	ResultsWidth int `json:"resultsWidth"`
 }
 
 // Network settings are --proxy, --connect-timeout and --retry.
@@ -84,7 +87,7 @@ type Contract struct {
 func Defaults() Settings {
 	return Settings{
 		Version:    Version,
-		Appearance: Appearance{Theme: "system", UIFontSize: 13, CodeFontSize: 13},
+		Appearance: Appearance{Theme: "system", UIFontSize: 13, CodeFontSize: 13, SideWidth: 248, ResultsWidth: 440},
 		Shortcuts:  map[string]string{},
 		History:    History{Enabled: true, Retention: "30d"},
 	}
@@ -258,6 +261,8 @@ func normalize(s Settings) Settings {
 	if s.Appearance.CodeFontSize <= 0 {
 		s.Appearance.CodeFontSize = d.Appearance.CodeFontSize
 	}
+	s.Appearance.SideWidth = paneWidth(s.Appearance.SideWidth, d.Appearance.SideWidth, 180, 480)
+	s.Appearance.ResultsWidth = paneWidth(s.Appearance.ResultsWidth, d.Appearance.ResultsWidth, 320, 900)
 	if s.History.Retention == "" {
 		s.History.Retention = d.History.Retention
 	}
@@ -266,6 +271,14 @@ func normalize(s Settings) Settings {
 	}
 	s.Version = Version
 	return s
+}
+
+// paneWidth is w within [lo, hi], or def when unset.
+func paneWidth(w, def, lo, hi int) int {
+	if w <= 0 {
+		return def
+	}
+	return min(max(w, lo), hi)
 }
 
 // forPage masks the proxy URL's password: the page never gets it back.

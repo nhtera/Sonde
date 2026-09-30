@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -329,6 +330,34 @@ func TestSecretsNeverRead(t *testing.T) {
 	if _, err := s.Save("secrets/new.secrets", "x", ""); code(err) != apperr.Denied {
 		t.Errorf("a new secrets file: %v", err)
 	}
+	// Renaming would make a secrets file readable (or hide a file).
+	write(t, dir, "notes.txt", "x")
+	for _, r := range [][2]string{
+		{"secrets/local.secrets", "local.txt"},
+		{"env/prod.env", "prod.txt"},
+		{"secrets", "plain"},
+		{"env", "plain"},
+		{"notes.txt", "notes.secrets"},
+	} {
+		if _, err := s.Rename(r[0], r[1]); code(err) != apperr.Denied {
+			t.Errorf("Rename(%q, %q): %v", r[0], r[1], err)
+		}
+	}
+	if _, err := s.Rename("notes.txt", "notes.md"); err != nil {
+		t.Errorf("a plain rename: %v", err)
+	}
+	// The tree marks a project secrets file whatever its extension.
+	tr, err := s.Tree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range tr.Children {
+		for _, f := range d.Children {
+			if f.Path == "env/prod.env" && f.Kind != KindSecrets {
+				t.Errorf("env/prod.env is %q in the tree", f.Kind)
+			}
+		}
+	}
 }
 
 // TestPollingLargeProject: a project past the watch limit is polled, and
@@ -359,4 +388,28 @@ func TestPollingLargeProject(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatal("the poller did not report the new file")
+}
+
+// TestFilter: a query matches a request's headers and body, not only its
+// method and URL; .sonde files are request files too.
+func TestFilter(t *testing.T) {
+	s, _, dir := open(t)
+	write(t, dir, "a.hurl", "# Login\nPOST {{base}}/login\nX-Client: mobile\n{\"user\": \"ada\"}\nHTTP 200\n\nGET {{base}}/me\nHTTP 200\n")
+	write(t, dir, "b.sonde", "GET {{base}}/events\nAccept: text/event-stream\nHTTP 200\n")
+	write(t, dir, "x.secrets", "mobile=1\n")
+	for q, want := range map[string][]Match{
+		"MOBILE":       {{File: "a.hurl", Entry: 1, Line: 3, Text: "X-Client: mobile"}},
+		"ada":          {{File: "a.hurl", Entry: 1, Line: 4, Text: `{"user": "ada"}`}},
+		"/me":          {{File: "a.hurl", Entry: 2, Line: 7, Text: "GET {{base}}/me"}},
+		"event-stream": {{File: "b.sonde", Entry: 1, Line: 2, Text: "Accept: text/event-stream"}},
+		"  ":           {},
+	} {
+		got, err := s.Filter(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("Filter(%q) = %+v, want %+v", q, got, want)
+		}
+	}
 }

@@ -144,29 +144,55 @@ func (s *Workspace) Project() *Project {
 	return &Project{Name: filepath.Base(r.Dir()), Dir: r.Dir()}
 }
 
-// Tree returns the project tree.
+// Tree returns the project tree; the project's secrets files are marked
+// as secrets whatever their extension.
 func (s *Workspace) Tree() (*Node, error) {
 	root, err := s.project()
 	if err != nil {
 		return nil, err
 	}
-	return tree(root)
+	t, err := tree(root)
+	if err != nil || s.Secret == nil {
+		return t, err
+	}
+	var mark func(n *Node)
+	mark = func(n *Node) {
+		if n.Kind != KindDir && s.Secret(n.Path) {
+			n.Kind = KindSecrets
+		}
+		for _, c := range n.Children {
+			mark(c)
+		}
+	}
+	mark(t)
+	return t, nil
 }
 
 // Index lists every request of every request file, for search.
 func (s *Workspace) Index() ([]Request, error) {
+	out := []Request{}
+	err := s.eachRequestFile(func(f string, src []byte) bool {
+		out = append(out, requestsOf(f, src)...)
+		return true
+	})
+	return out, err
+}
+
+// eachRequestFile calls fn with each request file of the project and its
+// text, until fn returns false.
+func (s *Workspace) eachRequestFile(fn func(file string, src []byte) bool) error {
 	root, err := s.project()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	t, err := tree(root)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	var files []string
 	var walk func(n *Node)
 	walk = func(n *Node) {
-		if n.Kind == KindRequest {
+		if n.Kind == KindRequest && !s.protected(filepath.FromSlash(n.Path)) {
 			files = append(files, n.Path)
 		}
 		for _, c := range n.Children {
@@ -174,15 +200,66 @@ func (s *Workspace) Index() ([]Request, error) {
 		}
 	}
 	walk(t)
-	out := []Request{}
 	for _, f := range files {
 		src, err := root.ReadFile(filepath.FromSlash(f))
 		if err != nil {
 			continue
 		}
-		out = append(out, requestsOf(f, src)...)
+		if !fn(f, src) {
+			break
+		}
 	}
-	return out, nil
+	return nil
+}
+
+// Match is a request whose text holds a filter query: the first line of
+// it that does (its method and URL, a header, the body, a capture…).
+type Match struct {
+	File  string `json:"file"`
+	Entry int    `json:"entry"` // 1-based
+	Line  int    `json:"line"`  // 1-based
+	Text  string `json:"text"`  // the line, trimmed and cut to maxMatchText
+}
+
+const (
+	maxMatches   = 2000
+	maxMatchText = 120
+)
+
+// Filter returns the requests of every request file whose text holds
+// query (ignoring case), each with its first matching line.
+func (s *Workspace) Filter(query string) ([]Match, error) {
+	q := strings.ToLower(strings.TrimSpace(query))
+	out := []Match{}
+	if q == "" {
+		return out, nil
+	}
+	err := s.eachRequestFile(func(f string, src []byte) bool {
+		reqs := requestsOf(f, src)
+		lines := strings.Split(string(src), "\n")
+		for i, r := range reqs {
+			end := len(lines) // the request runs to the next one
+			if i+1 < len(reqs) {
+				end = reqs[i+1].Line - 1
+			}
+			for n := r.Line; n <= end && n <= len(lines); n++ {
+				text := strings.TrimSpace(lines[n-1])
+				if !strings.Contains(strings.ToLower(text), q) {
+					continue
+				}
+				if len(text) > maxMatchText {
+					text = strings.ToValidUTF8(text[:maxMatchText], "") + "…"
+				}
+				out = append(out, Match{File: f, Entry: r.Entry, Line: n, Text: text})
+				break
+			}
+			if len(out) >= maxMatches {
+				return false
+			}
+		}
+		return true
+	})
+	return out, err
 }
 
 // Requests lists the requests of file.
@@ -386,6 +463,11 @@ func (s *Workspace) Rename(file, newName string) (string, error) {
 	if _, err := writable(filepath.ToSlash(to)); err != nil {
 		return "", err
 	}
+	// A secrets file renamed to another name would become readable, and a
+	// file renamed to a secrets name unreadable: neither is done here.
+	if s.protected(to) || s.holdsProtected(root, from) {
+		return "", apperr.New(apperr.Denied, file+" holds secrets or settings the app does not rename")
+	}
 	if _, err := root.Lstat(to); err == nil {
 		return "", apperr.New(apperr.Conflict, newName+" already exists")
 	}
@@ -393,6 +475,36 @@ func (s *Workspace) Rename(file, newName string) (string, error) {
 		return "", notFound(err, file)
 	}
 	return filepath.ToSlash(to), nil
+}
+
+// maxProtectedScan bounds the walk of a folder being renamed; a larger
+// folder is refused rather than walked.
+const maxProtectedScan = 20000
+
+// holdsProtected reports whether p (OS form) is protected or is a folder
+// that holds a protected file.
+func (s *Workspace) holdsProtected(root *sandbox.Root, p string) bool {
+	seen := 0
+	var walk func(p string) bool
+	walk = func(p string) bool {
+		if s.protected(p) {
+			return true
+		}
+		entries, err := root.ReadDir(p)
+		if err != nil {
+			return false // a file
+		}
+		for _, e := range entries {
+			if seen++; seen > maxProtectedScan {
+				return true
+			}
+			if walk(filepath.Join(p, e.Name())) {
+				return true
+			}
+		}
+		return false
+	}
+	return walk(p)
 }
 
 // CopyPath returns file's absolute path, for the clipboard.

@@ -36,6 +36,7 @@ func run() error {
 		return err
 	}
 	app := application.New(appOptions(h))
+	app.Menu.SetApplicationMenu(appMenu())
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "Sonde",
 		Width:     1280,
