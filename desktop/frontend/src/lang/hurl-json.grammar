@@ -1,0 +1,59 @@
+// Copyright 2026 The Sonde Authors
+// SPDX-License-Identifier: Apache-2.0
+
+// JSON bodies as the request format writes them: plain JSON where a
+// template ({{name}}) may stand for any value and may appear inside a
+// string, so `"age": {{age}}` parses without an error.
+
+@top JsonText { value }
+
+value { True | False | Null | Number | String | Object | Array | Template }
+
+Object { "{" list<Property>? "}" }
+
+Property { PropertyName ":" value }
+
+// A key is a string, which may hold templates.
+PropertyName { String }
+
+Array { "[" list<value>? "]" }
+
+list<item> { item ("," item)* }
+
+// Templates and strings keep their spaces: a template's inside is one
+// token, spaces included.
+@skip {} {
+  Template { "{{" templateName? "}}" }
+
+  String { stringStart (stringContent | Escape | StringTemplate)* stringEnd }
+
+  StringTemplate { stringTemplateOpen templateName? "}}" }
+}
+
+True { @specialize<word, "true"> }
+
+False { @specialize<word, "false"> }
+
+Null { @specialize<word, "null"> }
+
+@skip { space }
+
+@local tokens {
+  stringEnd { '"' }
+  stringTemplateOpen { "{{" }
+  Escape { "\\" _ }
+  @else stringContent
+}
+
+@tokens {
+  space { $[ \t\r\n]+ }
+  stringStart { '"' }
+  // Numbers of any size stay one token (a big integer is kept exact).
+  Number { "-"? @digit+ ("." @digit+)? ($[eE] $[+\-]? @digit+)? }
+  word { @asciiLetter+ }
+  // A template's inside: a name, a function call, spaces around it.
+  templateName { ![{}"\n]+ }
+  "{" "}" "[" "]" "," ":" "{{" "}}"
+}
+
+@detectDelim

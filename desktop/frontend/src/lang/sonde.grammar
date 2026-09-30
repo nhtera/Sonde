@@ -1,0 +1,129 @@
+// Copyright 2026 The Sonde Authors
+// SPDX-License-Identifier: Apache-2.0
+
+// .hurl and .sonde files, for highlighting and folding only: the Go parser
+// is the truth for diagnostics. The grammar is lenient on purpose: every
+// line parses, so a file being typed never turns into error nodes.
+//
+// A file is entries; an entry is a request and an optional response; each
+// has lines, then sections ([Asserts]…) that own the lines after them.
+// Line starts (a method, HTTP, a section header, a key) and whole bodies
+// (JSON, XML, ```…```, base64,…;) come from the external tokenizer in
+// tokens.ts; language.ts parses the bodies with their own grammars.
+
+@top File { (blank | Line)* Entry* }
+
+Entry { Request Response? }
+
+Request { RequestLine (blank | Line)* Section* }
+
+Response { ResponseLine (blank | Line)* Section* }
+
+Section { SectionHeader end (blank | Line)* }
+
+RequestLine { Method Url? item* end }
+
+// The URL's text and its templates come from the external tokenizer: a
+// piece right after the previous one (no space) continues the URL, so it
+// ends at the first space ({{ name }} is one token, spaces included).
+Url { (UrlText | UrlTemplate)+ }
+
+ResponseLine { HttpVersion item* end }
+
+Line { (KeyValue | item+) end }
+
+KeyValue { Key ":" item* }
+
+blank { eol }
+
+// A line ends at a newline, or at the end of the file (eofEnd is empty and
+// only a line still open can take it).
+end { eol | eofEnd }
+
+item {
+  Template | String | Backtick | Regex |
+  JsonBody | XmlBody | MultilineString | LiteralBody |
+  Number | Text | Operator | Punct | ":" | "}}" |
+  QueryName | Predicate | FilterName | Bool | Null | Modifier
+}
+
+// A template opens only where "}}" closes it on the same line (tokens.ts);
+// an unclosed "{{" is punctuation, so typing one is never an error.
+Template { templateOpen templateItem* "}}" }
+
+// A template's inside has its own name token, so a variable called like a
+// keyword (url, status…) is still a variable.
+templateItem { VariableName | FunctionName | String }
+
+// Strings keep their spaces (their content comes from tokens.ts); a
+// template inside one skips them as usual.
+@skip {} {
+  String { stringStart (stringContent | Escape | StringTemplate)* stringEnd }
+
+  Backtick { backtickStart (backtickContent | Escape | BacktickTemplate)* backtickEnd }
+}
+
+StringTemplate { templateOpen templateItem* "}}" }
+
+BacktickTemplate { templateOpen templateItem* "}}" }
+
+VariableName { templateName }
+
+kw<term> { @specialize[@name={term}]<Text, term> }
+
+fn<term> { @specialize[@name={term}]<templateName, term> }
+
+QueryName {
+  kw<"body"> | kw<"bytes"> | kw<"certificate"> | kw<"cookie"> | kw<"duration"> |
+  kw<"header"> | kw<"ip"> | kw<"jsonpath"> | kw<"md5"> | kw<"rawbytes"> |
+  kw<"redirects"> | kw<"regex"> | kw<"sha256"> | kw<"sondeGrpc"> | kw<"sondeStream"> |
+  kw<"status"> | kw<"url"> | kw<"variable"> | kw<"version"> | kw<"xpath">
+}
+
+Predicate {
+  kw<"contains"> | kw<"endsWith"> | kw<"equals"> | kw<"exists"> | kw<"includes"> |
+  kw<"isBoolean"> | kw<"isCollection"> | kw<"isDate"> | kw<"isEmpty"> | kw<"isFloat"> |
+  kw<"isInteger"> | kw<"isIpv4"> | kw<"isIpv6"> | kw<"isIsoDate"> | kw<"isList"> |
+  kw<"isNumber"> | kw<"isObject"> | kw<"isString"> | kw<"isUuid"> | kw<"matches"> |
+  kw<"startsWith"> | kw<"not">
+}
+
+FilterName {
+  kw<"base64Decode"> | kw<"base64Encode"> | kw<"base64UrlSafeDecode"> | kw<"base64UrlSafeEncode"> |
+  kw<"charsetDecode"> | kw<"count"> | kw<"dateFormat"> | kw<"daysAfterNow"> | kw<"daysBeforeNow"> |
+  kw<"decode"> | kw<"first"> | kw<"format"> | kw<"htmlEscape"> | kw<"htmlUnescape"> | kw<"last"> |
+  kw<"nth"> | kw<"replace"> | kw<"replaceRegex"> | kw<"split"> | kw<"toDate"> | kw<"toFloat"> |
+  kw<"toHex"> | kw<"toInt"> | kw<"toString"> | kw<"urlDecode"> | kw<"urlEncode">
+}
+
+Bool { kw<"true"> | kw<"false"> }
+
+Null { kw<"null"> }
+
+Modifier { kw<"redact"> }
+
+FunctionName { fn<"newDate"> | fn<"newUuid"> }
+
+@external tokens lineTokens from "./tokens" {
+  Method, UrlText, UrlTemplate, HttpVersion, SectionHeader, Key,
+  JsonBody, XmlBody, MultilineString, LiteralBody, Regex,
+  stringStart, stringContent, stringEnd, backtickStart, backtickContent, backtickEnd,
+  Escape, templateOpen, eofEnd
+}
+
+@skip { space | Comment }
+
+@tokens {
+  space { $[ \t\r]+ }
+  eol { "\n" }
+  Comment { "#" ![\n]* }
+  Number { "-"? @digit+ ("." @digit+)? }
+  Text { ![ \t\r\n#"`{}\[\],:<>=!\\]+ }
+  Operator { "==" | "!=" | "<=" | ">=" | "<" | ">" }
+  Punct { $[{}\[\],=!\\"`] }
+  templateName { ![ \t\r\n{}"`\\#]+ }
+  "}}" ":"
+  @precedence { Number, Text }
+}
+
+@detectDelim

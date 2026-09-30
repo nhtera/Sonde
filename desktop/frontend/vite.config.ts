@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fileURLToPath } from "node:url";
+import { lezer } from "@lezer/generator/rollup";
 import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
@@ -27,7 +28,8 @@ export default defineConfig({
     port: Number(process.env.WAILS_VITE_PORT) || 9245,
     strictPort: true,
   },
-  plugins: [react(), contentSecurityPolicy()],
+  // lezer(): src/lang/*.grammar files build into parsers on import.
+  plugins: [lezer(), react(), contentSecurityPolicy()],
   // The version the status bar shows (SONDE_VERSION at build time).
   define: { __APP_VERSION__: JSON.stringify(process.env.SONDE_VERSION || "dev") },
   // Fonts and images ship as files: the CSP allows no data: fonts.
