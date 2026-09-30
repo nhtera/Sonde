@@ -27,6 +27,9 @@ const shopHarness = (port: number, project = "shop-api") =>
 // e2e/results.spec.ts: the Results panel on testdata/results-api.
 const resultsPort = Number(process.env.E2E_RESULTS_PORT) || 34122;
 const resultsURL = `http://127.0.0.1:${resultsPort}`;
+// e2e/form.spec.ts: the Form view on testdata/form-api.
+const formPort = Number(process.env.E2E_FORM_PORT) || 34124;
+const formURL = `http://127.0.0.1:${formPort}`;
 // The preview's sandbox and framing in WebKit (the macOS app's engine).
 const resultsWebkitPort = Number(process.env.E2E_RESULTS_WEBKIT_PORT) || 34123;
 const resultsWebkitURL = `http://127.0.0.1:${resultsWebkitPort}`;
@@ -47,15 +50,15 @@ export default defineConfig({
   reporter: process.env.CI ? "list" : "line",
   use: { baseURL },
   projects: [
-    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results/, use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results/, use: { ...devices["Desktop Safari"] } },
+    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec/, use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec/, use: { ...devices["Desktop Safari"] } },
     // Timings are measured alone, after the other browser tests (the load
     // of seven test servers and browsers would skew them).
     {
       name: "perf",
       testMatch: /perf/,
       workers: 1,
-      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "editor-webkit"],
+      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "editor-webkit"],
       use: { ...devices["Desktop Chrome"], baseURL: perfURL },
     },
     // The shell's tests share one harness (its settings, its runs): one
@@ -63,6 +66,8 @@ export default defineConfig({
     { name: "shell", testMatch: /shell|editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: shellURL } },
     // The Results panel's tests share one harness (the mock they start).
     { name: "results", testMatch: /results/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: resultsURL } },
+    // The Form view's tests share one harness (they edit its files).
+    { name: "form", testMatch: /form\.spec/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: formURL } },
     { name: "results-webkit", testMatch: /results/, grep: /preview|Assert/, workers: 1, use: { ...devices["Desktop Safari"], baseURL: resultsWebkitURL } },
     { name: "editor-webkit", testMatch: /editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Safari"], baseURL: webkitEditorURL } },
     // Server mode's sign-in (E2E_SERVER_BIN, a server build).
@@ -107,6 +112,14 @@ export default defineConfig({
         {
           command: shopHarness(resultsWebkitPort, "results-api"),
           url: `${resultsWebkitURL}/health`,
+          reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
+          timeout: 30_000,
+        },
+        {
+          command: shopHarness(formPort, "form-api"),
+          url: `${formURL}/health`,
           reuseExistingServer: !process.env.CI,
           // SIGTERM (not the default SIGKILL): the server's temp folder goes.
           gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },

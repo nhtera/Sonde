@@ -1,0 +1,6 @@
+# Stock over gRPC
+POST http://127.0.0.1:50051/inventory.v1.Inventory/GetStock
+[SondeGrpc]
+proto: protos/inventory.proto
+{"sku": "TEA-EARL-250", "warehouse": "ams-1"}
+HTTP 200

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package inventory.v1;
+
+// Stock levels of the shop's warehouses.
+service Inventory {
+  rpc GetStock(StockRequest) returns (StockLevel);
+  rpc ListStock(ListRequest) returns (ListReply);
+  rpc WatchStock(StockRequest) returns (stream StockLevel);
+  rpc ReserveStock(stream StockRequest) returns (StockLevel);
+  rpc SyncStock(stream StockRequest) returns (stream StockLevel);
+}
+
+message StockRequest {
+  string sku = 1;
+  string warehouse = 2;
+}
+
+message StockLevel {
+  string sku = 1;
+  int64 available = 2;
+}
+
+message ListRequest {}
+
+message ListReply {
+  repeated StockLevel levels = 1;
+}

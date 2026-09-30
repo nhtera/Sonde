@@ -1,0 +1,12 @@
+# form-api: the Form view's browser tests (the fixture API on 34120).
+version: 1
+
+environments:
+  local:
+    variables:
+      base_url: http://127.0.0.1:34120
+      user: ada
+      token: form-token
+
+defaults:
+  env: local
