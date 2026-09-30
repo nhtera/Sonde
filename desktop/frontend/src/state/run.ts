@@ -31,7 +31,7 @@ export const useRuns = create<RunState>((set, get) => {
   const update = (file: string, runId: string, fn: (r: FileRun) => FileRun) =>
     set((s) => (s.runs[file]?.runId === runId ? { runs: { ...s.runs, [file]: fn(s.runs[file]) } } : s));
 
-  const begin = (file: string, kind: FileRun["kind"], start: (runId: string) => Promise<Summary | null>) => {
+  const begin = (file: string, kind: FileRun["kind"], start: (runId: string) => Promise<Summary | null>, sent?: number) => {
     // One run of a file at a time from this page.
     if (get().runs[file]?.running) return Promise.resolve();
     const tab = useTabs.getState().tabs.find((t) => t.path === file);
@@ -40,7 +40,7 @@ export const useRuns = create<RunState>((set, get) => {
     const handle = startRun<Summary>(
       (runId) => {
         const fresh: FileRun = {
-          runId, kind, running: true, source,
+          runId, kind, sent, running: true, source,
           // A Send keeps the earlier entries of the run it reuses.
           entries: kind === "send" && prev ? prev.entries : {},
           sending: {}, skipped: {}, logs: [], messages: {}, current: 0, last: 0, dropped: 0, summary: null, error: null,
@@ -55,23 +55,35 @@ export const useRuns = create<RunState>((set, get) => {
       (runId) => Runs.Cancel(runId),
     );
     handles.set(file, handle.cancel);
+    // A refusal (a stale Send, a busy file) the run reported in its
+    // summary, or as the call's error: nothing ran, so the run before it
+    // stays (its results, its source for the stale banner).
+    const refused = (code: string) => code === "stale" || code === "busy" || code === "invalid";
+    const restore = () =>
+      set((s) => {
+        if (s.runs[file]?.runId !== handle.runId) return s;
+        const runs = { ...s.runs };
+        if (prev) runs[file] = prev;
+        else delete runs[file];
+        return { runs };
+      });
+    const notify = (code: string, message: string, sent: number | undefined) => {
+      const action = code === "stale" && sent ? { label: `Run 1–${sent}`, run: () => void get().run(file, sent) } : undefined;
+      useUI.getState().toast({ kind: code === "busy" || code === "stale" ? "warn" : "error", text: message, action });
+    };
     return handle.result
       .then(
-        () => undefined,
+        (summary) => {
+          if (!summary?.error) return;
+          const code = summary.errorCode ?? "error";
+          if (refused(code)) restore();
+          notify(code, summary.error, sent);
+        },
         (err) => {
           const e = appError(err);
-          if (e.code === "busy" && get().runs[file]?.runId === handle.runId) {
-            // Another page or agent is running the file: keep the last run.
-            set((s) => {
-              const runs = { ...s.runs };
-              if (prev) runs[file] = prev;
-              else delete runs[file];
-              return { runs };
-            });
-          } else {
-            update(file, handle.runId, (r) => ({ ...r, running: false, error: e.message }));
-          }
-          useUI.getState().toast({ kind: e.code === "busy" ? "warn" : "error", text: e.message });
+          if (refused(e.code)) restore();
+          else update(file, handle.runId, (r) => ({ ...r, running: false, error: e.message }));
+          notify(e.code, e.message, sent);
         },
       )
       .finally(() => {
@@ -89,8 +101,11 @@ export const useRuns = create<RunState>((set, get) => {
     },
     send: (file, entry) => {
       const text = useTabs.getState().tabs.find((t) => t.path === file)?.text ?? "";
-      return begin(file, "send", (runId) =>
-        Runs.Send({ runId, file, source: text, env: useEnv.getState().current, entry }),
+      return begin(
+        file,
+        "send",
+        (runId) => Runs.Send({ runId, file, source: text, env: useEnv.getState().current, entry }),
+        entry,
       );
     },
     cancel: (file) => handles.get(file)?.(),

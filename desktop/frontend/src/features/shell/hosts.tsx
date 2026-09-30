@@ -7,6 +7,7 @@
 import { useMemo } from "react";
 import { registry, useRegistry } from "../../app/registry";
 import { RunSummary } from "../../components/run/run-summary";
+import { firstChangedLine, StaleBanner } from "../../components/run/stale-banner";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
@@ -32,12 +33,23 @@ export function ResultsHost({ file }: { file: string }) {
   const results = registry.getResults();
   const index = useWorkspace((s) => s.index);
   const run = useRuns((s) => s.runs[file]);
+  // The edited line only (a number): the results do not re-render on
+  // every keystroke.
+  const changed = useTabs((s) => {
+    const text = s.tabs.find((t) => t.path === file)?.text;
+    return run && !run.running && text !== undefined ? firstChangedLine(run.source, text) : 0;
+  });
   const requests = useMemo(() => index.filter((r) => r.file === file), [index, file]);
   if (results) return <results.render file={file} />;
   if (!run) return <FileEmpty file={file} hasRequests={requests.length > 0} />;
   return (
     <div className="results-body">
-      <RunSummary file={file} run={run} requests={requests} />
+      <RunSummary
+        file={file}
+        run={run}
+        requests={requests}
+        notice={changed > 0 && <StaleBanner line={changed} onRun={() => void useRuns.getState().run(file)} />}
+      />
     </div>
   );
 }

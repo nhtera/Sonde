@@ -31,6 +31,14 @@ function set(id: string | null) {
   listeners.forEach((l) => l(id));
 }
 
+let restart: (() => void) | null = null;
+
+/** Replaces the session with a new one (another project was opened: a
+ * language server is initialized once, for one project). */
+export function restartLspSession(): void {
+  restart?.();
+}
+
 /** Opens the session and keeps it; returns the stop function. */
 export function startLspSession(): () => void {
   let stopped = false;
@@ -69,10 +77,19 @@ export function startLspSession(): () => void {
     if (current) void Lsp.Close(current);
   };
   window.addEventListener("beforeunload", unload);
+  restart = () => {
+    const old = current;
+    set(null);
+    if (old) void Lsp.Close(old);
+    clearTimeout(timer);
+    retry = 1000;
+    void open();
+  };
   void open();
 
   return () => {
     stopped = true;
+    restart = null;
     clearInterval(ping);
     clearTimeout(timer);
     offClosed?.();

@@ -77,7 +77,8 @@ function fenced(node: SyntaxNode, read: (from: number, to: number) => string) {
 const fileLanguageParser = fileParser.configure({
   props: [
     styleTags({
-      Method: t.keyword,
+      // Colored per method by the editor (a tag no highlight style colors).
+      Method: t.labelName,
       UrlText: t.url,
       "UrlTemplate Template/...": template,
       "VariableName FunctionName": template,

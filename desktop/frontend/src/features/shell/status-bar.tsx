@@ -18,6 +18,7 @@ export function StatusBar() {
   const tab = useTabs((s) => s.tabs.find((t) => t.path === s.active));
   const run = useRuns((s) => (active ? s.runs[active] : undefined));
   const base = useBaseURL(active, env);
+  const cursor = useUI((s) => s.cursor);
   const summary = run?.summary;
   const c = counts(Object.values(run?.entries ?? {}));
   return (
@@ -36,6 +37,11 @@ export function StatusBar() {
         <span className="mono num">
           <span style={{ color: "var(--pass)" }}>✓ {c.passed}</span>
           {c.failed > 0 && <span style={{ color: "var(--fail)" }}> ✗ {c.failed}</span>} · {summary.durationMs} ms
+        </span>
+      )}
+      {cursor && active && (
+        <span className="mono">
+          Ln {cursor.line}, Col {cursor.col}
         </span>
       )}
       <button onClick={() => useUI.getState().setShortcutsOpen(true)}>? Shortcuts</button>

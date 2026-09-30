@@ -59,4 +59,16 @@ describe("keymap", () => {
     expect(run).toHaveBeenCalledOnce();
     off();
   });
+
+  it("runs shortcuts with a modifier from inside the editor", () => {
+    const run = vi.fn();
+    registry.command({ id: "test.editor", title: "Editor", run });
+    const off = bindKeys(window, { "test.editor": "Alt+KeyE" });
+    const editor = document.body.appendChild(document.createElement("div"));
+    editor.contentEditable = "true";
+    editor.dispatchEvent(new KeyboardEvent("keydown", { key: "e", code: "KeyE", altKey: true, bubbles: true, cancelable: true }));
+    expect(run).toHaveBeenCalledOnce();
+    editor.remove();
+    off();
+  });
 });

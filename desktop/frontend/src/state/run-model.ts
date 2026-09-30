@@ -17,6 +17,9 @@ export interface LogLine {
 export interface FileRun {
   runId: string;
   kind: "run" | "send";
+  /** For a Send, the entry it sent (the entries before it come from the
+   * run it reused). */
+  sent?: number;
   running: boolean;
   /** The text that ran, to tell when the file was edited since. */
   source: string;

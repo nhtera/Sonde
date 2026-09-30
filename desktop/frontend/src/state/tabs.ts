@@ -74,8 +74,15 @@ export const useTabs = create<TabsState>((set, get) => ({
     set({ tabs, active });
   },
   reload: async (path) => {
+    const before = get().tabs.find((t) => t.path === path)?.version;
     const f = await Workspace.Read(path);
     if (!f) return;
+    // An edit made while reading wins: the tab is then marked instead.
+    const now = get().tabs.find((t) => t.path === path);
+    if (now && now.version !== before) {
+      set({ tabs: get().tabs.map((t) => (t.path === path ? { ...t, conflict: true } : t)) });
+      return;
+    }
     set({
       tabs: get().tabs.map((t) =>
         t.path === path ? { ...t, text: f.text, savedText: f.text, hash: f.hash, version: t.version + 1, conflict: false } : t,

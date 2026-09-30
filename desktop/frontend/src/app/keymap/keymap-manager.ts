@@ -1,7 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { tinykeys } from "tinykeys";
+import { matchKeybindingPress, parseKeybinding, tinykeys } from "tinykeys";
 import { isMac } from "../../lib/mode";
 import { registry } from "../registry";
 import { defaultKeys } from "./defaults";
@@ -31,8 +31,20 @@ export function normalize(keys: string): string {
   return [...mods, key].join("+");
 }
 
+/** The keys bound now (the app's own, with a modifier), parsed. */
+let bound: ReturnType<typeof parseKeybinding>[number][] = [];
+
+/** Whether a keydown is one of the app's shortcuts: an editor inside the
+ * page leaves it to the app (⌘↵ sends, ⌘G goes to a line…). */
+export function appOwnsKey(e: KeyboardEvent): boolean {
+  return bound.some((b) => matchKeybindingPress(e, b));
+}
+
 /** Binds every command's keys on target; returns the unbind function. */
 export function bindKeys(target: Window | HTMLElement, keys: Record<string, string>): () => void {
+  bound = Object.values(keys)
+    .filter(hasModifier)
+    .map((k) => parseKeybinding(k)[0]);
   const bindings: Record<string, (e: KeyboardEvent) => void> = {};
   for (const [id, k] of Object.entries(keys)) {
     bindings[k] = (e) => {
@@ -49,7 +61,10 @@ export function bindKeys(target: Window | HTMLElement, keys: Record<string, stri
       void c.run();
     };
   }
-  return tinykeys(target, bindings);
+  // tinykeys skips keys typed in text fields by default; the rule above
+  // decides instead, so ⌘↵ works in the editor. Held-down keys and IME
+  // composition stay ignored.
+  return tinykeys(target, bindings, { ignore: (e) => e.repeat || e.isComposing });
 }
 
 function hasModifier(keys: string): boolean {

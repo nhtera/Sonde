@@ -61,3 +61,5 @@
 .failure-message { margin: 0; white-space: pre-wrap; font: 12px var(--font-code); color: var(--muted); }
 .failure-actions { display: flex; gap: 8px; }
 .run-error { margin: 0 16px 8px; color: var(--fail); font-size: 12.5px; }
+.stale-banner { display: flex; align-items: center; gap: 10px; margin: 0 16px 10px; padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 12.5px; }
+.stale-banner span { flex: 1; }

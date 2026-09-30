@@ -18,6 +18,7 @@ export type { Info as GitInfo, FileStatus } from "@bindings/desktop/internal/git
 export { Bridge as Lsp } from "@bindings/desktop/internal/lspbridge";
 export { Service as CopyAs, Reveal as CopyAsReveal } from "@bindings/desktop/internal/copyas";
 export { Service as Vars } from "@bindings/desktop/internal/vars";
+export { Service as EditSvc } from "@bindings/desktop/internal/editsvc";
 export type { Var as ScopeVar } from "@bindings/desktop/internal/vars";
 export { Dialogs } from "@bindings/desktop";
 

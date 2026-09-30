@@ -4,6 +4,7 @@
 // A file's run as a header and its request list: what the Results panel
 // and each file of the Test run panel show.
 
+import type { ReactNode } from "react";
 import type { Request } from "../../lib/api";
 import type { FileRun } from "../../state/run-model";
 import { counts } from "./counts";
@@ -18,6 +19,8 @@ export interface RunSummaryProps {
   requests: Request[];
   selected?: number;
   onSelect?(entry: number): void;
+  /** Shown between the header and the requests (the stale banner). */
+  notice?: ReactNode;
 }
 
 /** The outcome a run shows: running, its summary's, or an error. */
@@ -27,7 +30,7 @@ export function outcomeOf(run: FileRun): Outcome {
   return run.error ? "error" : "failed";
 }
 
-export function RunSummary({ file, run, requests, selected, onSelect }: RunSummaryProps) {
+export function RunSummary({ file, run, requests, selected, onSelect, notice }: RunSummaryProps) {
   const { passed, failed } = counts(Object.values(run.entries));
   return (
     <>
@@ -39,6 +42,7 @@ export function RunSummary({ file, run, requests, selected, onSelect }: RunSumma
         durationMs={run.summary?.durationMs}
         env={run.summary?.env || undefined}
       />
+      {notice}
       {run.error && <p className="run-error">{run.error}</p>}
       <RequestList rows={requestRows(requests, run)} selected={selected} onSelect={onSelect} />
     </>

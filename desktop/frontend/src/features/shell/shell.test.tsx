@@ -10,7 +10,7 @@ import type { RunItem } from "../../lib/run-bridge";
 
 const api = vi.hoisted(() => ({
   Settings: { Get: vi.fn(), Set: vi.fn(async (v: unknown) => v) },
-  Runs: { Run: vi.fn(), Cancel: vi.fn() },
+  Runs: { Run: vi.fn(), Send: vi.fn(), Cancel: vi.fn() },
 }));
 vi.mock("../../lib/api", async (importOriginal) => ({ ...(await importOriginal<object>()), ...api }));
 
@@ -138,6 +138,15 @@ describe("run store", () => {
     expect(api.Runs.Run).toHaveBeenCalledTimes(2);
     useRuns.getState().reset();
     expect(useRuns.getState().runs).toEqual({});
+  });
+
+  it("keeps the earlier run when a Send is refused as stale, and offers the run it needs", async () => {
+    const earlier = { runId: "r0", kind: "run" as const, running: false, source: "GET x", entries: {}, sending: {}, skipped: {}, logs: [], messages: {}, current: 0, last: 0, dropped: 0, summary: null, error: null };
+    useRuns.setState({ runs: { "checkout.hurl": earlier } });
+    api.Runs.Send.mockReturnValueOnce(Promise.reject(new Error(JSON.stringify({ code: "stale", message: "Results are from another version" }))));
+    await useRuns.getState().send("checkout.hurl", 5);
+    expect(useRuns.getState().runs["checkout.hurl"]).toEqual(earlier);
+    expect(useUI.getState().toasts.at(-1)).toMatchObject({ kind: "warn", action: { label: "Run 1–5" } });
   });
 });
 

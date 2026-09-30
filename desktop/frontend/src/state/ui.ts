@@ -23,6 +23,8 @@ interface UIState {
   treeFilter: string;
   /** The editor view of the main area (a registry editor id). */
   editorView: string | null;
+  /** The cursor of the active editor (1-based), for the status bar. */
+  cursor: { line: number; col: number } | null;
   toasts: Toast[];
   setPanel(id: string | null): void;
   togglePanel(id: string): void;
@@ -48,6 +50,7 @@ export const useUI = create<UIState>((set, get) => ({
   resultsOpen: true,
   treeFilter: "",
   editorView: null,
+  cursor: null,
   toasts: [],
   setPanel: (panel) => set({ panel }),
   togglePanel: (id) => set({ panel: get().panel === id ? null : id }),
