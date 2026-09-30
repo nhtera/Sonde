@@ -561,6 +561,15 @@ func GraphQLBody(query Text, variables any) (*BodySpec, error) {
 	return &BodySpec{src: b.String()}, nil
 }
 
+// EscapeFilename writes path as the file name of a `file,…;` body, a
+// multipart file or a file option (cert, key, output): spaces, `;`, `#`,
+// braces and backslashes escaped.
+func EscapeFilename(path string) string {
+	var b strings.Builder
+	filenameEscaper.write(&b, PlainText(path))
+	return b.String()
+}
+
 // FileBody is a `file,path;` body.
 func FileBody(path Text) *BodySpec {
 	var b strings.Builder

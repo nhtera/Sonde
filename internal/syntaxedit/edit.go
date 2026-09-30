@@ -159,6 +159,9 @@ func rowText(name Section, key, value string) string {
 	if !sectionInfo[name].keyed {
 		return value
 	}
+	if value == "" {
+		return key + ":"
+	}
 	return key + ": " + value
 }
 
@@ -208,6 +211,9 @@ func SetRow(name string, src []byte, n int, section Section, i int, key, value s
 	s, r, err := rowAt(en, section, i)
 	if err != nil {
 		return nil, err
+	}
+	if key == r.Key && value == r.Value {
+		return &Result{Source: src}, nil // as written, spacing included
 	}
 	return d.splice(r.start, r.end, rowText(section, key, value), both(sameEntries(d), checkRow(n, section, len(s.rows), i, key, value, r.Disabled)))
 }
@@ -350,6 +356,29 @@ func EnsureSection(name string, src []byte, n int, section Section) (*Result, er
 	return d.splice(at, at, text, both(sameEntries(d), func(nd *doc) error {
 		if nd.entries[n-1].sections[section] == nil {
 			return fmt.Errorf("%w: section %s", ErrInvalid, section)
+		}
+		return nil
+	}))
+}
+
+// RemoveSection removes section name of entry n, its header and rows
+// (disabled ones too); a missing section is left as is.
+func RemoveSection(name string, src []byte, n int, section Section) (*Result, error) {
+	info, ok := sectionInfo[section]
+	if !ok || info.name == "" {
+		return nil, fmt.Errorf("syntaxedit: %q has no section header", section)
+	}
+	d, en, err := load(name, src, n)
+	if err != nil {
+		return nil, err
+	}
+	s := en.sections[section]
+	if s == nil {
+		return &Result{Source: src}, nil
+	}
+	return d.splice(s.headerStart, s.end, "", both(sameEntries(d), func(nd *doc) error {
+		if nd.entries[n-1].sections[section] != nil {
+			return fmt.Errorf("%w: section %s is still there", ErrInvalid, section)
 		}
 		return nil
 	}))

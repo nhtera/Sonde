@@ -335,3 +335,145 @@ func TestAddLoginEntryGolden(t *testing.T) {
 		t.Errorf("result:\n%s\nwant:\n%s", out, want)
 	}
 }
+
+func TestRemoveSection(t *testing.T) {
+	src := "# upload\nPOST https://api.test/files\n[Multipart]\nname: a\n# note: b\nfile: file,a.txt;\n[Options]\nretry: 1\nHTTP 201\n"
+	out := apply(t, src, func(b []byte) (*Result, error) { return RemoveSection("t.hurl", b, 1, Multipart) })
+	if want := "# upload\nPOST https://api.test/files\n[Options]\nretry: 1\nHTTP 201\n"; out != want {
+		t.Errorf("result:\n%s\nwant:\n%s", out, want)
+	}
+	// A missing section: nothing changes; a section without a header: refused.
+	if res, err := RemoveSection("t.hurl", []byte(src), 1, Form); err != nil || string(res.Source) != src {
+		t.Errorf("missing section: %v", err)
+	}
+	if _, err := RemoveSection("t.hurl", []byte(src), 1, Headers); err == nil {
+		t.Error("headers have no section to remove")
+	}
+}
+
+// TestRemoveSectionWithDisabledRows: disabled rows in a section are removed too.
+func TestRemoveSectionWithDisabledRows(t *testing.T) {
+	src := "POST https://api.test/files\n[Query]\na: 1\n# b: 2\nc: 3\nHTTP 200\n"
+	out := apply(t, src, func(b []byte) (*Result, error) { return RemoveSection("t.hurl", b, 1, Query) })
+	if !strings.Contains(out, "POST https://api.test/files\nHTTP 200\n") || strings.Contains(out, "[Query]") || strings.Contains(out, "a: 1") || strings.Contains(out, "# b: 2") {
+		t.Errorf("disabled rows not removed:\n%s", out)
+	}
+}
+
+// TestRemoveSectionBeforeBody: removing the last request section before the body.
+func TestRemoveSectionBeforeBody(t *testing.T) {
+	src := "POST https://api.test/files\n[Query]\nq: 1\n{\"data\": 1}\n"
+	out := apply(t, src, func(b []byte) (*Result, error) { return RemoveSection("t.hurl", b, 1, Query) })
+	if want := "POST https://api.test/files\n{\"data\": 1}\n"; out != want {
+		t.Errorf("result:\n%s\nwant:\n%s", out, want)
+	}
+}
+
+// TestRemoveSectionResponseSections: removing [Captures] before [Asserts].
+func TestRemoveSectionResponseSections(t *testing.T) {
+	src := "GET https://api.test/x\nHTTP 200\n[Captures]\nid: jsonpath \"$.id\"\n[Asserts]\nstatus == 200\n"
+	out := apply(t, src, func(b []byte) (*Result, error) { return RemoveSection("t.hurl", b, 1, Captures) })
+	if want := "GET https://api.test/x\nHTTP 200\n[Asserts]\nstatus == 200\n"; out != want {
+		t.Errorf("result:\n%s\nwant:\n%s", out, want)
+	}
+}
+
+// TestRemoveSectionWithCRLF: CRLF line endings are preserved.
+func TestRemoveSectionWithCRLF(t *testing.T) {
+	src := strings.ReplaceAll("POST https://api.test/files\n[Query]\nq: 1\nHTTP 200\n", "\n", "\r\n")
+	out := apply(t, src, func(b []byte) (*Result, error) { return RemoveSection("t.hurl", b, 1, Query) })
+	want := strings.ReplaceAll("POST https://api.test/files\nHTTP 200\n", "\n", "\r\n")
+	if out != want {
+		t.Errorf("result %q", out)
+	}
+}
+
+// TestSetRowAsWritten: a row set to its own key and value is left as
+// written; an empty value has no trailing space.
+func TestSetRowAsWritten(t *testing.T) {
+	src := "GET https://h\nX-Empty:\nX-Spaced:    a\n"
+	for i, kv := range [][2]string{{"X-Empty", ""}, {"X-Spaced", "a"}} {
+		res, err := SetRow("t.hurl", []byte(src), 1, Headers, i, kv[0], kv[1])
+		if err != nil || string(res.Source) != src {
+			t.Errorf("row %d: %q %v", i, res.Source, err)
+		}
+	}
+	out := apply(t, src, func(b []byte) (*Result, error) { return SetRow("t.hurl", b, 1, Headers, 1, "X-Spaced", "") })
+	if out != "GET https://h\nX-Empty:\nX-Spaced:\n" {
+		t.Errorf("empty value: %q", out)
+	}
+}
+
+// TestSetRowEmptyValueBehavior: setting a row to empty value preserves structure.
+func TestSetRowEmptyValueBehavior(t *testing.T) {
+	src := "GET https://h\nX-A: value\nX-B: another\n"
+	out := apply(t, src, func(b []byte) (*Result, error) { return SetRow("t.hurl", b, 1, Headers, 0, "X-A", "") })
+	if !strings.Contains(out, "X-A:\n") || !strings.Contains(out, "X-B: another") {
+		t.Errorf("empty value result:\n%s", out)
+	}
+}
+
+// TestSetRowWithNonASCII: SetRow with non-ASCII text reparses correctly.
+func TestSetRowWithNonASCII(t *testing.T) {
+	src := "GET https://api.test/🚀\nContent-Language: en\n"
+	out := apply(t, src, func(b []byte) (*Result, error) {
+		return SetRow("t.hurl", b, 1, Headers, 0, "Content-Language", "日本語")
+	})
+	if !strings.Contains(out, "Content-Language: 日本語\n") {
+		t.Errorf("non-ASCII not set:\n%s", out)
+	}
+}
+
+// TestGrpcRows: [SondeGrpc] rows read and edit like any keyed section.
+func TestGrpcRows(t *testing.T) {
+	src := "POST http://h:50051/inv.v1.Inventory/GetStock\n[SondeGrpc]\nproto: protos/inv.proto\n{\"sku\": \"a\"}\nHTTP 200\n"
+	m, err := Model("t.sonde", []byte(src))
+	if err != nil || len(m) != 1 || len(m[0].Rows[Grpc]) != 1 || m[0].Rows[Grpc][0].Value != "protos/inv.proto" {
+		t.Fatalf("model %+v %v", m, err)
+	}
+	res, err := AddRow("t.sonde", []byte(src), 1, Grpc, "import-path", "protos")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "POST http://h:50051/inv.v1.Inventory/GetStock\n[SondeGrpc]\nproto: protos/inv.proto\nimport-path: protos\n{\"sku\": \"a\"}\nHTTP 200\n"; string(res.Source) != want {
+		t.Errorf("add row:\n%s", res.Source)
+	}
+}
+
+// TestGrpcAddRowCreatesSection: AddRow to a .sonde entry without [SondeGrpc] creates it.
+func TestGrpcAddRowCreatesSection(t *testing.T) {
+	src := "POST http://h:50051/inv.v1.Inventory/GetStock\n{\"sku\": \"a\"}\nHTTP 200\n"
+	res, err := AddRow("t.sonde", []byte(src), 1, Grpc, "proto", "inv.proto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(res.Source)
+	if !strings.Contains(out, "[SondeGrpc]\nproto: inv.proto\n") {
+		t.Errorf("section not created:\n%s", out)
+	}
+	m, _ := Model("t.sonde", res.Source)
+	if len(m[0].Rows[Grpc]) != 1 {
+		t.Errorf("grpc rows: %+v", m[0].Rows[Grpc])
+	}
+}
+
+// TestGrpcToggleRow: ToggleRow on grpc rows disables and enables them.
+func TestGrpcToggleRow(t *testing.T) {
+	src := "POST http://h:50051/inv.v1.Inventory/GetStock\n[SondeGrpc]\nproto: inv.proto\nimport-path: protos\nHTTP 200\n"
+	res, err := ToggleRow("t.sonde", []byte(src), 1, Grpc, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(res.Source)
+	if !strings.Contains(out, "# proto: inv.proto\n") {
+		t.Errorf("row not disabled:\n%s", out)
+	}
+	res, err = ToggleRow("t.sonde", res.Source, 1, Grpc, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out = string(res.Source)
+	if !strings.Contains(out, "proto: inv.proto\n") || strings.Contains(out, "# proto") {
+		t.Errorf("row not re-enabled:\n%s", out)
+	}
+}

@@ -47,6 +47,8 @@ const (
 	ResponseHeaders Section = "response-headers"
 	Captures        Section = "captures"
 	Asserts         Section = "asserts"
+	// Grpc is [SondeGrpc] (.sonde only): proto, import-path, protoset.
+	Grpc Section = "grpc"
 )
 
 // sectionInfo is how a Section is written.
@@ -66,6 +68,7 @@ var sectionInfo = map[Section]struct {
 	ResponseHeaders: {"", 0, true, true},
 	Captures:        {"Captures", syntax.SectionCaptures, true, true},
 	Asserts:         {"Asserts", syntax.SectionAsserts, true, false},
+	Grpc:            {"SondeGrpc", syntax.SectionGrpc, false, true},
 }
 
 // Row is one row of a section. Key and Value are source text, as written
@@ -293,7 +296,7 @@ func (d *doc) newRow(key, value string, start, end int, lt *syntax.LineTerminato
 func (en *entry) addSection(d *doc, s *syntax.Section) {
 	name := sectionFor(s.Kind)
 	if name == "" {
-		return // [SondeMessages], [SondeGrpc]: not edited as rows
+		return // [SondeMessages]: steps, not rows
 	}
 	sec := &section{headerStart: d.lineStart(s.Span.Start.Offset), headerEnd: ltEnd(s.LineTerminator0)}
 	sec.end = sec.headerEnd
