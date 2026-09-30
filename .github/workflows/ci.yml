@@ -209,6 +209,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: desktop/frontend/package-lock.json
+      - run: make desktop-bindings
       - run: npm ci --ignore-scripts --no-audit --no-fund && npm run build
         working-directory: desktop/frontend
       - run: go vet ./... && go build -o /dev/null .

@@ -22,17 +22,22 @@ the root module never imports it and gains no dependency from it.
 | E2E harness | `../bin/task build:harness` | `-tags "server e2eharness"`, test-only, never released |
 | Native spike | `go build -tags e2eharness` (after `npm run build:harness`) | window build with the harness bindings, for measuring the spikes in the platform webview; test-only, never released |
 
-`make desktop-check` (repository root) runs `go mod tidy -diff` and the
+The frontend's TypeScript bindings are generated, not committed: `make
+desktop-bindings` writes them to `frontend/bindings/` (the check and e2e
+targets run it first). `make desktop-check` (repository root) runs `go mod tidy -diff` and the
 license allowlist, then vet, tests and lint for the server (plain and
 `production`) and harness builds. It also installs the frontend
 dependencies with `npm ci --ignore-scripts`, checks the install-script
 allowlist, and runs lint, typecheck and unit tests. `make desktop-e2e`
-builds server mode and the harness, then runs the Playwright tests (server
-mode's own sign-in included) (install the browsers with
+builds server mode, the harness and the fixture API, then runs the
+Playwright tests: server mode's own sign-in, the shell on a copy of
+`testdata/shop-api`, and the tree on 1000 generated files (install the browsers with
 `npx playwright install chromium webkit` in `frontend/`). `make
 lint-desktop-native` lints the window build on a machine with cgo and the
 webview; `make desktop-vuln` scans the module. `desktop/go.mod` ignores
-`frontend/node_modules`, so Go files shipped in npm packages are never built.
+`frontend/node_modules`, so Go files shipped in npm packages are never built. `make
+desktop-record` re-records the shop-api run events that the run component
+tests replay.
 
 Services register themselves from `services_*.go` files (see `app.go`).
 Each service not built yet has a `services_stub_<name>.go` placeholder that

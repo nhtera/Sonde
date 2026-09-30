@@ -17,7 +17,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-check desktop-e2e desktop-vuln lint-desktop-native tag-guards
+.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-bindings desktop-check desktop-record desktop-e2e desktop-vuln lint-desktop-native tag-guards
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -89,7 +89,10 @@ DESKTOP_TAGS := server server,production server,e2eharness
 desktop-tools: ## Install the pinned desktop tools (wails3, task) into ./bin and verify them
 	BIN=$(BIN) desktop/scripts/tools.sh install
 
-desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses ## Desktop module: tidy, licenses, vet, tests, lint; frontend: install (no scripts), lint, typecheck, unit tests
+desktop-bindings: desktop-tools ## Generate the frontend's TypeScript bindings (not committed) from the desktop services
+	cd desktop && CGO_ENABLED=0 $(BIN)/wails3 generate bindings -clean=true -ts -i -silent -f "-tags server"
+
+desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses desktop-bindings ## Desktop module: tidy, licenses, vet, tests, lint; frontend: install (no scripts), lint, typecheck, unit tests
 	cd desktop && go mod tidy -diff
 	cd desktop && $(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) --ignore github.com/nhtera/sonde
 	@test -f desktop/frontend/dist/index.html || { mkdir -p desktop/frontend/dist && echo '<!doctype html><title>Sonde</title>' > desktop/frontend/dist/index.html; }
@@ -102,17 +105,22 @@ desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses ## Desktop module: tidy, 
 	npm --prefix desktop/frontend run typecheck
 	npm --prefix desktop/frontend test
 
+desktop-record: ## Re-record the shop-api run events that the frontend's run component tests replay
+	@test -f desktop/frontend/dist/index.html || { mkdir -p desktop/frontend/dist && echo '<!doctype html><title>Sonde</title>' > desktop/frontend/dist/index.html; }
+	cd desktop && SONDE_RECORD_DIR=$(CURDIR)/desktop/frontend/src/components/run/testdata CGO_ENABLED=0 go test -tags server -run TestRecordRunEvents -count=1 .
+
 desktop-vuln: $(BIN)/govulncheck ## Scan the desktop module (server build: the window build adds only platform webview code) for known vulnerabilities
 	cd desktop && $(BIN)/govulncheck -tags server ./...
 
 lint-desktop-native: $(BIN)/golangci-lint ## Lint the desktop module's native window build (needs cgo and the platform webview)
 	cd desktop && $(BIN)/golangci-lint run ./...
 
-desktop-e2e: ## Build server mode and the test-only harness, then run the browser tests (browsers: npx playwright install)
+desktop-e2e: desktop-bindings ## Build server mode, the test-only harness and the fixture API, then run the browser tests (browsers: npx playwright install)
 	npm --prefix desktop/frontend run build
 	cd desktop && CGO_ENABLED=0 go build -tags server,production -o bin/sonde-desktop-server .
 	npm --prefix desktop/frontend run build:harness
 	cd desktop && CGO_ENABLED=0 go build -tags server,e2eharness -o bin/sonde-desktop-harness .
+	cd desktop && CGO_ENABLED=0 go build -o bin/fixture-server ./cmd/fixture-server
 	cd desktop/frontend && npx playwright test
 
 tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses $(BIN)/apidiff ## Install pinned tools into ./bin
