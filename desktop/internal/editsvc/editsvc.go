@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/engine"
@@ -69,6 +70,8 @@ const (
 	AddCaptureOp  = "addCapture"    // Key (name), Value (query)
 	AddEntry      = "addEntry"      // Key (method), Value (URL)
 	RemoveEntry   = "removeEntry"
+	RemoveSection = "removeSection" // Section
+	AddLogin      = "addLogin"      // Key (the token's capture name); a login request before Entry
 )
 
 // Bodies gives a stored response body (redacted).
@@ -142,9 +145,13 @@ func (e *Edits) Apply(b Buffer, op Op) (*Result, error) {
 	case AddCaptureOp:
 		res, err = syntaxedit.AddCapture(name, src, n, op.Key, op.Value)
 	case AddEntry:
-		res, err = syntaxedit.AddEntry(name, src, syntax.EntrySpec{Method: op.Key, URL: syntax.PlainText(op.Value)})
+		res, err = addEntry(name, src, op.Key, op.Value)
 	case RemoveEntry:
 		res, err = syntaxedit.RemoveEntry(name, src, n)
+	case RemoveSection:
+		res, err = syntaxedit.RemoveSection(name, src, n, sec)
+	case AddLogin:
+		res, err = syntaxedit.AddLoginEntry(name, src, n, loginSpec(op.Key))
 	default:
 		return nil, apperr.New(apperr.Invalid, "unknown edit "+op.Kind)
 	}
@@ -152,6 +159,148 @@ func (e *Edits) Apply(b Buffer, op Op) (*Result, error) {
 		return nil, apperr.Wrap(apperr.Invalid, err)
 	}
 	return &Result{Version: b.Version, Edits: res.Edits, Text: string(res.Source)}, nil
+}
+
+// addEntry appends a request whose URL is source text ({{variables}}
+// kept): added with a plain URL, then given its own.
+func addEntry(name string, src []byte, method, url string) (*syntaxedit.Result, error) {
+	res, err := syntaxedit.AddEntry(name, src, syntax.EntrySpec{Method: method, URL: syntax.PlainText("http://new")})
+	if err != nil {
+		return nil, err
+	}
+	m, err := syntaxedit.Model(name, res.Source)
+	if err != nil {
+		return nil, err
+	}
+	res, err = syntaxedit.SetURL(name, res.Source, len(m), url)
+	if err != nil {
+		return nil, err
+	}
+	return &syntaxedit.Result{Source: res.Source, Edits: diff(string(src), string(res.Source))}, nil
+}
+
+// loginSpec is an OAuth 2 client-credentials login: its token captured
+// (a secret) in capture ("token" by default), its endpoint and client in
+// variables the user sets in the environment.
+func loginSpec(capture string) syntaxedit.LoginSpec {
+	if capture == "" {
+		capture = "token"
+	}
+	v := func(name string) syntax.Text { return syntax.Text{syntax.Var(name)} }
+	return syntaxedit.LoginSpec{
+		Request: syntax.EntrySpec{
+			Comments: []string{"Log in (OAuth 2 client credentials)"},
+			Method:   "POST", URL: v("token_url"),
+			Form: []syntax.Field{
+				syntax.KV("grant_type", "client_credentials"),
+				{Key: syntax.PlainText("client_id"), Value: v("client_id")},
+				{Key: syntax.PlainText("client_secret"), Value: v("client_secret")},
+			},
+		},
+		Capture: capture, JSONPath: "$.access_token", Redact: true,
+	}
+}
+
+// Batch runs ops one after the other, each on the text the previous one
+// left (one form action: a body kind change, an auth type change), and
+// returns the whole change as one edit. Nothing is applied when an op
+// fails.
+func (e *Edits) Batch(b Buffer, ops []Op) (*Result, error) {
+	text := b.Text
+	for _, op := range ops {
+		res, err := e.Apply(Buffer{File: b.File, Text: text, Version: b.Version}, op)
+		if err != nil {
+			return nil, err
+		}
+		text = res.Text
+	}
+	return &Result{Version: b.Version, Edits: diff(b.Text, text), Text: text}, nil
+}
+
+// diff is the edit from a to b: the part between their common prefix and
+// suffix (UTF-16 offsets).
+func diff(a, b string) []syntaxedit.TextEdit {
+	if a == b {
+		return []syntaxedit.TextEdit{}
+	}
+	p := 0
+	for p < len(a) && p < len(b) && a[p] == b[p] {
+		p++
+	}
+	for p > 0 && p < len(a) && !utf8.RuneStart(a[p]) {
+		p-- // a whole rune (at the end of a, p is one)
+	}
+	q := 0
+	for q < len(a)-p && q < len(b)-p && a[len(a)-1-q] == b[len(b)-1-q] {
+		q++
+	}
+	for q > 0 && !utf8.RuneStart(a[len(a)-q]) {
+		q--
+	}
+	start := utf16Len(a[:p])
+	return []syntaxedit.TextEdit{{Range: syntaxedit.Range{Start: start, End: start + utf16Len(a[p:len(a)-q])}, NewText: b[p : len(b)-q]}}
+}
+
+// Check is an assert split for the form's grid, as source text: its query
+// (with its filters), its predicate (with `not`) and its value ("" for a
+// predicate without one). Parsed is false when the text is not an assert
+// (it then shows as text only).
+type Check struct {
+	Query     string `json:"query"`
+	Predicate string `json:"predicate"`
+	Value     string `json:"value"`
+	Parsed    bool   `json:"parsed"`
+}
+
+// EntryChecks are the asserts of an entry, in the order of its asserts
+// rows (disabled ones included).
+type EntryChecks struct {
+	Entry   int     `json:"entry"`
+	Asserts []Check `json:"asserts"`
+}
+
+// Checks splits every assert row of the buffer for the form's grid.
+func (e *Edits) Checks(b Buffer) ([]EntryChecks, error) {
+	m, err := e.Model(b)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]EntryChecks, 0, len(m))
+	for _, en := range m {
+		ec := EntryChecks{Entry: en.Index, Asserts: []Check{}}
+		for _, r := range en.Rows[syntaxedit.Asserts] {
+			ec.Asserts = append(ec.Asserts, splitAssert(b.File, r.Value))
+		}
+		out = append(out, ec)
+	}
+	return out, nil
+}
+
+// splitAssert splits an assert's text by parsing it in an entry of its
+// own.
+func splitAssert(file, text string) Check {
+	const head = "GET http://x\nHTTP *\n[Asserts]\n"
+	src := head + text + "\n"
+	f, err := syntax.Parse(file, []byte(src), syntax.DialectFor(file))
+	if err != nil || len(f.Entries) != 1 || f.Entries[0].Response == nil {
+		return Check{Query: text}
+	}
+	for _, sec := range f.Entries[0].Response.Sections {
+		if len(sec.Asserts) != 1 {
+			continue
+		}
+		a := sec.Asserts[0]
+		fn := a.Predicate.Func
+		c := Check{Parsed: true, Query: src[a.Query.Span.Start.Offset:a.Space1.Span.Start.Offset]}
+		if fn.Value != nil {
+			c.Predicate = src[a.Space1.Span.End.Offset:fn.Space0.Span.Start.Offset]
+			c.Value = src[fn.Space0.Span.End.Offset:fn.Span.End.Offset]
+		} else {
+			c.Predicate = src[a.Space1.Span.End.Offset:fn.Span.End.Offset]
+		}
+		return c
+	}
+	return Check{Query: text}
 }
 
 // FromBody asks for an assert or capture on a JSON response body.
@@ -349,6 +498,9 @@ func (e *Edits) Methods(ctx context.Context, b Buffer, entry int, env string) ([
 	if err != nil {
 		return nil, apperr.Wrap(apperr.Invalid, err)
 	}
+	if d == nil {
+		return []grpcx.Service{}, nil // no proto named: reflection at run time
+	}
 	s := d.Services()
 	if s == nil {
 		s = []grpcx.Service{}
@@ -375,6 +527,15 @@ func (s *Service) Apply(b Buffer, op Op) (*Result, error) { return s.e.Apply(b, 
 func (s *Service) AssertValue(b Buffer, req FromBody) (*Result, error) {
 	return s.e.AssertValue(b, req)
 }
+
+// EscapeFilename writes a path as a file name of the file format.
+func (s *Service) EscapeFilename(path string) string { return syntax.EscapeFilename(path) }
+
+// Batch runs several edits as one.
+func (s *Service) Batch(b Buffer, ops []Op) (*Result, error) { return s.e.Batch(b, ops) }
+
+// Checks splits the assert rows for the form's grid.
+func (s *Service) Checks(b Buffer) ([]EntryChecks, error) { return s.e.Checks(b) }
 
 // AppendMessages writes a session's message into an entry's steps.
 func (s *Service) AppendMessages(b Buffer, entry int, data string, binary bool) (*Result, error) {

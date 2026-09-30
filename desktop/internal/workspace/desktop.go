@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
@@ -118,6 +119,48 @@ func (d *Desktop) Trash(ctx context.Context, file string) error {
 		return err
 	}
 	return osfile.Trash(ctx, p)
+}
+
+// Picked is a file picked in a dialog, as the page may know it: its
+// project path when it is inside the project; else only its name, and a
+// new handle for CopyIntoProject (runs read files inside the project
+// only).
+type Picked struct {
+	Path   string `json:"path,omitempty"`
+	Name   string `json:"name"`
+	Handle string `json:"handle,omitempty"`
+}
+
+// PickedFile tells where the file picked in a dialog (handle) is.
+func (d *Desktop) PickedFile(handle string) (*Picked, error) {
+	root := d.ws.Root()
+	if root == nil {
+		return nil, apperr.New(apperr.NotFound, "no project is open")
+	}
+	src, err := d.handles.Take(handle, handles.OpenFile)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.Expired, err)
+	}
+	if fi, err := os.Stat(src); err != nil || !fi.Mode().IsRegular() {
+		return nil, apperr.New(apperr.Invalid, "not a file: "+filepath.Base(src))
+	}
+	name := filepath.Base(src)
+	resolved, err1 := filepath.EvalSymlinks(src)
+	dir, err2 := filepath.EvalSymlinks(root.Dir())
+	if err1 == nil && err2 == nil {
+		if rel, err := filepath.Rel(dir, resolved); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			// A secret or dot file is never sent as a body.
+			if d.ws.protected(rel) {
+				return nil, apperr.New(apperr.Denied, name+" is protected: it is not sent")
+			}
+			return &Picked{Path: filepath.ToSlash(rel), Name: name}, nil
+		}
+	}
+	h, err := d.handles.Put(src, handles.OpenFile)
+	if err != nil {
+		return nil, err
+	}
+	return &Picked{Name: name, Handle: h}, nil
 }
 
 // CopyIntoProject copies the file picked in a dialog (handle) into folder

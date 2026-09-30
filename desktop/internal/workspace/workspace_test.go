@@ -277,13 +277,105 @@ func TestDesktopRecentAndCopy(t *testing.T) {
 	if err := os.WriteFile(ext, []byte("{}"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	id, _ := h.Put(ext, handles.OpenFile)
+	// A picked file inside the project is its project path; one outside
+	// only its name and a new handle, to copy it in.
+	write(t, s.Root().Dir(), "in/picked.hurl", "GET https://h\n")
+	in, _ := h.Put(filepath.Join(s.Root().Dir(), "in", "picked.hurl"), handles.OpenFile)
+	if p, err := d.PickedFile(in); err != nil || p.Path != "in/picked.hurl" || p.Handle != "" {
+		t.Errorf("picked inside: %+v %v", p, err)
+	}
+	// A secret or dot file is not sent as a body.
+	write(t, s.Root().Dir(), "local.secrets", "k=v\n")
+	secret, _ := h.Put(filepath.Join(s.Root().Dir(), "local.secrets"), handles.OpenFile)
+	if p, err := d.PickedFile(secret); code(err) != apperr.Denied || p != nil {
+		t.Errorf("picked a secrets file: %+v %v", p, err)
+	}
+	picked, _ := h.Put(ext, handles.OpenFile)
+	p, err := d.PickedFile(picked)
+	if err != nil || p.Path != "" || p.Name != "spec.json" || p.Handle == "" {
+		t.Fatalf("picked outside: %+v %v", p, err)
+	}
+	if _, err := d.PickedFile(picked); code(err) != apperr.Expired {
+		t.Errorf("reused handle: %v", err)
+	}
+	id := p.Handle
 	rel, err := d.CopyIntoProject(id, "api")
 	if err != nil || rel != "api/spec.json" {
 		t.Fatalf("copy: %q %v", rel, err)
 	}
 	if _, err := d.CopyIntoProject(id, "api"); code(err) != apperr.Expired {
 		t.Errorf("reused handle: %v", err)
+	}
+}
+
+// TestPickedFileSymlink: a symlink pointing outside the project is reported
+// as outside with a handle for CopyIntoProject.
+func TestPickedFileSymlink(t *testing.T) {
+	s, _, _ := open(t)
+	cfg, err := sandbox.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := handles.New()
+	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
+
+	// Create a file outside and a symlink inside pointing to it
+	outside := filepath.Join(t.TempDir(), "external.json")
+	if err := os.WriteFile(outside, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	symlink := filepath.Join(s.Root().Dir(), "link.json")
+	if err := os.Symlink(outside, symlink); err != nil {
+		t.Fatal(err)
+	}
+
+	handle, _ := h.Put(symlink, handles.OpenFile)
+	p, err := d.PickedFile(handle)
+	// Should be treated as outside since it resolves to a path outside project
+	if err != nil || p.Path != "" || p.Handle == "" {
+		t.Errorf("symlink outside not recognized: %+v %v", p, err)
+	}
+}
+
+// TestPickedFileWithPathTraversal: a path that climbs out of the project
+// with ".." is outside it, even when it starts inside.
+func TestPickedFileWithPathTraversal(t *testing.T) {
+	s, _, _ := open(t)
+	cfg, err := sandbox.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := handles.New()
+	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
+	projectDir := s.Root().Dir()
+	outside := filepath.Join(filepath.Dir(projectDir), "outside-"+filepath.Base(projectDir)+".txt")
+	if err := os.WriteFile(outside, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Remove(outside) })
+	climbing := filepath.Join(projectDir, "api") + string(filepath.Separator) + ".." + string(filepath.Separator) + ".." + string(filepath.Separator) + filepath.Base(outside)
+	handle, _ := h.Put(climbing, handles.OpenFile)
+	p, err := d.PickedFile(handle)
+	if err != nil || p.Path != "" || p.Handle == "" || p.Name != filepath.Base(outside) {
+		t.Errorf("a path climbing out of the project: %+v %v", p, err)
+	}
+}
+
+// TestPickedFileProjectDirItself: a folder is not a file to send (the
+// project's own folder included).
+func TestPickedFileProjectDirItself(t *testing.T) {
+	s, _, _ := open(t)
+	cfg, err := sandbox.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := handles.New()
+	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
+
+	projectDir := s.Root().Dir()
+	handle, _ := h.Put(projectDir, handles.OpenFile)
+	if p, err := d.PickedFile(handle); code(err) != apperr.Invalid || p != nil {
+		t.Errorf("a folder was picked as a file: %+v %v", p, err)
 	}
 }
 
