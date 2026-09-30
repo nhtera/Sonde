@@ -22,6 +22,10 @@ export interface RequestRow {
   /** Variables this request uses (← name), when known. */
   used?: string[];
   skipReason?: string;
+  /** Shown dimmed (a Send's earlier requests, from the run it reused). */
+  dim?: boolean;
+  /** A chip before the variables ("just sent"). */
+  tag?: string;
 }
 
 /** The parts of a run the rows are built from. */

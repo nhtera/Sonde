@@ -40,8 +40,8 @@ export function ResultsHost({ file }: { file: string }) {
     return run && !run.running && text !== undefined ? firstChangedLine(run.source, text) : 0;
   });
   const requests = useMemo(() => index.filter((r) => r.file === file), [index, file]);
-  if (results) return <results.render file={file} />;
   if (!run) return <FileEmpty file={file} hasRequests={requests.length > 0} />;
+  if (results) return <results.render file={file} />;
   return (
     <div className="results-body">
       <RunSummary

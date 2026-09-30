@@ -1,3 +1,6 @@
 # Check out text files (including testdata/**) with LF everywhere so
 # Windows CI sees the same bytes. Binary files are detected and left alone.
 * text=auto eol=lf
+
+# Kept byte for byte: the Results tests edit a file with CRLF line endings.
+desktop/testdata/results-api/crlf.hurl -text

@@ -4,5 +4,5 @@
 // The .hurl/.sonde language for the Text editor (Phase 7), the Results raw
 // view (Phase 8) and the Form's raw body editors (Phase 9).
 
-export { jsonBodyLanguage, sondeFileLanguage, sondeLanguage } from "./language";
+export { jsonBodyLanguage, sondeFileLanguage, sondeLanguage, xmlBodyLanguage } from "./language";
 export { graphqlLanguage } from "./graphql";

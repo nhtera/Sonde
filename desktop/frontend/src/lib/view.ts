@@ -28,8 +28,20 @@ export interface EntryError {
   transport?: string;
 }
 
+/** A call's phases, in microseconds since it began. */
+export interface Timings {
+  name_lookup: number;
+  connect: number;
+  app_connect: number;
+  pre_transfer: number;
+  start_transfer: number;
+  total: number;
+}
+
 export interface Entry extends ReportEntry {
   bodies: Body[];
+  /** One per call (older recordings have none: use the report's). */
+  timings?: Timings[];
   errors: EntryError[];
   success: boolean;
   retried: boolean;

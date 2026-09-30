@@ -3,7 +3,9 @@
 
 // Open files. A tab's text is the truth for runs, saved or not; Save sends
 // the hash of the text it replaces and is refused when the file changed on
-// disk meanwhile.
+// disk meanwhile. A tab's line breaks are "\n", as the editor's (offsets
+// from Go and the editor then agree); a file with "\r\n" is saved with
+// them again.
 
 import { create } from "zustand";
 import { Workspace, appError } from "../lib/api";
@@ -20,6 +22,8 @@ export interface Tab {
   version: number;
   /** The file changed on disk while the tab had unsaved edits. */
   conflict: boolean;
+  /** The file's line break, restored on save. */
+  eol?: "\r\n";
 }
 
 interface TabsState {
@@ -35,6 +39,11 @@ interface TabsState {
 
 export const isDirty = (t: Tab) => t.text !== t.savedText;
 
+/** A file's text with "\n" line breaks, and whether it had "\r\n". */
+function fromDisk(text: string): { text: string; eol?: "\r\n" } {
+  return text.includes("\r\n") ? { text: text.replace(/\r\n/g, "\n"), eol: "\r\n" } : { text };
+}
+
 export const useTabs = create<TabsState>((set, get) => ({
   tabs: [],
   active: null,
@@ -45,7 +54,8 @@ export const useTabs = create<TabsState>((set, get) => ({
     }
     const f = await Workspace.Read(path);
     if (!f) return;
-    const tab: Tab = { path: f.path, text: f.text, savedText: f.text, hash: f.hash, version: 1, conflict: false };
+    const { text, eol } = fromDisk(f.text);
+    const tab: Tab = { path: f.path, text, savedText: text, hash: f.hash, version: 1, conflict: false, eol };
     set({ tabs: [...get().tabs, tab], active: f.path });
   },
   activate: (active) => set({ active }),
@@ -55,7 +65,7 @@ export const useTabs = create<TabsState>((set, get) => ({
     const tab = get().tabs.find((t) => t.path === path);
     if (!tab) return false;
     try {
-      const hash = await Workspace.Save(path, tab.text, tab.hash);
+      const hash = await Workspace.Save(path, tab.eol ? tab.text.replace(/\n/g, tab.eol) : tab.text, tab.hash);
       set({ tabs: get().tabs.map((t) => (t.path === path ? { ...t, savedText: tab.text, hash, conflict: false } : t)) });
       return true;
     } catch (err) {
@@ -83,9 +93,10 @@ export const useTabs = create<TabsState>((set, get) => ({
       set({ tabs: get().tabs.map((t) => (t.path === path ? { ...t, conflict: true } : t)) });
       return;
     }
+    const { text, eol } = fromDisk(f.text);
     set({
       tabs: get().tabs.map((t) =>
-        t.path === path ? { ...t, text: f.text, savedText: f.text, hash: f.hash, version: t.version + 1, conflict: false } : t,
+        t.path === path ? { ...t, text, savedText: text, hash: f.hash, eol, version: t.version + 1, conflict: false } : t,
       ),
     });
   },

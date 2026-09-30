@@ -126,6 +126,9 @@ const fileLanguageParser = fileParser.configure({
   }),
 });
 
+/** An XML (or HTML) body, for the Results raw view. */
+export const xmlBodyLanguage = LRLanguage.define({ name: "xml", parser: xmlParser });
+
 /** The file language (highlighting and folding only). */
 export const sondeFileLanguage = LRLanguage.define({
   name: "sonde",

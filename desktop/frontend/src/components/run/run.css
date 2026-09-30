@@ -37,6 +37,8 @@
 .req-row.state-skipped, .req-row.state-pending { color: var(--faint); }
 .req-row .vars { grid-column: 3 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .var-chip { font: 500 10.5px var(--font-code); padding: 1px 5px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.req-row.dim { opacity: 0.55; }
+.var-chip.tag { background: var(--accent-soft); box-shadow: none; color: var(--accent); }
 .var-chip.out { background: var(--accent-soft); box-shadow: none; color: var(--accent); }
 
 .row-pills { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }

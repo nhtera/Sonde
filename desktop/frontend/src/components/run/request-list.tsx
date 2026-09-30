@@ -18,7 +18,7 @@ export function RequestList({ rows, selected, onSelect }: RequestListProps) {
       {rows.map((r) => (
         <li
           key={r.entry}
-          className={`req-row state-${r.state}`}
+          className={`req-row state-${r.state}${r.dim ? " dim" : ""}`}
           aria-selected={selected === r.entry}
           aria-label={`${r.method} ${r.path} ${r.state}`}
           onClick={() => onSelect?.(r.entry)}
@@ -30,13 +30,14 @@ export function RequestList({ rows, selected, onSelect }: RequestListProps) {
             <span className="skip mono">skip</span>
           ) : (
             <>
-              <span className={`code mono ${r.state === "failed" ? "fail" : "pass"}`}>{r.status ?? ""}</span>
+              <span className={`code mono ${r.state === "failed" ? "fail" : "pass"}`}>{r.status ?? (r.state === "failed" ? "ERR" : "")}</span>
               <span className="ms mono">{r.ms !== undefined ? `${r.ms} ms` : ""}</span>
             </>
           )}
           <span className="mark">{mark[r.state]}</span>
-          {(r.used?.length || r.captured.length) > 0 && (
+          {(!!r.tag || (r.used?.length ?? 0) > 0 || r.captured.length > 0) && (
             <span className="vars">
+              {r.tag && <span className="var-chip tag">● {r.tag}</span>}
               {r.used?.map((v) => (
                 <span key={`u-${v}`} className="var-chip">
                   ← {v}

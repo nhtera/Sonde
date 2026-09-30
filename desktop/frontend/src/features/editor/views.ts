@@ -7,13 +7,14 @@
 // edit from Go) replaces the editor's.
 
 import { autocompletion, closeBrackets } from "@codemirror/autocomplete";
-import { history } from "@codemirror/commands";
+import { history, undo } from "@codemirror/commands";
 import { bracketMatching, foldGutter, indentUnit } from "@codemirror/language";
 import { serverCompletion } from "@codemirror/lsp-client";
 import { highlightSelectionMatches } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
 import { sondeLanguage } from "../../lang";
+import { registerEditTarget } from "../../state/edits";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
@@ -28,6 +29,8 @@ import { requestMarks, runMarks, type EntryShape } from "./results/marks";
 import { editorHighlight, editorTheme } from "./theme";
 
 const views = new Map<string, EditorView>();
+/** Unregisters each editor as the target of Go's edits of its tab. */
+const unregister = new Map<string, () => void>();
 /** The text each editor last exchanged with the tab store. */
 const synced = new WeakMap<EditorView, string>();
 
@@ -52,14 +55,14 @@ function publishCursor(view: EditorView) {
 
 /** Replaces an editor's text with next, changing only the part that
  * differs (the cursor and marks outside it stay). */
-function replaceText(view: EditorView, next: string) {
+function replaceText(view: EditorView, next: string, userEvent?: string) {
   const cur = view.state.doc.toString();
   let from = 0;
   const max = Math.min(cur.length, next.length);
   while (from < max && cur.charCodeAt(from) === next.charCodeAt(from)) from++;
   let end = 0;
   while (end < max - from && cur.charCodeAt(cur.length - 1 - end) === next.charCodeAt(next.length - 1 - end)) end++;
-  view.dispatch({ changes: { from, to: cur.length - end, insert: next.slice(from, next.length - end) } });
+  view.dispatch({ changes: { from, to: cur.length - end, insert: next.slice(from, next.length - end) }, userEvent, scrollIntoView: !!userEvent });
 }
 
 function extensions(path: string) {
@@ -112,6 +115,16 @@ export function openView(path: string): EditorView {
   });
   synced.set(view, text);
   views.set(path, view);
+  // Go's edits (an assert from the results…) are one change of the
+  // editor: ⌘Z undoes them.
+  unregister.set(
+    path,
+    registerEditTarget(path, {
+      // The editor's line breaks are "\n" (see state/edits).
+      apply: (text) => replaceText(view, text.replace(/\r\n?/g, "\n"), "input.edit"),
+      undo: () => void undo(view),
+    }),
+  );
   scheduleRequestMarks(path, 0);
   refreshRunMarks(path);
   return view;
@@ -181,6 +194,8 @@ useTabs.subscribe((s) => {
     if (!tab) {
       view.destroy();
       views.delete(path);
+      unregister.get(path)?.();
+      unregister.delete(path);
       dropModel(path);
       continue;
     }
