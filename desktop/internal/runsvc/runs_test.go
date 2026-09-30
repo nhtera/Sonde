@@ -240,10 +240,14 @@ func TestSendRefusesAnotherVersion(t *testing.T) {
 	f := setup(t)
 	f.run(t, "r1")
 	edited := strings.Replace(flow, "POST {{base}}/login", "POST {{base}}/login?v=2", 1)
-	_, err := f.runs.Send(context.Background(), SendRequest{RunID: "s1", File: "flow.hurl", Source: edited, Env: "local", Entry: 3})
+	sum, err := f.runs.Send(context.Background(), SendRequest{RunID: "s1", File: "flow.hurl", Source: edited, Env: "local", Entry: 3})
 	var e *apperr.Error
 	if !errors.As(err, &e) || e.Code != apperr.Stale {
 		t.Errorf("edited entry 1: %v", err)
+	}
+	// The summary the page receives (with Done) says why, coded.
+	if sum == nil || sum.ErrorCode != apperr.Stale || sum.Outcome != Errored {
+		t.Errorf("summary %+v, want the stale code", sum)
 	}
 	_, err = f.runs.Send(context.Background(), SendRequest{RunID: "s2", File: "flow.hurl", Source: flow, Env: "other", Entry: 3})
 	if !errors.As(err, &e) || e.Code != apperr.Stale {

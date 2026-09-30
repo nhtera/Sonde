@@ -300,6 +300,9 @@ func (r *Runs) start(ctx context.Context, runID, kind string, files []string, bo
 	rn.summary.Duration = time.Since(start).Milliseconds()
 	if err != nil {
 		rn.summary.Outcome, rn.summary.Error = Errored, err.Error()
+		if e, ok := errors.AsType[*apperr.Error](err); ok {
+			rn.summary.ErrorCode = e.Code
+		}
 	} else {
 		rn.finish(ctx)
 		if r.Hooks.Record != nil {

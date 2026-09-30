@@ -77,8 +77,10 @@ type Summary struct {
 	// BaseRunAt is, for a Send, when the run it reused ran.
 	BaseRunAt *time.Time `json:"baseRunAt,omitempty"`
 	// Error is why the run could not start (a planning error).
-	Error    string   `json:"error,omitempty"`
-	Warnings []string `json:"warnings,omitempty"`
+	Error string `json:"error,omitempty"`
+	// ErrorCode is Error's code (apperr: "stale", "busy"…), when it has one.
+	ErrorCode string   `json:"errorCode,omitempty"`
+	Warnings  []string `json:"warnings,omitempty"`
 }
 
 // Unit is the outcome of one file (and data row).
