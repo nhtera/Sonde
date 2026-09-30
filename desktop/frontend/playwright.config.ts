@@ -19,11 +19,17 @@ const shellURL = process.env.E2E_SHELL_URL ?? `http://127.0.0.1:${shellPort}`;
 // e2e/editor.spec.ts in WebKit (the macOS app's engine), on its own harness.
 const webkitEditorPort = Number(process.env.E2E_EDITOR_WEBKIT_PORT) || 34119;
 const webkitEditorURL = `http://127.0.0.1:${webkitEditorPort}`;
-/** A harness over a fresh copy of shop-api (tests never change the repo);
- * the copy and the harness's data go when the server stops. */
-const shopHarness = (port: number) =>
+/** A harness over a fresh copy of a test project (tests never change the
+ * repo); the copy and the harness's data go when the server stops. */
+const shopHarness = (port: number, project = "shop-api") =>
   `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
-  `mkdir "$t/shop-api" && cp -R ../testdata/shop-api/. "$t/shop-api" && ${harness} --root "$t/shop-api" --data "$t/data" --port ${port}'`;
+  `mkdir "$t/${project}" && cp -R ../testdata/${project}/. "$t/${project}" && ${harness} --root "$t/${project}" --data "$t/data" --port ${port}'`;
+// e2e/results.spec.ts: the Results panel on testdata/results-api.
+const resultsPort = Number(process.env.E2E_RESULTS_PORT) || 34122;
+const resultsURL = `http://127.0.0.1:${resultsPort}`;
+// The preview's sandbox and framing in WebKit (the macOS app's engine).
+const resultsWebkitPort = Number(process.env.E2E_RESULTS_WEBKIT_PORT) || 34123;
+const resultsWebkitURL = `http://127.0.0.1:${resultsWebkitPort}`;
 // e2e/perf.spec.ts: a generated project of 1000 request files in 20
 // folders, and big.hurl (5,000 lines).
 const perfPort = Number(process.env.E2E_PERF_PORT) || 34117;
@@ -41,12 +47,23 @@ export default defineConfig({
   reporter: process.env.CI ? "list" : "line",
   use: { baseURL },
   projects: [
-    { name: "chromium", testIgnore: /server-mode|shell|editor|perf/, use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", testIgnore: /server-mode|shell|editor|perf/, use: { ...devices["Desktop Safari"] } },
-    { name: "perf", testMatch: /perf/, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: perfURL } },
+    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results/, use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results/, use: { ...devices["Desktop Safari"] } },
+    // Timings are measured alone, after the other browser tests (the load
+    // of seven test servers and browsers would skew them).
+    {
+      name: "perf",
+      testMatch: /perf/,
+      workers: 1,
+      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "editor-webkit"],
+      use: { ...devices["Desktop Chrome"], baseURL: perfURL },
+    },
     // The shell's tests share one harness (its settings, its runs): one
     // browser, one worker, repeats included.
     { name: "shell", testMatch: /shell|editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: shellURL } },
+    // The Results panel's tests share one harness (the mock they start).
+    { name: "results", testMatch: /results/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: resultsURL } },
+    { name: "results-webkit", testMatch: /results/, grep: /preview|Assert/, workers: 1, use: { ...devices["Desktop Safari"], baseURL: resultsWebkitURL } },
     { name: "editor-webkit", testMatch: /editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Safari"], baseURL: webkitEditorURL } },
     // Server mode's sign-in (E2E_SERVER_BIN, a server build).
     { name: "server-chromium", testMatch: /server-mode/, use: { ...devices["Desktop Chrome"] } },
@@ -74,6 +91,22 @@ export default defineConfig({
         {
           command: shopHarness(shellPort),
           url: `${shellURL}/health`,
+          reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
+          timeout: 30_000,
+        },
+        {
+          command: shopHarness(resultsPort, "results-api"),
+          url: `${resultsURL}/health`,
+          reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
+          timeout: 30_000,
+        },
+        {
+          command: shopHarness(resultsWebkitPort, "results-api"),
+          url: `${resultsWebkitURL}/health`,
           reuseExistingServer: !process.env.CI,
           // SIGTERM (not the default SIGKILL): the server's temp folder goes.
           gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },

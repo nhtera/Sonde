@@ -1,0 +1,20 @@
+# results-api: the Results panel's browser tests (desktop/cmd/fixture-server
+# on 34120). base_url points at a port nothing listens on: the mock takes
+# its place.
+version: 1
+
+environments:
+  local:
+    variables:
+      base_url: http://127.0.0.1:34129
+      api: http://127.0.0.1:34120
+      ws: ws://127.0.0.1:34120
+      user: ada
+    secrets_files:
+      - secrets/local.secrets
+
+defaults:
+  env: local
+
+openapi:
+  spec: openapi.yaml

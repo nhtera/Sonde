@@ -1,0 +1,5 @@
+# Order events
+GET {{api}}/events?n=10
+[Options]
+sonde-stream-count: 6
+HTTP 200

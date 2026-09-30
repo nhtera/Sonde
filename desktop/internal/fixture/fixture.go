@@ -5,16 +5,20 @@
 // browser tests run requests against: a login that sets a token and a
 // session cookie, users, carts and a checkout whose order stays pending,
 // a validation error, Server-Sent Events with heartbeats, a WebSocket
-// echo, slow and binary and gzip responses. Secrets it echoes let tests
-// check redaction.
+// echo, slow and binary and gzip responses, an HTML page with a script, a
+// PNG and a JSON body of any size. Secrets it echoes let tests check
+// redaction.
 package fixture
 
 import (
+	"bufio"
 	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -129,6 +133,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-time.After(10 * time.Second):
 			writeJSON(w, 200, map[string]bool{"slow": true})
 		}
+	case p == "page":
+		// A script and a remote load the preview must block.
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, page)
+	case p == "pixel.png":
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(pixel)
+	case p == "big":
+		s.big(w, r)
 	case p == "binary":
 		w.Header().Set("Content-Type", "application/octet-stream")
 		_, _ = w.Write(append([]byte{0, 1, 2, 0xfe, 0xff}, []byte("token="+r.Header.Get("X-Token"))...)) //nolint:gosec // G705: an echo, for redaction tests
@@ -143,11 +156,46 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// events streams three events with heartbeat comments between them.
+// page is an HTML receipt whose script, if it ran, would change the title
+// and call the server.
+const page = `<!doctype html><html><head><title>Receipt</title></head><body>
+<h1 id="title">Receipt</h1><p>Order o-c1 · 25.80 EUR</p>
+<img src="/health?from=preview-img" alt="">
+<script>document.getElementById("title").textContent = "SCRIPT RAN"; fetch("/health?from=preview-script");</script>
+</body></html>`
+
+// pixel is a 1×1 PNG.
+var pixel, _ = base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+
+// big streams a JSON array of orders of about ?mb= MiB (default 1); the
+// first order's id is a 64-bit integer.
+func (s *Server) big(w http.ResponseWriter, r *http.Request) {
+	mb, err := strconv.Atoi(r.URL.Query().Get("mb"))
+	if err != nil || mb < 1 || mb > 200 {
+		mb = 1
+	}
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufio.NewWriterSize(w, 1<<16)
+	_, _ = io.WriteString(bw, `[{"id":12345678901234567890,"status":"paid","total":1}`)
+	size := 0
+	for i := 1; size < mb<<20; i++ {
+		n, _ := fmt.Fprintf(bw, `,{"id":%d,"sku":"TEA-%05d","status":"paid","total":%d.5,"currency":"EUR"}`, i, i%100000, i%1000)
+		size += n
+	}
+	_, _ = io.WriteString(bw, "]")
+	_ = bw.Flush()
+}
+
+// events streams ?n= events (default 3) with heartbeat comments between
+// them.
 func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	flusher, _ := w.(http.Flusher)
-	for i := 1; i <= 3; i++ {
+	n, err := strconv.Atoi(r.URL.Query().Get("n"))
+	if err != nil || n < 1 || n > 1000 {
+		n = 3
+	}
+	for i := 1; i <= n; i++ {
 		_, _ = fmt.Fprintf(w, ": heartbeat\n\nid: %d\nevent: order\ndata: {\"n\":%d}\n\n", i, i)
 		if flusher != nil {
 			flusher.Flush()

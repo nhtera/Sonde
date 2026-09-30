@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  title: results-api
+  version: "1"
+servers:
+  - url: http://127.0.0.1:34120
+paths:
+  /health:
+    get:
+      responses:
+        "204":
+          description: ready
+  /users/{id}:
+    get:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200":
+          description: a user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, email]
+                properties:
+                  id: {type: integer}
+                  name: {type: string}
+                  email: {type: string}

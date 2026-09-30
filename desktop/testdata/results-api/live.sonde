@@ -1,0 +1,6 @@
+# Live echo
+GET {{ws}}/ws
+[SondeMessages]
+send: `hello`
+receive
+HTTP 101
