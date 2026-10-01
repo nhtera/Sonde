@@ -151,3 +151,32 @@ func pathKey(key string) bool {
 	}
 	return key != ""
 }
+
+// collection names a Postman collection and counts its folders (items
+// holding items), for the dialog's title.
+func collection(data []byte) (name string, folders int) {
+	var doc struct {
+		Info struct {
+			Name string `json:"name"`
+		} `json:"info"`
+		Item []any `json:"item"`
+	}
+	if json.Unmarshal(data, &doc) != nil {
+		return "", 0
+	}
+	var walk func(items []any)
+	walk = func(items []any) {
+		for _, it := range items {
+			m, ok := it.(map[string]any)
+			if !ok {
+				continue
+			}
+			if sub, ok := m["item"].([]any); ok {
+				folders++
+				walk(sub)
+			}
+		}
+	}
+	walk(doc.Item)
+	return strings.TrimSpace(doc.Info.Name), folders
+}

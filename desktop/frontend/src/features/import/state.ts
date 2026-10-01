@@ -206,7 +206,7 @@ export const useImport = create<ImportState>((set, get) => ({
     try {
       for (const s of suggestions) {
         if (decisions[s.path] !== "accepted" || get().applied.includes(s.path)) continue;
-        await Imports.Accept(req, s.path);
+        await Imports.Accept(req, s.path, null);
         set((st) => ({ applied: [...st.applied, s.path] }));
       }
       const done = get().applied.length;

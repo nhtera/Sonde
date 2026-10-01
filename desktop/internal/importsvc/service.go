@@ -38,7 +38,8 @@ func (a *API) Suggestions(ctx context.Context, req Request) ([]Suggestion, error
 	return a.s.Suggestions(ctx, req)
 }
 
-// Accept applies the suggestions of one imported file.
-func (a *API) Accept(ctx context.Context, req Request, file string) error {
-	return a.s.Accept(ctx, req, file)
+// Accept applies the suggestions of one imported file: the changes
+// picked, by index (all of them when picked is null).
+func (a *API) Accept(ctx context.Context, req Request, file string, picked []int) error {
+	return a.s.Accept(ctx, req, file, picked)
 }

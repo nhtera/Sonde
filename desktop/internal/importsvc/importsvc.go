@@ -13,6 +13,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -112,6 +113,7 @@ type Counts struct {
 	PathVariables int `json:"pathVariables"` // :id segments written as {{id}}
 	SecretStubs   int `json:"secretStubs"`
 	Scripts       int `json:"scripts"` // scripts kept as comments
+	Folders       int `json:"folders"` // a Postman collection's folders
 }
 
 // Warning is something the import could not carry over as is.
@@ -128,6 +130,11 @@ type Preview struct {
 	Counts     Counts      `json:"counts"`
 	Project    string      `json:"project"` // "created", "kept" (sonde.yaml exists) or ""
 	Candidates []Candidate `json:"candidates"`
+	// Name is a Postman collection's name.
+	Name string `json:"name,omitempty"`
+	// Layouts are, for a Postman collection, the request files each
+	// layout writes (by Group), to compare them before picking one.
+	Layouts map[string][]string `json:"layouts,omitempty"`
 }
 
 // Written is what an import wrote.
@@ -192,6 +199,27 @@ func (s *Service) Preview(ctx context.Context, req Request) (*Preview, error) {
 	}
 	for _, c := range p.cands {
 		pv.Candidates = append(pv.Candidates, c.Candidate)
+	}
+	if req.Kind == Postman {
+		pv.Name, pv.Counts.Folders = collection(p.data)
+		pv.Layouts = map[string][]string{}
+		for _, g := range []string{postman.GroupRequest, postman.GroupFolder} {
+			lp := p
+			if g != p.postOpts.Group {
+				other := req
+				other.Group = g
+				if lp, err = s.plan(ctx, other); err != nil {
+					continue
+				}
+			}
+			files := []string{}
+			for _, f := range lp.files {
+				if ext := path.Ext(f.Path); ext == ".hurl" || ext == ".sonde" {
+					files = append(files, lp.project(f.Path))
+				}
+			}
+			pv.Layouts[g] = files
+		}
 	}
 	return pv, nil
 }

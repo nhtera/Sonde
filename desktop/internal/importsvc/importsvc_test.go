@@ -355,12 +355,24 @@ func TestPostmanCountsAndSuggestions(t *testing.T) {
 	if orders.Error != "" || !strings.Contains(orders.After, "Bearer {{access_token}}") {
 		t.Errorf("orders %+v", orders)
 	}
+	// One change on its own: the file with it alone, and where it starts.
+	if len(user.Changes) != 2 || user.Changes[0].Index != 0 || user.Changes[1].Index != 1 {
+		t.Fatalf("get user changes %+v", user.Changes)
+	}
+	for _, ch := range user.Changes {
+		if ch.Error != "" || ch.After == user.Before || ch.After == user.After || ch.Line < 1 || ch.Label == "" {
+			t.Errorf("change %+v", ch)
+		}
+		if line := strings.Split(ch.After, "\n")[ch.Line-1]; line == strings.Split(user.Before, "\n")[ch.Line-1] {
+			t.Errorf("change %d: line %d is not where it starts", ch.Index, ch.Line)
+		}
+	}
 	// Rejected (nothing called): the file is as imported.
 	before := string(mustRead(t, filepath.Join(dir, "list-orders.hurl")))
 	if before != orders.Before {
 		t.Error("the suggestion's Before is not the file")
 	}
-	if err := s.Accept(context.Background(), req, "users/get-user.hurl"); err != nil {
+	if err := s.Accept(context.Background(), req, "users/get-user.hurl", nil); err != nil {
 		t.Fatal(err)
 	}
 	got := string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl")))
@@ -375,7 +387,7 @@ func TestPostmanCountsAndSuggestions(t *testing.T) {
 	}
 	// Applied once: no suggestion for it any more, a second Accept refused.
 	var e *apperr.Error
-	if err := s.Accept(context.Background(), req, "users/get-user.hurl"); !errors.As(err, &e) || e.Code != apperr.Stale {
+	if err := s.Accept(context.Background(), req, "users/get-user.hurl", nil); !errors.As(err, &e) || e.Code != apperr.Stale {
 		t.Errorf("a second Accept: %v", err)
 	}
 	if string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl"))) != got {
@@ -384,7 +396,7 @@ func TestPostmanCountsAndSuggestions(t *testing.T) {
 	// The injection: refused, or written escaped; never a section.
 	inject := byPath["inject.hurl"]
 	if inject.Error == "" {
-		if err := s.Accept(context.Background(), req, "inject.hurl"); err != nil {
+		if err := s.Accept(context.Background(), req, "inject.hurl", nil); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -678,6 +690,71 @@ func TestPastedStagedOnce(t *testing.T) {
 
 // TestNoSuggestionForKeptFiles: a file the import did not write (kept as
 // the user had it) is never offered suggestions.
+func TestPostmanPreviewNamesTheCollection(t *testing.T) {
+	s, _, h, _ := service(t)
+	req := Request{Kind: Postman, Input: stage(t, s, h, filepath.Join(testdata, "import", "shop.postman_collection.json"), false)}
+	pv, err := s.Preview(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pv.Name == "" || pv.Counts.Folders != 1 {
+		t.Errorf("name %q, folders %d", pv.Name, pv.Counts.Folders)
+	}
+	// Both layouts, request files only, the picked one as the files.
+	byRequest, byFolder := pv.Layouts["request"], pv.Layouts["folder"]
+	if len(byRequest) != 3 || len(byFolder) == 0 || len(byFolder) >= len(byRequest) {
+		t.Errorf("layouts %v", pv.Layouts)
+	}
+	for _, f := range append(byRequest, byFolder...) {
+		if !strings.HasSuffix(f, ".hurl") {
+			t.Errorf("layout file %q", f)
+		}
+	}
+}
+
+func TestAcceptSomeChanges(t *testing.T) {
+	s, dir, h, _ := service(t)
+	req := Request{Kind: Postman, Input: stage(t, s, h, filepath.Join(testdata, "import", "shop.postman_collection.json"), false)}
+	if _, err := s.Write(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	sg, err := s.Suggestions(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var user Suggestion
+	for _, x := range sg {
+		if x.Path == "users/get-user.hurl" {
+			user = x
+		}
+	}
+	if len(user.Changes) != 2 {
+		t.Fatalf("changes %+v", user.Changes)
+	}
+	// The second change only: the first stays a comment.
+	if err := s.Accept(context.Background(), req, user.Path, []int{1}); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl"))); got != user.Changes[1].After {
+		t.Errorf("accepted change 1:\n%s\nwant:\n%s", got, user.Changes[1].After)
+	}
+}
+
+func TestAcceptNoChange(t *testing.T) {
+	s, dir, h, _ := service(t)
+	req := Request{Kind: Postman, Input: stage(t, s, h, filepath.Join(testdata, "import", "shop.postman_collection.json"), false)}
+	if _, err := s.Write(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	before := string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl")))
+	if err := s.Accept(context.Background(), req, "users/get-user.hurl", []int{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl"))); got != before {
+		t.Errorf("no change picked, file changed:\n%s", got)
+	}
+}
+
 func TestNoSuggestionForKeptFiles(t *testing.T) {
 	s, dir, h, _ := service(t)
 	req := Request{Kind: Postman, Input: stage(t, s, h, filepath.Join(testdata, "import", "shop.postman_collection.json"), false)}
@@ -700,7 +777,7 @@ func TestNoSuggestionForKeptFiles(t *testing.T) {
 			t.Error("a kept file is offered suggestions")
 		}
 	}
-	if err := s.Accept(context.Background(), req, "users/get-user.hurl"); err == nil || string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl"))) != mine {
+	if err := s.Accept(context.Background(), req, "users/get-user.hurl", nil); err == nil || string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl"))) != mine {
 		t.Errorf("a kept file accepted: %v", err)
 	}
 }
