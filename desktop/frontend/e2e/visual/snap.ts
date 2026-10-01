@@ -48,12 +48,20 @@ export async function panel(page: Page, name: string) {
 
 export async function light(page: Page) {
   const html = page.locator("html");
-  if ((await html.getAttribute("data-theme")) !== "light") await page.getByRole("button", { name: "Toggle theme" }).click();
+  if ((await html.getAttribute("data-theme")) !== "light") {
+    await page.getByRole("button", { name: "Toggle theme" }).click();
+    // Off the button: no hover left in the screen.
+    await page.mouse.move(720, 450);
+  }
   await expect(html).toHaveAttribute("data-theme", "light");
 }
 
 export async function dark(page: Page) {
   const html = page.locator("html");
-  if ((await html.getAttribute("data-theme")) !== "dark") await page.getByRole("button", { name: "Toggle theme" }).click();
+  if ((await html.getAttribute("data-theme")) !== "dark") {
+    await page.getByRole("button", { name: "Toggle theme" }).click();
+    // Off the button: no hover left in the screen.
+    await page.mouse.move(720, 450);
+  }
   await expect(html).toHaveAttribute("data-theme", "dark");
 }

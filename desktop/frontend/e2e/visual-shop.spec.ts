@@ -86,6 +86,7 @@ test("8b: the filter searches requests across files", async ({ page }) => {
 
 test("8e: Copy as", async ({ page }) => {
   await open(page, "checkout.hurl");
+  await run(page, /Failed/);
   await page.locator(".cm-line", { hasText: "POST {{base_url}}/carts" }).first().click();
   await page.getByRole("button", { name: "Copy as" }).click();
   await expect(page.getByRole("menuitem", { name: /^curl · this request/ })).toBeVisible();
@@ -126,12 +127,13 @@ test("8c: the history", async ({ page }) => {
 });
 
 test("7d: a narrow window (1024)", async ({ page }) => {
-  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.setViewportSize({ width: 1024, height: 900 });
   // The side panel collapses to the rail: the file from the palette.
   await page.keyboard.press("ControlOrMeta+KeyK");
   await page.keyboard.type("checkout.hurl");
   await page.keyboard.press("Enter");
   await expect(page.locator(".cm-content")).toBeVisible();
+  await run(page, /Failed/);
   await snap(page, "7d");
 });
 

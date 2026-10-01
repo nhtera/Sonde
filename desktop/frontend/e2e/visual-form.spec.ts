@@ -24,9 +24,13 @@ test("2a and 2b: asserts as rows, a failing one explained", async ({ page }) => 
   await run(page, /Passed|Failed/);
   await view(page, "Form");
   await tab(page, "Asserts");
-  await snap(page, "2a");
   await light(page);
   await snap(page, "2b");
+  await dark(page);
+  // {{ in a value lists the variables.
+  await page.getByLabel("Assert value 2").fill("{{");
+  await expect(page.locator(".suggest-list")).toBeVisible();
+  await snap(page, "2a");
 });
 
 test("9d, 9e, 9c, 9f: params, headers, auth, options", async ({ page }) => {
@@ -34,14 +38,29 @@ test("9d, 9e, 9c, 9f: params, headers, auth, options", async ({ page }) => {
   await tab(page, "Params");
   await snap(page, "9d");
   await tab(page, "Headers");
+  // Header names complete as they are typed.
+  await page.getByRole("button", { name: "+ Add header" }).click();
+  await page.getByLabel("New header").fill("Acc");
+  await expect(page.locator(".suggest-list")).toBeVisible();
   await snap(page, "9e");
+  await page.keyboard.press("Escape");
   await tab(page, "Auth");
   await snap(page, "9c");
   await tab(page, "Options");
+  // Each option set shows the [Options] line it writes.
+  // Controlled by the file: the switch flips once the edit is written.
+  await page.getByRole("switch", { name: "Follow redirects" }).click();
+  await expect(page.getByRole("switch", { name: "Follow redirects" })).toBeChecked();
+  for (const [label, value] of [["Maximum redirects", "5"], ["Max time", "10s"], ["Retry times", "3"]]) {
+    await page.getByLabel(label, { exact: true }).fill(value);
+    await page.getByLabel(label, { exact: true }).press("Enter");
+  }
+  await expect(page.getByLabel("Max time", { exact: true })).toHaveValue("10s");
   await snap(page, "9f");
 });
 
 test("9g: the Send split button", async ({ page }) => {
+  await run(page, /Passed|Failed/);
   await view(page, "Form");
   await request(page, 2);
   await page.getByRole("button", { name: "More ways to run" }).click();

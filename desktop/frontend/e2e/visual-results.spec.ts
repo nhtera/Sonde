@@ -17,6 +17,9 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await home(page);
   await dark(page);
+  // The design screens show a trusted folder or none: the question waits.
+  const notNow = page.getByRole("button", { name: "Not now" });
+  if (await notNow.isVisible()) await notNow.click();
 });
 
 test("3a, 3b, 3c: body, timeline and cookies", async ({ page }) => {
@@ -95,13 +98,20 @@ test("10d: the same card for a name that does not resolve", async ({ page }) => 
 
 test("5b: contract and mock", async ({ page }) => {
   await panel(page, "Contract & mock");
+  await page.getByRole("switch", { name: "Check responses against the OpenAPI spec" }).click();
   await page.getByLabel("Mock port").fill("34129");
   await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect(page.getByRole("region", { name: "Mock server" })).toContainText("base_url points here");
   await open(page, "health.hurl");
   await run(page, /Passed/);
+  // The user the API returns has no email: the spec requires one.
+  await open(page, "users.hurl");
+  await run(page, /Failed/);
+  await results(page).locator(".req-row").nth(1).click();
+  await tab(page, "Asserts").click();
   await panel(page, "Contract & mock");
-  await expect(page.getByLabel(/1 of 2 operations covered/)).toBeVisible();
+  await expect(page.getByLabel(/2 of 2 operations covered/)).toBeVisible();
+  await expect(page.getByLabel("Mock requests")).toContainText("/health");
   await snap(page, "5b");
 });
 
@@ -121,7 +131,18 @@ test("4a: a test run", async ({ page }) => {
 test("5a: environments", async ({ page }) => {
   await panel(page, "Environments");
   await expect(page.getByRole("table", { name: "Variables in local" })).toBeVisible();
+  // A session override, then a secret being added.
+  await page.getByRole("button", { name: "user actions" }).click();
+  await page.getByRole("menuitem", { name: /Override for this session/ }).click();
+  await page.getByRole("dialog").getByRole("textbox").fill("grace");
+  await page.getByRole("dialog").getByRole("textbox").press("Enter");
+  await expect(page.getByRole("button", { name: "Remove the override of user" })).toBeVisible();
+  await page.getByRole("button", { name: "+ Add variable" }).click();
+  await page.getByLabel("New variable name").fill("webhook_secret");
+  await page.getByRole("checkbox", { name: "Secret" }).check();
+  await page.getByLabel("New variable value").fill("whsec-visual");
   await snap(page, "5a");
+  await page.getByRole("button", { name: "Remove the override of user" }).click();
 });
 
 test("5c: AI agents", async ({ page }) => {
