@@ -9,8 +9,8 @@ import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 
 export const editorTheme = EditorView.theme({
-  "&": { height: "100%", backgroundColor: "var(--bg)", color: "var(--text)", fontSize: "13px" },
-  ".cm-scroller": { fontFamily: "var(--font-code)", lineHeight: "20px" },
+  "&": { height: "100%", backgroundColor: "var(--bg)", color: "var(--text)", fontSize: "var(--code-size, 13px)" },
+  ".cm-scroller": { fontFamily: "var(--font-code)", lineHeight: "calc(var(--code-size, 13px) + 7px)" },
   ".cm-content": { padding: "8px 0", caretColor: "var(--accent)" },
   "&.cm-focused": { outline: "none" },
   ".cm-cursor": { borderLeftColor: "var(--accent)" },

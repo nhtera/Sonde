@@ -70,7 +70,7 @@
 .cm-body-current { background: var(--warn); color: var(--bg); }
 
 .preview { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
-.preview-note { margin: 0; color: var(--muted); font-size: 11.5px; }
+.preview-note { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11.5px; }
 .preview-frame { flex: 1; min-height: 240px; border: 0; border-radius: 8px; background: #fff; }
 .preview-image { align-items: center; justify-content: center; }
 .preview-image img { max-width: 100%; max-height: 100%; image-rendering: auto; background: repeating-conic-gradient(var(--raised) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }

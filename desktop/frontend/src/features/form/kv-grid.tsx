@@ -7,6 +7,7 @@
 // lines is shown read-only: it is edited in Text.
 
 import { useRef, useState, type ReactNode } from "react";
+import { RowMenu } from "./row-menu";
 import { formEdit, setRow } from "./edit";
 import { rowsOf, type EntryModel, type ModelRow, type Sec } from "./model";
 import { SuggestInput, varSuggester, type Suggester } from "./suggest-input";
@@ -17,6 +18,8 @@ export interface KvGridProps {
   sec: Sec;
   keyLabel?: string;
   valueLabel?: string;
+  /** The value column's header, when its cells hold more than a value. */
+  valueHead?: ReactNode;
   keySuggest?: Suggester;
   /** Rows shown (their indices in the section), all by default. */
   only?(row: ModelRow, index: number): boolean;
@@ -25,7 +28,7 @@ export interface KvGridProps {
   addLabel?: string;
 }
 
-export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value", keySuggest, only, renderValue, addLabel = "+ Add row" }: KvGridProps) {
+export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value", valueHead, keySuggest, only, renderValue, addLabel = "+ Add row" }: KvGridProps) {
   const rows = rowsOf(entry, sec)
     .map((r, i) => ({ r, i }))
     .filter(({ r, i }) => !only || only(r, i));
@@ -38,7 +41,7 @@ export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value
         <div className="kv-head" role="row">
           <span />
           <span role="columnheader">{keyLabel}</span>
-          <span role="columnheader">{valueLabel}</span>
+          <span role="columnheader">{valueHead ?? valueLabel}</span>
           <span />
         </div>
       )}
@@ -69,9 +72,7 @@ export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value
             ) : (
               <SuggestInput label={`${valueLabel} ${i + 1}`} className="mono" value={r.Value} suggest={vars} onCommit={(v) => void setRow(file, n, sec, i, r.Key, v)} />
             )}
-            <button className="kv-remove" aria-label={`Remove ${r.Key}`} title="Remove the row" onClick={() => void formEdit(file, { kind: "removeRow", entry: n, section: sec, index: i })}>
-              ×
-            </button>
+            <RowMenu file={file} entry={n} section={sec} index={i} label={r.Key} disabled={!!r.Disabled} copy={{ kind: "addRow", entry: n, section: sec, key: r.Key, value: r.Value }} />
           </div>
         );
       })}

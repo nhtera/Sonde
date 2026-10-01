@@ -7,6 +7,7 @@
 // methods are listed but cannot be picked: Sonde runs unary and
 // server-streaming methods.
 
+import * as Menu from "@radix-ui/react-dropdown-menu";
 import { useEffect, useState } from "react";
 import { appError, EditSvc, type GrpcService } from "../../../lib/api";
 import { jsonBodyLanguage } from "../../../lang";
@@ -52,6 +53,7 @@ export function GrpcForm({ file, entry }: { file: string; entry: EntryModel }) {
   }, [file, n, env, protoKey]);
   const { base, service, method } = splitGrpcURL(entry.URL);
   const svc = services?.find((s) => s.Name === service);
+  const current = svc?.Methods?.find((m) => m.Name === method);
   const setPath = (s: string, m: string) => void formEdit(file, { kind: "setURL", entry: n, value: `${base}/${s}/${m}` });
   return (
     <div className="form-tab grpc-form">
@@ -72,24 +74,39 @@ export function GrpcForm({ file, entry }: { file: string; entry: EntryModel }) {
             ))}
           </select>
         </label>
-        <label>
+        <div className="grpc-method">
           <span>Method</span>
-          <select aria-label="gRPC method" value={method} onChange={(e) => setPath(service, e.target.value)}>
-            {!svc?.Methods?.some((m) => m.Name === method) && <option value={method}>{method || "pick a method"}</option>}
-            {svc?.Methods?.map((m) => (
-              <option key={m.Name} value={m.Name} disabled={m.ClientStreaming}>
-                {m.Name} · {kindOf(m)}
-                {m.ClientStreaming ? " · not supported" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Menu.Root>
+            <Menu.Trigger className="grpc-method-trigger" aria-label="gRPC method">
+              <span className="mono">{method || "pick a method"}</span>
+              {current && <span className="muted small">{kindOf(current)}</span>}
+              <span aria-hidden>▾</span>
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Content className="menu grpc-methods" align="start" sideOffset={4}>
+                <Menu.Label className="menu-label mono">{service || "no service"}</Menu.Label>
+                <Menu.RadioGroup value={method} onValueChange={(m) => setPath(service, m)}>
+                  {svc?.Methods?.map((m) => (
+                    <Menu.RadioItem key={m.Name} className="menu-item" value={m.Name} disabled={m.ClientStreaming}>
+                      <span className="mono">{m.Name}</span>
+                      <span className="hint">
+                        {kindOf(m)}
+                        {m.ClientStreaming ? " · not supported" : ""}
+                      </span>
+                    </Menu.RadioItem>
+                  ))}
+                </Menu.RadioGroup>
+                <div className="menu-note">Sonde runs unary and server-streaming methods.</div>
+              </Menu.Content>
+            </Menu.Portal>
+          </Menu.Root>
+        </div>
       </div>
       {error && <p className="form-note fail">{error}</p>}
       {services && services.length === 0 && !error && <p className="form-note">[SondeGrpc] names no proto file: the server's reflection is used at run time.</p>}
       <KvGrid file={file} entry={entry} sec="grpc" keyLabel="SondeGrpc" addLabel="+ proto, import-path or protoset" />
       <div className="pane-head">
-        Message <span className="muted">{svc?.Methods?.find((m) => m.Name === method)?.Input ?? "JSON"}</span>
+        Message <span className="muted">{current?.Input ?? "JSON"}</span>
       </div>
       <CodeField
         label="gRPC message"

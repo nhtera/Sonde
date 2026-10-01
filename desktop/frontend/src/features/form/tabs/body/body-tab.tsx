@@ -19,12 +19,18 @@ const kinds: { kind: BodyKind; label: string }[] = [
   { kind: "none", label: "none" },
   { kind: "form-data", label: "form-data" },
   { kind: "urlencoded", label: "x-www-form-urlencoded" },
-  { kind: "json", label: "raw JSON" },
-  { kind: "xml", label: "raw XML" },
-  { kind: "text", label: "raw Text" },
+  { kind: "json", label: "raw" },
   { kind: "binary", label: "binary" },
   { kind: "graphql", label: "GraphQL" },
 ];
+
+/** raw's kinds, picked beside it. */
+const raws: { kind: BodyKind; label: string }[] = [
+  { kind: "json", label: "JSON" },
+  { kind: "xml", label: "XML" },
+  { kind: "text", label: "Text" },
+];
+const isRaw = (k: BodyKind) => raws.some((r) => r.kind === k);
 
 /** The first body of each kind. */
 const starters: Partial<Record<BodyKind, string>> = {
@@ -124,12 +130,30 @@ export function BodyTab({ file, entry }: { file: string; entry: EntryModel }) {
   return (
     <div className="form-tab body-tab">
       <div className="body-kinds" role="radiogroup" aria-label="Body type">
-        {kinds.map((k) => (
-          <label key={k.kind} className={`body-kind${kind === k.kind ? " on" : ""}`}>
-            <input type="radio" name={`body-${n}`} checked={kind === k.kind} onChange={() => void formEdit(file, ...bodyKindOps(entry, k.kind))} />
-            {k.label}
-          </label>
-        ))}
+        {kinds.map((k) => {
+          const raw = k.kind === "json";
+          const on = raw ? isRaw(kind) : kind === k.kind;
+          return (
+            <label key={k.kind} className={`body-kind${on ? " on" : ""}`}>
+              <input type="radio" name={`body-${n}`} checked={on} onChange={() => void formEdit(file, ...bodyKindOps(entry, k.kind))} />
+              {k.label}
+              {raw && (
+                <select
+                  className="raw-kind"
+                  aria-label="Raw body type"
+                  value={isRaw(kind) ? kind : "json"}
+                  onChange={(e) => void formEdit(file, ...bodyKindOps(entry, e.target.value as BodyKind))}
+                >
+                  {raws.map((r) => (
+                    <option key={r.kind} value={r.kind}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
+          );
+        })}
       </div>
       {content}
     </div>
@@ -148,6 +172,13 @@ function FormData({ file, entry }: { file: string; entry: EntryModel }) {
         entry={entry}
         sec="multipart"
         addLabel="+ Add row"
+        valueHead={
+          <span className="multipart-head">
+            <span>Type</span>
+            <span>Value</span>
+            <span>Content type</span>
+          </span>
+        }
         renderValue={(r, i) => {
           const f = fileRef(r.Value);
           const asFile = async (path: string, ct = f?.type ?? "") => write(r, i, await fileValue(path, ct));

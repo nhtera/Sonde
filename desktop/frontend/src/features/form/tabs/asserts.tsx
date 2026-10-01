@@ -10,6 +10,7 @@ import { useRuns } from "../../../state/run";
 import { useTabs } from "../../../state/tabs";
 import { formEdit, setRow } from "../edit";
 import { ExpectedStatus } from "../expected-status";
+import { RowMenu } from "../row-menu";
 import { lineOf, rowsOf, useForm, type Check, type EntryModel } from "../model";
 import { SuggestInput, varSuggester } from "../suggest-input";
 
@@ -82,9 +83,7 @@ export function AssertsTab({ file, entry }: { file: string; entry: EntryModel })
               )}
               <span className="check-state">
                 {res && (res.success ? <span className="pass">✓</span> : <span className="fail">✕</span>)}
-                <button className="kv-remove" aria-label={`Remove assert ${i + 1}`} onClick={() => void formEdit(file, { kind: "removeRow", entry: n, section: "asserts", index: i })}>
-                  ×
-                </button>
+                <RowMenu file={file} entry={n} section="asserts" index={i} label={`Assert ${i + 1}`} disabled={!!r.Disabled} copy={{ kind: "addAssert", entry: n, value: r.Value }} />
               </span>
               {res && !res.success && res.message && <p className="check-fail mono">{gotText(res.message)}</p>}
             </div>
@@ -110,7 +109,7 @@ export function AssertsTab({ file, entry }: { file: string; entry: EntryModel })
 function PredicateInput({ label, value, onCommit }: { label: string; value: string; onCommit(v: string): void }) {
   return (
     <input
-      className="mono"
+      className="mono predicate"
       aria-label={label}
       list="predicates"
       defaultValue={value}

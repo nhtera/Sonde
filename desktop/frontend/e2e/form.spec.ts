@@ -127,13 +127,13 @@ test("an edit next to emoji and CJK lands on the right columns", async ({ page }
 test("the gRPC picker lists the proto's methods; streaming clients are not offered", async ({ page }) => {
   await open(page, "inventory.sonde");
   await view(page, "Form");
-  const method = page.getByRole("combobox", { name: "gRPC method" });
-  // (toBeDisabled does not read an option's own attribute.)
-  await expect(method.locator("option", { hasText: "WatchStock · server stream" })).not.toHaveAttribute("disabled");
-  await expect(method.locator("option", { hasText: "ReserveStock · client stream · not supported" })).toHaveAttribute("disabled", "");
-  await expect(method.locator("option", { hasText: "SyncStock · bidi stream · not supported" })).toHaveAttribute("disabled", "");
+  await page.getByRole("button", { name: "gRPC method" }).click();
+  const methods = page.getByRole("menu");
+  await expect(methods.getByRole("menuitemradio", { name: /WatchStock\s*server stream/ })).toBeEnabled();
+  await expect(methods.getByRole("menuitemradio", { name: /ReserveStock\s*client stream · not supported/ })).toBeDisabled();
+  await expect(methods.getByRole("menuitemradio", { name: /SyncStock\s*bidi stream · not supported/ })).toBeDisabled();
   await page.screenshot({ path: `${candidates}/form-grpc-11c.png` });
-  await method.selectOption("ListStock");
+  await methods.getByRole("menuitemradio", { name: /ListStock/ }).click();
   await expect(page.getByRole("textbox", { name: "URL", exact: true })).toHaveValue("http://127.0.0.1:50051/inventory.v1.Inventory/ListStock");
   expect(await text(page)).toContain("POST http://127.0.0.1:50051/inventory.v1.Inventory/ListStock\n[SondeGrpc]\nproto: protos/inventory.proto");
 });

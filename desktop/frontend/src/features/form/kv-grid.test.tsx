@@ -93,7 +93,7 @@ describe("KvGrid", () => {
     });
   });
 
-  it("removes a row via remove button", async () => {
+  it("removes a row from its menu", async () => {
     const user = userEvent.setup();
     const entry = createEntry({
       headers: [
@@ -103,8 +103,8 @@ describe("KvGrid", () => {
 
     render(<KvGrid file="test.hurl" entry={entry} sec="headers" />);
 
-    const removeButton = screen.getByRole("button", { name: /remove x-test/i });
-    await user.click(removeButton);
+    await user.click(screen.getByRole("button", { name: "X-Test actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
 
     expect(formEdit).toHaveBeenCalledWith("test.hurl", {
       kind: "removeRow",

@@ -6,7 +6,8 @@
 // it maps to, and they count in the overrides chip (Copy as › sonde adds
 // them, so CI can reproduce the run).
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { create } from "zustand";
 import { useKeyLabel } from "../../../app/keymap/use-keys";
 import { confirm } from "../../../components/ask";
 import { appError, Dialogs, History, Settings as SettingsSvc, type SettingsValue } from "../../../lib/api";
@@ -19,6 +20,7 @@ import { useCookieJar } from "../cookies/cookie-jar";
 
 const sections = [
   { id: "general", title: "General" },
+  { id: "editor", title: "Editor" },
   { id: "keyboard", title: "Keyboard" },
   { id: "network", title: "Network" },
   { id: "tls", title: "Certificates" },
@@ -33,7 +35,11 @@ export function goToSection(id: string) {
   document.getElementById(`settings-${id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
+/** The section in view (the nav marks it). */
+const useSection = create<{ id: string }>(() => ({ id: "general" }));
+
 export function SettingsSide() {
+  const shown = useSection((s) => s.id);
   return (
     <div className="panel-body">
       <div className="panel-head">
@@ -41,7 +47,7 @@ export function SettingsSide() {
       </div>
       <nav className="settings-nav" aria-label="Settings sections">
         {sections.map((s) => (
-          <button key={s.id} onClick={() => goToSection(s.id)}>
+          <button key={s.id} aria-current={shown === s.id ? "true" : undefined} onClick={() => goToSection(s.id)}>
             {s.title}
           </button>
         ))}
@@ -91,9 +97,32 @@ function Shortcut({ id, title }: { id: string; title: string }) {
   );
 }
 
+/** Follows the section in view as the settings scroll. */
+function useSectionInView(main: RefObject<HTMLDivElement | null>, ready: boolean) {
+  useEffect(() => {
+    const root = main.current?.closest(".panel-main");
+    if (!ready || !root || typeof IntersectionObserver === "undefined") return;
+    const seen = new Map<string, number>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) seen.set(e.target.id.replace("settings-", ""), e.isIntersecting ? e.intersectionRatio : 0);
+        // The first section shown, in the nav's order.
+        const top = sections.find((x) => (seen.get(x.id) ?? 0) > 0.3);
+        if (top) useSection.setState({ id: top.id });
+      },
+      { root, threshold: [0, 0.3, 0.6, 1] },
+    );
+    root.querySelectorAll(".set-card").forEach((c) => io.observe(c));
+    return () => io.disconnect();
+  }, [main, ready]);
+}
+
 export function SettingsMain() {
   const v = useSettings((s) => s.value);
   const overrides = useEnv((s) => s.overrides.count);
+  const main = useRef<HTMLDivElement>(null);
+  const sendKeys = useKeyLabel("request.send");
+  useSectionInView(main, !!v);
   if (!v) return null;
   const save = (next: SettingsValue) => void useSettings.getState().save(next).catch(fail);
   const pickTLS = async (kind: "cacert" | "cert" | "key") => {
@@ -122,7 +151,7 @@ export function SettingsMain() {
     </Row>
   );
   return (
-    <div className="settings-main">
+    <div className="settings-main" ref={main}>
       <div className="set-banner" role="note">
         {overrides > 0 && <span className="overrides-chip">{overrides} override{overrides === 1 ? "" : "s"}</span>}
         Settings that change a run are desktop-only. They show as the overrides chip and are added as flags to Copy as › sonde, so CI can reproduce the run.
@@ -147,6 +176,8 @@ export function SettingsMain() {
               ))}
             </div>
           </Row>
+        </Card>
+        <Card id="editor" title="Editor">
           <Row name="Editor font size">
             <div className="segmented" role="group" aria-label="Editor font size">
               {[12, 13, 14, 15].map((n) => (
@@ -156,14 +187,28 @@ export function SettingsMain() {
               ))}
             </div>
           </Row>
+          <Row name="Code ligatures">
+            <span className="muted small mono">{v.appearance.ligatures ? "on · == may join" : "off · == stays =="}</span>
+            <input
+              type="checkbox"
+              role="switch"
+              className="switch"
+              aria-label="Code ligatures"
+              checked={v.appearance.ligatures}
+              onChange={(e) => save({ ...v, appearance: { ...v.appearance, ligatures: e.target.checked } })}
+            />
+          </Row>
         </Card>
         <Card id="keyboard" title="Keyboard shortcuts">
           {shortcuts.map(([id, title]) => (
             <Shortcut key={id} id={id} title={title} />
           ))}
-          <button className="btn-ghost accent" onClick={() => useUI.getState().setShortcutsOpen(true)}>
-            All shortcuts, and change them
-          </button>
+          <p className="muted small">
+            {sendKeys || "⌘↵"} sends the request at the cursor, as in other API clients.{" "}
+            <button className="btn-ghost accent inline" onClick={() => useUI.getState().setShortcutsOpen(true)}>
+              All shortcuts, and change them
+            </button>
+          </p>
         </Card>
         <Card id="network" title="Network">
           <Row name="Proxy" flag="--proxy">
@@ -183,6 +228,24 @@ export function SettingsMain() {
           </Row>
         </Card>
         <Card id="tls" title="TLS & certificates">
+          <div className="set-row">
+            <div>
+              <div>Verify certificates</div>
+              <div className={`small ${v.tls.skipVerify ? "flag" : "muted"}`}>
+                {v.tls.skipVerify ? "Off for every run · --insecure" : "Per request, [Options] insecure: true turns this off"}
+              </div>
+            </div>
+            <div className="set-control">
+              <input
+                type="checkbox"
+                role="switch"
+                className="switch"
+                aria-label="Verify certificates"
+                checked={!v.tls.skipVerify}
+                onChange={(e) => save({ ...v, tls: { ...v.tls, skipVerify: !e.target.checked } })}
+              />
+            </div>
+          </div>
           {tlsRow("cacert", "Extra CA bundle", "--cacert")}
           {tlsRow("cert", "Client certificate", "--cert when set")}
           {tlsRow("key", "Client key", "--key when set")}

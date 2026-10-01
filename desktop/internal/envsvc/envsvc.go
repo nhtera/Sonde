@@ -488,6 +488,8 @@ func flagLabel(flag string) string {
 		return "Client certificate"
 	case "key":
 		return "Client key"
+	case "insecure":
+		return "Certificates not verified"
 	}
 	return flag
 }

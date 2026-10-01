@@ -151,3 +151,25 @@
 .form-view .write-back { margin: 16px 16px 0; padding: 12px; border-radius: 10px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
 .form-view .write-back .cm-editor { background: transparent; }
 .form-view .body-readonly { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 12px; white-space: pre-wrap; }
+/* A predicate picks from a list: a chevron says so. */
+.form-view input.predicate {
+  padding-right: 22px;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238593ab' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 8px center;
+}
+.form-view .row-menu { font-weight: 600; letter-spacing: 1px; }
+/* raw: one choice, its kind beside it. */
+.form-view .body-kind select.raw-kind { height: 22px; padding: 0 4px; box-shadow: none; background: transparent; color: var(--muted); font: 11px var(--font-code); }
+/* form-data: Type, Value and Content type over their cells. */
+.form-view .multipart-head { display: flex; gap: 6px; }
+.form-view .multipart-head > :first-child { width: 88px; flex: none; }
+.form-view .multipart-head > :nth-child(2) { flex: 1; }
+.form-view .multipart-head > :last-child { width: 110px; flex: none; }
+.form-view .grpc-method { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 11.5px; }
+.form-view .grpc-method-trigger {
+  height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 9px; border: 0; border-radius: 6px;
+  background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12.5px var(--font-ui); text-align: left;
+}
+.form-view .grpc-method-trigger .mono { flex: 1; font-family: var(--font-code); font-size: 12px; }
+.grpc-methods { min-width: 320px; }
+.grpc-methods .menu-item { display: flex; justify-content: space-between; gap: 16px; }
+.grpc-methods .menu-item[data-disabled] .hint { color: var(--faint); }

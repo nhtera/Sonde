@@ -145,6 +145,8 @@
 .panel-body .settings-nav { display: flex; flex-direction: column; gap: 2px; }
 .panel-body .settings-nav button { height: 30px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--text); text-align: left; font: 500 12.5px var(--font-ui); }
 .panel-body .settings-nav button:hover { background: var(--hover); }
+.panel-body .settings-nav button[aria-current="true"] { background: var(--raised); }
+.settings-main .btn-ghost.inline { height: auto; padding: 0; vertical-align: baseline; }
 .settings-main { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; font-size: 12.5px; }
 .set-banner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: var(--warn-soft); color: var(--text); }
 .set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }

@@ -50,6 +50,8 @@ type Appearance struct {
 	// SideWidth and ResultsWidth are the split panes' widths in CSS pixels.
 	SideWidth    int `json:"sideWidth"`
 	ResultsWidth int `json:"resultsWidth"`
+	// Ligatures draws the code font's ligatures (off: "==" stays "==").
+	Ligatures bool `json:"ligatures"`
 }
 
 // Network settings are --proxy, --connect-timeout and --retry.
@@ -59,12 +61,14 @@ type Network struct {
 	Retry          int    `json:"retry"`
 }
 
-// TLS settings are --cacert, --cert and --key. They are set only from
-// files the user picked (SetTLSFile); the page sees their names.
+// TLS settings are --cacert, --cert and --key, set only from files the
+// user picked (SetTLSFile; the page sees their names), and --insecure:
+// SkipVerify turns certificate verification off for every run.
 type TLS struct {
-	CACert string `json:"cacert"`
-	Cert   string `json:"cert"`
-	Key    string `json:"key"`
+	CACert     string `json:"cacert"`
+	Cert       string `json:"cert"`
+	Key        string `json:"key"`
+	SkipVerify bool   `json:"skipVerify"`
 }
 
 // Cookies: Keep keeps a file's cookie jar between full runs.
@@ -129,7 +133,10 @@ func (st *Store) Set(s Settings) (Settings, error) {
 		return Settings{}, err
 	}
 	st.mu.Lock()
+	// The files only through SetTLSFile; verification here.
+	skip := s.TLS.SkipVerify
 	s.TLS = st.s.TLS
+	s.TLS.SkipVerify = skip
 	s.Version = Version
 	s = normalize(s)
 	st.s = s
@@ -223,6 +230,10 @@ func (st *Store) Apply(inv *runplan.Invocation) {
 	if s.TLS.Key != "" {
 		inv.Key = s.TLS.Key
 		set("key")
+	}
+	if s.TLS.SkipVerify {
+		inv.Insecure = true
+		set("insecure")
 	}
 }
 

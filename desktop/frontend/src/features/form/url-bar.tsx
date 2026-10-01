@@ -73,6 +73,8 @@ export function UrlBar({ file, entry, grpcHint }: { file: string; entry: EntryMo
                 <span className="hint">{runKeys}</span>
                 <span className="sub">Every request, then every assert.</span>
               </Menu.Item>
+              <Menu.Separator className="menu-sep" />
+              <div className="menu-note">In Text view {sendKeys || "⌘↵"} sends the request under the cursor.</div>
             </Menu.Content>
           </Menu.Portal>
         </Menu.Root>

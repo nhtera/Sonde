@@ -52,3 +52,6 @@
 .editor-empty-sample .h { color: var(--t-http); }
 /* A {{ being typed: its parse error is not news yet. */
 .cm-typing-template .cm-lintRange-error, .cm-typing-template .cm-lintRange-warning { background-image: none; }
+/* Code ligatures, when the setting is on (off everywhere else). */
+:root[data-ligatures="on"] .cm-content,
+:root[data-ligatures="on"] .cm-content * { font-variant-ligatures: normal; font-feature-settings: normal; }

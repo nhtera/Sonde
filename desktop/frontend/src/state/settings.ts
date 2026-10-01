@@ -21,11 +21,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const value = await Settings.Get();
     set({ value });
     applyTheme(value.appearance.theme as Theme);
+    applyAppearance(value.appearance);
   },
   save: async (next) => {
     const value = await Settings.Set(next);
     set({ value });
     applyTheme(value.appearance.theme as Theme);
+    applyAppearance(value.appearance);
   },
   setTheme: async (theme) => {
     const v = get().value;
@@ -45,12 +47,24 @@ on("settings:changed", (data) => {
   const value = data as SettingsValue;
   useSettings.setState({ value });
   applyTheme(value.appearance.theme as Theme);
+  applyAppearance(value.appearance);
 });
 
 /** The theme in effect ("system" follows the OS). */
 export function resolvedTheme(theme: Theme): "light" | "dark" {
   if (theme === "system") return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
   return theme;
+}
+
+/** The font sizes and ligatures: the UI scales from 13 px, the editor's
+ * code takes its own size; ligatures only in the editor. */
+export function applyAppearance(a: { uiFontSize: number; codeFontSize: number; ligatures: boolean }) {
+  const root = document.documentElement;
+  if (a.uiFontSize && a.uiFontSize !== 13) root.style.setProperty("zoom", String(a.uiFontSize / 13));
+  else root.style.removeProperty("zoom");
+  if (a.codeFontSize) root.style.setProperty("--code-size", `${a.codeFontSize}px`);
+  else root.style.removeProperty("--code-size");
+  root.dataset.ligatures = a.ligatures ? "on" : "off";
 }
 
 export function applyTheme(theme: Theme) {

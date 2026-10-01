@@ -88,6 +88,8 @@ test("9a, 9b, 2c: form-data, urlencoded, GraphQL bodies", async ({ page }) => {
 test("11c: a gRPC request from the .proto", async ({ page }) => {
   await open(page, "inventory.sonde");
   await view(page, "Form");
-  await expect(page.getByRole("combobox", { name: "gRPC method" })).toBeVisible();
+  // The methods of the proto, by kind; streaming clients greyed.
+  await page.getByRole("button", { name: "gRPC method" }).click();
+  await expect(page.getByRole("menu")).toContainText("not supported");
   await snap(page, "11c");
 });

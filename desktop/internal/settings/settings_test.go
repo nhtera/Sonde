@@ -104,7 +104,21 @@ func TestTLSAndApply(t *testing.T) {
 		!inv.Set["proxy"] || !inv.Set["connect-timeout"] || !inv.Set["retry"] || !inv.Set["cacert"] || inv.Set["cert"] {
 		t.Errorf("invocation %+v", inv)
 	}
-	if _, err := st.SetTLSFile(CACert, ""); err != nil || st.Get().TLS.CACert != "" {
+	if inv.Set["insecure"] {
+		t.Error("verification is on by default")
+	}
+	// Verification off is --insecure; Set never changes the files.
+	s = st.Get()
+	s.TLS = TLS{CACert: "/elsewhere.pem", SkipVerify: true}
+	if _, err := st.Set(s); err != nil {
+		t.Fatal(err)
+	}
+	inv = runplan.Invocation{}
+	st.Apply(&inv)
+	if !inv.Insecure || !inv.Set["insecure"] || inv.CACert != "/certs/ca.pem" {
+		t.Errorf("skip verify %+v", inv)
+	}
+	if _, err := st.SetTLSFile(CACert, ""); err != nil || st.Get().TLS.CACert != "" || !st.Get().TLS.SkipVerify {
 		t.Errorf("clear: %v", err)
 	}
 }
