@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -409,5 +410,121 @@ func TestSendNeedsEarlierEntries(t *testing.T) {
 	_, err = f.runs.Send(context.Background(), SendRequest{RunID: "s3", File: "flow.hurl", Source: flow, Env: "local", Entry: 3})
 	if !errors.As(err, &e) || e.Code != apperr.Stale {
 		t.Errorf("send after sonde.yaml changed: %v", err)
+	}
+}
+
+// TestTestTextAndReports: a test run says what `sonde --test` prints, and
+// its reports are written into a folder, redacted as the run was.
+func TestTestTextAndReports(t *testing.T) {
+	f := setup(t)
+	// A second file that fails (slow.hurl would wait for the cleanup).
+	if err := os.WriteFile(filepath.Join(f.dir, "fails.hurl"), []byte("POST {{base}}/login\nHTTP 418\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := f.runs.RunTest(context.Background(), TestRequest{RunID: "r1", Files: []string{"flow.hurl", "fails.hurl"}, Env: "local"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(s.Text, "\n")
+	var files []string
+	for _, l := range lines {
+		if strings.HasPrefix(l, "Success ") || strings.HasPrefix(l, "Failure ") {
+			files = append(files, l)
+		}
+	}
+	// Named by project path, as `sonde --test --file-root .` names them.
+	for _, l := range files {
+		if strings.Contains(l, f.dir) || !strings.Contains(l, " flow.hurl ") && !strings.Contains(l, " fails.hurl ") {
+			t.Errorf("line %q", l)
+		}
+	}
+	if len(files) != 2 || s.Succeeded != 1 || !strings.Contains(s.Text, "Executed files:    2\n") || !strings.Contains(s.Text, fmt.Sprintf("Succeeded files:   %d (", s.Succeeded)) {
+		t.Fatalf("text:\n%s", s.Text)
+	}
+	dir := t.TempDir()
+	wrote := map[string]string{}
+	for format, want := range map[string]string{"junit": "junit.xml", "tap": "report.tap", "html": "index.html", "json": "report.json"} {
+		got, err := f.runs.Export("r1", format, dir)
+		if err != nil {
+			t.Fatalf("%s: %v", format, err)
+		}
+		if filepath.Base(got) != want { // html and json: the folder written
+			got = filepath.Join(got, want)
+		}
+		if _, err := os.Stat(got); err != nil {
+			t.Errorf("%s: %v", format, err)
+		}
+		wrote[format] = got
+	}
+	// The reports list the files as given, by project path.
+	tap, _ := os.ReadFile(wrote["tap"])
+	flow, fails := strings.Index(string(tap), " flow.hurl"), strings.Index(string(tap), " fails.hurl")
+	if strings.Contains(string(tap), f.dir) || flow < 0 || fails < flow {
+		t.Errorf("tap:\n%s", tap)
+	}
+	junit, _ := os.ReadFile(wrote["junit"])
+	if strings.Contains(string(junit), f.dir) || !strings.Contains(string(junit), "flow.hurl") || !strings.Contains(string(junit), "fails.hurl") {
+		t.Errorf("junit:\n%s", junit)
+	}
+	if _, err := f.runs.Export("r1", "pdf", dir); err == nil {
+		t.Error("an unknown format")
+	}
+	if _, err := f.runs.Export("nope", "tap", dir); err == nil {
+		t.Error("an unknown run")
+	}
+}
+
+// TestKeepTestRetention: only the last test run is kept for its reports
+// (it holds every body), and none once another project opens.
+func TestKeepTestRetention(t *testing.T) {
+	f := setup(t)
+	for _, id := range []string{"t1", "t2"} {
+		if _, err := f.runs.RunTest(context.Background(), TestRequest{RunID: id, Files: []string{"flow.hurl"}, Env: "local"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir := t.TempDir()
+	if _, err := f.runs.Export("t1", "tap", dir); err == nil {
+		t.Error("an earlier test run is kept")
+	}
+	if _, err := f.runs.Export("t2", "tap", dir); err != nil {
+		t.Errorf("the last test run: %v", err)
+	}
+	f.runs.Reset()
+	if _, err := f.runs.Export("t2", "tap", dir); err == nil {
+		t.Error("a test run is kept after the project changed")
+	}
+}
+
+// TestExportUnknownFormat: Export rejects unknown formats.
+func TestExportUnknownFormat(t *testing.T) {
+	f := setup(t)
+	if _, err := f.runs.RunTest(context.Background(), TestRequest{RunID: "r1", Files: []string{"flow.hurl"}, Env: "local"}); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	for _, format := range []string{"pdf", "xml", "csv", ""} {
+		if _, err := f.runs.Export("r1", format, dir); err == nil {
+			t.Errorf("format %q should be rejected", format)
+		}
+	}
+}
+
+// TestExportTwice: each export writes a report of its own, in a new
+// folder: nothing appended to or overwriting the first.
+func TestExportTwice(t *testing.T) {
+	f := setup(t)
+	if _, err := f.runs.RunTest(context.Background(), TestRequest{RunID: "r1", Files: []string{"flow.hurl"}, Env: "local"}); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	a, errA := f.runs.Export("r1", "junit", dir)
+	b, errB := f.runs.Export("r1", "junit", dir)
+	if errA != nil || errB != nil || a == b || filepath.Dir(filepath.Dir(a)) != dir {
+		t.Fatalf("exports %q %v, %q %v", a, errA, b, errB)
+	}
+	data, _ := os.ReadFile(b)
+	if n := strings.Count(string(data), "<testsuite "); n != 1 {
+		t.Errorf("the second report has %d suites", n)
 	}
 }

@@ -23,10 +23,12 @@ func init() {
 }
 
 func (h *Host) copier() *copyas.Copier {
-	return copyas.New(h.Runs, func() string {
+	c := copyas.New(h.Runs, func() string {
 		if r := h.Workspace.Root(); r != nil {
 			return r.Dir()
 		}
 		return "the project folder"
 	})
+	c.Command = h.Envs.Command
+	return c
 }

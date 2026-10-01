@@ -65,7 +65,20 @@ type Runs struct {
 	busy     map[string]string // file -> runId
 	cancels  map[string]context.CancelFunc
 	sessions map[string]*session // file (#row) -> last full run
+	tests    []testRun           // the last test runs, for their reports
 }
+
+// testRun is a test run kept for its reports: its results in the order
+// of its files, and its redactor.
+type testRun struct {
+	id      string
+	results []*engine.UnitResult
+	redact  func(string) string
+}
+
+// keptTests is how many test runs keep their results for reports: the
+// last (they hold every body), until another project opens.
+const keptTests = 1
 
 // New returns the run service. env is the app's process environment;
 // version names the default User-Agent.
@@ -305,6 +318,10 @@ func (r *Runs) start(ctx context.Context, runID, kind string, files []string, bo
 		}
 	} else {
 		rn.finish(ctx)
+		if kind == "test" {
+			rn.summary.Text = testText(rn.shown(), time.Duration(rn.summary.Duration)*time.Millisecond)
+			r.keepTest(runID, rn)
+		}
 		if r.Hooks.Record != nil {
 			r.Hooks.Record(rn.summary, rn.results)
 		}
@@ -374,6 +391,7 @@ func (r *Runs) session(file string, row int) *session {
 func (r *Runs) Reset() {
 	r.mu.Lock()
 	r.sessions = map[string]*session{}
+	r.tests = nil
 	r.mu.Unlock()
 }
 
@@ -434,6 +452,7 @@ type run struct {
 	rows        []int
 	dataSecrets []string
 	results     []*engine.UnitResult
+	seqs        map[*engine.UnitResult]int // each result's job, in input order
 	startErrs   map[*engine.UnitResult]error
 	redact      func(string) string // the runner's: every secret of the run
 }
@@ -446,8 +465,8 @@ func (rn *run) plan(ctx context.Context, cmd, env, data string, files []string, 
 	if len(rn.dataSecrets) > 0 {
 		inv.DataSecrets, inv.Set["data-secret"] = rn.dataSecrets, true
 	}
+	// The files run in the order given, as the command's arguments do.
 	rn.files, rn.sources = map[string]string{}, map[string][]byte{}
-	files = slices.Sorted(slices.Values(files))
 	var inputs []runplan.Input
 	for _, f := range files {
 		abs, err := rn.abs(f)
@@ -553,6 +572,10 @@ func (rn *run) execute(ctx context.Context, stored func(*engine.UnitResult)) {
 				rn.startErrs[res] = err
 			}
 			rn.results = append(rn.results, res)
+			if rn.seqs == nil {
+				rn.seqs = map[*engine.UnitResult]int{}
+			}
+			rn.seqs[res] = seq
 			if stored != nil {
 				stored(res)
 			}

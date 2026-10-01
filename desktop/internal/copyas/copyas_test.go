@@ -103,3 +103,20 @@ func TestSonde(t *testing.T) {
 		t.Error("cmd.exe cannot hold %")
 	}
 }
+
+// TestSondeCommandVariables: the command adds what Command adds, and the
+// note names the variables it holds back.
+func TestSondeCommandVariables(t *testing.T) {
+	c := copier()
+	c.Command = func(inv *runplan.Invocation) []string {
+		inv.Variables = append(inv.Variables, "region=eu")
+		return []string{"api_token"}
+	}
+	run, err := c.Sonde(Request{File: "a.hurl"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(run.Text, "--variable region=eu") || !strings.Contains(run.Note, "Set SONDE_VARIABLE_api_token there too") {
+		t.Errorf("%+v", run)
+	}
+}

@@ -53,6 +53,9 @@ type Planner interface {
 type Copier struct {
 	plan    Planner
 	project func() string // the project folder, for the note
+	// Command adds what only a command needs (the app's environment
+	// variables) and returns the names of those it leaves to the user.
+	Command func(inv *runplan.Invocation) (held []string)
 }
 
 // New returns a copier.
@@ -108,6 +111,10 @@ func (c *Copier) Sonde(req Request, reveal bool) (*Text, error) {
 		return nil, apperr.New(apperr.Invalid, "unknown command kind "+req.Kind)
 	}
 	inv := c.plan.Invocation(cmd, req.Env, "", req.Kind, files)
+	var held []string
+	if c.Command != nil {
+		held = c.Command(&inv)
+	}
 	if req.Kind == "send" {
 		inv.ToEntry = req.Entry
 		inv.Set["to-entry"] = true
@@ -121,6 +128,13 @@ func (c *Copier) Sonde(req Request, reveal bool) (*Text, error) {
 		return nil, apperr.Wrap(apperr.Invalid, err)
 	}
 	where := "Run it in " + c.project() + "."
+	if len(held) > 0 {
+		env := make([]string, len(held))
+		for i, n := range held {
+			env[i] = "SONDE_VARIABLE_" + n
+		}
+		where += " Set " + strings.Join(env, ", ") + " there too: " + plural(len(held), "its value looks", "their values look") + " like a credential and " + plural(len(held), "is", "are") + " not shown."
+	}
 	if note == "" {
 		note = where
 	} else {
@@ -195,4 +209,11 @@ func (r *Reveal) Sonde(req Request) (string, error) {
 		return "", err
 	}
 	return t.Note, r.write(t.Text)
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }

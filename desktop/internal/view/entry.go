@@ -17,6 +17,7 @@ func ConvertEntry(file string, e *engine.EntryResult, redact Redactor, bodies Bo
 	out := Entry{Bodies: []Body{}, Timings: []Timings{}, Errors: []Error{}, Success: len(e.Errors) == 0, Retried: e.Retried}
 	if r, err := report.JSON(unit, redact, nil); err == nil && len(r.Entries) == 1 {
 		out.Entry = r.Entries[0]
+		maskEntryCookies(&out.Entry)
 	} else {
 		out.Index, out.Line = e.Index, e.Line
 	}

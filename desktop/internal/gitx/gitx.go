@@ -20,6 +20,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -41,6 +42,8 @@ type FileStatus struct {
 	Path     string `json:"path"`
 	Index    string `json:"index"`    // staged change: M, A, D, R, ?…
 	Worktree string `json:"worktree"` // unstaged change
+	// Secret: the file holds secrets (Commit refuses it).
+	Secret bool `json:"secret,omitempty"`
 }
 
 // Info is the project's git state.
@@ -58,6 +61,9 @@ type Service struct {
 	project func() *sandbox.Root
 	config  *sandbox.Root
 	git     string // the git program; "" when absent
+	// Secret reports whether a project path is a secrets file of the
+	// project's config (*.secrets files are, always): never committed.
+	Secret func(rel string) bool
 
 	mu sync.Mutex
 }
@@ -137,7 +143,11 @@ func (s *Service) Status(ctx context.Context) ([]FileStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseStatus(out), nil
+	list := parseStatus(out)
+	for i := range list {
+		list[i].Secret = s.IsSecret(list[i].Path)
+	}
+	return list, nil
 }
 
 // Commit commits files (project paths) with message and returns the new
@@ -154,6 +164,9 @@ func (s *Service) Commit(ctx context.Context, message string, files []string) (s
 		if f == "" || strings.HasPrefix(f, "-") || strings.Contains(f, "..") || filepath.IsAbs(f) || strings.ContainsRune(f, ':') {
 			return "", apperr.New(apperr.Denied, "not a path in the project: "+f)
 		}
+		if s.IsSecret(f) {
+			return "", apperr.New(apperr.Denied, "a secrets file is never committed: "+f+" (keep it in .gitignore)")
+		}
 	}
 	args := append([]string{"add", "--"}, files...)
 	if _, err := s.run(ctx, dir, false, args...); err != nil {
@@ -165,6 +178,12 @@ func (s *Service) Commit(ctx context.Context, message string, files []string) (s
 	}
 	out, err := s.run(ctx, dir, false, "rev-parse", "--short", "HEAD")
 	return strings.TrimSpace(string(out)), err
+}
+
+// IsSecret reports whether rel (a project path) holds secrets.
+func (s *Service) IsSecret(rel string) bool {
+	rel = filepath.ToSlash(filepath.Clean(rel))
+	return strings.EqualFold(path.Ext(rel), ".secrets") || s.Secret != nil && s.Secret(rel)
 }
 
 func (s *Service) trustedDir() (string, error) {

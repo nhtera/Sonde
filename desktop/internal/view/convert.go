@@ -31,6 +31,7 @@ type Converter struct {
 
 	mu      sync.Mutex
 	redact  Redactor
+	cookies *cookieValues
 	entry   int  // the running entry; 0 between entries
 	holding bool // hold the events of the current attempt
 	held    []heldEvent
@@ -47,7 +48,7 @@ type heldEvent struct {
 // redacts before the unit-started event (normally never needed; pass the
 // runner's Redact); bodies stores response bodies (nil: no body URLs).
 func NewConverter(file string, fallback Redactor, bodies BodyStore, out func(dto any)) *Converter {
-	return &Converter{file: file, fallback: fallback, bodies: bodies, out: out}
+	return &Converter{file: file, fallback: fallback, bodies: bodies, out: out, cookies: newCookieValues()}
 }
 
 // Handle converts one engine event.
@@ -56,6 +57,7 @@ func (c *Converter) Handle(ev engine.Event) {
 	defer c.mu.Unlock()
 	if r, ok := enginex.UnitStarted(ev); ok {
 		c.redact = r
+		c.out(UnitStarted{Type: TypeUnitStarted, File: c.file})
 		c.flush()
 		return
 	}
@@ -100,10 +102,11 @@ func (c *Converter) flush() {
 }
 
 func (c *Converter) redactor() Redactor {
+	base := c.fallback
 	if c.redact != nil {
-		return c.redact
+		base = c.redact
 	}
-	return c.fallback
+	return c.cookies.wrap(base)
 }
 
 // emit converts ev, which arrived during entry, and passes it on; events
@@ -116,9 +119,24 @@ func (c *Converter) emit(ev engine.Event, entry int) {
 
 // convert builds the DTO of ev, redacted.
 func (c *Converter) convert(ev engine.Event, entry int) (any, bool) {
+	// The cookie values of the event are learned before it is redacted.
+	var cookieLine bool
+	switch e := ev.(type) {
+	case engine.Log:
+		cookieLine = c.cookies.learnLine(e.Text)
+	case engine.EntryFinished:
+		if e.Result != nil {
+			c.cookies.learnEntry(e.Result)
+		}
+	}
+	if _, _, req, ok := enginex.RequestSent(ev); ok {
+		c.cookies.learnRequest(req)
+	}
 	redact := c.redactor()
 	if index, call, req, ok := enginex.RequestSent(ev); ok {
-		return RequestSent{Type: TypeRequestSent, Entry: index, Call: call, Request: request(c.file, req, redact)}, true
+		r := request(c.file, req, redact)
+		maskRequestCookies(&r)
+		return RequestSent{Type: TypeRequestSent, Entry: index, Call: call, Request: r}, true
 	}
 	if index, reason, ok := enginex.EntrySkipped(ev); ok {
 		return EntrySkipped{Type: TypeEntrySkipped, Entry: index, Reason: reason}, true
@@ -127,7 +145,7 @@ func (c *Converter) convert(ev engine.Event, entry int) (any, bool) {
 	case engine.EntryStarted:
 		return EntryStarted{Type: TypeEntryStarted, Entry: e.Index, Retry: e.Retry, Last: e.Last}, true
 	case engine.Log:
-		return Log{Type: TypeLog, Entry: entry, Level: levels[e.Level], Text: redact(e.Text)}, true
+		return Log{Type: TypeLog, Entry: entry, Level: levels[e.Level], Text: maskCookieLine(redact(e.Text), cookieLine)}, true
 	case engine.MessageSent:
 		return Message{Type: TypeMessage, Entry: e.Index, Message: StreamMessage(e.Message, redact)}, true
 	case engine.MessageReceived:

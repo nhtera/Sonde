@@ -157,3 +157,41 @@ func TestParseStatus(t *testing.T) {
 		t.Errorf("%+v", got)
 	}
 }
+
+// TestSecretsNeverCommitted: *.secrets files and the files the config
+// lists as secrets are flagged in the status and refused by Commit.
+func TestSecretsNeverCommitted(t *testing.T) {
+	dir, _ := repo(t)
+	for _, f := range []string{"local.secrets", "keys.env"} {
+		if err := os.WriteFile(filepath.Join(dir, f), []byte("pw=x\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s := service(t, dir)
+	s.Secret = func(rel string) bool { return rel == "keys.env" }
+	if err := s.Trust(); err != nil {
+		t.Fatal(err)
+	}
+	st, err := s.Status(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret := map[string]bool{}
+	for _, f := range st {
+		secret[f.Path] = f.Secret
+	}
+	if !secret["local.secrets"] || !secret["keys.env"] || secret["a.hurl"] {
+		t.Errorf("secret flags %v", secret)
+	}
+	for _, f := range []string{"local.secrets", "./keys.env"} {
+		var e *apperr.Error
+		if _, err := s.Commit(t.Context(), "m", []string{"a.hurl", f}); !errors.As(err, &e) || e.Code != apperr.Denied {
+			t.Errorf("commit of %s: %v", f, err)
+		}
+	}
+	head := exec.Command("git", "rev-parse", "--verify", "-q", "HEAD")
+	head.Dir = dir
+	if out, err := head.Output(); err == nil {
+		t.Errorf("a commit was made: %s", out)
+	}
+}

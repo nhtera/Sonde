@@ -31,7 +31,15 @@ const (
 	TypeEntrySkipped  = "entrySkipped"
 	TypeMessage       = "message"
 	TypeEntryFinished = "entryFinished"
+	TypeUnitStarted   = "unitStarted"
 )
+
+// UnitStarted is a unit's first event: the file (project path) the
+// unit's events belong to (a test run runs several).
+type UnitStarted struct {
+	Type string `json:"type"`
+	File string `json:"file"`
+}
 
 // Log is a line of the engine's verbose output, attached to an entry (0
 // before the first).

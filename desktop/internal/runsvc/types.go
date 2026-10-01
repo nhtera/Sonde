@@ -79,8 +79,11 @@ type Summary struct {
 	// Error is why the run could not start (a planning error).
 	Error string `json:"error,omitempty"`
 	// ErrorCode is Error's code (apperr: "stale", "busy"…), when it has one.
-	ErrorCode string   `json:"errorCode,omitempty"`
-	Warnings  []string `json:"warnings,omitempty"`
+	ErrorCode string `json:"errorCode,omitempty"`
+	// Text is a test run's summary as `sonde --test` prints it: a line per
+	// file, then the totals.
+	Text     string   `json:"text,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // Unit is the outcome of one file (and data row).

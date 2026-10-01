@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/credential"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/redact"
@@ -209,12 +210,6 @@ var unsafe = regexp.MustCompile(`[^A-Za-z0-9._-]`)
 
 func safe(s string) string { return unsafe.ReplaceAllString(s, "_") }
 
-// tokenName is the heuristic for captures holding credentials.
-var tokenName = regexp.MustCompile(`(?i)token|secret|key|password|passwd|session|auth|cookie|jwt|bearer`)
-
-// jwtShape is a JWT-like value: three base64url parts.
-var jwtShape = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$`)
-
 // credentialHeaders have their values masked.
 var credentialHeaders = []string{"authorization", "proxy-authorization", "cookie", "set-cookie"}
 
@@ -223,23 +218,30 @@ var credentialHeaders = []string{"authorization", "proxy-authorization", "cookie
 // credential headers and every cookie value are masked.
 func redacted(res *engine.UnitResult) report.Result {
 	tokens := redact.New()
+	// A short cookie value would mask every text containing it: the cookie
+	// headers and lists mask it where it is.
+	add := func(name, value string) {
+		if credential.Maskable(value) {
+			tokens.Add(name, value)
+		}
+	}
 	// Cookie values are masked wherever they appear (a capture, an assert
 	// message), not only in the cookie lists.
 	for _, c := range res.Cookies {
-		tokens.Add(c.Name, c.Value)
+		add(c.Name, c.Value)
 	}
 	for _, e := range res.Entries {
 		for _, call := range e.Calls {
 			if v, ok := call.Request.Headers.Get("Cookie"); ok {
 				for _, part := range strings.Split(v, ";") {
 					if _, val, ok := strings.Cut(strings.TrimSpace(part), "="); ok {
-						tokens.Add("cookie", val)
+						add("cookie", val)
 					}
 				}
 			}
 			if call.Response != nil {
 				for _, c := range call.Response.Cookies() {
-					tokens.Add(c.Name, c.Value)
+					add(c.Name, c.Value)
 				}
 			}
 		}
@@ -250,7 +252,7 @@ func redacted(res *engine.UnitResult) report.Result {
 			if !ok {
 				continue
 			}
-			if tokenName.MatchString(c.Name) || len(text) >= 16 && jwtShape.MatchString(text) {
+			if credential.Likely(c.Name, text) {
 				tokens.Add(c.Name, text)
 			}
 		}
@@ -279,7 +281,7 @@ func redacted(res *engine.UnitResult) report.Result {
 		// (a static Authorization, …): it is not kept.
 		r.Entries[i].CurlCmd = ""
 		for j := range r.Entries[i].Captures {
-			if tokenName.MatchString(r.Entries[i].Captures[j].Name) {
+			if credential.Likely(r.Entries[i].Captures[j].Name, "") {
 				r.Entries[i].Captures[j].Value = redact.Mask
 			}
 		}

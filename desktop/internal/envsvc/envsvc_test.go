@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -190,6 +191,21 @@ func TestOverrides(t *testing.T) {
 	if e.Digest() == d0 {
 		t.Error("the digest must change with the overrides")
 	}
+	// Variables from the app's environment: a run reads them there; a
+	// command for CI names them as flags, except those an override or the
+	// mock replaces, and holds back those that look like credentials.
+	env := e.env
+	e.env = config.Env{"SONDE_VARIABLE_region": "eu", "SONDE_VARIABLE_user_id": "1", "HURL_VARIABLE_base_url": "http://x", "SONDE_VARIABLE_api_token": "t"}
+	inv = runplan.Invocation{}
+	e.Extend(&inv)
+	if got := strings.Join(inv.Variables, ","); got != "base_url=http://127.0.0.1:9999,user_id=42" {
+		t.Errorf("a run with env variables: %s", got)
+	}
+	held := e.Command(&inv)
+	if got := strings.Join(inv.Variables, ","); got != "base_url=http://127.0.0.1:9999,user_id=42,region=eu" || !slices.Equal(held, []string{"api_token"}) {
+		t.Errorf("the command: %s, held %v", got, held)
+	}
+	e.env = env
 	e.RemoveOverride("user_id")
 	e.SetMock("")
 	if o := e.Overrides(); o.Count != 1 {
@@ -300,5 +316,67 @@ func TestConcurrentEdits(t *testing.T) {
 	y := read(t, proj, "sonde.yaml")
 	if !strings.Contains(y, "retries: 9") || strings.Contains(y, tokenValue) {
 		t.Errorf("sonde.yaml:\n%s", y)
+	}
+}
+
+// TestEnvVariables: SONDE_VARIABLE_* and HURL_VARIABLE_* from the app's
+// environment become flags, except those a session override or the mock replace.
+func TestEnvVariables(t *testing.T) {
+	e, _, _ := project(t)
+	// No environment variables set: empty list.
+	vars := e.envVariables()
+	if len(vars) != 0 {
+		t.Errorf("no env vars, got %v", vars)
+	}
+	// SONDE_VARIABLE_* and HURL_VARIABLE_* are picked and sorted; SONDE wins
+	// over HURL for the same name.
+	e.env = config.Env{
+		"SONDE_VARIABLE_z": "zzz",
+		"SONDE_VARIABLE_a": "aaa",
+		"HURL_VARIABLE_b":  "bbb",
+		"OTHER":            "xxx",
+	}
+	vars = e.envVariables()
+	if len(vars) != 3 || vars[0] != "a=aaa" || vars[1] != "b=bbb" || vars[2] != "z=zzz" {
+		t.Errorf("with vars, got %v", vars)
+	}
+	// Session override of a variable hides it from the list.
+	if err := e.SetOverride("local", "a", "override"); err != nil {
+		t.Fatal(err)
+	}
+	vars = e.envVariables()
+	if len(vars) != 2 || vars[0] != "b=bbb" || vars[1] != "z=zzz" {
+		t.Errorf("with override, got %v", vars)
+	}
+	// Mock's base_url override hides the env var if set.
+	e.env = config.Env{"SONDE_VARIABLE_base_url": "http://old"}
+	e.SetMock("http://new")
+	vars = e.envVariables()
+	if len(vars) != 0 {
+		t.Errorf("with mock override, got %v", vars)
+	}
+}
+
+// TestSetSecretNeverInYAML: a secret added as one goes to the env's secrets
+// file (0600) and its value never to sonde.yaml.
+func TestSetSecretNeverInYAML(t *testing.T) {
+	e, proj, _ := project(t)
+	before := read(t, proj, "sonde.yaml")
+	if err := e.SetSecret("staging", "hook", secretValue+"y"); err != nil {
+		t.Fatal(err)
+	}
+	yaml := read(t, proj, "sonde.yaml")
+	if strings.Contains(yaml, secretValue) || strings.Contains(yaml, "hook") || yaml == before {
+		t.Error("sonde.yaml: the value or name leaked, or the secrets file is not referenced")
+	}
+	info, err := os.Stat(filepath.Join(proj, "secrets", "staging.secrets"))
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("secrets file %v %v", info, err)
+	}
+	if !strings.Contains(read(t, proj, "secrets/staging.secrets"), "hook=") {
+		t.Error("the secret is not in the secrets file")
+	}
+	if err := e.SetSecret("staging", "two", "a\nb"); err == nil {
+		t.Error("a two-line secret")
 	}
 }

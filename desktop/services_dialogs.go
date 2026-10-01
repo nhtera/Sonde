@@ -28,6 +28,17 @@ func (d *Dialogs) OpenFile(title, filterName, patterns string) (string, error) {
 	return d.h.Put(path, handles.OpenFile)
 }
 
+// OpenFolder asks for a folder (reports are written there); it returns
+// its handle, "" when canceled.
+func (d *Dialogs) OpenFolder(title string) (string, error) {
+	opts := &application.OpenFileDialogOptions{CanChooseDirectories: true, CanCreateDirectories: true, Title: title}
+	path, err := application.Get().Dialog.OpenFileWithOptions(opts).PromptForSingleSelection()
+	if err != nil || path == "" {
+		return "", err
+	}
+	return d.h.Put(path, handles.OpenDir)
+}
+
 func init() {
 	register("dialogs", []Mode{ModeDesktop}, func(h *Host) application.Service {
 		return application.NewServiceWithOptions(&Dialogs{h: h.Handles}, application.ServiceOptions{Name: "dialogs"})

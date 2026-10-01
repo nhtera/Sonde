@@ -11,6 +11,8 @@ import (
 
 func init() {
 	register("gitx", nil, func(h *Host) application.Service {
-		return application.NewServiceWithOptions(gitx.New(h.Workspace.Root, h.Dirs.Config()), application.ServiceOptions{Name: "gitx"})
+		g := gitx.New(h.Workspace.Root, h.Dirs.Config())
+		g.Secret = h.Envs.IsSecretFile
+		return application.NewServiceWithOptions(g, application.ServiceOptions{Name: "gitx"})
 	})
 }

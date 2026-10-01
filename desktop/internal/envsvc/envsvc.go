@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/credential"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/runplan"
@@ -182,6 +183,17 @@ func (e *Envs) SetVariable(env, name string, raw json.RawMessage) error {
 // RemoveVariable removes name from every source of env.
 func (e *Envs) RemoveVariable(env, name string) error {
 	return e.edit(func(p *config.Project) ([]config.FileEdit, error) { return p.RemoveVariable(env, name) })
+}
+
+// SetSecret sets (or adds) secret name of env in its secrets file (0600:
+// the env's last one, or secrets/<env>.secrets, added to secrets_files);
+// the value is never written to sonde.yaml, and a variable of that name
+// there goes.
+func (e *Envs) SetSecret(env, name, secret string) error {
+	if strings.ContainsAny(secret, "\r\n") {
+		return apperr.New(apperr.Invalid, "a secret is one line")
+	}
+	return e.edit(func(p *config.Project) ([]config.FileEdit, error) { return p.SetSecret(env, name, secret) })
 }
 
 // MarkSecret moves variable name of env to a secrets file (0600): the
@@ -352,6 +364,45 @@ func (e *Envs) Extend(inv *runplan.Invocation) {
 	}
 }
 
+// Command adds to a command for CI (Copy as › sonde) the variables of the
+// app's environment (SONDE_VARIABLE_…), so that it reproduces the run: a
+// run reads them from the environment (a --variable would rank above a
+// data row), a command may run where they are not set. Those that look
+// like credentials are not shown: their names are returned, for the user
+// to set them in CI.
+func (e *Envs) Command(inv *runplan.Invocation) (held []string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if inv.Set == nil {
+		inv.Set = map[string]bool{}
+	}
+	for _, v := range e.envVariables() {
+		name, val, _ := strings.Cut(v, "=")
+		if credential.Likely(name, val) {
+			held = append(held, name)
+			continue
+		}
+		inv.Variables = append(inv.Variables, v)
+		inv.Set["variable"] = true
+	}
+	return held
+}
+
+// envVariables are the variables the app's environment sets, as
+// name=value, in name order; those a session override or the mock sets
+// are left out.
+func (e *Envs) envVariables() []string {
+	var out []string
+	for name, val := range e.env.VariableEnvVars() {
+		if _, overridden := e.session[name]; overridden || (e.mock != "" && name == "base_url") {
+			continue
+		}
+		out = append(out, name+"="+val)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // Overrides lists every override of a run: the app's own (Extend) and
 // what runplan reports from the CLI's config file and environment.
 func (e *Envs) Overrides() Overrides {
@@ -440,6 +491,9 @@ func (s *Service) SetVariable(env, name string, raw json.RawMessage) error {
 
 // RemoveVariable removes a variable from every source of env.
 func (s *Service) RemoveVariable(env, name string) error { return s.e.RemoveVariable(env, name) }
+
+// SetSecret sets or adds a secret in env's secrets file.
+func (s *Service) SetSecret(env, name, secret string) error { return s.e.SetSecret(env, name, secret) }
 
 // MarkSecret moves a variable to a secrets file.
 func (s *Service) MarkSecret(env, name string) error { return s.e.MarkSecret(env, name) }
