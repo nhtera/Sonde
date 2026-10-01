@@ -39,6 +39,13 @@ const panelsHarness =
   `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
   `mkdir "$t/p" && cp -R ../testdata/results-api/. "$t/p" && (cd "$t/p" && git init -q -b main && ${gitEnv} git add -A && ${gitEnv} git commit -qm init) && ` +
   `${gitEnv} SONDE_VARIABLE_region=eu ${harness} --root "$t/p" --data "$t/data" --port ${panelsPort}'`;
+// e2e/import.spec.ts: Import and Copy as on a copy of shop-api, with a
+// SONDE_VARIABLE_ in the app's environment.
+const importPort = Number(process.env.E2E_IMPORT_PORT) || 34128;
+const importURL = `http://127.0.0.1:${importPort}`;
+const importHarness =
+  `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
+  `mkdir "$t/p" && cp -R ../testdata/shop-api/. "$t/p" && SONDE_VARIABLE_region=eu ${harness} --root "$t/p" --data "$t/data" --port ${importPort}'`;
 // The preview's sandbox and framing in WebKit (the macOS app's engine).
 const resultsWebkitPort = Number(process.env.E2E_RESULTS_WEBKIT_PORT) || 34123;
 const resultsWebkitURL = `http://127.0.0.1:${resultsWebkitPort}`;
@@ -59,15 +66,15 @@ export default defineConfig({
   reporter: process.env.CI ? "list" : "line",
   use: { baseURL },
   projects: [
-    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels/, use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels/, use: { ...devices["Desktop Safari"] } },
+    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import/, use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import/, use: { ...devices["Desktop Safari"] } },
     // Timings are measured alone, after the other browser tests (the load
     // of seven test servers and browsers would skew them).
     {
       name: "perf",
       testMatch: /perf/,
       workers: 1,
-      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "panels", "editor-webkit"],
+      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "panels", "import", "editor-webkit"],
       use: { ...devices["Desktop Chrome"], baseURL: perfURL },
     },
     // The shell's tests share one harness (its settings, its runs): one
@@ -79,6 +86,8 @@ export default defineConfig({
     { name: "form", testMatch: /form\.spec/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: formURL } },
     // The panels' tests share one harness (they change its files and settings).
     { name: "panels", testMatch: /panels/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: panelsURL } },
+    // Import and Copy as share one harness (they write its files).
+    { name: "import", testMatch: /import/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: importURL } },
     { name: "results-webkit", testMatch: /results/, grep: /preview|Assert/, workers: 1, use: { ...devices["Desktop Safari"], baseURL: resultsWebkitURL } },
     { name: "editor-webkit", testMatch: /editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Safari"], baseURL: webkitEditorURL } },
     // Server mode's sign-in (E2E_SERVER_BIN, a server build).
@@ -139,6 +148,14 @@ export default defineConfig({
         {
           command: panelsHarness,
           url: `${panelsURL}/health`,
+          reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
+          timeout: 30_000,
+        },
+        {
+          command: importHarness,
+          url: `${importURL}/health`,
           reuseExistingServer: !process.env.CI,
           // SIGTERM (not the default SIGKILL): the server's temp folder goes.
           gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
