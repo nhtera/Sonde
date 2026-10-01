@@ -3,6 +3,7 @@
 
 import { useEffect } from "react";
 import { AskHost } from "../components/ask";
+import { registry, useRegistry } from "./registry";
 import { Palette } from "../features/palette/palette";
 import { Toasts } from "../features/shell/toasts";
 import { appError } from "../lib/api";
@@ -18,6 +19,7 @@ import { useKeys } from "./keymap/use-keys";
 import { Layout } from "./layout";
 
 export function App() {
+  useRegistry();
   const keys = useKeys();
 
   useEffect(() => {
@@ -45,6 +47,9 @@ export function App() {
       <Palette />
       <ShortcutsSheet />
       <AskHost />
+      {registry.getSlots("app.overlays").map((o) => (
+        <o.render key={o.id} />
+      ))}
       <Toasts />
     </>
   );

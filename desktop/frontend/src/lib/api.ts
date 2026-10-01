@@ -26,7 +26,13 @@ export { Service as Mocks } from "@bindings/desktop/internal/mocksvc";
 export { Desktop as BodiesDesktop } from "@bindings/desktop/internal/bodies";
 export { Service as WSession } from "@bindings/desktop/internal/wsession";
 export type { Var as ScopeVar } from "@bindings/desktop/internal/vars";
-export { Dialogs } from "@bindings/desktop";
+export { Dialogs, Reports } from "@bindings/desktop";
+export { Service as Agents } from "@bindings/desktop/internal/agents";
+export type { Snippet as AgentSnippet, Tool as AgentTool } from "@bindings/desktop/internal/agents";
+export { Service as History } from "@bindings/desktop/internal/history";
+export type { Item as HistoryItem, Record as HistoryRecord } from "@bindings/desktop/internal/history";
+export { Service as Jar } from "@bindings/desktop/internal/jar";
+export type { Jar as CookieJar, Cookie as JarCookie } from "@bindings/desktop/internal/jar";
 
 /** A coded error from a binding ({code, message}); see desktop/internal/apperr. */
 export interface AppError {

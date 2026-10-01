@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { registry, useRegistry } from "../../app/registry";
 import { RunSummary } from "../../components/run/run-summary";
 import { firstChangedLine, StaleBanner } from "../../components/run/stale-banner";
+import { useHistoryView } from "../../state/history-view";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
@@ -33,6 +34,7 @@ export function ResultsHost({ file }: { file: string }) {
   const results = registry.getResults();
   const index = useWorkspace((s) => s.index);
   const run = useRuns((s) => s.runs[file]);
+  const past = useHistoryView((s) => s.view?.file === file);
   // The edited line only (a number): the results do not re-render on
   // every keystroke.
   const changed = useTabs((s) => {
@@ -40,8 +42,9 @@ export function ResultsHost({ file }: { file: string }) {
     return run && !run.running && text !== undefined ? firstChangedLine(run.source, text) : 0;
   });
   const requests = useMemo(() => index.filter((r) => r.file === file), [index, file]);
-  if (!run) return <FileEmpty file={file} hasRequests={requests.length > 0} />;
+  if (!run && !past) return <FileEmpty file={file} hasRequests={requests.length > 0} />;
   if (results) return <results.render file={file} />;
+  if (!run) return null;
   return (
     <div className="results-body">
       <RunSummary

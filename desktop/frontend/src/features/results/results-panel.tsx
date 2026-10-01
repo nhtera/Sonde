@@ -13,6 +13,7 @@ import { ResultsHeader } from "../../components/run/results-header";
 import { outcomeOf } from "../../components/run/run-summary";
 import { firstChangedLine, StaleBanner } from "../../components/run/stale-banner";
 import { useEnv } from "../../state/env";
+import { useHistoryView } from "../../state/history-view";
 import { useRuns } from "../../state/run";
 import type { FileRun } from "../../state/run-model";
 import { useTabs } from "../../state/tabs";
@@ -48,7 +49,10 @@ function noteOf(run: FileRun, total: number, now: Date): string {
 }
 
 export function ResultsPanel({ file }: { file: string }) {
-  const run = useRuns((s) => s.runs[file]);
+  const live = useRuns((s) => s.runs[file]);
+  // A run opened from the history shows instead, read-only.
+  const past = useHistoryView((s) => (s.view?.file === file ? s.view : null));
+  const run = past?.run ?? live;
   const session = useResults((s) => s.session);
   const picked = useResults((s) => s.picked[file]);
   const index = useWorkspace((s) => s.index);
@@ -103,7 +107,16 @@ export function ResultsPanel({ file }: { file: string }) {
             </>
           }
         />
-        {changed > 0 && <StaleBanner line={changed} onRun={() => void useRuns.getState().run(file)} />}
+        {past ? (
+          <div className="history-banner" role="status">
+            <span>From the history · {new Date(past.at).toLocaleString()} · read-only</span>
+            <button className="btn-ghost" onClick={() => useHistoryView.getState().show(null)}>
+              Back to the last run
+            </button>
+          </div>
+        ) : (
+          changed > 0 && <StaleBanner line={changed} onRun={() => void useRuns.getState().run(file)} />
+        )}
         {run.error && <p className="run-error">{run.error}</p>}
         <RequestList rows={rows} selected={entry} onSelect={(n) => useResults.getState().pick(file, run.runId, n)} />
       </div>

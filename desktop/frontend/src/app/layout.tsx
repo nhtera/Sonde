@@ -72,7 +72,9 @@ export function Layout() {
 
   const side = appearance?.sideWidth ?? 248;
   const results = appearance?.resultsWidth ?? 440;
-  const showResults = !!project && !!active && (!narrow || resultsOpen);
+  // A panel with a main view shows it in place of the tabs and editor.
+  const PanelMain = project ? panel?.main : undefined;
+  const showResults = !!project && !!active && (!narrow || resultsOpen) && !(PanelMain && panel?.wide);
   // Narrow: the side panel is an overlay (no column); results are docked
   // at 400px and toggled from the toolbar.
   const sideCol = project && panel && !narrow ? side : 0;
@@ -100,16 +102,24 @@ export function Layout() {
           )}
           <main className="main">
             <TrustBar />
-            <TabsBar />
-            {active ? (
-              <>
-                <Toolbar file={active} />
-                <div className="editor-host">
-                  <EditorHost file={active} />
-                </div>
-              </>
+            {PanelMain ? (
+              <div className="panel-main">
+                <PanelMain />
+              </div>
             ) : (
-              <NoFile />
+              <>
+                <TabsBar />
+                {active ? (
+                  <>
+                    <Toolbar file={active} />
+                    <div className="editor-host">
+                      <EditorHost file={active} />
+                    </div>
+                  </>
+                ) : (
+                  <NoFile />
+                )}
+              </>
             )}
           </main>
           {showResults && (

@@ -29,6 +29,8 @@ export const useEnv = create<EnvState>((set, get) => ({
 }));
 
 on("env:changed", () => void useEnv.getState().load());
+// Settings that change a run count as overrides.
+on("settings:changed", () => void useEnv.getState().load());
 on("ws:opened", () => {
   useEnv.setState({ current: "" });
   void useEnv.getState().load();

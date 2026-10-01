@@ -258,3 +258,6 @@ kbd, .kbd {
 .tab .ic { width: 6px; height: 6px; border-radius: 2px; }
 .tree:focus-visible { outline: none; }
 .tree:focus-visible .tree-row[data-cursor] { box-shadow: inset 0 0 0 1px var(--accent-line); }
+
+/* A panel's main view (Test run report, environment editor, settings). */
+.panel-main { flex: 1; min-height: 0; overflow: auto; }

@@ -30,8 +30,21 @@ export interface Panel {
   icon: ComponentType<{ size?: number }>;
   order: number;
   render: ComponentType;
+  /** Shown in the main area, in place of the tabs and editor, while the
+   * panel is open (the Test run report, the environment editor). */
+  main?: ComponentType;
+  /** The main view takes the results' column too (Settings). */
+  wide?: boolean;
   /** Hidden in server mode. */
   windowOnly?: boolean;
+}
+
+/** A piece a feature adds to another's view (the git Changes card under
+ * the file tree). */
+export interface Slot {
+  id: string;
+  order: number;
+  render: ComponentType;
 }
 
 export interface ToolbarItem {
@@ -57,6 +70,7 @@ const panels = new Map<string, Panel>();
 const toolbar = new Map<string, ToolbarItem>();
 const editors = new Map<string, EditorView>();
 let results: ResultsView | null = null;
+const slots = new Map<string, Map<string, Slot>>();
 let version = 0;
 const listeners = new Set<() => void>();
 
@@ -86,6 +100,14 @@ export const registry = {
     results = r;
     changed();
   },
+  /** Adds s to the slot named name. */
+  slot(name: string, s: Slot) {
+    const m = slots.get(name) ?? new Map<string, Slot>();
+    m.set(s.id, s);
+    slots.set(name, m);
+    changed();
+  },
+  getSlots: (name: string) => [...(slots.get(name)?.values() ?? [])].sort((a, b) => a.order - b.order),
   commands: () => [...commands.values()],
   getCommand: (id: string) => commands.get(id),
   panels: () => [...panels.values()].sort((a, b) => a.order - b.order),

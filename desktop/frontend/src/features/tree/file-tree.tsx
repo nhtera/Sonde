@@ -221,6 +221,9 @@ export function FileTree() {
           })}
         </div>
       </div>
+      {registry.getSlots("files.bottom").map((s) => (
+        <s.render key={s.id} />
+      ))}
       <div className="side-note">
         <LockIcon style={{ flex: "none", marginTop: 2 }} />
         <span>Local folder. No account, no cloud sync. Share it the way you share code.</span>
