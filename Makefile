@@ -92,7 +92,7 @@ desktop-tools: ## Install the pinned desktop tools (wails3, task) into ./bin and
 desktop-bindings: desktop-tools ## Generate the frontend's TypeScript bindings (not committed) from the desktop services
 	cd desktop && CGO_ENABLED=0 $(BIN)/wails3 generate bindings -clean=true -ts -i -silent -f "-tags server"
 
-desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses desktop-bindings ## Desktop module: tidy, licenses, vet, tests, lint; frontend: install (no scripts), lint, typecheck, unit tests
+desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses desktop-bindings ## Desktop module: tidy, licenses, vet, tests, lint; frontend: install (no scripts), licenses, version, lint, typecheck, unit tests
 	cd desktop && go mod tidy -diff
 	cd desktop && $(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) --ignore github.com/nhtera/sonde
 	@test -f desktop/frontend/dist/index.html || { mkdir -p desktop/frontend/dist && echo '<!doctype html><title>Sonde</title>' > desktop/frontend/dist/index.html; }
@@ -101,6 +101,7 @@ desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses desktop-bindings ## Deskt
 	done
 	npm --prefix desktop/frontend ci --ignore-scripts --no-audit --no-fund
 	node desktop/scripts/check-install-scripts.mjs
+	cd desktop && node scripts/check-npm-licenses.mjs && node scripts/version.mjs && scripts/verify-artifacts_test.sh && node --test scripts/*.test.mjs
 	npm --prefix desktop/frontend run lint
 	npm --prefix desktop/frontend run typecheck
 	npm --prefix desktop/frontend test

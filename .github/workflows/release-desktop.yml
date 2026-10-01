@@ -1,0 +1,389 @@
+name: release-desktop
+
+on:
+  push:
+    # Separate from the CLI's v[0-9]* tags (release.yml, goreleaser ignores
+    # desktop/*): the app has its own version (desktop/frontend/package.json).
+    tags: ["desktop/v*"]
+
+permissions:
+  contents: read
+
+# One release run per tag: a re-run waits for the last one to finish.
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with ci.yml.
+  GO_VERSION: "1.27.1"
+  NODE_VERSION: "22"
+
+jobs:
+  build-test:
+    # No `environment:` and no secrets: this job runs the toolchain and the
+    # project's own dependencies, tests, and packages unsigned artifacts.
+    # Its OIDC token only attests their provenance; the sign jobs verify
+    # that attestation (and the digests) before signing anything.
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: macos-14
+            target: macos
+          # windows-2022: its image ships NSIS (makensis).
+          - os: windows-2022
+            target: windows
+          - os: ubuntu-24.04
+            target: linux
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write # build provenance attestation (Sigstore)
+      attestations: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # No cache: a release workflow never restores a cache another job
+          # could have poisoned.
+
+      - name: The tag names the app's version
+        run: node scripts/version.mjs "$GITHUB_REF_NAME"
+        working-directory: desktop
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Linux build dependencies (GTK 4, WebKitGTK 6.0)
+        if: matrix.target == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+
+      - name: Pinned build tools (wails3, task), checked against tools.sha256
+        run: |
+          desktop/scripts/tools.sh install
+          echo "${{ github.workspace }}/bin" >> "$GITHUB_PATH"
+
+      - name: Frontend dependencies (no install scripts)
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node ../scripts/check-install-scripts.mjs
+          npm audit --audit-level=high
+        working-directory: desktop/frontend
+
+      - name: Checks (tidy, licenses, vet, tests, lint; frontend lint, types, tests)
+        if: matrix.target == 'linux'
+        run: make desktop-check desktop-vuln
+
+      - name: Go tests (server build)
+        if: matrix.target != 'linux'
+        run: |
+          # The app embeds frontend/dist (built by the packaging below).
+          test -f frontend/dist/index.html || { mkdir -p frontend/dist && echo '<!doctype html><title>Sonde</title>' > frontend/dist/index.html; }
+          go test -tags server ./...
+        working-directory: desktop
+
+      - name: Package (macOS universal .app)
+        if: matrix.target == 'macos'
+        run: |
+          task darwin:package:universal
+          node scripts/check-no-harness.mjs bin/Sonde.app/Contents/MacOS/sonde-desktop
+          v="$(node -p "require('./frontend/package.json').version")"
+          mkdir -p out
+          # Signed and turned into a .dmg by the sign job (the .app must be
+          # signed before it is put in the disk image).
+          ditto -c -k --keepParent bin/Sonde.app "out/Sonde-Desktop-$v-macos-universal.app.zip"
+        working-directory: desktop
+
+      - name: Package (Windows NSIS installers, amd64 and arm64)
+        if: matrix.target == 'windows'
+        run: |
+          v="$(node -p "require('./frontend/package.json').version")"
+          mkdir -p out
+          for arch in amd64 arm64; do
+            task windows:package ARCH="$arch"
+            node scripts/check-no-harness.mjs bin/sonde-desktop.exe
+            mv "bin/Sonde-$arch-installer.exe" "out/Sonde-Desktop-$v-windows-$arch-setup.exe"
+          done
+        working-directory: desktop
+
+      - name: Package (Linux AppImage)
+        if: matrix.target == 'linux'
+        run: |
+          task linux:create:appimage
+          node scripts/check-no-harness.mjs bin/sonde-desktop
+          v="$(node -p "require('./frontend/package.json').version")"
+          mkdir -p out
+          mv bin/*.AppImage "out/Sonde-Desktop-$v-linux-x86_64.AppImage"
+        working-directory: desktop
+
+      - name: Server mode, every OS from one runner (no cgo)
+        if: matrix.target == 'linux'
+        run: |
+          task build:server
+          v="$(node -p "require('./frontend/package.json').version")"
+          for p in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os="${p%/*}" arch="${p#*/}" ext=""
+            [ "$os" = windows ] && ext=.exe
+            out="out/Sonde-Desktop-Server-$v-$os-$arch$ext"
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -tags server,production -trimpath -buildvcs=false -ldflags="-w -s -X main.version=$v" -o "$out" .
+            node scripts/check-no-harness.mjs "$out"
+          done
+        working-directory: desktop
+
+      - name: Digests
+        run: |
+          cd desktop/out
+          if command -v sha256sum >/dev/null; then sha256sum -- Sonde-Desktop-*; else shasum -a 256 -- Sonde-Desktop-*; fi > "digests-${{ matrix.target }}.txt"
+          cat "digests-${{ matrix.target }}.txt"
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            desktop/out/Sonde-Desktop-*
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-${{ matrix.target }}
+          path: desktop/out/*
+          if-no-files-found: error
+
+  sign-macos:
+    # The Developer ID certificate and the notarization key live only in
+    # the protected `release` environment. This job installs nothing of
+    # the project's: it verifies, signs, notarizes and staples, then
+    # attests the disk image it made.
+    needs: build-test
+    runs-on: macos-14
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # the disk image's provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            desktop/scripts/verify-artifacts.sh
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-macos
+          path: in
+
+      - name: Verify digests and build provenance (fail closed)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: desktop/scripts/verify-artifacts.sh in/digests-macos.txt in/Sonde-Desktop-*
+
+      - name: Sign, make the disk image, notarize, staple
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          for v in CERT_P12 CERT_PASSWORD IDENTITY NOTARY_KEY NOTARY_KEY_ID NOTARY_ISSUER; do
+            [ -n "${!v}" ] || { echo "the release environment lacks $v: macOS is not released unsigned" >&2; exit 1; }
+          done
+          work="$RUNNER_TEMP/sign"
+          mkdir -p "$work" out
+          keychain="$work/release.keychain-db"
+          kpass="$(openssl rand -hex 24)"
+          echo "$CERT_P12" | base64 --decode > "$work/cert.p12"
+          security create-keychain -p "$kpass" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$kpass" "$keychain"
+          security import "$work/cert.p12" -k "$keychain" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kpass" "$keychain" >/dev/null
+          existing=()
+          while IFS= read -r k; do existing+=("$(echo "$k" | tr -d '" ')"); done < <(security list-keychains -d user)
+          security list-keychains -d user -s "$keychain" "${existing[@]}"
+          rm "$work/cert.p12"
+          trap 'security delete-keychain "$keychain" || true; rm -f "$work/key.p8"' EXIT
+
+          zip="$(ls in/Sonde-Desktop-*-macos-universal.app.zip)"
+          base="$(basename "$zip" .app.zip)"
+          ditto -x -k "$zip" "$work/app"
+          app="$work/app/Sonde.app"
+          codesign --force --options runtime --timestamp --sign "$IDENTITY" "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+          dmg="out/$base.dmg"
+          hdiutil create -volname "Sonde" -srcfolder "$app" -ov -format UDZO "$dmg"
+          codesign --force --timestamp --sign "$IDENTITY" "$dmg"
+
+          echo "$NOTARY_KEY" | base64 --decode > "$work/key.p8"
+          if ! xcrun notarytool submit "$dmg" --key "$work/key.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" --wait --timeout 30m --output-format json > "$work/notary.json"; then
+            cat "$work/notary.json" >&2 || true
+            id="$(sed -n 's/.*"id" *: *"\([^"]*\)".*/\1/p' "$work/notary.json" | head -1)"
+            [ -n "$id" ] && xcrun notarytool log "$id" --key "$work/key.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" >&2 || true
+            exit 1
+          fi
+          # Accepted only: --wait returns 0 for an Invalid status too.
+          grep -q '"status" *: *"Accepted"' "$work/notary.json" || { cat "$work/notary.json" >&2; id="$(sed -n 's/.*"id" *: *"\([^"]*\)".*/\1/p' "$work/notary.json" | head -1)"; xcrun notarytool log "$id" --key "$work/key.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" >&2 || true; exit 1; }
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          spctl -a -vv -t install "$dmg"
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: out/Sonde-Desktop-*.dmg
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-macos
+          path: out/*
+          if-no-files-found: error
+
+  sign-windows:
+    # No Windows certificate yet (decided): the installers ship unsigned,
+    # with a SmartScreen note in the release notes. With the certificate
+    # in the release environment, this job signs them.
+    needs: build-test
+    runs-on: windows-2022
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # a signed installer's provenance attestation
+      attestations: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            desktop/scripts/verify-artifacts.sh
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-windows
+          path: in
+
+      - name: Verify digests and build provenance (fail closed)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: desktop/scripts/verify-artifacts.sh in/digests-windows.txt in/Sonde-Desktop-*
+
+      - name: Authenticode (when the certificate is configured)
+        id: authenticode
+        env:
+          CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          cp in/Sonde-Desktop-*.exe out/
+          if [ -z "$CERT_PFX" ]; then
+            echo "No Windows certificate: the installers stay unsigned (SmartScreen note in the release notes)."
+            exit 0
+          fi
+          echo "$CERT_PFX" | base64 --decode > "$RUNNER_TEMP/cert.pfx"
+          trap 'rm -f "$RUNNER_TEMP/cert.pfx"' EXIT
+          signtool="$(find "/c/Program Files (x86)/Windows Kits/10/bin" -path '*/x64/signtool.exe' | sort | tail -1)"
+          for f in out/*.exe; do
+            "$signtool" sign //fd SHA256 //tr http://timestamp.digicert.com //td SHA256 //f "$RUNNER_TEMP/cert.pfx" //p "$CERT_PASSWORD" "$f"
+            "$signtool" verify //pa "$f"
+          done
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      # Signing changed the files: their own attestation (unsigned ones
+      # keep the build job's).
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: steps.authenticode.outputs.signed == 'true'
+        with:
+          subject-path: out/Sonde-Desktop-*.exe
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-windows
+          path: out/*
+          if-no-files-found: error
+
+  publish:
+    needs: [sign-macos, sign-windows]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write # the GitHub release
+      id-token: write # cosign keyless signing (GitHub OIDC)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            desktop/scripts/verify-artifacts.sh
+            desktop/go.mod
+            desktop/go.sum
+            desktop/frontend/package.json
+            desktop/frontend/package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: "*-*"
+          path: in
+
+      - name: Verify the Linux artifact (signed ones were verified before signing)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: desktop/scripts/verify-artifacts.sh in/unsigned-linux/digests-linux.txt in/unsigned-linux/Sonde-Desktop-*
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - uses: anchore/sbom-action/download-syft@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+
+      - name: Checksums, SBOM, signature
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp in/signed-macos/* in/signed-windows/* in/unsigned-linux/Sonde-Desktop-* release/
+          ls release
+          v="${GITHUB_REF_NAME#desktop/v}"
+          syft scan dir:desktop -o "spdx-json=release/Sonde-Desktop-$v.sbom.spdx.json"
+          (cd release && sha256sum -- * > checksums.txt)
+          cosign sign-blob --yes --bundle release/checksums.txt.sigstore.json release/checksums.txt
+
+      - name: GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          v="${TAG#desktop/v}"
+          cat > notes.md <<NOTES
+          Sonde Desktop $v: a desktop app for .hurl files, built on the sonde CLI.
+
+          - macOS (universal): signed and notarized disk image.
+          - Windows (x64, ARM64): the installers are not signed yet; Windows SmartScreen shows "Windows protected your PC" on first launch: choose More info, then Run anyway. Verify the download against checksums.txt first.
+          - Linux (x86_64): AppImage (GTK 4, WebKitGTK 6.0: Ubuntu 24.04+, Debian 13, Fedora 40+).
+          - Server mode (Sonde-Desktop-Server-*): the app in a browser, for a remote dev box: loopback only, with a one-time launch link and a token.
+
+          No account and no telemetry. Run history stays on this computer, with secrets, credential headers and cookie values masked. Server mode listens on loopback only and needs its token.
+
+          Verify: checksums.txt is signed with cosign (keyless, this workflow's identity); every file has a build provenance attestation (gh attestation verify FILE --repo $GH_REPO).
+          NOTES
+          # A version with a prerelease part (desktop/v0.1.0-rc.1) is a
+          # GitHub prerelease: a rehearsal, never the latest.
+          pre=()
+          case "$v" in *-*) pre=(--prerelease) ;; esac
+          gh release create "$TAG" --title "Sonde Desktop $v" --notes-file notes.md --latest=false "${pre[@]}" release/*

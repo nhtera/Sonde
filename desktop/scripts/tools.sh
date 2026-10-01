@@ -19,7 +19,7 @@ check() { # binary module version sum
 status=0
 while read -r pkg version sum; do
   case "$pkg" in ''|'#'*) continue ;; esac
-  name="${pkg##*/}"
+  name="${pkg##*/}$(go env GOEXE)" # .exe on Windows
   module="${pkg%/cmd/*}"
   if [ "$mode" = install ] && ! check "$bin/$name" "$module" "$version" "$sum"; then
     # Built with the repo's toolchain (go.mod), so the binding generator

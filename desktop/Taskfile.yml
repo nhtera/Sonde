@@ -13,6 +13,10 @@ vars:
   PACKAGE_MANAGER: "npm"
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
   GOOS: '{{.GOOS | default OS}}'
+  # The app's version (frontend/package.json): a desktop/vX.Y.Z tag must
+  # name it (scripts/version.mjs checks every place it is written).
+  VERSION:
+    sh: node -p "require('./frontend/package.json').version"
 
 includes:
   common: ./build/Taskfile.yml
@@ -48,7 +52,7 @@ tasks:
         vars:
           BUILD_FLAGS: "-tags server,production"
     cmds:
-      - go build -tags server,production -trimpath -buildvcs=false -ldflags="-w -s" -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"
+      - go build -tags server,production -trimpath -buildvcs=false -ldflags="-w -s -X main.version={{.VERSION}}" -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"
     env:
       CGO_ENABLED: 0
 

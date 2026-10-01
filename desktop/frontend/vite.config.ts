@@ -1,6 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { lezer } from "@lezer/generator/rollup";
 import react from "@vitejs/plugin-react";
@@ -22,6 +23,8 @@ function contentSecurityPolicy(): Plugin {
 }
 
 // https://vite.dev/config/
+const appVersion: string = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version;
+
 export default defineConfig({
   server: {
     host: "127.0.0.1",
@@ -30,8 +33,9 @@ export default defineConfig({
   },
   // lezer(): src/lang/*.grammar files build into parsers on import.
   plugins: [lezer(), react(), contentSecurityPolicy()],
-  // The version the status bar shows (SONDE_VERSION at build time).
-  define: { __APP_VERSION__: JSON.stringify(process.env.SONDE_VERSION || "dev") },
+  // The version the status bar shows: the app's (package.json), or
+  // SONDE_VERSION at build time.
+  define: { __APP_VERSION__: JSON.stringify(process.env.SONDE_VERSION || appVersion) },
   // Fonts and images ship as files: the CSP allows no data: fonts.
   build: { assetsInlineLimit: 0 },
   resolve: {
