@@ -138,8 +138,13 @@ prompt.
 | Run file | ⌘R | every request in order |
 | Run to cursor | ⇧⌘↵ | requests 1 to N, N being the request at the cursor |
 | Send | ⌘↵ | request N alone, reusing the earlier requests' results |
-| Test run | Test run panel | the chosen files in test mode, like `sonde --test` |
-| Data run | "Run with a data file…" | one file once per row of a CSV or JSON file |
+| Test run | Test run panel | the chosen files in test mode, like `sonde --test`; Parallel jobs is `--jobs`, "Continue after a failed request" is `--continue-on-error` |
+| Data run | **Data** in the editor's toolbar, or "Run with a data file…" | the file once per row of a CSV or JSON file (`--data`); the results show a pill per row |
+
+A project data file's columns named like credentials (`password`, `pass`,
+`token`, `secret`…) are treated as `--data-secret` columns: their values are
+masked in everything the app shows. Send and Run to cursor are not available
+while a data file is picked: they would miss the row's variables.
 
 ### Send semantics
 
@@ -186,7 +191,8 @@ it is gone when you open another folder or quit. A value overridden under a
 secret's name is shown as `***` after you enter it.
 
 The **overrides chip** counts everything that changes a run beyond the
-project and its files: the settings (network, TLS, cookies), the session
+project and its files: the settings (network, TLS, cookies; **Verify
+certificates** off is `--insecure`), the session
 overrides, the mock's `base_url`, and anything the CLI's own configuration
 supplies (below).
 
@@ -269,18 +275,21 @@ them.
   and the result says so. The preview shows the references, not the values.
 - **Postman suggestions.** After a Postman import the app can suggest asserts
   and a login request, derived from the collection's test scripts and OAuth 2
-  settings by text patterns. Scripts are never run. A suggestion is a diff
-  you accept or skip; accepting adds one row and the result is parsed before
-  it is written. Suggestions are optional and apply per file, only to files
-  as the import wrote them.
+  settings by text patterns. Scripts are never run. Each suggestion is a
+  change of its own (an assert, a capture, a login request) that you accept,
+  reject or undo; Apply writes only the accepted ones, and the result is
+  parsed before it is written. Suggestions are optional and apply only to
+  files as the import wrote them.
 
 Imports take up to 64 MiB per input.
 
 ## History and privacy
 
 Finished runs are kept per project in the app's config folder (`history/`,
-mode 0600, in the shape of the CLI's JSON report) so you can open an old run
-in the results panel, read-only. Nothing leaves the computer.
+mode 0600, in the shape of the CLI's JSON report). The History panel lists
+their requests, newest first (method, path, status, file); opening one shows
+its run in the results panel, read-only, on that request. Nothing leaves the
+computer.
 
 Settings › History & privacy turns history off, or keeps runs for 7 days, 30
 days (the default) or forever, and clears it. Bodies are not stored, and
