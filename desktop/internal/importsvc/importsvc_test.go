@@ -688,8 +688,6 @@ func TestPastedStagedOnce(t *testing.T) {
 	}
 }
 
-// TestNoSuggestionForKeptFiles: a file the import did not write (kept as
-// the user had it) is never offered suggestions.
 func TestPostmanPreviewNamesTheCollection(t *testing.T) {
 	s, _, h, _ := service(t)
 	req := Request{Kind: Postman, Input: stage(t, s, h, filepath.Join(testdata, "import", "shop.postman_collection.json"), false)}
@@ -702,8 +700,19 @@ func TestPostmanPreviewNamesTheCollection(t *testing.T) {
 	}
 	// Both layouts, request files only, the picked one as the files.
 	byRequest, byFolder := pv.Layouts["request"], pv.Layouts["folder"]
-	if len(byRequest) != 3 || len(byFolder) == 0 || len(byFolder) >= len(byRequest) {
+	if len(byRequest) != 3 || len(pv.Files) < 3 || !slices.Equal(byFolder, []string{"users.hurl", "shop.hurl"}) {
 		t.Errorf("layouts %v", pv.Layouts)
+	}
+	// The picked layout is what is written; the other, the same on the
+	// next preview (kept, not planned again).
+	for _, f := range byRequest {
+		if !slices.ContainsFunc(pv.Files, func(x File) bool { return x.Path == f }) {
+			t.Errorf("%s listed but not written", f)
+		}
+	}
+	again, err := s.Preview(context.Background(), req)
+	if err != nil || !slices.Equal(again.Layouts["folder"], byFolder) {
+		t.Errorf("second preview %v %v", again.Layouts, err)
 	}
 	for _, f := range append(byRequest, byFolder...) {
 		if !strings.HasSuffix(f, ".hurl") {
@@ -746,15 +755,41 @@ func TestAcceptNoChange(t *testing.T) {
 	if _, err := s.Write(context.Background(), req, nil); err != nil {
 		t.Fatal(err)
 	}
-	before := string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl")))
+	file := filepath.Join(dir, "users", "get-user.hurl")
+	before := string(mustRead(t, file))
+	stat, _ := os.Stat(file)
 	if err := s.Accept(context.Background(), req, "users/get-user.hurl", []int{}); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(mustRead(t, filepath.Join(dir, "users", "get-user.hurl"))); got != before {
-		t.Errorf("no change picked, file changed:\n%s", got)
+	// Not even rewritten.
+	if again, _ := os.Stat(file); string(mustRead(t, file)) != before || !again.ModTime().Equal(stat.ModTime()) {
+		t.Error("no change picked: the file was written")
+	}
+	var e *apperr.Error
+	if err := s.Accept(context.Background(), req, "users/get-user.hurl", []int{7}); !errors.As(err, &e) || e.Code != apperr.Invalid {
+		t.Errorf("an unknown change: %v", err)
+	}
+	// Every change picked one by one is the file with them all.
+	sg, _ := s.Suggestions(context.Background(), req)
+	for _, x := range sg {
+		if x.Error != "" {
+			continue
+		}
+		all := []int{}
+		for _, c := range x.Changes {
+			all = append(all, c.Index)
+		}
+		if err := s.Accept(context.Background(), req, x.Path, all); err != nil {
+			t.Fatal(err)
+		}
+		if got := string(mustRead(t, filepath.Join(dir, filepath.FromSlash(x.Path)))); got != x.After {
+			t.Errorf("%s: every change picked:\n%s\nwant:\n%s", x.Path, got, x.After)
+		}
 	}
 }
 
+// TestNoSuggestionForKeptFiles: a file the import did not write (kept as
+// the user had it) is never offered suggestions.
 func TestNoSuggestionForKeptFiles(t *testing.T) {
 	s, dir, h, _ := service(t)
 	req := Request{Kind: Postman, Input: stage(t, s, h, filepath.Join(testdata, "import", "shop.postman_collection.json"), false)}

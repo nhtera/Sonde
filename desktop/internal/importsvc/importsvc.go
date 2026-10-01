@@ -11,6 +11,8 @@ package importsvc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path"
@@ -58,6 +60,9 @@ type Service struct {
 	mu     sync.Mutex
 	inputs map[string]staged
 	pasted map[string]string // staged pasted texts: their hash → path
+	// layouts keeps the files of the layout not picked, by request: a
+	// preview recomputes it only when the input or its options change.
+	layouts map[string][]string
 }
 
 // New returns the import service; stage keeps the uploaded and pasted
@@ -202,26 +207,52 @@ func (s *Service) Preview(ctx context.Context, req Request) (*Preview, error) {
 	}
 	if req.Kind == Postman {
 		pv.Name, pv.Counts.Folders = collection(p.data)
-		pv.Layouts = map[string][]string{}
+		pv.Layouts = map[string][]string{p.postOpts.Group: requestFiles(p)}
 		for _, g := range []string{postman.GroupRequest, postman.GroupFolder} {
-			lp := p
-			if g != p.postOpts.Group {
-				other := req
-				other.Group = g
-				if lp, err = s.plan(ctx, other); err != nil {
+			if g == p.postOpts.Group {
+				continue
+			}
+			other := req
+			other.Group, other.Lift, other.Env = g, nil, ""
+			key := layoutKey(other)
+			s.mu.Lock()
+			files, ok := s.layouts[key]
+			s.mu.Unlock()
+			if !ok {
+				lp, err := s.plan(ctx, other)
+				if err != nil {
 					continue
 				}
-			}
-			files := []string{}
-			for _, f := range lp.files {
-				if ext := path.Ext(f.Path); ext == ".hurl" || ext == ".sonde" {
-					files = append(files, lp.project(f.Path))
+				files = requestFiles(lp)
+				s.mu.Lock()
+				if s.layouts == nil || len(s.layouts) > 16 {
+					s.layouts = map[string][]string{}
 				}
+				s.layouts[key] = files
+				s.mu.Unlock()
 			}
 			pv.Layouts[g] = files
 		}
 	}
 	return pv, nil
+}
+
+// requestFiles lists the request files a plan writes (project paths).
+func requestFiles(p *plan) []string {
+	files := []string{}
+	for _, f := range p.files {
+		if ext := path.Ext(f.Path); ext == ".hurl" || ext == ".sonde" {
+			files = append(files, p.project(f.Path))
+		}
+	}
+	return files
+}
+
+// layoutKey identifies what a layout's files depend on: the input and
+// the options that change the files.
+func layoutKey(req Request) string {
+	sum := sha256.Sum256([]byte(req.Text))
+	return strings.Join([]string{req.Kind, req.Input, hex.EncodeToString(sum[:]), strings.Join(req.Environments, ","), req.Group, req.Ext, req.Folder}, "\x00")
 }
 
 // Write imports: the lifted secrets first (a request never names a secret
@@ -233,6 +264,9 @@ func (s *Service) Write(ctx context.Context, req Request, overwrite []string) (*
 		return nil, err
 	}
 	w := &Written{Files: []string{}, Kept: []string{}, Secrets: []string{}, Counts: p.counts()}
+	if req.Kind == Postman {
+		_, w.Counts.Folders = collection(p.data)
+	}
 	keep := func(f convert.PlannedFile) bool {
 		return p.exists[f.Path] && !slices.Contains(overwrite, p.project(f.Path))
 	}

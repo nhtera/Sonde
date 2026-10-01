@@ -141,6 +141,7 @@ func (s *Service) Reset() {
 	s.mu.Lock()
 	s.inputs = map[string]staged{}
 	s.pasted = map[string]string{}
+	s.layouts = nil
 	s.mu.Unlock()
 	removeTree(s.stage, stageDir)
 }

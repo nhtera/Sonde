@@ -5,6 +5,7 @@ package importsvc
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -146,6 +147,14 @@ func (s *Service) Accept(ctx context.Context, req Request, file string, picked [
 				return apperr.New(apperr.Invalid, sg.Error)
 			}
 		} else {
+			if len(picked) == 0 {
+				return nil // nothing accepted: the file stays as imported
+			}
+			for _, j := range picked {
+				if j < 0 || j >= len(files[i].all) {
+					return apperr.New(apperr.Invalid, fmt.Sprintf("%s has no change %d", file, j))
+				}
+			}
 			after = []byte(sg.Before)
 			for j, fs := range files[i].all {
 				if !slices.Contains(picked, j) {

@@ -18,16 +18,20 @@ import { changeKey, changesOf, fileState, tally, useImport } from "./state";
 function ChangeCard({ path, change, before }: { path: string; change: ImportChange; before: string }) {
   const key = changeKey(path, change.index);
   const d = useImport((s) => s.decisions[key]);
+  // Written: no deciding again.
+  const applied = useImport((s) => s.applied.includes(path));
   const decide = useImport.getState().decide;
   const h = change.error ? null : hunk(before, change.after);
   return (
-    <section className={`change-card${d ? ` ${d}` : ""}`} aria-label={`${change.label} · line ${change.line}`}>
+    <section className={`change-card${d ? ` ${d}` : ""}`} aria-label={change.line > 0 ? `${change.label} · line ${change.line}` : change.label}>
       <header>
         <span>
-          <b>{change.label}</b> <span className="muted">· line {change.line}</span>
+          <b>{change.label}</b> {change.line > 0 && <span className="muted">· line {change.line}</span>}
         </span>
         {change.error ? (
           <span className="muted small">Can&apos;t apply</span>
+        ) : applied ? (
+          <span className={`decided ${d ?? "rejected"}`}>{d === "accepted" ? "✓ Applied" : "Not applied"}</span>
         ) : d ? (
           <span className="row-gap">
             <button className="btn-ghost" onClick={() => decide(key, null)}>
@@ -49,15 +53,11 @@ function ChangeCard({ path, change, before }: { path: string; change: ImportChan
       {change.error ? (
         <p className="run-error">{change.error}</p>
       ) : (
-        <pre className="change-lines mono" aria-label="Lines">
-          {h!.removed.map((l, i) => (
-            <span key={`r${i}`} className="del">
-              - {l}
-            </span>
-          ))}
-          {h!.added.map((l, i) => (
-            <span key={`a${i}`} className="add">
-              + {l}
+        <pre className="change-lines mono">
+          {h!.lines.map((l, i) => (
+            <span key={i} className={l.kind}>
+              {l.kind === "add" ? "+ " : l.kind === "del" ? "- " : "  "}
+              {l.text}
             </span>
           ))}
         </pre>
@@ -75,7 +75,11 @@ export function SuggestionsStep() {
   const applied = useImport((s) => s.applied);
   const [picked, setPicked] = useState(suggestions[0]?.path ?? "");
   const s = suggestions.find((x) => x.path === picked) ?? suggestions[0];
-  const { accepted, rejected, pending } = tally(suggestions, decisions);
+  // Files written already count no more (a retried Apply skips them).
+  const { accepted, rejected, pending } = tally(
+    suggestions.filter((x) => !applied.includes(x.path)),
+    decisions,
+  );
   const applyKeys = label("$mod+Enter");
   const apply = () => accepted > 0 && !busy && void useImport.getState().apply();
   return (
@@ -110,10 +114,10 @@ export function SuggestionsStep() {
             <div className="section-note">
               <span className="mono">{s.path}</span>
               <span className="row-gap">
-                <button className="btn" disabled={changesOf(s).length === 0} onClick={() => useImport.getState().decideFile(s.path, "rejected")}>
+                <button className="btn" disabled={changesOf(s).length === 0 || applied.includes(s.path)} onClick={() => useImport.getState().decideFile(s.path, "rejected")}>
                   Reject all in file
                 </button>
-                <button className="btn" disabled={changesOf(s).length === 0} onClick={() => useImport.getState().decideFile(s.path, "accepted")}>
+                <button className="btn" disabled={changesOf(s).length === 0 || applied.includes(s.path)} onClick={() => useImport.getState().decideFile(s.path, "accepted")}>
                   Accept all in file
                 </button>
               </span>

@@ -43,6 +43,9 @@ interface ImportState {
   req: ImportRequest;
   names: Names;
   preview: ImportPreview | null;
+  /** A preview is on its way (typed text not previewed yet): Import
+   * waits for it, so what is written is what was shown. */
+  pending: boolean;
   error: string;
   overwrite: string[];
   busy: boolean;
@@ -135,6 +138,7 @@ export const useImport = create<ImportState>((set, get) => ({
   req: freshRequest("curl"),
   names: {},
   preview: null,
+  pending: false,
   error: "",
   overwrite: [],
   busy: false,
@@ -165,19 +169,21 @@ export const useImport = create<ImportState>((set, get) => ({
   refresh: async () => {
     const req = get().req;
     if (!ready(req)) {
-      set({ preview: null, error: "" });
+      set({ preview: null, error: "", pending: false });
       return;
     }
     const n = ++seq;
+    set({ pending: true });
     try {
       const preview = await Imports.Preview(req);
-      if (n === seq) set({ preview, error: "" });
+      if (n === seq) set({ preview, error: "", pending: false });
     } catch (err) {
-      if (n === seq) set({ preview: null, error: appError(err).message });
+      if (n === seq) set({ preview: null, error: appError(err).message, pending: false });
     }
   },
   write: async () => {
     const { req, overwrite } = get();
+    if (get().pending) return;
     set({ busy: true });
     try {
       const written = await Imports.Write(req, overwrite);

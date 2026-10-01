@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImportSuggestion } from "../../lib/api";
 
 const api = vi.hoisted(() => ({
-  Imports: { Preview: vi.fn(), Accept: vi.fn(), CurlText: vi.fn(), SaveSecrets: vi.fn() },
+  Imports: { Preview: vi.fn(), Accept: vi.fn(), CurlText: vi.fn(), SaveSecrets: vi.fn(), Write: vi.fn() },
   EditSvc: { Apply: vi.fn() },
 }));
 vi.mock("../../lib/api", async (importOriginal) => ({ ...(await importOriginal<object>()), ...api }));
@@ -58,6 +58,16 @@ describe("the import store", () => {
     await useImport.getState().apply();
     // The retry: c only (a is written already).
     expect(api.Imports.Accept.mock.calls.map((c) => c[1])).toEqual(["a.hurl", "c.hurl", "c.hurl"]);
+  });
+
+  it("Import waits while a preview is on its way: what is written is what was shown", async () => {
+    useImport.setState({ preview: { files: [] } as never, pending: true });
+    await useImport.getState().write();
+    expect(api.Imports.Write).not.toHaveBeenCalled();
+    // Typing marks it at once, before the preview is asked for.
+    useImport.setState({ pending: false });
+    useImport.getState().update({ text: "curl https://c" });
+    expect(useImport.getState().pending).toBe(true);
   });
 
   it("Insert saves the secrets after the edit lands, never when it is refused", async () => {

@@ -42,6 +42,7 @@ export function SourceForm() {
   const preview = useImport((s) => s.preview);
   const error = useImport((s) => s.error);
   const busy = useImport((s) => s.busy);
+  const pending = useImport((s) => s.pending);
   const overwrite = useImport((s) => s.overwrite);
   const envs = useEnv((s) => s.project?.envs ?? []);
   const active = useTabs((s) => s.active);
@@ -126,7 +127,7 @@ export function SourceForm() {
         ))}
       </ul>
       {file && (
-        <pre className="mono import-text" aria-label="Preview">
+        <pre className="mono import-text" role="region" aria-label="Preview">
           {file.text}
         </pre>
       )}
@@ -143,7 +144,7 @@ export function SourceForm() {
     <div
       className="import-form"
       onKeyDown={(e) => {
-        if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && preview && !busy) {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && preview && !busy && !pending) {
           e.preventDefault();
           void useImport.getState().write();
         }
@@ -155,9 +156,16 @@ export function SourceForm() {
           <div className="curl-preview">
             <span className="import-label">
               Preview · {file ? file.path : `.${req.ext || "hurl"}`}
-              {file && !error && <span className="valid">✓ valid</span>}
+              {file?.exists ? (
+                <label className="warn small">
+                  <input type="checkbox" checked={overwrite.includes(file.path)} onChange={(e) => useImport.getState().setOverwrite(file.path, e.target.checked)} /> exists:
+                  overwrite
+                </label>
+              ) : (
+                file && !error && <span className="valid">✓ valid</span>
+              )}
             </span>
-            <pre className="mono import-text" aria-label="Preview">
+            <pre className="mono import-text" role="region" aria-label="Preview">
               {file?.text ?? "The request appears here as you paste."}
             </pre>
           </div>
@@ -196,12 +204,12 @@ export function SourceForm() {
                 <label key={l.id} className={`layout-card${on ? " on" : ""}`}>
                   <span className="layout-title">
                     <span className="row-gap">
-                      <input type="radio" name="layout" checked={on} onChange={() => update({ group: l.id })} />
-                      <b>{l.title}</b>
+                      <input type="radio" name="layout" checked={on} onChange={() => update({ group: l.id })} aria-labelledby={`layout-${l.id}`} aria-describedby={`layout-${l.id}-sub`} />
+                      <b id={`layout-${l.id}`}>{l.title}</b>
                     </span>
                     {i === 0 && <span className="accent small">default</span>}
                   </span>
-                  <span className="muted small">
+                  <span className="muted small" id={`layout-${l.id}-sub`}>
                     {tree ? `${tree.length} .${req.ext || "hurl"} file${tree.length === 1 ? "" : "s"}. ` : ""}
                     {l.sub}
                   </span>
@@ -287,9 +295,10 @@ export function SourceForm() {
             </ul>
           )
         : fileList && (
-            <details className="import-details">
+            <details className="import-details" open={exists.length > 0 || undefined}>
               <summary>
                 What is written: {files.length} file{files.length === 1 ? "" : "s"}
+                {exists.length > 0 && `, ${exists.length} already there`}
                 {warnings.length > 0 && `, ${warnings.length} note${warnings.length === 1 ? "" : "s"}`}
               </summary>
               {fileList}
@@ -310,7 +319,7 @@ export function SourceForm() {
             Insert into {active!.split("/").pop()}
           </button>
         )}
-        <button className="btn-primary" disabled={!preview || busy} onClick={() => void useImport.getState().write()}>
+        <button className="btn-primary" disabled={!preview || busy || pending} onClick={() => void useImport.getState().write()}>
           Import{importKeys && <kbd aria-hidden>{importKeys}</kbd>}
         </button>
       </div>
@@ -324,7 +333,7 @@ function LayoutTree({ files, folder }: { files: string[]; folder: string }) {
   const rel = files.map((f) => (base && f.startsWith(base) ? f.slice(base.length) : f));
   const shown = rel.slice(0, 6);
   return (
-    <pre className="layout-tree mono" aria-label="Files">
+    <pre className="layout-tree mono">
       {shown.join("\n")}
       {rel.length > shown.length && `\n+ ${rel.length - shown.length} more`}
     </pre>
@@ -336,6 +345,8 @@ function PasteBox({ placeholder, rows }: { placeholder: string; rows: number }) 
   const [text, setText] = useState(() => useImport.getState().req.text);
   useEffect(() => {
     if (text === useImport.getState().req.text) return;
+    // What is shown is not this text's yet.
+    useImport.setState({ pending: true });
     const t = setTimeout(() => useImport.getState().update({ text, input: "" }), 150);
     return () => clearTimeout(t);
   }, [text]);

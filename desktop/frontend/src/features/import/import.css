@@ -92,3 +92,4 @@
 .import-summary dt { color: var(--muted); }
 .import-details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .import-details[open] summary { margin-bottom: 6px; }
+.change-lines .gap { color: var(--faint); }
