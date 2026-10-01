@@ -50,7 +50,9 @@ type Appearance struct {
 	// SideWidth and ResultsWidth are the split panes' widths in CSS pixels.
 	SideWidth    int `json:"sideWidth"`
 	ResultsWidth int `json:"resultsWidth"`
-	// Ligatures draws the code font's ligatures (off: "==" stays "==").
+	// UIFontSize scales the window app's page from 13 (the webview's own
+	// zoom); Ligatures draws the code font's ligatures (off: "==" stays
+	// "==").
 	Ligatures bool `json:"ligatures"`
 }
 
@@ -105,6 +107,10 @@ type Store struct {
 
 	mu sync.Mutex
 	s  Settings
+
+	// Changed, when set, is called with the settings after each change
+	// (the window app sets its zoom from the UI font size).
+	Changed func(Settings)
 }
 
 // Open loads the settings from config (the defaults when there are none,
@@ -146,6 +152,9 @@ func (st *Store) Set(s Settings) (Settings, error) {
 		return Settings{}, err
 	}
 	st.emit.Emit(TopicChanged, forPage(s))
+	if st.Changed != nil {
+		st.Changed(clone(s))
+	}
 	return clone(s), nil
 }
 

@@ -56,12 +56,10 @@ export function resolvedTheme(theme: Theme): "light" | "dark" {
   return theme;
 }
 
-/** The font sizes and ligatures: the UI scales from 13 px, the editor's
- * code takes its own size; ligatures only in the editor. */
-export function applyAppearance(a: { uiFontSize: number; codeFontSize: number; ligatures: boolean }) {
+/** The editor's font size and ligatures (ligatures only in the editor).
+ * The UI font size is the window's zoom, set by the window app. */
+export function applyAppearance(a: { codeFontSize: number; ligatures: boolean }) {
   const root = document.documentElement;
-  if (a.uiFontSize && a.uiFontSize !== 13) root.style.setProperty("zoom", String(a.uiFontSize / 13));
-  else root.style.removeProperty("zoom");
   if (a.codeFontSize) root.style.setProperty("--code-size", `${a.codeFontSize}px`);
   else root.style.removeProperty("--code-size");
   root.dataset.ligatures = a.ligatures ? "on" : "off";

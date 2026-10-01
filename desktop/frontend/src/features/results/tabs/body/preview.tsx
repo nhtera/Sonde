@@ -30,7 +30,7 @@ export function Preview({ id, kind, onOpenExternally }: { id: string; kind: Body
             Blank? <button className="btn-ghost" onClick={onOpenExternally}>Open in default app</button>
           </p>
         ) : (
-          <p className="preview-note muted">Images, SVG and PDF responses preview here too.</p>
+          kind === "html" && <p className="preview-note muted">Images, SVG and PDF responses preview here too.</p>
         )}
       </div>
     );

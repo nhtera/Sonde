@@ -30,13 +30,14 @@ const sections = [
 
 const fail = (err: unknown) => useUI.getState().toast({ kind: "error", text: appError(err).message });
 
-/** Scrolls the settings to a section. */
-export function goToSection(id: string) {
-  document.getElementById(`settings-${id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
-}
-
 /** The section in view (the nav marks it). */
 const useSection = create<{ id: string }>(() => ({ id: "general" }));
+
+/** Scrolls the settings to a section. */
+export function goToSection(id: string) {
+  useSection.setState({ id });
+  document.getElementById(`settings-${id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+}
 
 export function SettingsSide() {
   const shown = useSection((s) => s.id);

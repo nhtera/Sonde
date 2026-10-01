@@ -103,7 +103,7 @@ describe("KvGrid", () => {
 
     render(<KvGrid file="test.hurl" entry={entry} sec="headers" />);
 
-    await user.click(screen.getByRole("button", { name: "X-Test actions" }));
+    await user.click(screen.getByRole("button", { name: "X-Test 1 actions" }));
     await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
 
     expect(formEdit).toHaveBeenCalledWith("test.hurl", {
@@ -112,6 +112,41 @@ describe("KvGrid", () => {
       section: "headers",
       index: 0,
     });
+  });
+
+  it("duplicates a row turned off as a row turned off", async () => {
+    const user = userEvent.setup();
+    vi.mocked(formEdit).mockResolvedValue(true);
+    const entry = createEntry({
+      headers: [
+        { Key: "A", Value: "1", Disabled: false, Range: { Start: 0, End: 4 } },
+        { Key: "X-Debug", Value: "1", Disabled: true, Range: { Start: 5, End: 15 } },
+      ],
+    });
+
+    render(<KvGrid file="test.hurl" entry={entry} sec="headers" />);
+    await user.click(screen.getByRole("button", { name: "X-Debug 2 actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Duplicate" }));
+
+    // Added at the end (index 2), then turned off.
+    await vi.waitFor(() => expect(formEdit).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(formEdit).mock.calls.map((c) => c[1])).toEqual([
+      { kind: "addRow", entry: 1, section: "headers", key: "X-Debug", value: "1" },
+      { kind: "toggleRow", entry: 1, section: "headers", index: 2 },
+    ]);
+  });
+
+  it("duplicates a row that is on as one that is on", async () => {
+    const user = userEvent.setup();
+    vi.mocked(formEdit).mockResolvedValue(true);
+    const entry = createEntry({ headers: [{ Key: "A", Value: "1", Disabled: false, Range: { Start: 0, End: 4 } }] });
+
+    render(<KvGrid file="test.hurl" entry={entry} sec="headers" />);
+    await user.click(screen.getByRole("button", { name: "A 1 actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Duplicate" }));
+
+    await vi.waitFor(() => expect(formEdit).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(formEdit).mock.calls[0][1]).toMatchObject({ kind: "addRow", key: "A" });
   });
 
   it("allows editing an existing row's value", async () => {

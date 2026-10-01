@@ -72,7 +72,7 @@ export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value
             ) : (
               <SuggestInput label={`${valueLabel} ${i + 1}`} className="mono" value={r.Value} suggest={vars} onCommit={(v) => void setRow(file, n, sec, i, r.Key, v)} />
             )}
-            <RowMenu file={file} entry={n} section={sec} index={i} label={r.Key} disabled={!!r.Disabled} copy={{ kind: "addRow", entry: n, section: sec, key: r.Key, value: r.Value }} />
+            <RowMenu file={file} entry={n} section={sec} index={i} count={rows.length} label={`${r.Key || keyLabel} ${i + 1}`} disabled={!!r.Disabled} copy={{ kind: "addRow", entry: n, section: sec, key: r.Key, value: r.Value }} />
           </div>
         );
       })}

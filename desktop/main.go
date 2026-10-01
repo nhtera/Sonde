@@ -19,6 +19,7 @@ import (
 
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/perftrace"
+	"github.com/nhtera/sonde/desktop/internal/settings"
 )
 
 func main() {
@@ -63,7 +64,7 @@ func run() error {
 	}
 	app = application.New(appOptions(h))
 	app.Menu.SetApplicationMenu(appMenu())
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "Sonde",
 		Width:     1280,
 		Height:    800,
@@ -75,5 +76,14 @@ func run() error {
 		},
 		URL: "/",
 	})
+	// The UI font size is the webview's zoom: every measure scales alike
+	// (menus, resizers, the editor), unlike a page's CSS zoom.
+	zoom := func(s settings.Settings) {
+		if n := s.Appearance.UIFontSize; n > 0 {
+			win.SetZoom(float64(n) / 13)
+		}
+	}
+	zoom(h.Settings.Get())
+	h.Settings.Changed = zoom
 	return app.Run()
 }

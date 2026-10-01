@@ -135,7 +135,7 @@ export function BodyTab({ file, entry }: { file: string; entry: EntryModel }) {
           const on = raw ? isRaw(kind) : kind === k.kind;
           return (
             <label key={k.kind} className={`body-kind${on ? " on" : ""}`}>
-              <input type="radio" name={`body-${n}`} checked={on} onChange={() => void formEdit(file, ...bodyKindOps(entry, k.kind))} />
+              <input type="radio" name={`body-${n}`} aria-label={k.label} checked={on} onChange={() => void formEdit(file, ...bodyKindOps(entry, k.kind))} />
               {k.label}
               {raw && (
                 <select

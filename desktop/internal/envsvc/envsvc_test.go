@@ -161,6 +161,20 @@ func TestMarkSecret(t *testing.T) {
 	}
 }
 
+// TestInsecureIsAnOverride: verification turned off in the settings
+// counts in the chip, named, and is a flag for CI.
+func TestInsecureIsAnOverride(t *testing.T) {
+	e, _, _ := project(t)
+	e.settings = func(inv *runplan.Invocation) {
+		inv.Insecure = true
+		inv.Set = map[string]bool{"insecure": true}
+	}
+	o := e.Overrides()
+	if o.Count < 1 || o.Items[0].Name != "Certificates not verified" || o.Items[0].Flag != "--insecure" || o.Items[0].Source != "settings" {
+		t.Errorf("overrides %+v", o)
+	}
+}
+
 func TestOverrides(t *testing.T) {
 	e, _, _ := project(t)
 	e.settings = func(inv *runplan.Invocation) {

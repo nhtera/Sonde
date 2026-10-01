@@ -127,7 +127,7 @@ test("an edit next to emoji and CJK lands on the right columns", async ({ page }
 test("the gRPC picker lists the proto's methods; streaming clients are not offered", async ({ page }) => {
   await open(page, "inventory.sonde");
   await view(page, "Form");
-  await page.getByRole("button", { name: "gRPC method" }).click();
+  await page.getByRole("button", { name: /^gRPC method/ }).click();
   const methods = page.getByRole("menu");
   await expect(methods.getByRole("menuitemradio", { name: /WatchStock\s*server stream/ })).toBeEnabled();
   await expect(methods.getByRole("menuitemradio", { name: /ReserveStock\s*client stream · not supported/ })).toBeDisabled();

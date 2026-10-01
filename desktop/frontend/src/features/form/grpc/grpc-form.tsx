@@ -77,7 +77,7 @@ export function GrpcForm({ file, entry }: { file: string; entry: EntryModel }) {
         <div className="grpc-method">
           <span>Method</span>
           <Menu.Root>
-            <Menu.Trigger className="grpc-method-trigger" aria-label="gRPC method">
+            <Menu.Trigger className="grpc-method-trigger" aria-label={`gRPC method: ${method || "none"}`}>
               <span className="mono">{method || "pick a method"}</span>
               {current && <span className="muted small">{kindOf(current)}</span>}
               <span aria-hidden>▾</span>

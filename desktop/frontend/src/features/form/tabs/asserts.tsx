@@ -83,7 +83,7 @@ export function AssertsTab({ file, entry }: { file: string; entry: EntryModel })
               )}
               <span className="check-state">
                 {res && (res.success ? <span className="pass">✓</span> : <span className="fail">✕</span>)}
-                <RowMenu file={file} entry={n} section="asserts" index={i} label={`Assert ${i + 1}`} disabled={!!r.Disabled} copy={{ kind: "addAssert", entry: n, value: r.Value }} />
+                <RowMenu file={file} entry={n} section="asserts" index={i} count={rows.length} label={`Assert ${i + 1}`} disabled={!!r.Disabled} copy={{ kind: "addAssert", entry: n, value: r.Value }} />
               </span>
               {res && !res.success && res.message && <p className="check-fail mono">{gotText(res.message)}</p>}
             </div>
