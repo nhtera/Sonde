@@ -19,11 +19,10 @@ export function ImportDialog() {
     <Dialog.Root open={open} onOpenChange={(o) => !o && useImport.getState().close()}>
       <Dialog.Portal>
         <Dialog.Overlay className="scrim" />
-        <Dialog.Content className={`dialog dialog-pad import-dialog${step === "suggestions" ? " wide" : ""}`} aria-describedby={undefined}>
+        <Dialog.Content className={`dialog dialog-pad import-dialog${step === "suggestions" || (step === "form" && kind === "curl") ? " wide" : ""}`} aria-describedby={undefined}>
           {step === "form" && (
             <>
-              <Dialog.Title className="dialog-title">Import</Dialog.Title>
-              <p className="muted small">Converted the way `sonde import` does. Nothing is sent.</p>
+              <ImportTitle />
               <div className="segmented import-kinds" role="tablist" aria-label="Import from">
                 {kinds.map((k) => (
                   <button key={k.kind} role="tab" aria-selected={kind === k.kind} onClick={() => useImport.getState().update({ kind: k.kind })}>
@@ -42,3 +41,33 @@ export function ImportDialog() {
     </Dialog.Root>
   );
 }
+
+/** "Import", or for a collection "Import “Shop API” from Postman" with
+ * what it holds. */
+function ImportTitle() {
+  const preview = useImport((s) => s.preview);
+  const req = useImport((s) => s.req);
+  const names = useImport((s) => s.names);
+  const name = req.kind === "postman" ? preview?.name : "";
+  const c = preview?.counts;
+  if (!name || !c) {
+    return (
+      <>
+        <Dialog.Title className="dialog-title">Import</Dialog.Title>
+        <p className="muted small">Converted the way `sonde import` does. Nothing is sent.</p>
+      </>
+    );
+  }
+  const from = req.input ? `${names[req.input] ?? "the file picked"} · ` : "";
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  return (
+    <>
+      <Dialog.Title className="dialog-title">{`Import \u201c${name}\u201d from Postman`}</Dialog.Title>
+      <p className="muted small">
+        {from}
+        {plural(c.requests, "request")} in {plural(c.folders, "folder")} · {plural(c.environments, "environment")}. Nothing is sent.
+      </p>
+    </>
+  );
+}
+

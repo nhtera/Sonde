@@ -122,12 +122,12 @@ test("the whole journey", async ({ page, context }) => {
     const chooser = page.waitForEvent("filechooser");
     await dialog.getByRole("button", { name: "Choose file…" }).click();
     await (await chooser).setFiles("../testdata/import/shop.postman_collection.json");
-    await expect(dialog.getByRole("list", { name: "Files written" })).toContainText("imported/users/get-user.hurl");
+    await expect(dialog.getByRole("radiogroup", { name: "Layout" })).toContainText("users/get-user.hurl");
     await dialog.getByRole("button", { name: "Import", exact: true }).click();
     await dialog.getByRole("button", { name: /Review suggestions/ }).click();
     await dialog.getByRole("list", { name: "Files with suggestions" }).getByRole("button", { name: /get-user\.hurl/ }).click();
-    await dialog.getByRole("region", { name: /get-user\.hurl/ }).getByRole("button", { name: "Accept", exact: true }).click();
-    await dialog.getByRole("button", { name: "Apply 1 accepted" }).click();
+    await dialog.getByRole("region", { name: /get-user\.hurl/ }).getByRole("button", { name: "Accept all in file" }).click();
+    await dialog.getByRole("button", { name: /^Apply 2 accepted/ }).click();
     await expect(page.getByText("Applied the suggestions to 1 file")).toBeVisible();
     await open(page, "get-user.hurl");
     expect(await editorText(page)).toContain('jsonpath "$.id" == 42');

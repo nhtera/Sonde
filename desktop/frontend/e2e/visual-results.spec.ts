@@ -167,12 +167,14 @@ test("12a2, 12b, 12b2: import a Postman collection, then its suggestions", async
   const chooser = page.waitForEvent("filechooser");
   await dialog.getByRole("button", { name: "Choose file…" }).click();
   await (await chooser).setFiles("../testdata/import/shop.postman_collection.json");
-  await expect(dialog.getByRole("list", { name: "Files written" })).toContainText("imported/users/get-user.hurl");
+  await expect(dialog.getByRole("radiogroup", { name: "Layout" })).toContainText("users/get-user.hurl");
   await snap(page, "12a2");
   await dialog.getByRole("button", { name: "Import", exact: true }).click();
   await expect(dialog.getByLabel("Import counts")).toBeVisible();
   await snap(page, "12b");
-  await dialog.getByRole("button", { name: /Review suggestions/ }).click();
+  await dialog.getByRole("button", { name: /Review \d+ suggestion/ }).click();
   await expect(dialog.getByRole("list", { name: "Files with suggestions" })).toBeVisible();
+  // One change accepted, one to decide.
+  await dialog.locator(".change-card").first().getByRole("button", { name: "Accept", exact: true }).click();
   await snap(page, "12b2");
 });

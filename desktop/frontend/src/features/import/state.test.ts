@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { ImportSuggestion } from "../../lib/api";
 import { base64 } from "./pick";
 import { grouped } from "./result-tile";
-import { liftOf, ready, requestFile, tally } from "./state";
+import { fileState, liftOf, ready, requestFile, tally } from "./state";
 
 const cands = [
   { id: 0, name: "token", where: "Authorization header" },
@@ -19,9 +19,17 @@ describe("import helpers", () => {
     expect(liftOf(cands, [1, 7], "local")).toEqual([1]);
   });
 
-  it("tallies the decisions", () => {
-    const sugg = ["a", "b", "c"].map((path) => ({ path }) as ImportSuggestion);
-    expect(tally(sugg, { a: "accepted", c: "rejected", gone: "accepted" })).toEqual({ accepted: 1, rejected: 1, pending: 1 });
+  it("tallies the decisions per change, the ones that can not apply left out", () => {
+    const change = (index: number, error = "") => ({ index, label: "x", line: 1, after: "", error });
+    const sugg = [
+      { path: "a", changes: [change(0), change(1)] },
+      { path: "b", changes: [change(0), change(1, "can't")] },
+    ] as ImportSuggestion[];
+    expect(tally(sugg, { "a#0": "accepted", "a#1": "rejected", "b#1": "accepted", gone: "accepted" })).toEqual({ accepted: 1, rejected: 1, pending: 1 });
+    expect(fileState(sugg[0], { "a#0": "accepted", "a#1": "accepted" })).toBe("accepted");
+    expect(fileState(sugg[0], { "a#0": "accepted" })).toBe("mixed");
+    expect(fileState(sugg[0], {})).toBe("pending");
+    expect(fileState({ path: "c", changes: [change(0, "no")] } as ImportSuggestion, {})).toBe("error");
   });
 
   it("needs an input to preview", () => {

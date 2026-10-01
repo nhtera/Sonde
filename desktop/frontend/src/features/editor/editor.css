@@ -43,7 +43,7 @@
   position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); width: min(420px, calc(100% - 48px));
   display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; pointer-events: none;
 }
-.editor-empty > * { pointer-events: auto; }
+.editor-empty button { pointer-events: auto; }
 .editor-empty b { font: 600 14px var(--font-ui); }
 .editor-empty p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
 .editor-empty kbd { background: none; }

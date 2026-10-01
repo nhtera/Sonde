@@ -60,7 +60,10 @@ interface ImportState {
   write(): Promise<void>;
   insert(file: string): Promise<void>;
   review(): void;
-  decide(path: string, d: Decision | null): void;
+  /** Decides a change (key: changeKey), or undoes the decision. */
+  decide(key: string, d: Decision | null): void;
+  /** Decides every change of a file. */
+  decideFile(path: string, d: Decision): void;
   apply(): Promise<void>;
 }
 
@@ -86,15 +89,37 @@ export function liftOf(cands: ImportCandidate[], lift: number[] | null, env: str
   return lift.filter((id) => cands.some((c) => c.id === id));
 }
 
-/** "3 accepted · 1 rejected · 2 pending". */
+/** A change's key in the decisions: its file and index. */
+export const changeKey = (path: string, index: number) => `${path}#${index}`;
+
+/** The changes a decision can be made on: those that apply. */
+export const changesOf = (s: ImportSuggestion) => (s.changes ?? []).filter((c) => !c.error);
+
+/** "3 accepted · 1 rejected · 2 pending", counting changes. */
 export function tally(sugg: ImportSuggestion[], decisions: Record<string, Decision>): { accepted: number; rejected: number; pending: number } {
   let accepted = 0;
   let rejected = 0;
+  let all = 0;
   for (const s of sugg) {
-    if (decisions[s.path] === "accepted") accepted++;
-    else if (decisions[s.path] === "rejected") rejected++;
+    for (const c of changesOf(s)) {
+      all++;
+      const d = decisions[changeKey(s.path, c.index)];
+      if (d === "accepted") accepted++;
+      else if (d === "rejected") rejected++;
+    }
   }
-  return { accepted, rejected, pending: sugg.length - accepted - rejected };
+  return { accepted, rejected, pending: all - accepted - rejected };
+}
+
+/** A file's state in the list: every change decided one way, some of
+ * them, or none. */
+export function fileState(s: ImportSuggestion, decisions: Record<string, Decision>): "accepted" | "rejected" | "mixed" | "pending" | "error" {
+  const cs = changesOf(s);
+  if (cs.length === 0) return "error";
+  const ds = cs.map((c) => decisions[changeKey(s.path, c.index)]);
+  if (ds.every((d) => d === "accepted")) return "accepted";
+  if (ds.every((d) => d === "rejected")) return "rejected";
+  return ds.some((d) => d) ? "mixed" : "pending";
 }
 
 /** Whether a file can take pasted requests (a request file). */
@@ -193,11 +218,19 @@ export const useImport = create<ImportState>((set, get) => ({
     }
   },
   review: () => set({ step: "suggestions" }),
-  decide: (path, d) =>
+  decide: (key, d) =>
     set((s) => {
       const decisions = { ...s.decisions };
-      if (d) decisions[path] = d;
-      else delete decisions[path];
+      if (d) decisions[key] = d;
+      else delete decisions[key];
+      return { decisions };
+    }),
+  decideFile: (path, d) =>
+    set((s) => {
+      const sg = s.suggestions.find((x) => x.path === path);
+      if (!sg) return s;
+      const decisions = { ...s.decisions };
+      for (const c of changesOf(sg)) decisions[changeKey(path, c.index)] = d;
       return { decisions };
     }),
   apply: async () => {
@@ -205,8 +238,11 @@ export const useImport = create<ImportState>((set, get) => ({
     set({ busy: true });
     try {
       for (const s of suggestions) {
-        if (decisions[s.path] !== "accepted" || get().applied.includes(s.path)) continue;
-        await Imports.Accept(req, s.path, null);
+        // Only the accepted changes; a file none of whose changes is
+        // accepted stays as imported.
+        const picked = changesOf(s).filter((c) => decisions[changeKey(s.path, c.index)] === "accepted").map((c) => c.index);
+        if (picked.length === 0 || get().applied.includes(s.path)) continue;
+        await Imports.Accept(req, s.path, picked);
         set((st) => ({ applied: [...st.applied, s.path] }));
       }
       const done = get().applied.length;

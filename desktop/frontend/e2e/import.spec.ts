@@ -91,6 +91,9 @@ test("a Postman collection: honest counts, then suggestions accepted for one fil
   await dialog.getByRole("button", { name: "+ Add" }).click();
   await (await chooser).setFiles(`${fixtures}/dev.postman_environment.json`);
   await dialog.getByLabel("Into folder").fill("imported/shop");
+  // The layouts compared, then exactly what is written.
+  await expect(dialog.getByRole("radiogroup", { name: "Layout" })).toContainText("users/get-user.hurl");
+  await dialog.getByText(/^What is written/).click();
   await expect(dialog.getByRole("list", { name: "Files written" })).toContainText("imported/shop/users/get-user.hurl");
   await page.screenshot({ path: `${candidates}/import-12a2.png` });
   await dialog.getByRole("button", { name: "Import", exact: true }).click();
@@ -104,15 +107,24 @@ test("a Postman collection: honest counts, then suggestions accepted for one fil
   await dialog.getByRole("button", { name: /Review suggestions/ }).click();
   const files = dialog.getByRole("list", { name: "Files with suggestions" });
   await files.getByRole("button", { name: /get-user\.hurl/ }).click();
-  await dialog.getByRole("region", { name: /get-user\.hurl/ }).getByRole("button", { name: "Accept", exact: true }).click();
+  // get-user: the assert accepted, the capture rejected, change by change.
+  const getUser = dialog.getByRole("region", { name: /get-user\.hurl/ });
+  const cards = getUser.locator(".change-card");
+  await expect(cards).toHaveCount(2);
+  const assertCard = cards.filter({ hasText: 'jsonpath "$.id" == 42' });
+  const captureCard = cards.filter({ hasText: "user_name" });
+  await assertCard.getByRole("button", { name: "Accept", exact: true }).click();
+  await captureCard.getByRole("button", { name: "Reject", exact: true }).click();
+  await expect(assertCard).toContainText("✓ Accepted");
   await files.getByRole("button", { name: /list-orders\.hurl/ }).click();
-  await dialog.getByRole("region", { name: /list-orders\.hurl/ }).getByRole("button", { name: "Reject", exact: true }).click();
-  await expect(dialog).toContainText("1 accepted · 1 rejected");
+  await dialog.getByRole("region", { name: /list-orders\.hurl/ }).getByRole("button", { name: "Reject all in file" }).click();
+  await expect(dialog).toContainText(/1 accepted · \d+ rejected/);
   await page.screenshot({ path: `${candidates}/import-12b2.png` });
-  await dialog.getByRole("button", { name: "Apply 1 accepted" }).click();
+  await dialog.getByRole("button", { name: /^Apply 1 accepted/ }).click();
   await expect(page.getByText("Applied the suggestions to 1 file")).toBeVisible();
   await page.locator(".tree-row", { hasText: "get-user.hurl" }).first().click();
   await expect(page.locator(".cm-content")).toContainText('jsonpath "$.id" == 42');
+  await expect(page.locator(".cm-content")).not.toContainText('user_name: jsonpath "$.name"');
   await expect(page.locator(".cm-content")).toContainText("# test script (never executed):");
   await page.locator(".tree-row", { hasText: "list-orders.hurl" }).first().click();
   await expect(page.locator(".cm-content")).not.toContainText("access_token");

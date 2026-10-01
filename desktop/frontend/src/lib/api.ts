@@ -34,6 +34,7 @@ export type { Item as HistoryItem, Record as HistoryRecord } from "@bindings/des
 export { API as Imports } from "@bindings/desktop/internal/importsvc";
 export type {
   Candidate as ImportCandidate,
+  Change as ImportChange,
   Counts as ImportCounts,
   Input as ImportInput,
   Preview as ImportPreview,

@@ -17,7 +17,8 @@ vi.mock("../../lib/api", async (importOriginal) => ({ ...(await importOriginal<o
 const { useImport } = await import("./state");
 const { useTabs } = await import("../../state/tabs");
 
-const sugg = (path: string) => ({ path, labels: [], before: "", after: "" }) as unknown as ImportSuggestion;
+const change = (index: number) => ({ index, label: `change ${index}`, line: 1, after: "" });
+const sugg = (path: string) => ({ path, labels: [], before: "", after: "", changes: [change(0), change(1)] }) as unknown as ImportSuggestion;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -41,14 +42,17 @@ describe("the import store", () => {
     expect(useImport.getState().req.lift).toEqual([0]);
   });
 
-  it("Apply writes the accepted files only, and not twice after a failure", async () => {
+  it("Apply writes the accepted changes only, and not twice after a failure", async () => {
     useImport.setState({ suggestions: [sugg("a.hurl"), sugg("b.hurl"), sugg("c.hurl")] });
-    useImport.getState().decide("a.hurl", "accepted");
-    useImport.getState().decide("b.hurl", "rejected");
-    useImport.getState().decide("c.hurl", "accepted");
+    useImport.getState().decideFile("a.hurl", "accepted");
+    useImport.getState().decideFile("b.hurl", "rejected");
+    useImport.getState().decide("c.hurl#1", "accepted");
     api.Imports.Accept.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("disk full"));
     await useImport.getState().apply();
-    expect(api.Imports.Accept.mock.calls.map((c) => c[1])).toEqual(["a.hurl", "c.hurl"]);
+    expect(api.Imports.Accept.mock.calls.map((c) => [c[1], c[2]])).toEqual([
+      ["a.hurl", [0, 1]],
+      ["c.hurl", [1]],
+    ]);
     expect(useImport.getState().applied).toEqual(["a.hurl"]);
     api.Imports.Accept.mockResolvedValue(undefined);
     await useImport.getState().apply();

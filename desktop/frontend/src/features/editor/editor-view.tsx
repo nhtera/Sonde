@@ -43,10 +43,10 @@ function EmptyFile() {
       <p>Type a method and URL, paste a curl command, or import from another client. Sonde writes plain .hurl you can commit.</p>
       <div className="row-gap">
         <button className="btn primary-soft" onClick={() => void pasteCurl()}>
-          Paste curl<kbd>{label("$mod+KeyV")}</kbd>
+          Paste curl<kbd aria-hidden>{label("$mod+KeyV")}</kbd>
         </button>
         <button className="btn" onClick={() => void registry.getCommand("import.open")?.run()}>
-          Import…{importKeys && <kbd>{importKeys}</kbd>}
+          Import…{importKeys && <kbd aria-hidden>{importKeys}</kbd>}
         </button>
       </div>
       <pre className="editor-empty-sample mono" aria-label="Example">
