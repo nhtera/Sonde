@@ -62,8 +62,10 @@ interface Marks {
   lines: DecorationSet;
 }
 
-/** A warning's text, short enough for the end of a line. */
-function shorten(s: string, max = 90): string {
+/** A warning's text, short enough for the end of a line: a long one
+ * keeps its headline (before the first ": "); hovering shows it all. */
+export function shorten(s: string, max = 60): string {
+  if (s.length > max && s.indexOf(": ") > 0) s = s.slice(0, s.indexOf(": "));
   return s.length > max ? s.slice(0, max - 1) + "…" : s;
 }
 

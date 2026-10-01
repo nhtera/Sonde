@@ -89,6 +89,16 @@ const value = (m: string, key: string) => {
   return hit[1] === "string" ? JSON.stringify(hit[2]) : hit[2];
 };
 
+/** Why a request got no response, in plain words, by its transport error. */
+export const transportTitles: Record<string, string> = {
+  connect: "Connection refused",
+  resolve: "Could not resolve host",
+  tls: "Certificate not trusted",
+  timeout: "Timed out",
+  "host-denied": "Host not allowed",
+  canceled: "Run canceled",
+};
+
 /** The first failure of entry, explained; lines is the file's text by line. */
 export function failureOf(entry: Entry, lines?: string[]): Failure | null {
   const err: EntryError | undefined = entry.errors?.[0];

@@ -6,6 +6,7 @@
 // server (base_url points to it while it runs: an override).
 
 import { useEffect, useState } from "react";
+import { create } from "zustand";
 import { appError, Mocks } from "../../../lib/api";
 import { on } from "../../../lib/events";
 import { useRuns } from "../../../state/run";
@@ -17,6 +18,12 @@ interface Status {
   url: string;
 }
 
+/** The mock's last 200 requests, kept while the panel is closed (a run
+ * hits the mock from the Files panel); a project opened starts empty. */
+const useMockLog = create<{ lines: string[] }>(() => ({ lines: [] }));
+on("mock:log", (d) => useMockLog.setState((s) => ({ lines: [...s.lines.slice(-199), String(d)] })));
+on("ws:opened", () => useMockLog.setState({ lines: [] }));
+
 const fail = (err: unknown) => useUI.getState().toast({ kind: "error", text: appError(err).message });
 
 export function ContractPanel() {
@@ -24,7 +31,7 @@ export function ContractPanel() {
   const [spec, setSpec] = useState<{ file: string; operations: string[] } | null>(null);
   const [covered, setCovered] = useState<string[]>([]);
   const [status, setStatus] = useState<Status>({ running: false, url: "" });
-  const [log, setLog] = useState<string[]>([]);
+  const log = useMockLog((s) => s.lines);
   const [port, setPort] = useState("4010");
   // A run that ends may cover more operations.
   const runsDone = useRuns((s) => Object.values(s.runs).filter((r) => !r.running).length);
@@ -33,11 +40,7 @@ export function ContractPanel() {
     Mocks.Spec().then((s) => setSpec({ file: s?.file ?? "", operations: s?.operations ?? [] }), fail);
     Mocks.Status().then((s) => s && setStatus(s), fail);
     const offStatus = on("mock:status", (d) => setStatus(d as Status));
-    const offLog = on("mock:log", (d) => setLog((l) => [...l.slice(-199), String(d)]));
-    return () => {
-      offStatus();
-      offLog();
-    };
+    return offStatus;
   }, []);
   useEffect(() => {
     Mocks.Coverage().then((c) => setCovered(c?.covered ?? []), () => setCovered([]));

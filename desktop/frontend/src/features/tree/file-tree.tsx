@@ -334,7 +334,8 @@ async function newFile(dir: string) {
   if (!name) return;
   try {
     const path = await Workspace.NewFile(dir, name);
-    await useTabs.getState().open(path);
+    // Listed now rather than when the folder watcher catches up.
+    await Promise.all([useTabs.getState().open(path), useWorkspace.getState().refresh()]);
   } catch (err) {
     report(err);
   }

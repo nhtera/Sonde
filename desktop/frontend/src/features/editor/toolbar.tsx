@@ -17,8 +17,15 @@ export function RunToCursorButton({ file }: { file: string }) {
   const running = useRuns((s) => s.runs[file]?.running);
   const keys = useKeyLabel("request.runTo");
   return (
-    <button className="btn" disabled={running} onClick={() => void registry.getCommand("request.runTo")?.run()} title="Run requests 1 to the one at the cursor">
-      ⇥ Run to cursor{keys && <kbd style={{ background: "none" }}>{keys}</kbd>}
+    <button
+      className="btn run-to"
+      disabled={running}
+      onClick={() => void registry.getCommand("request.runTo")?.run()}
+      aria-label="Run to cursor"
+      title={`Run requests 1 to the one at the cursor${keys ? ` (${keys})` : ""}`}
+    >
+      ⇥<span className="label"> Run to cursor</span>
+      {keys && <kbd style={{ background: "none" }}>{keys}</kbd>}
     </button>
   );
 }

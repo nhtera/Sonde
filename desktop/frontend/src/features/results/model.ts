@@ -6,6 +6,7 @@
 
 import type * as report from "@bindings/internal/report";
 import type { Entry, EntryError, Timings } from "../../lib/view";
+import { transportTitles } from "../../components/run/model";
 
 /** Bodies above this are not formatted unless asked. */
 export const FORMAT_LIMIT = 20 << 20;
@@ -178,17 +179,17 @@ export interface CardInfo {
 export function cardOf(err: EntryError | undefined): CardInfo | null {
   switch (err?.transport) {
     case "connect":
-      return { title: "Connection refused", code: "ECONNREFUSED", hint: "Nothing is listening there. Start your API, or serve the project's OpenAPI spec with the mock server." };
+      return { title: transportTitles.connect, code: "ECONNREFUSED", hint: "Nothing is listening there. Start your API, or serve the project's OpenAPI spec with the mock server." };
     case "resolve":
-      return { title: "Could not resolve host", code: "DNS", hint: "The hostname did not resolve. Check the VPN, or base_url in this environment." };
+      return { title: transportTitles.resolve, code: "DNS", hint: "The hostname did not resolve. Check the VPN, or base_url in this environment." };
     case "tls":
-      return { title: "Certificate not trusted", code: "TLS", hint: "Add the CA once for this project instead of turning verification off." };
+      return { title: transportTitles.tls, code: "TLS", hint: "Add the CA once for this project instead of turning verification off." };
     case "timeout":
-      return { title: "Timed out", code: "TIMEOUT", hint: "The server accepted the connection but never answered. Raise the timeout or add a retry." };
+      return { title: transportTitles.timeout, code: "TIMEOUT", hint: "The server accepted the connection but never answered. Raise the timeout or add a retry." };
     case "host-denied":
-      return { title: "Host not allowed", code: "HOST", hint: "This host is outside the hosts allowed for this run." };
+      return { title: transportTitles["host-denied"], code: "HOST", hint: "This host is outside the hosts allowed for this run." };
     case "canceled":
-      return { title: "Run canceled", code: "CANCELED", hint: "The request was stopped before it finished.", neutral: true };
+      return { title: transportTitles.canceled, code: "CANCELED", hint: "The request was stopped before it finished.", neutral: true };
     case "other":
       return { title: "Request failed", code: "ERROR", hint: "The request could not be completed." };
   }

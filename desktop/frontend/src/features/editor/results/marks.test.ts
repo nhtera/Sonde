@@ -81,6 +81,13 @@ describe("run marks", () => {
     expect(at(30)?.gutter).toBe("pass");
   });
 
+  it("names a request that got no response in plain words", () => {
+    const r = replay();
+    const last = r.entries[5];
+    r.entries = { ...r.entries, 5: { ...last, asserts: [], errors: [{ ...last.errors![0], line: 32, message: "", transport: "connect", description: "HTTP connection" }] } };
+    expect(runMarks(model, lineOf, r).find((m) => m.line === 32)).toMatchObject({ gutter: "fail", ghost: "✗ connection refused" });
+  });
+
   it("dims every entry but the one a Send sent, saying which run they come from", () => {
     const send = replay("send", 3);
     const base = new Date(2026, 8, 30, 14, 32).toISOString();

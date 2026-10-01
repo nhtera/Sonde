@@ -22,11 +22,15 @@ export function Toolbar({ file }: { file: string }) {
   return (
     <div className="toolbar">
       <nav className="crumbs" aria-label="Path">
-        {parts.map((p, i) => (
-          <span key={i}>
-            {p} <span style={{ color: "var(--faint)" }}>/</span>
+        {parts.length > 0 && (
+          <span className="crumb-dirs">
+            {parts.map((p, i) => (
+              <span key={i}>
+                {p} <span style={{ color: "var(--faint)" }}>/</span>{" "}
+              </span>
+            ))}
           </span>
-        ))}
+        )}
         <b>{name}</b>
       </nav>
       <span className="syntax-chip" title={sonde ? "Sonde extensions allowed" : "Plain Hurl 8 syntax"}>

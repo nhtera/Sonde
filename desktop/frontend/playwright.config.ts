@@ -35,11 +35,14 @@ const formURL = `http://127.0.0.1:${formPort}`;
 const panelsPort = Number(process.env.E2E_PANELS_PORT) || 34126;
 const panelsURL = `http://127.0.0.1:${panelsPort}`;
 const gitEnv = "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_AUTHOR_NAME=e2e GIT_AUTHOR_EMAIL=e2e@sonde.test GIT_COMMITTER_NAME=e2e GIT_COMMITTER_EMAIL=e2e@sonde.test";
-/** A harness over a copy of project made a git repository. */
-const gitHarness = (port: number, project: string) =>
-  `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
-  `mkdir "$t/p" && cp -R ../testdata/${project}/. "$t/p" && (cd "$t/p" && git init -q -b main && ${gitEnv} git add -A && ${gitEnv} git commit -qm init) && ` +
-  `${gitEnv} ${harness} --root "$t/p" --data "$t/data" --port ${port}'`;
+/** A visual harness: a copy of project at a fixed path named name (paths
+ * and the project name show in the screens, so they must not change from
+ * run to run), made a git repository when git is set. */
+const visualHarness = (port: number, project: string, name: string, git = false) =>
+  `sh -c 't=/tmp/sonde-visual-${port}; rm -rf "$t"; trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
+  `mkdir -p "$t/${name}" && cp -R ../testdata/${project}/. "$t/${name}" && ` +
+  (git ? `(cd "$t/${name}" && git init -q -b main && ${gitEnv} git add -A && ${gitEnv} git commit -qm init) && ` : "") +
+  `${gitEnv} ${harness} --root "$t/${name}" --data "$t/data" --port ${port}'`;
 const panelsHarness =
   `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
   `mkdir "$t/p" && cp -R ../testdata/results-api/. "$t/p" && (cd "$t/p" && git init -q -b main && ${gitEnv} git add -A && ${gitEnv} git commit -qm init) && ` +
@@ -124,9 +127,9 @@ export default defineConfig({
     : [
         ...(visual
           ? [
-              { command: shopHarness(visualPorts.shop), url: `${visualURL("shop")}/health` },
-              { command: gitHarness(visualPorts.results, "results-api"), url: `${visualURL("results")}/health` },
-              { command: shopHarness(visualPorts.form, "form-api"), url: `${visualURL("form")}/health` },
+              { command: visualHarness(visualPorts.shop, "shop-api", "shop-api"), url: `${visualURL("shop")}/health` },
+              { command: visualHarness(visualPorts.results, "results-api", "shop-api", true), url: `${visualURL("results")}/health` },
+              { command: visualHarness(visualPorts.form, "form-api", "shop-api"), url: `${visualURL("form")}/health` },
             ].map((w) => ({ ...w, reuseExistingServer: false, gracefulShutdown: { signal: "SIGTERM" as const, timeout: 3000 }, timeout: 30_000 }))
           : []),
         {

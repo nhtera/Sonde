@@ -7,7 +7,7 @@
 // are kept.
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import type { StreamMessage } from "../../../lib/view";
 
 /** Messages kept in the log. */
@@ -18,12 +18,14 @@ export interface MessageTableProps {
   protocol: string;
   /** Messages the event bridge dropped (the page lagged). */
   dropped?: number;
+  /** Shown at the end of the filter row. */
+  actions?: ReactNode;
 }
 
 /** "+5.12" seconds. */
 const at = (ms: number) => `+${(ms / 1000).toFixed(2)}`;
 
-export function MessageTable({ messages, protocol, dropped = 0 }: MessageTableProps) {
+export function MessageTable({ messages, protocol, dropped = 0, actions }: MessageTableProps) {
   const sse = protocol === "sse";
   const [filter, setFilter] = useState("all");
   const events = useMemo(() => (sse ? [...new Set(messages.map((m) => m.event || "message"))].slice(0, 6) : []), [messages, sse]);
@@ -50,6 +52,7 @@ export function MessageTable({ messages, protocol, dropped = 0 }: MessageTablePr
             {f === "all" ? "All" : f === "sent" ? "Sent" : f === "received" ? "Received" : f}
           </button>
         ))}
+        {actions && <div className="stream-actions">{actions}</div>}
       </div>
       <div className={`stream-head mono ${sse ? "sse" : "ws"}`}>
         <span>Time</span>

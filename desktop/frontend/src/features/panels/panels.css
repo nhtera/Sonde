@@ -32,6 +32,7 @@
 .panel-body .check-row .dot { margin-left: auto; }
 .panel-body .file-checks { list-style: none; margin: 0; padding: 0 0 0 4px; }
 .panel-body .opt-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; }
+.panel-body .cli-command p { overflow-wrap: anywhere; }
 .panel-body .cli-command code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .testrun-main { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; font-size: 12.5px; }
 .testrun-main h1 { margin: 0; font: 600 18px var(--font-ui); }
@@ -118,7 +119,7 @@
 .panel-body .history-list .kind { font: 600 10.5px var(--font-code); color: var(--accent); text-transform: uppercase; }
 .panel-body .history-list .file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel-body .history-list .small { grid-column: 1 / -1; }
-.panel-body .side-note { margin-top: auto; color: var(--faint); line-height: 1.5; }
+.panel-body .side-note { display: block; margin: auto 0 0; padding: 10px 0 0; color: var(--faint); line-height: 1.5; }
 .history-banner { display: flex; align-items: center; gap: 10px; margin: 0 16px 10px; padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; }
 .history-banner span { flex: 1; }
 
@@ -148,12 +149,12 @@
 .changes-card textarea { min-height: 52px; resize: vertical; padding: 8px; border: 0; border-radius: 7px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-ui); }
 
 /* Cookie jar */
-.cookie-jar { width: 820px; max-width: calc(100vw - 48px); position: relative; }
+.cookie-jar { width: 820px; max-width: calc(100vw - 48px); max-height: 80vh; overflow: auto; }
 .cookie-jar .jar-body { display: grid; grid-template-columns: 180px 1fr; gap: 12px; margin-top: 10px; min-height: 180px; }
 .cookie-jar .jar-domains { list-style: none; margin: 0; padding: 0; }
 .cookie-jar .jar-domains button { width: 100%; display: flex; justify-content: space-between; height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: none; color: var(--text); }
-.cookie-jar .jar-domains button[aria-pressed="true"] { background: var(--raised); }
-.cookie-jar .jar-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cookie-jar .jar-domains button[aria-pressed="true"] { background: var(--hover); }
+.cookie-jar .jar-table { align-self: start; width: 100%; border-collapse: collapse; font-size: 12px; }
 .cookie-jar .jar-table th { text-align: left; padding: 6px 8px; color: var(--muted); font-weight: 500; box-shadow: inset 0 -1px 0 var(--line2); }
 .cookie-jar .jar-table td { padding: 6px 8px; box-shadow: inset 0 -1px 0 var(--line2); }
 .cookie-jar .jar-table .name { color: var(--t-key); }

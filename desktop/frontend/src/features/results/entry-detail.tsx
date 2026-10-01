@@ -78,14 +78,18 @@ function StreamTab({ file, e, run, entry }: { file: string; e?: Entry; run: File
   const protocol = stream?.protocol ?? (messages.some((m) => m.direction === "sent") ? "websocket" : "sse");
   return (
     <div className="stream-tab">
-      {protocol === "websocket" && (
-        <div className="stream-actions">
-          <button className="btn" onClick={() => useResults.getState().openSession(file, entry)}>
-            Open interactive session
-          </button>
-        </div>
-      )}
-      <MessageTable messages={messages} protocol={protocol} dropped={run.running ? run.dropped : 0} />
+      <MessageTable
+        messages={messages}
+        protocol={protocol}
+        dropped={run.running ? run.dropped : 0}
+        actions={
+          protocol === "websocket" && (
+            <button className="chip" onClick={() => useResults.getState().openSession(file, entry)}>
+              Open interactive session
+            </button>
+          )
+        }
+      />
       {stream && (
         <p className="stream-stop">
           <b>Stopped: {stopText(stream)}.</b>{" "}

@@ -16,11 +16,13 @@
 .entry-meta .fail { color: var(--fail); }
 .entry-meta .path { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .entry-meta .right { margin-left: auto; color: var(--muted); font-size: 11.5px; }
-.detail-tabs { flex: none; display: flex; gap: 0; padding: 0 8px; box-shadow: inset 0 -1px 0 var(--line2); overflow-x: auto; }
+.detail-tabs { flex: none; display: flex; gap: 0; padding: 0 6px; box-shadow: inset 0 -1px 0 var(--line2); overflow-x: auto; scrollbar-width: none; }
 .detail-tabs button {
-  height: 32px; padding: 0 5px; border: 0; background: none; color: var(--muted); font: 500 12px var(--font-ui); white-space: nowrap;
+  height: 32px; padding: 0 4px; border: 0; background: none; color: var(--muted); font: 500 12px var(--font-ui); white-space: nowrap;
   box-shadow: inset 0 -2px 0 transparent;
 }
+/* The narrow window's 400px results keep every tab in view. */
+.window[data-narrow="yes"] .detail-tabs button { padding: 0 3px; font-size: 11.5px; }
 .detail-tabs button[aria-selected="true"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
 .detail-tabs .n { color: var(--faint); font-size: 11px; }
 .detail-tabs .n.fail { color: var(--fail); }
@@ -139,7 +141,9 @@
 
 /* Stream */
 .stream-tab { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.stream-actions { display: flex; justify-content: flex-end; padding: 10px 12px 0; }
+/* The run's table ends where its rows end, the stop note right under it. */
+.stream-tab > .stream-log, .stream-tab .stream-rows { flex: 0 1 auto; }
+.stream-filters .stream-actions { margin-left: auto; }
 .stream-log { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .stream-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px 6px; }
 .chip { height: 22px; padding: 0 9px; border: 0; border-radius: 6px; background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font: 500 11.5px var(--font-ui); }

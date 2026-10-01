@@ -6,7 +6,7 @@
 // captured value, what a failed check got). Pure: the editor turns the
 // marks into decorations.
 
-import { failureOf } from "../../../components/run/model";
+import { failureOf, transportTitles } from "../../../components/run/model";
 import type { FileRun } from "../../../state/run-model";
 
 export type GutterKind = "run" | "pass" | "fail" | "capture" | "skip";
@@ -88,7 +88,8 @@ export function runMarks(model: EntryShape[], lineOf: (offset: number) => number
     }
     for (const err of e.errors ?? []) {
       const f = failureOf({ ...e, errors: [err] });
-      const ghost = f?.actual !== undefined ? `✗ got ${short(f.actual)}` : `✗ ${short(err.description || err.message)}`;
+      const why = (err.transport && transportTitles[err.transport]?.toLowerCase()) || err.description || err.message;
+      const ghost = f?.actual !== undefined ? `✗ got ${short(f.actual)}` : `✗ ${short(why)}`;
       put({ line: err.line || request, gutter: "fail", ghost, ghostKind: "fail", dim });
     }
   }
