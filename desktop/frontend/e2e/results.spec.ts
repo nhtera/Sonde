@@ -16,6 +16,8 @@ const candidates = process.env.E2E_CANDIDATES ?? "e2e-candidates";
 /** The project's declared secret (read, never printed). */
 const password = /^password=(.*)$/m.exec(readFileSync("../testdata/results-api/secrets/local.secrets", "utf8"))![1].trim();
 
+// The fixture API's session cookie (internal/fixture).
+const session = "fixture-session-2718";
 const results = (page: Page) => page.getByRole("region", { name: "Results" });
 
 /** Opens file and runs it; resolves once the run has an outcome. */
@@ -73,7 +75,7 @@ test("+ Assert in a file with CRLF line endings lands on its own line", async ({
   await expect(page.locator(".cm-line", { hasText: /^\[Asserts\]$/ })).toHaveCount(1);
 });
 
-test("the timeline and captures show secrets as ***", async ({ page }) => {
+test("the timeline, captures and cookies show secrets as ***", async ({ page }) => {
   await run(page, "users.hurl", /Failed/);
   await tab(page, "Timeline").click();
   const panel = results(page).getByRole("tabpanel");
@@ -86,9 +88,15 @@ test("the timeline and captures show secrets as ***", async ({ page }) => {
   await tab(page, "Cookies").click();
   await expect(panel).toContainText("Received · Set-Cookie 1");
   await page.screenshot({ path: `${candidates}/results-cookies-3c.png` });
-  for (const t of ["Body", "Headers", "Asserts", "Captures", "Cookies", "Timeline", "Request"]) {
-    await tab(page, t).click();
-    await expect(results(page)).not.toContainText(password);
+  await expect(panel).toContainText("sid = ***");
+  // Every cookie value is masked, the session's included.
+  for (const n of [1, 2]) {
+    await row(page, n).click();
+    for (const t of ["Body", "Headers", "Asserts", "Captures", "Cookies", "Timeline", "Request"]) {
+      await tab(page, t).click();
+      await expect(results(page)).not.toContainText(password);
+      await expect(results(page)).not.toContainText(session);
+    }
   }
 });
 

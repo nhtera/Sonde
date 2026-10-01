@@ -121,6 +121,7 @@ desktop-e2e: desktop-bindings ## Build server mode, the test-only harness and th
 	npm --prefix desktop/frontend run build:harness
 	cd desktop && CGO_ENABLED=0 go build -tags server,e2eharness -o bin/sonde-desktop-harness .
 	cd desktop && CGO_ENABLED=0 go build -o bin/fixture-server ./cmd/fixture-server
+	CGO_ENABLED=0 go build -o desktop/bin/sonde ./cmd/sonde
 	cd desktop/frontend && npx playwright test
 
 tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses $(BIN)/apidiff ## Install pinned tools into ./bin

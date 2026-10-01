@@ -30,6 +30,15 @@ const resultsURL = `http://127.0.0.1:${resultsPort}`;
 // e2e/form.spec.ts: the Form view on testdata/form-api.
 const formPort = Number(process.env.E2E_FORM_PORT) || 34124;
 const formURL = `http://127.0.0.1:${formPort}`;
+// e2e/panels.spec.ts: the side panels on a copy of results-api made a git
+// repository, with a SONDE_VARIABLE_ in the app's environment.
+const panelsPort = Number(process.env.E2E_PANELS_PORT) || 34126;
+const panelsURL = `http://127.0.0.1:${panelsPort}`;
+const gitEnv = "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_AUTHOR_NAME=e2e GIT_AUTHOR_EMAIL=e2e@sonde.test GIT_COMMITTER_NAME=e2e GIT_COMMITTER_EMAIL=e2e@sonde.test";
+const panelsHarness =
+  `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
+  `mkdir "$t/p" && cp -R ../testdata/results-api/. "$t/p" && (cd "$t/p" && git init -q -b main && ${gitEnv} git add -A && ${gitEnv} git commit -qm init) && ` +
+  `${gitEnv} SONDE_VARIABLE_region=eu ${harness} --root "$t/p" --data "$t/data" --port ${panelsPort}'`;
 // The preview's sandbox and framing in WebKit (the macOS app's engine).
 const resultsWebkitPort = Number(process.env.E2E_RESULTS_WEBKIT_PORT) || 34123;
 const resultsWebkitURL = `http://127.0.0.1:${resultsWebkitPort}`;
@@ -50,15 +59,15 @@ export default defineConfig({
   reporter: process.env.CI ? "list" : "line",
   use: { baseURL },
   projects: [
-    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec/, use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec/, use: { ...devices["Desktop Safari"] } },
+    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels/, use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels/, use: { ...devices["Desktop Safari"] } },
     // Timings are measured alone, after the other browser tests (the load
     // of seven test servers and browsers would skew them).
     {
       name: "perf",
       testMatch: /perf/,
       workers: 1,
-      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "editor-webkit"],
+      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "panels", "editor-webkit"],
       use: { ...devices["Desktop Chrome"], baseURL: perfURL },
     },
     // The shell's tests share one harness (its settings, its runs): one
@@ -68,6 +77,8 @@ export default defineConfig({
     { name: "results", testMatch: /results/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: resultsURL } },
     // The Form view's tests share one harness (they edit its files).
     { name: "form", testMatch: /form\.spec/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: formURL } },
+    // The panels' tests share one harness (they change its files and settings).
+    { name: "panels", testMatch: /panels/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: panelsURL } },
     { name: "results-webkit", testMatch: /results/, grep: /preview|Assert/, workers: 1, use: { ...devices["Desktop Safari"], baseURL: resultsWebkitURL } },
     { name: "editor-webkit", testMatch: /editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Safari"], baseURL: webkitEditorURL } },
     // Server mode's sign-in (E2E_SERVER_BIN, a server build).
@@ -120,6 +131,14 @@ export default defineConfig({
         {
           command: shopHarness(formPort, "form-api"),
           url: `${formURL}/health`,
+          reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
+          timeout: 30_000,
+        },
+        {
+          command: panelsHarness,
+          url: `${panelsURL}/health`,
           reuseExistingServer: !process.env.CI,
           // SIGTERM (not the default SIGKILL): the server's temp folder goes.
           gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
