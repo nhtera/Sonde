@@ -9,7 +9,7 @@ All paths are relative to the repository root.
 
 ## 1. Principles
 
-1. **One engine, many frontends.** CLI now; later Wails v3 GUI (separate plan), `go test` embedding, LSP, MCP. All call the same `engine` package.
+1. **One engine, many frontends.** CLI, the desktop app (Wails v3, a nested module: §11), `go test` embedding, LSP, MCP. All call the same `engine` package.
 2. **Plain text is the source of truth.** `.hurl` = strict Hurl 8 grammar. `.sonde` = a superset: Sonde's protocol extensions (SSE, WebSocket and gRPC since v1.2, [decisions/0004](decisions/0004-streaming-protocols.md), [decisions/0005](decisions/0005-grpc.md)) are allowed **only** in `.sonde`, under a Sonde-specific prefix Hurl will not use, and are parse errors in `.hurl` — *confirmed in validation 2026-09-23*.
 3. **Sonde extras never change `.hurl` files.** OpenAPI contracts, data-driven runs, environments = CLI flags / `sonde.yaml` only.
 4. **Engine is a library.** No `os.Exit`, no printing, no package globals, no `init()` side effects. `context.Context` cancel everywhere. Typed events delivered serially. JSON-serializable, already-redacted results.
@@ -64,10 +64,11 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/grpcx` | gRPC on the HTTP/2 client: message framing, status codes, descriptors (`.proto` via `protocompile`, descriptor sets, server reflection), proto3 JSON mapping | exchange |
 | `internal/mcp` | MCP server (`sonde mcp`): tools on the official Go SDK, root confinement, guarded runs | engine, syntax, config, enginex, netpolicy, openapi, report, sandbox |
 | `internal/netpolicy` | Host allowlist of `sonde mcp --allow-host`: pattern parsing, host normalization, matching; checked by httpx on URLs and dials | — |
+| `desktop` (**separate module**, `github.com/nhtera/sonde/desktop`) | Sonde Desktop: Wails v3 window app and server mode, Go services over the engine, React/TypeScript frontend; see §11 | engine, exchange (public); internal/{sandbox, config, enginex, syntax, runplan, runflags, report, syntaxedit, lsp, convert and its importers, value, redact, openapi, cookiejar, testsummary, stream, netpolicy, mock, mcp, jsonpath, grpcx} |
 | `editors/vscode` | VS Code extension (TypeScript) — separate npm package | — |
 | `testdata/conformance/hurl` | vendored Hurl 8 test tree + servers + requirements + manifest | — |
 
-**Rules (enforced by `depguard` in `.golangci.yml`):** leaves import nothing internal; nothing imports `internal/cli`; `internal/report` imports only `engine`/`exchange` (the public API); `net/http` allowed only in `httpx`, `stream`, `mock`, `openapi` (remote fetch, opt-in), `grpcx`; `_test.go` files exempt. Go source file names: `snake_case.go`; shell scripts: `kebab-case.sh`. One decision-record series: `docs/decisions/NNNN-*.md` (RFCs are decision records with status `proposed`).
+**The `desktop` module is outside these rules:** it has its own `go.mod`, linted by its own configuration, and nothing in the root module imports it. It may import `internal/` because its module path is under the root's (§11). **Rules for the root module (enforced by `depguard` in `.golangci.yml`):** leaves import nothing internal; nothing imports `internal/cli`; `internal/report` imports only `engine`/`exchange` (the public API); `net/http` allowed only in `httpx`, `stream`, `mock`, `openapi` (remote fetch, opt-in), `grpcx`; `_test.go` files exempt. Go source file names: `snake_case.go`; shell scripts: `kebab-case.sh`. One decision-record series: `docs/decisions/NNNN-*.md` (RFCs are decision records with status `proposed`).
 
 ## 3. Execution Flow
 
@@ -310,9 +311,10 @@ Assets: secrets (tokens, passwords), local files, user's ambient credentials (`~
 | XSS in HTML report | `html/template`, bodies as escaped text, strict CSP, no remote assets |
 | OpenAPI remote specs / `$ref` (SSRF, local file read) | single CLI-only opt-in `--openapi-allow-remote` (`sonde.yaml` cannot enable it, its `openapi.spec` stays inside its directory); file `$ref`s confined to the spec's directory (`os.Root`, regular files only); schemas validated without the JSON Schema 2020 compiler, so `$schema`/`$dynamicRef` never trigger reads; 64 MiB per document; library panics on malformed specs recovered; loader fuzzed (`FuzzLoad`); fetching owned by `internal/openapi` |
 | MCP agent misuse | `sonde_run` off by default; `--allow-run` requires `--allow-host`; allowlist checked on every URL, redirect and dial (one matcher, `internal/netpolicy`); `proxy`/`connect-to`/`resolve`/`unix-socket`/`netrc*`/`output` refused; root sandbox, `sonde.yaml` above the root ignored; secrets only from trusted sources, redacted; one run at a time with a timeout; audit log on stderr ([0006](decisions/0006-mcp-server.md)) |
+| Desktop app and its server mode | view-boundary redaction, confined paths and single-use dialog handles, folder trust for git, loopback-only guarded server; threat rows in [security.md](security.md#sonde-desktop) and §11 |
 | Supply chain | minimal deps, `govulncheck`, `go-licenses`, Actions pinned by SHA, conformance CI without secrets (`contents: read`), Python deps `--require-hashes`, extension lockfile + `npm audit`, signed releases + SBOM, publish tokens only in protected `release` environment |
 
-## 10. GUI-Readiness Checklist (for the future Wails plan)
+## 10. GUI-Readiness Checklist (met by Sonde Desktop)
 
 - [x] `engine.Runner` with `Close()`, serial events, cancel, redacted JSON-serializable results
 - [x] public `exchange` types → GUI can render requests/responses
@@ -321,4 +323,46 @@ Assets: secrets (tokens, passwords), local files, user's ambient credentials (`~
 - [x] diagnostics with byte-offset spans → GUI inline errors (reused by `sonde lsp`)
 - [x] stable JSON result schema
 - [x] `sonde.yaml` environments → GUI env switcher
-- Note: nested module `github.com/nhtera/sonde/gui` can import `github.com/nhtera/sonde/internal/...` (path-based rule, verified via gopls precedent) but internal packages are outside apidiff → GUI pins exact commits or needed APIs get promoted to public packages.
+- [x] a nested module `github.com/nhtera/sonde/desktop` imports `internal/` (path-based rule); what it needs beyond the public API is an `internal/enginex` hook or a shared internal package, not a public promotion ([decisions/0007](decisions/0007-desktop-module.md))
+
+## 11. Desktop module
+
+User guide: [desktop.md](desktop.md). Decision: [decisions/0007](decisions/0007-desktop-module.md). Trust model: [security.md](security.md#sonde-desktop). Not covered by the Go API contract ([stability.md](stability.md#sonde-desktop)).
+
+`desktop/` is a nested Go module (its own `go.mod`, `replace github.com/nhtera/sonde => ../`) with a React 19 / TypeScript / CodeMirror 6 frontend in `desktop/frontend`. Wails v3 is pinned to an exact beta. It has three builds from the same services:
+
+| Build | Tags | Notes |
+|---|---|---|
+| Window app (`sonde-desktop`) | `production` (cgo, platform webview) | shipped; macOS universal, Windows amd64/arm64, Linux amd64 |
+| Server mode (`sonde-desktop-server`) | `server,production` (`CGO_ENABLED=0`) | loopback HTTP for a browser; released as `Sonde-Desktop-Server-*` for linux, darwin and windows on amd64 and arm64 |
+| E2E harness | `server,e2eharness` | test-only (Playwright); a release build fails if it carries the tag |
+
+### How it reuses the engine
+
+- **`internal/runplan`** builds a run (flags, `HURL_*`/`SONDE_*`, the CLI config file, `sonde.yaml`, data rows) for both the CLI and the app; `internal/runflags` renders a run back to a `sonde` command (Copy as). `testsummary`, `cookiejar`, `datarow`, `syntaxedit` (entry model and one-splice edits in UTF-16 offsets), `convert` (importers and the suggestion planner) were moved out of `internal/cli` for the same reason.
+- **`internal/enginex` hooks** carry what the public API lacks: the unit's live redactor, request-sent and entry-skipped events, the transport error kind, the redacted-capture flag, cookie seeding, the host allowlist, interactive WebSocket dials, gRPC descriptors. `engine` sets them; the desktop reads them. Exported symbols are unchanged (`make apicheck`).
+- **The view boundary.** `desktop/internal/view` converts engine events to DTOs inside each run's callback with that unit's live redactor, and `desktop/internal/redactcheck` backs the sentinel tests. Redaction is complete before anything crosses to the frontend: events, bodies (decoded, binary too), history and body URLs. The only exception is an explicit reveal in the window app.
+
+### Services
+
+Each service has a Go-side core and a separate bound type, because Wails binds every exported method; registrations live in `desktop/services_*.go`, and a test (`TestBindingsPerMode`) lists the bound methods of each mode. The window-only services are those with native effects: dialogs, `workspaceDesktop` (open folder, reveal, trash, copy into project), `bodiesDesktop` (save, open externally), `copyasReveal`, `reports` (export).
+
+| Package (`desktop/internal/…`) | Role |
+|---|---|
+| `workspace`, `gitx` | project folder (the file root), tree, filter, watcher, file operations confined by `sandbox`; branch, status, commit under folder trust |
+| `runsvc` | runs, Send sessions, test and data runs, cancellation; the event bridge with sequence numbers |
+| `view`, `bodies`, `emit` | the redaction boundary; bodies by URL (`/_sonde/body/<id>`, sandboxed, never sniffed); the emitter (Wails events in the window, a guarded NDJSON stream in server mode) |
+| `editsvc`, `envsvc`, `vars`, `lspbridge` | edits as splices; environments, secrets, session overrides and the overrides list; variable names; one in-process language server per page session |
+| `copyas`, `clipboard`, `importsvc` | curl and `sonde` commands, the concealed clipboard; import with secret lifting and suggestions |
+| `settings`, `history`, `jar`, `appdirs` | settings; redacted run history; kept cookie jars; the config and cache folders (0700) |
+| `handles`, `apperr`, `credential` | single-use ids for dialog selections; typed errors; the credential heuristic shared by history and Copy as |
+| `serverauth` | server mode's guard: Host, Origin, nonce, cookie, token, framing |
+| `mocksvc`, `wsession`, `agents`, `osfile`, `perftrace` | the OpenAPI mock; WebSocket sessions; MCP client snippets; reveal and trash; the performance tour |
+
+### Frontend
+
+`app/` (layout, registry, keymap, theme), `features/*` (shell, tree, editor, form, results, panels, import, copyas, perf), `lang/` (a Lezer grammar for highlighting and folding; Go stays the source of diagnostics), `workers/` (the JSON tree builder), `state/` (Zustand). TypeScript bindings are generated from the services (`make desktop-bindings`), not committed.
+
+### Checks
+
+`make desktop-check` (tidy, `go-licenses`, vet/test/lint for the `server`, `server,production` and `server,e2eharness` tag sets; frontend install without scripts, license and version checks, lint, types, unit tests), `make desktop-e2e` (Playwright on the server build and the harness), `make desktop-vuln`, `make lint-desktop-native`, and `make tag-guards` (no `desktop/*` tag may change the CLI's tag lookups).

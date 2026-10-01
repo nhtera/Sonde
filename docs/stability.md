@@ -139,6 +139,29 @@ and stop reasons, and so may the set of `Event` types. Switch on them with a `de
 of `Error()`, `Message()`, `Render()` and log events is for people and may
 change in any release; match on `Kind()`, never on text.
 
+## Sonde Desktop
+
+[Sonde Desktop](desktop.md) is not covered by the v1 contract above. It is a
+separate program, a nested Go module in `desktop/`, with its own version
+(`desktop/frontend/package.json`) released by `desktop/vX.Y.Z` tags,
+independent of the CLI's `vX.Y.Z` tags
+([release.md](release.md#desktop-release)).
+
+- It depends on `internal/`, which this page leaves free to change, and on a
+  pinned beta of Wails v3. It is built against the repository's own
+  checkout, so a change under `internal/` can require a matching change in
+  `desktop/` in the same commit. That is deliberate:
+  [decisions/0007-desktop-module.md](decisions/0007-desktop-module.md).
+- The Go API contract (`engine`, `exchange`, `make apicheck`) does not
+  cover the desktop module: it exports no API, and `apidiff` never sees its
+  code.
+- Its settings, history and kept-jar files, its flags (`--root`, `--data`,
+  `--perf-trace`, `--perf-tour`, and server mode's `--port` and `--open`),
+  its keyboard shortcuts and its UI may change in any desktop release.
+- What it relies on from the CLI's contract still holds: the same
+  `.hurl`/`.sonde` grammar, `sonde.yaml`, variable precedence, flags
+  and environment variables, and the JSON result shape of its exports.
+
 ## What this page does not cover
 
 These are free to change in any release, including a patch release, and are
@@ -154,5 +177,6 @@ not part of the v1 contract:
   `internal/config`, `internal/syntax`'s AST, and the language server
   protocol surface of `sonde lsp` beyond LSP itself (a standard protocol,
   not a Sonde contract).
+- Sonde Desktop and its server mode, as above.
 - Benchmark numbers ([benchmarks.md](benchmarks.md)): a baseline for
   tracking regressions, not a guarantee.

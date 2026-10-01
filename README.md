@@ -123,6 +123,20 @@ Full walkthrough: [docs/getting-started.md](docs/getting-started.md).
   defaults (TLS verification on, sandboxed file access, zero telemetry) —
   [docs/architecture.md](docs/architecture.md).
 
+## Sonde Desktop
+
+**Sonde Desktop** is a desktop app for the same files: a text and form
+editor, results with a JSON tree, environments, history, import from curl,
+Postman and Bruno, and "Copy as" a curl or `sonde` command that reproduces a
+run. It uses the CLI's engine, so a file that passes in the app passes in CI.
+There is no account and no telemetry; history stays on your computer.
+
+Builds for macOS (signed and notarized), Windows (not signed yet) and Linux
+(AppImage) are on the releases page under `desktop/vX.Y.Z` tags. A server
+mode serves the app to a browser on `127.0.0.1`, for a project on a remote
+machine. It is a separate program, not covered by the CLI's v1 promise. Read
+[docs/desktop.md](docs/desktop.md).
+
 ## Documentation
 
 Start at [docs/README.md](docs/README.md), or jump to

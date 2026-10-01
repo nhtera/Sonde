@@ -11,8 +11,9 @@
 | [conformance.md](conformance.md) | Conformance harness, lanes, manifest and gate |
 | [benchmarks.md](benchmarks.md) | Binary size, startup, parse, engine and parallel-run baselines |
 | [stability.md](stability.md) | The v1 promise: compat level, CLI/flags, exit codes, JSON schema, `sonde.yaml`, Go API |
-| [security.md](security.md) | Trust model: request files and `sonde.yaml` are untrusted input, the CLI is trusted |
-| [release.md](release.md) | Release runbook: prerequisites, cutting an rc/final, verifying signatures, roll-forward |
+| [security.md](security.md) | Trust model: request files and `sonde.yaml` are untrusted input, the CLI is trusted; also the desktop app and its server mode |
+| [release.md](release.md) | Release runbook: prerequisites, cutting an rc/final, verifying signatures, roll-forward, the desktop release |
+| [desktop.md](desktop.md) | Sonde Desktop: install and verify, first run, Send and cookies, Copy as, history and privacy, import, server mode, shortcuts, limits |
 | [cli/README.md](cli/README.md) | Every command and flag, one page each (generated, `make docs`) |
 | [guides/go-test.md](guides/go-test.md) | Running request files from `go test` |
 | [guides/ci-github-actions.md](guides/ci-github-actions.md) | Running tests and keeping reports in GitHub Actions |

@@ -13,12 +13,13 @@ or bad release.
   nhtera tools, and GoReleaser only ever writes `Casks/sonde.rb` and
   `sonde.json`. There are no staging copies: a rehearsal publishes to them too.
 - **`release` environment** on `nhtera/sonde` (Settings → Environments):
-  a deployment tag rule restricting it to `v*` and `editors/vscode/v*` tag
-  pushes, and no required reviewers: pushing the tag is the release decision.
-  Both `.github/workflows/release.yml` and
-  `.github/workflows/release-vscode.yml` run their publish job under
-  `environment: release`, so the secrets below never reach a branch or pull
-  request run.
+  a deployment tag rule restricting it to `v*`, `editors/vscode/v*` and
+  `desktop/v*` tag pushes, and no required reviewers: pushing the tag is the
+  release decision. `.github/workflows/release.yml`,
+  `.github/workflows/release-vscode.yml` and
+  `.github/workflows/release-desktop.yml` run their publish (and signing)
+  jobs under `environment: release`, so the secrets below never reach a
+  branch or pull request run.
 - **`TAP_GITHUB_TOKEN` secret**, in the `release` environment only: a
   fine-grained PAT or GitHub App installation token with `contents: write`
   on exactly those 2 repositories, nothing else. GoReleaser uses it for both
@@ -201,3 +202,117 @@ extension's own dependency tree — it only uploads a file `build-test`
 already built and tested. Its one install is `vsce` itself, from the
 lockfile in `.github/vsce/` with install scripts disabled; keep that
 version in step with `editors/vscode`'s devDependency.
+
+## Desktop release
+
+[Sonde Desktop](desktop.md) has its own tag namespace, version and workflow,
+so it is never coupled to a CLI release. `release.yml` does not run for it,
+and GoReleaser and `git describe` ignore `desktop/*` tags
+(`.goreleaser.yaml` `ignore_tags`; `make tag-guards` checks it).
+
+The version is `desktop/frontend/package.json`'s. A tag `desktop/vX.Y.Z` must
+name it, and so must every other place it is written (the lockfile, the macOS
+`Info.plist`, `build/config.yml`, the Windows `info.json` and NSIS header).
+From `desktop/`, set them in one commit and check them against the tag:
+
+```sh
+node scripts/version.mjs --set X.Y.Z       # writes all of those places
+node scripts/version.mjs desktop/vX.Y.Z    # exits 1 and names each place that differs from the tag
+```
+
+`make desktop-check` runs it without a tag, and `release-desktop.yml` runs it
+first with the pushed tag. **Never tag, and never push a tag, without the
+maintainer's explicit approval.** A rehearsal such as `desktop/v0.0.0-rc.1`
+is a published release: a version with a prerelease part is created with
+`--prerelease` (and never as "Latest"), but it is a real GitHub prerelease
+with real files that anyone can download.
+
+```sh
+git tag desktop/v0.1.0
+git push origin desktop/v0.1.0
+```
+
+### One-time setup
+
+The `release` environment needs these secrets (values are never in the
+repository or in logs):
+
+| Secret | Used for |
+|---|---|
+| `MACOS_CERT_P12_BASE64` | the Developer ID Application certificate and key, base64 of a `.p12` |
+| `MACOS_CERT_PASSWORD` | the `.p12` password |
+| `MACOS_SIGNING_IDENTITY` | the identity name `codesign` is given |
+| `MACOS_NOTARY_KEY_P8_BASE64` | an App Store Connect API key (`.p8`), base64 |
+| `MACOS_NOTARY_KEY_ID` | that key's id |
+| `MACOS_NOTARY_ISSUER_ID` | the issuer id of the API key |
+| `WINDOWS_CERT_PFX_BASE64`, `WINDOWS_CERT_PASSWORD` | optional: an Authenticode certificate. Without them the Windows installers ship unsigned |
+
+If any macOS secret is missing, the macOS job fails: macOS is not released
+unsigned. Windows has no certificate yet, so the release notes carry the
+SmartScreen note ([desktop.md](desktop.md#windows)).
+
+### What the workflow does
+
+`release-desktop.yml` (`on.push.tags: ["desktop/v*"]`) has four jobs, with
+every action pinned by SHA and no Actions cache:
+
+1. **`build-test`**, a matrix of macOS (`macos-14`), Windows
+   (`windows-latest`) and Linux (`ubuntu-24.04`), with **no `environment:` and
+   no secrets**. It checks the version, installs the build tools pinned by
+   version and module checksum (`desktop/scripts/tools.sha256`), installs the
+   frontend with `npm ci --ignore-scripts`, an install-script allowlist and
+   `npm audit --audit-level=high`, and runs the checks (on Linux, `make
+   desktop-check desktop-vuln`; elsewhere, the Go tests of the server
+   build). It packages the app (macOS universal `.app`, Windows NSIS
+   installers for amd64 and arm64, a Linux AppImage), fails if the binary
+   carries the `e2eharness` tag or harness files
+   (`scripts/check-no-harness.mjs`), writes a SHA-256 digests file, and makes
+   a **build provenance attestation** (`actions/attest-build-provenance`) of
+   each artifact, with an OIDC token and nothing else.
+2. **`sign-macos`** and
+3. **`sign-windows`**, in the `release` environment. Each downloads its
+   own OS's build artifacts and first runs `desktop/scripts/verify-artifacts.sh`,
+   which **fails closed**: a file missing from the digests, a SHA-256 that
+   differs, or an attestation that is absent or not made by this
+   repository's `release-desktop.yml` stops the job before anything is
+   signed. They install nothing from the project. macOS imports the
+   certificate into a temporary keychain, signs the app with the hardened
+   runtime, builds and signs the `.dmg`, notarizes it (`notarytool submit
+   --wait`), staples and validates the ticket, checks it with `spctl`, and
+   attests the disk image it made. Windows signs with `signtool` only when
+   `WINDOWS_CERT_PFX_BASE64` is set, and attests a signed installer (an
+   unsigned one keeps the build job's attestation).
+4. **`publish`**, in the `release` environment with `contents: write`. It
+   verifies the Linux artifact the same way (the signed ones were checked
+   before signing), writes an SBOM (`syft`, SPDX JSON, of `desktop/`),
+   `checksums.txt` over every file, a keyless **cosign** signature of it
+   (`checksums.txt.sigstore.json`), and creates the GitHub release with
+   `gh release create --latest=false` and notes "Sonde Desktop X.Y.Z" (the
+   Windows SmartScreen note, supported Linux systems, the privacy facts and
+   how to verify). `--latest=false` keeps the repository's "Latest" on the
+   most recent CLI tag.
+
+Every published file except `checksums.txt`, the SBOM and the cosign bundle
+has a provenance attestation, including the server binaries
+(`Sonde-Desktop-Server-*`, unsigned). The disk image is also covered by the
+notarization ticket and Gatekeeper. How a user verifies a download: [desktop.md](desktop.md#verifying-downloads).
+
+`desktop/scripts/verify-artifacts_test.sh` (part of `make desktop-check`)
+checks the digest refusals: a changed file, an unlisted file and no file at
+all each fail. The attestation check runs only in the workflow, where `REPO`
+is set.
+
+### Before tagging
+
+- `make desktop-check`, `make desktop-e2e` and `make tag-guards` pass.
+- On macOS, run the native checklist in
+  [desktop/MANUAL-TEST.md](../desktop/MANUAL-TEST.md), including `node
+  scripts/perf.mjs`, and paste its table into the release pull request.
+- Known gap: the AppImage is built with a pinned, SHA-256-checked
+  `linuxdeploy` (`desktop/scripts/appimage-tools.sh`), but the `AppRun`
+  that `wails3 generate appimage` downloads from the archived AppImageKit
+  "continuous" release is not pinned, nor is the AppImage runtime that
+  linuxdeploy's AppImage plugin may download while packaging; check the
+  build log ([security.md](security.md#supply-chain)).
+- Rolling forward follows the CLI's policy above: never delete or retag a
+  published `desktop/v*`; publish the next patch.
