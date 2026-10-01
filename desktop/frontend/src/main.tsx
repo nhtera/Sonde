@@ -19,6 +19,7 @@ import "./features/results";
 import "./features/form";
 import "./features/panels";
 import "./features/import";
+import "./features/copyas";
 import { App } from "./app/app";
 
 // The test harness build (vite --mode harness) adds the spike and e2e

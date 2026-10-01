@@ -251,6 +251,7 @@ function TreeMenu({ row }: { row: Row }) {
         {runnable && item("Run file", () => runPath(row.path), runKeys)}
         {row.kind === "dir" && item("Run folder", () => runFolder(row.path))}
         {runnable && item("New request", () => newRequest(row.path))}
+        {runnable && registry.getCommand("copyas.sonde.file") && item("Copy as sonde command", () => registry.getCommand("copyas.sonde.file")?.run(row.path))}
         {item("New file", () => newFile(dir))}
         <ContextMenu.Separator className="menu-sep" />
         {isFile && !secret && item("Duplicate", () => Workspace.Duplicate(row.path))}

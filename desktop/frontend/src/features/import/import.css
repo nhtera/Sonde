@@ -1,0 +1,51 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.import-dialog { width: 720px; top: 8%; max-height: 84vh; overflow: auto; }
+.import-dialog.wide { width: 940px; }
+.import-dialog .close { position: absolute; top: 12px; right: 12px; }
+.import-kinds { margin: 4px 0 12px; }
+.import-kinds button[aria-selected="true"] { background: var(--raised); color: var(--text); }
+.import-form { display: flex; flex-direction: column; gap: 10px; }
+.import-source textarea { width: 100%; box-sizing: border-box; resize: vertical; font-size: 12px; }
+.import-source .picked { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; background: var(--panel); }
+.row-gap { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.row-gap.wrap { flex-wrap: wrap; margin-top: 0; }
+.import-row { display: grid; grid-template-columns: 140px 1fr; align-items: center; gap: 8px; font-size: 12.5px; }
+.import-row > span:first-child { color: var(--muted); }
+.import-row input, .import-row select { min-width: 0; }
+.import-dialog .chip { display: inline-flex; gap: 4px; align-items: center; padding: 2px 6px; border-radius: 6px; background: var(--panel); font-size: 11.5px; }
+.import-dialog .chip button { border: 0; background: none; color: var(--faint); cursor: pointer; }
+.import-layouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.layout-card { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line2); cursor: pointer; }
+.layout-card.on { box-shadow: inset 0 0 0 1px var(--accent); }
+.layout-card input { position: absolute; opacity: 0; }
+.import-secrets { border: 0; padding: 8px; margin: 0; border-radius: 8px; background: var(--panel); font-size: 12.5px; }
+.import-secrets legend { padding: 0; color: var(--muted); font-size: 11.5px; }
+.import-secrets .check-row { display: flex; gap: 8px; align-items: center; padding: 2px 0; }
+.import-preview .section-note { color: var(--muted); font-size: 11.5px; }
+.import-files { list-style: none; margin: 6px 0; padding: 0; max-height: 120px; overflow: auto; }
+.import-files li { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.import-files li button { border: 0; background: none; color: var(--text); cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+.import-files li.on button { background: var(--hover); }
+.import-files .warn { color: var(--warn); }
+.import-text { max-height: 200px; overflow: auto; margin: 0; padding: 8px; border-radius: 7px; background: var(--panel); font-size: 11.5px; }
+.import-notes { margin: 6px 0 0; padding-left: 16px; color: var(--muted); max-height: 90px; overflow: auto; }
+.import-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+.import-tiles .tile { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 8px; background: var(--panel); font-size: 12px; color: var(--muted); }
+.import-tiles .tile b { font: 600 20px var(--font-ui); color: var(--text); }
+.note-row { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; padding: 8px 10px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line2); font-size: 12.5px; }
+.suggestions-body { display: grid; grid-template-columns: 260px 1fr; gap: 12px; min-height: 340px; }
+.suggestion-files { list-style: none; margin: 0; padding: 0; overflow: auto; max-height: 56vh; }
+.suggestion-files button { display: flex; justify-content: space-between; width: 100%; gap: 6px; padding: 6px 8px; border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer; text-align: left; }
+.suggestion-files button[aria-pressed="true"] { background: var(--hover); }
+.suggestion-files .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggestion-files .state-accepted { color: var(--pass); }
+.suggestion-files .state-rejected, .suggestion-files .state-error { color: var(--fail); }
+.suggestion-files .state-pending { color: var(--faint); }
+.suggestion .section-note { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.file-diff { max-height: 52vh; overflow: auto; border-radius: 7px; box-shadow: inset 0 0 0 1px var(--line2); }
+.layout-title { display: flex; justify-content: space-between; gap: 8px; }
+.import-dialog .dialog-actions { align-items: center; }
+.import-dialog .dialog-actions button { white-space: nowrap; }
+.import-dialog .dialog-actions > span { margin-right: auto; }

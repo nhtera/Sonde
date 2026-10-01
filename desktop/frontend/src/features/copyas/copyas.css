@@ -1,0 +1,8 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.menu.copy-as { width: 460px; }
+.copy-as .menu-item.tall .copy-preview { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 430px; font-size: 11px; }
+.menu-note { padding: 6px 8px; font-size: 12px; color: var(--muted); }
+.menu-note .warn { color: var(--warn); margin-top: 2px; }
+.menu-note .hint { float: right; color: var(--faint); font: 500 10.5px var(--font-code); }

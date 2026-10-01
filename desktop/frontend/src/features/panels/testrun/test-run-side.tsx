@@ -39,7 +39,7 @@ export function TestRunSide() {
   const key = `${env}|${picked.join(",")}|${JSON.stringify(overrides)}`;
   useEffect(() => {
     let live = true;
-    CopyAs.Sonde({ file: "", source: "", env, entry: 0, kind: "test", files: picked, shell: "posix" }).then(
+    CopyAs.Sonde({ file: "", source: "", env, entry: 0, kind: "test", files: picked, shell: "posix", clock: "" }).then(
       (t) => live && setCommand({ text: t?.text ?? "", note: t?.note ?? "" }),
       () => live && setCommand({ text: "", note: "" }),
     );
