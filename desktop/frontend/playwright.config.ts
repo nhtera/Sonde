@@ -35,6 +35,11 @@ const formURL = `http://127.0.0.1:${formPort}`;
 const panelsPort = Number(process.env.E2E_PANELS_PORT) || 34126;
 const panelsURL = `http://127.0.0.1:${panelsPort}`;
 const gitEnv = "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_AUTHOR_NAME=e2e GIT_AUTHOR_EMAIL=e2e@sonde.test GIT_COMMITTER_NAME=e2e GIT_COMMITTER_EMAIL=e2e@sonde.test";
+/** A harness over a copy of project made a git repository. */
+const gitHarness = (port: number, project: string) =>
+  `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
+  `mkdir "$t/p" && cp -R ../testdata/${project}/. "$t/p" && (cd "$t/p" && git init -q -b main && ${gitEnv} git add -A && ${gitEnv} git commit -qm init) && ` +
+  `${gitEnv} ${harness} --root "$t/p" --data "$t/data" --port ${port}'`;
 const panelsHarness =
   `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
   `mkdir "$t/p" && cp -R ../testdata/results-api/. "$t/p" && (cd "$t/p" && git init -q -b main && ${gitEnv} git add -A && ${gitEnv} git commit -qm init) && ` +
@@ -46,6 +51,14 @@ const importURL = `http://127.0.0.1:${importPort}`;
 const importHarness =
   `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
   `mkdir "$t/p" && cp -R ../testdata/shop-api/. "$t/p" && SONDE_VARIABLE_region=eu ${harness} --root "$t/p" --data "$t/data" --port ${importPort}'`;
+// e2e/full-flow.spec.ts: the whole journey on a copy of results-api.
+const fullPort = Number(process.env.E2E_FULL_PORT) || 34132;
+const fullURL = `http://127.0.0.1:${fullPort}`;
+// e2e/visual-*.spec.ts: the design screens in WebKit, each on its own
+// harness, only with E2E_VISUAL=1 (their baselines are approved screens).
+const visual = !!process.env.E2E_VISUAL;
+const visualPorts = { shop: 34140, results: 34141, form: 34142 };
+const visualURL = (k: keyof typeof visualPorts) => `http://127.0.0.1:${visualPorts[k]}`;
 // The preview's sandbox and framing in WebKit (the macOS app's engine).
 const resultsWebkitPort = Number(process.env.E2E_RESULTS_WEBKIT_PORT) || 34123;
 const resultsWebkitURL = `http://127.0.0.1:${resultsWebkitPort}`;
@@ -61,34 +74,46 @@ const bigProject =
 
 export default defineConfig({
   testDir: "e2e",
+  snapshotPathTemplate: "{testDir}/__screenshots__/{platform}/{arg}{ext}",
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "list" : "line",
   use: { baseURL },
   projects: [
-    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import/, use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import/, use: { ...devices["Desktop Safari"] } },
+    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual/, use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual/, use: { ...devices["Desktop Safari"] } },
     // Timings are measured alone, after the other browser tests (the load
     // of seven test servers and browsers would skew them).
     {
       name: "perf",
       testMatch: /perf/,
       workers: 1,
-      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "panels", "import", "editor-webkit"],
+      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "panels", "import", "full", "editor-webkit"],
       use: { ...devices["Desktop Chrome"], baseURL: perfURL },
     },
     // The shell's tests share one harness (its settings, its runs): one
     // browser, one worker, repeats included.
     { name: "shell", testMatch: /shell|editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: shellURL } },
     // The Results panel's tests share one harness (the mock they start).
-    { name: "results", testMatch: /results/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: resultsURL } },
+    { name: "results", testMatch: /results/, testIgnore: /visual-/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: resultsURL } },
     // The Form view's tests share one harness (they edit its files).
-    { name: "form", testMatch: /form\.spec/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: formURL } },
+    { name: "form", testMatch: /form\.spec/, testIgnore: /visual-/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: formURL } },
     // The panels' tests share one harness (they change its files and settings).
     { name: "panels", testMatch: /panels/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: panelsURL } },
+    ...(visual
+      ? (["shop", "results", "form"] as const).map((k) => ({
+          name: `visual-${k}`,
+          testMatch: new RegExp(`visual-${k}\\.spec`),
+          fullyParallel: false,
+          workers: 1,
+          use: { ...devices["Desktop Safari"], baseURL: visualURL(k), colorScheme: "dark" as const },
+        }))
+      : []),
+    // The full journey: one test, its own harness.
+    { name: "full", testMatch: /full-flow/, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: fullURL } },
     // Import and Copy as share one harness (they write its files).
     { name: "import", testMatch: /import/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: importURL } },
-    { name: "results-webkit", testMatch: /results/, grep: /preview|Assert/, workers: 1, use: { ...devices["Desktop Safari"], baseURL: resultsWebkitURL } },
+    { name: "results-webkit", testMatch: /results/, testIgnore: /visual-/, grep: /preview|Assert/, workers: 1, use: { ...devices["Desktop Safari"], baseURL: resultsWebkitURL } },
     { name: "editor-webkit", testMatch: /editor/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Safari"], baseURL: webkitEditorURL } },
     // Server mode's sign-in (E2E_SERVER_BIN, a server build).
     { name: "server-chromium", testMatch: /server-mode/, use: { ...devices["Desktop Chrome"] } },
@@ -97,6 +122,13 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : [
+        ...(visual
+          ? [
+              { command: shopHarness(visualPorts.shop), url: `${visualURL("shop")}/health` },
+              { command: gitHarness(visualPorts.results, "results-api"), url: `${visualURL("results")}/health` },
+              { command: shopHarness(visualPorts.form, "form-api"), url: `${visualURL("form")}/health` },
+            ].map((w) => ({ ...w, reuseExistingServer: false, gracefulShutdown: { signal: "SIGTERM" as const, timeout: 3000 }, timeout: 30_000 }))
+          : []),
         {
           command: `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ${harness} --root e2e/fixture --data "$t" --port ${port}'`,
           url: `${baseURL}/health`,
@@ -148,6 +180,14 @@ export default defineConfig({
         {
           command: panelsHarness,
           url: `${panelsURL}/health`,
+          reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
+          timeout: 30_000,
+        },
+        {
+          command: shopHarness(fullPort, "results-api"),
+          url: `${fullURL}/health`,
           reuseExistingServer: !process.env.CI,
           // SIGTERM (not the default SIGKILL): the server's temp folder goes.
           gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },

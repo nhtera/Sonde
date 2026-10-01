@@ -1,0 +1,14 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* Hidden in the visual baselines: what changes with time and the
+   machine (durations, "12s ago", times of day, waterfall bars, captured
+   ids and tokens in the editor's ghost text). */
+[data-volatile],
+.cm-ghost-muted::after,
+.cm-ghost-capture::after,
+.waterfall,
+.wf-ms,
+.mock-log {
+  visibility: hidden !important;
+}

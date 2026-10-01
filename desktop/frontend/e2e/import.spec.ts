@@ -66,7 +66,7 @@ test("a pasted curl command: its credentials become {{names}}, their values the 
   // shop-api's local env has a password: the curl one is password_2.
   await expect(preview).toContainText("alice:{{password_2}}");
   for (const v of curlSecrets) await expect(preview).not.toContainText(v);
-  await page.screenshot({ path: `${candidates}/import-12a.png` });
+  await page.screenshot({ path: `${candidates}/import-curl-6b.png` });
   await dialog.getByRole("button", { name: "Import", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText("token");
   await page.getByRole("button", { name: "Open the files" }).click();
