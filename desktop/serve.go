@@ -10,13 +10,11 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"github.com/nhtera/sonde/desktop/internal/appdirs"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/serverauth"
 )
@@ -91,31 +89,6 @@ func freePort() (int, error) {
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-// openDirs opens the app data folders: <data>/config and <data>/cache, or
-// the user's own when data is empty.
-func openDirs(data string) (*appdirs.Dirs, error) {
-	if data == "" {
-		return appdirs.Default()
-	}
-	return appdirs.Open(filepath.Join(data, "config"), filepath.Join(data, "cache"))
-}
-
-// projectRoot resolves --root to an existing directory.
-func projectRoot(dir string) (string, error) {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return "", err
-	}
-	fi, err := os.Stat(abs)
-	if err != nil {
-		return "", fmt.Errorf("--root: %w", err)
-	}
-	if !fi.IsDir() {
-		return "", fmt.Errorf("--root: %s is not a directory", abs)
-	}
-	return abs, nil
 }
 
 // checkPort validates a --port value; 0 picks a free port.

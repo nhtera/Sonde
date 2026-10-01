@@ -42,6 +42,7 @@ export type {
   Written as ImportWritten,
 } from "@bindings/desktop/internal/importsvc";
 export { Service as Jar } from "@bindings/desktop/internal/jar";
+export { Service as Perf } from "@bindings/desktop/internal/perftrace";
 export type { Jar as CookieJar, Cookie as JarCookie } from "@bindings/desktop/internal/jar";
 
 /** A coded error from a binding ({code, message}); see desktop/internal/apperr. */

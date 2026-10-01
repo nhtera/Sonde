@@ -146,7 +146,7 @@ export function TestRunMain() {
                   <span className="pass">✓ {c.passed}</span>
                   {c.failed > 0 && <span className="fail"> ✕ {c.failed}</span>}
                 </td>
-                <td className="num mono">{unit ? `${units.reduce((n, u) => n + u.durationMs, 0)} ms` : ""}</td>
+                <td className="num mono" data-volatile>{unit ? `${units.reduce((n, u) => n + u.durationMs, 0)} ms` : ""}</td>
               </tr>
             );
           })}

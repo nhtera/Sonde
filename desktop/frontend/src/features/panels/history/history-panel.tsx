@@ -83,7 +83,10 @@ export function HistoryPanel() {
                 <span className="mono file">{(i.files ?? []).join(", ")}</span>
                 <span className={`outcome outcome-${i.outcome}`}>{i.outcome}</span>
                 <span className="muted small mono">
-                  {new Date(i.at).toLocaleTimeString()} · {i.durationMs} ms · {i.requests} req
+                  <span data-volatile>
+                    {new Date(i.at).toLocaleTimeString()} · {i.durationMs} ms
+                  </span>{" "}
+                  · {i.requests} req
                 </span>
               </button>
             </li>

@@ -14,8 +14,9 @@ import (
 )
 
 // windowOnly are the services only the window app registers: they open
-// folders, reveal and trash files, and later export and reveal secrets.
-var windowOnly = []string{"workspaceDesktop", "bodiesDesktop", "copyasReveal", "dialogs"}
+// folders, reveal and trash files, export reports and reveal secrets, and
+// measure the shipped app.
+var windowOnly = []string{"workspaceDesktop", "bodiesDesktop", "copyasReveal", "dialogs", "reports", "perf"}
 
 func TestServicesPerMode(t *testing.T) {
 	names := func(m Mode) []string {

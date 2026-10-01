@@ -102,14 +102,17 @@ export function ResultsPanel({ file }: { file: string }) {
           when={started ? ago(started, now) : undefined}
           note={
             <>
-              {noteOf(run, requests.length, now)}
+              {/* A Send's note says how long ago its run was. */}
+              <span data-volatile={run.kind === "send" || undefined}>{noteOf(run, requests.length, now)}</span>
               {overrides > 0 && <span className="overrides-chip small">{overrides} override{overrides === 1 ? "" : "s"}</span>}
             </>
           }
         />
         {past ? (
           <div className="history-banner" role="status">
-            <span>From the history · {new Date(past.at).toLocaleString()} · read-only</span>
+            <span>
+              From the history · <span data-volatile>{new Date(past.at).toLocaleString()}</span> · read-only
+            </span>
             <button className="btn-ghost" onClick={() => useHistoryView.getState().show(null)}>
               Back to the last run
             </button>

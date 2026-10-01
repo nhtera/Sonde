@@ -6,6 +6,7 @@
 // dialog they open.
 
 import { registry } from "../../app/registry";
+import { serverMode } from "../../lib/mode";
 import { useWorkspace } from "../../state/workspace";
 import { ImportDialog } from "./import-dialog";
 import { kinds, useImport } from "./state";
@@ -20,6 +21,18 @@ const titles: Record<string, string> = {
   http: "Import .http file…",
   openapi: "Import OpenAPI spec…",
 };
+
+// ⌘I and the welcome screen: the dialog (a project first: an import
+// writes into one).
+registry.command({
+  id: "import.open",
+  title: "Import…",
+  group: "Import",
+  run: async () => {
+    if (!useWorkspace.getState().project && !serverMode) await useWorkspace.getState().openFolder();
+    if (useWorkspace.getState().project) useImport.getState().show("postman");
+  },
+});
 
 for (const k of kinds) {
   registry.command({

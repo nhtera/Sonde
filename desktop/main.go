@@ -9,13 +9,16 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"github.com/nhtera/sonde/desktop/internal/appdirs"
 	"github.com/nhtera/sonde/desktop/internal/emit"
+	"github.com/nhtera/sonde/desktop/internal/perftrace"
 )
 
 func main() {
@@ -26,16 +29,39 @@ func main() {
 }
 
 func run() error {
-	dirs, err := appdirs.Default()
+	start := time.Now()
+	fs := flag.NewFlagSet("sonde-desktop", flag.ContinueOnError)
+	root := fs.String("root", "", "open this project folder")
+	trace := fs.String("perf-trace", "", "measure the performance budgets, write them to this JSON file, then quit")
+	tour := fs.String("perf-tour", "{}", "the measures' parameters (JSON, from scripts/perf.mjs)")
+	data := fs.String("data", "", "app data folder (default: Sonde in the user config and cache folders)")
+	// macOS may pass -psn_… to an app opened from the Finder.
+	var args []string
+	for _, a := range os.Args[1:] {
+		if !strings.HasPrefix(a, "-psn_") {
+			args = append(args, a)
+		}
+	}
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	dirs, err := openDirs(*data)
 	if err != nil {
 		return err
 	}
 	defer dirs.Close()
-	h := &Host{Mode: ModeDesktop, Dirs: dirs, Emit: emit.Wails{}}
+	if *root != "" {
+		if *root, err = projectRoot(*root); err != nil {
+			return err
+		}
+	}
+	h := &Host{Mode: ModeDesktop, Root: *root, Dirs: dirs, Emit: emit.Wails{}}
+	var app *application.App
+	h.Perf = perftrace.New(*trace, *tour, start, func() { app.Quit() })
 	if err := h.setup(); err != nil {
 		return err
 	}
-	app := application.New(appOptions(h))
+	app = application.New(appOptions(h))
 	app.Menu.SetApplicationMenu(appMenu())
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "Sonde",

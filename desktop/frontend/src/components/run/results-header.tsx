@@ -52,8 +52,12 @@ export function ResultsHeader(p: ResultsHeaderProps) {
         <span>
           <b className={p.failed ? "fail" : ""}>{p.failed}</b> failed
         </span>
-        {p.durationMs !== undefined && <span className="mono">{p.durationMs} ms</span>}
-        {p.when && <span>{p.when}</span>}
+        {p.durationMs !== undefined && (
+          <span className="mono" data-volatile>
+            {p.durationMs} ms
+          </span>
+        )}
+        {p.when && <span data-volatile>{p.when}</span>}
       </div>
       {p.note && <div className="run-note">▸ {p.note}</div>}
     </header>

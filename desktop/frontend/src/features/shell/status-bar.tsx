@@ -36,7 +36,7 @@ export function StatusBar() {
       {summary && (
         <span className="mono num">
           <span style={{ color: "var(--pass)" }}>✓ {c.passed}</span>
-          {c.failed > 0 && <span style={{ color: "var(--fail)" }}> ✗ {c.failed}</span>} · {summary.durationMs} ms
+          {c.failed > 0 && <span style={{ color: "var(--fail)" }}> ✗ {c.failed}</span>} · <span data-volatile>{summary.durationMs} ms</span>
         </span>
       )}
       {cursor && active && (

@@ -20,6 +20,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/importsvc"
 	"github.com/nhtera/sonde/desktop/internal/jar"
 	"github.com/nhtera/sonde/desktop/internal/mocksvc"
+	"github.com/nhtera/sonde/desktop/internal/perftrace"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/desktop/internal/settings"
 	"github.com/nhtera/sonde/desktop/internal/workspace"
@@ -61,6 +62,8 @@ type Host struct {
 	Mocks     *mocksvc.Mocks
 	Sessions  *wsession.Sessions
 	Imports   *importsvc.Service
+	// Perf measures the window app when it is traced (--perf-trace).
+	Perf *perftrace.Trace
 }
 
 // version is the app's version (set at build time); it names the default

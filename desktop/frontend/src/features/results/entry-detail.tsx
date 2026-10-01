@@ -44,7 +44,7 @@ function Meta({ e, run, entry }: { e?: Entry; run: FileRun; entry: number }) {
         <span className="mono path">
           {call.request.method} {displayPath(call.request.url)}
         </span>
-        <span className="mono right">
+        <span className="mono right" data-volatile>
           {formatMs(e!.time)} · {formatBytes(size)}
         </span>
       </div>
