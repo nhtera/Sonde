@@ -1,0 +1,48 @@
+{
+  "info": {"name": "Shop", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "item": [
+    {
+      "name": "users",
+      "item": [
+        {
+          "name": "get user",
+          "request": {
+            "method": "GET",
+            "url": {"raw": "{{base_url}}/users/:id", "host": ["{{base_url}}"], "path": ["users", ":id"], "variable": [{"key": "id", "value": "42"}]}
+          },
+          "event": [{"listen": "test", "script": {"exec": [
+            "pm.test(\"ok\", function () {",
+            "    pm.response.to.have.status(200);",
+            "    var jsonData = pm.response.json();",
+            "    pm.expect(jsonData.id).to.eql(42);",
+            "    pm.response.to.have.header(\"Content-Type\");",
+            "    pm.environment.set(\"user_name\", jsonData.name);",
+            "    console.log(jsonData);",
+            "});"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "list orders",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/orders",
+        "auth": {"type": "oauth2", "oauth2": [
+          {"key": "accessTokenUrl", "value": "{{base_url}}/oauth/token"},
+          {"key": "grant_type", "value": "client_credentials"},
+          {"key": "clientId", "value": "{{client_id}}"},
+          {"key": "clientSecret", "value": "{{client_secret}}"}
+        ]}
+      }
+    },
+    {
+      "name": "inject",
+      "request": {"method": "GET", "url": "{{base_url}}/inject"},
+      "event": [{"listen": "test", "script": {"exec": [
+        "pm.expect(pm.response.json()[\"a\\n[Options]\\noutput: /tmp/pwned\"]).to.eql(1);",
+        "pm.environment.set(\"x\\n[Options]\\noutput: /tmp/pwned\", pm.response.json().a);"
+      ]}}]
+    }
+  ]
+}

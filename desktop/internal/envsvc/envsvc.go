@@ -185,6 +185,23 @@ func (e *Envs) RemoveVariable(env, name string) error {
 	return e.edit(func(p *config.Project) ([]config.FileEdit, error) { return p.RemoveVariable(env, name) })
 }
 
+// Names lists the variables and secrets of env.
+func (e *Envs) Names(env string) map[string]bool {
+	out := map[string]bool{}
+	p, err := e.List()
+	if err != nil {
+		return out
+	}
+	for _, en := range p.Envs {
+		if en.Name == env {
+			for _, v := range en.Variables {
+				out[v.Name] = true
+			}
+		}
+	}
+	return out
+}
+
 // SetSecret sets (or adds) secret name of env in its secrets file (0600:
 // the env's last one, or secrets/<env>.secrets, added to secrets_files);
 // the value is never written to sonde.yaml, and a variable of that name

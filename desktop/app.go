@@ -17,6 +17,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/envsvc"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/history"
+	"github.com/nhtera/sonde/desktop/internal/importsvc"
 	"github.com/nhtera/sonde/desktop/internal/jar"
 	"github.com/nhtera/sonde/desktop/internal/mocksvc"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
@@ -59,6 +60,7 @@ type Host struct {
 	Envs      *envsvc.Envs
 	Mocks     *mocksvc.Mocks
 	Sessions  *wsession.Sessions
+	Imports   *importsvc.Service
 }
 
 // version is the app's version (set at build time); it names the default
@@ -90,7 +92,9 @@ func (h *Host) setup() error {
 	}
 	h.Sessions = wsession.New(h.Emit, h.Runs.Prepare)
 	h.Workspace.Secret = h.Envs.IsSecretFile
+	h.Imports = importsvc.New(h.Workspace.Root, h.Handles, h.Envs, h.Dirs.Cache())
 	h.Workspace.Opened = func() {
+		h.Imports.Reset()
 		h.Sessions.CloseAll()
 		h.Mocks.Stop()
 		h.Runs.Reset()
@@ -131,16 +135,6 @@ var registry []registration
 // register adds a service for modes (nil: every mode).
 func register(name string, modes []Mode, fn func(h *Host) application.Service) {
 	registry = append(registry, registration{name: name, modes: modes, new: fn})
-}
-
-// stub is the placeholder of a service not built yet: it binds nothing.
-type stub struct{}
-
-// registerStub registers the placeholder for a service not built yet.
-func registerStub(name string) {
-	register(name, nil, func(*Host) application.Service {
-		return application.NewServiceWithOptions(&stub{}, application.ServiceOptions{Name: name})
-	})
 }
 
 // services builds the services of h's mode, ordered by name.

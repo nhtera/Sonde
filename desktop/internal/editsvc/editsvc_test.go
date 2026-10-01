@@ -544,3 +544,95 @@ func TestReviewFixes(t *testing.T) {
 		t.Errorf("file body %+v %v", res, err)
 	}
 }
+
+// TestAppendEntries: imported requests go after the last one, a blank
+// line between; text that is not requests, or adds other entries, is
+// refused.
+func TestAppendEntries(t *testing.T) {
+	e := New(nil, nil)
+	res, err := e.Apply(Buffer{File: "a.hurl", Text: "GET https://a\nHTTP 200\n\n\n", Version: 3}, Op{Kind: AppendEntries, Value: "GET https://b\nAuthorization: Bearer {{token}}\n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Text != "GET https://a\nHTTP 200\n\nGET https://b\nAuthorization: Bearer {{token}}\n" || res.Version != 3 || len(res.Edits) == 0 {
+		t.Errorf("%+v", res)
+	}
+	if res, err := e.Apply(Buffer{File: "a.hurl"}, Op{Kind: AppendEntries, Value: "GET https://b\n"}); err != nil || res.Text != "GET https://b\n" {
+		t.Errorf("into an empty file: %+v %v", res, err)
+	}
+	for _, bad := range []string{"", "# a comment\n", "not a request"} {
+		if _, err := e.Apply(Buffer{File: "a.hurl", Text: "GET https://a\n"}, Op{Kind: AppendEntries, Value: bad}); err == nil {
+			t.Errorf("%q added", bad)
+		}
+	}
+}
+
+// TestAppendEntriesSondeFile: appendEntries works with .sonde files.
+func TestAppendEntriesSondeFile(t *testing.T) {
+	e := New(nil, nil)
+	const sondeText = "GET https://api/users\nHTTP 200\n\n\n"
+	res, err := e.Apply(Buffer{File: "api.sonde", Text: sondeText, Version: 1}, Op{Kind: AppendEntries, Value: "POST https://api/users\nContent-Type: application/json\n{}\nHTTP 201\n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Result should be valid sonde file
+	if _, err := syntaxedit.Model("api.sonde", []byte(res.Text)); err != nil {
+		t.Fatalf("result does not parse as .sonde: %v\nText: %q", err, res.Text)
+	}
+	if !strings.Contains(res.Text, "POST https://api/users") {
+		t.Errorf("appended request missing from result")
+	}
+}
+
+// TestAppendEntriesAfterTrailingComments: appendEntries adds requests even when followed by comments.
+func TestAppendEntriesAfterTrailingComments(t *testing.T) {
+	e := New(nil, nil)
+	const withComments = "# Main entry\nGET https://api/data\nHTTP 200\n\n# TODO: add more tests\n# consider pagination\n"
+	res, err := e.Apply(Buffer{File: "test.hurl", Text: withComments, Version: 2}, Op{Kind: AppendEntries, Value: "GET https://api/next\nHTTP 200\n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Should have exactly 2 entries
+	model, err := syntaxedit.Model("test.hurl", []byte(res.Text))
+	if err != nil {
+		t.Fatalf("result does not parse: %v", err)
+	}
+	if len(model) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(model))
+	}
+	if !strings.Contains(res.Text, "GET https://api/next") {
+		t.Error("appended request not in result")
+	}
+}
+
+// TestAppendEntriesMultipleRequests: appendEntries can add multiple requests.
+func TestAppendEntriesMultipleRequests(t *testing.T) {
+	e := New(nil, nil)
+	const existing = "GET https://api/a\nHTTP 200\n"
+	const toAdd = "GET https://api/b\nHTTP 200\n\nPOST https://api/c\nHTTP 201\n"
+	res, err := e.Apply(Buffer{File: "test.hurl", Text: existing, Version: 1}, Op{Kind: AppendEntries, Value: toAdd})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := syntaxedit.Model("test.hurl", []byte(res.Text))
+	if err != nil {
+		t.Fatalf("result does not parse: %v", err)
+	}
+	if len(model) != 3 {
+		t.Errorf("expected 3 entries, got %d", len(model))
+	}
+}
+
+// TestAppendEntriesPreservesVariables: appendEntries preserves template variables.
+func TestAppendEntriesPreservesVariables(t *testing.T) {
+	e := New(nil, nil)
+	const existing = "GET {{base_url}}/users\nHTTP 200\n"
+	const toAdd = "POST {{base_url}}/users\nContent-Type: application/json\n{\"name\": \"{{user_name}}\"}\nHTTP 201\n"
+	res, err := e.Apply(Buffer{File: "test.hurl", Text: existing, Version: 1}, Op{Kind: AppendEntries, Value: toAdd})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Text, "{{base_url}}") || !strings.Contains(res.Text, "{{user_name}}") {
+		t.Error("variables not preserved")
+	}
+}

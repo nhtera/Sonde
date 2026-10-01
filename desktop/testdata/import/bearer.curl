@@ -1,0 +1,1 @@
+curl -H "Authorization: Bearer e2e-curl-bearer-sentinel-7731" -H "X-Api-Key: e2e-curl-apikey-sentinel-4410" "https://api.test/orders?limit=5&api_key=e2e-curl-query-sentinel-9902" -u alice:e2e-curl-password-sentinel-5521

@@ -35,6 +35,9 @@ type Request struct {
 	Files []string `json:"files"` // a test run's files
 	// Shell is "posix", "powershell" or "cmd".
 	Shell string `json:"shell"`
+	// Clock is when the run whose captures a Send reused started, as the
+	// page shows times (HH:MM), for the note.
+	Clock string `json:"clock"`
 }
 
 // Text is text to copy with a note for the user.
@@ -105,6 +108,9 @@ func (c *Copier) Sonde(req Request, reveal bool) (*Text, error) {
 	case "", "run":
 	case "send":
 		note = "Runs requests 1–" + strconv.Itoa(req.Entry) + ": the CLI starts from the file, not from the app's earlier captures."
+		if req.Clock != "" {
+			note = "Send reused captures from the run at " + req.Clock + "; this command runs 1–" + strconv.Itoa(req.Entry) + "."
+		}
 	case "test":
 		cmd, files = "test", req.Files
 	default:

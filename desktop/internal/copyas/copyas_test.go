@@ -87,6 +87,10 @@ func TestSonde(t *testing.T) {
 	if err != nil || !strings.Contains(send.Text, "--to-entry 3") || !strings.Contains(send.Note, "1–3") {
 		t.Errorf("send %+v %v", send, err)
 	}
+	send, err = c.Sonde(Request{File: "a.hurl", Kind: "send", Entry: 3, Clock: "14:05"}, false)
+	if err != nil || !strings.Contains(send.Text, "--to-entry 3") || !strings.HasPrefix(send.Note, "Send reused captures from the run at 14:05; this command runs 1–3.") {
+		t.Errorf("send after a run %+v %v", send, err)
+	}
 	test, err := c.Sonde(Request{Kind: "test", Files: []string{"a.hurl", "b.hurl"}, Shell: "powershell"}, false)
 	if err != nil || !strings.HasPrefix(strings.SplitN(test.Text, "\n", 2)[len(strings.SplitN(test.Text, "\n", 2))-1], "sonde test") || !strings.Contains(test.Text, "b.hurl") {
 		t.Errorf("test %+v %v", test, err)
@@ -118,5 +122,41 @@ func TestSondeCommandVariables(t *testing.T) {
 	}
 	if !strings.Contains(run.Text, "--variable region=eu") || !strings.Contains(run.Note, "Set SONDE_VARIABLE_api_token there too") {
 		t.Errorf("%+v", run)
+	}
+}
+
+// TestSondeClockNoteOnlySend: Clock is only used for "send" kind, not for "run".
+func TestSondeClockNoteOnlySend(t *testing.T) {
+	c := copier()
+	// Without Clock, no special note
+	run, err := c.Sonde(Request{File: "a.hurl", Kind: "run", Clock: "14:05"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(run.Note, "Send reused captures from the run at") {
+		t.Errorf("run should not have Clock note: %q", run.Note)
+	}
+	// With Clock on send, special note
+	send, err := c.Sonde(Request{File: "a.hurl", Kind: "send", Entry: 3, Clock: "14:05"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(send.Note, "Send reused captures from the run at 14:05") {
+		t.Errorf("send should have Clock note: %q", send.Note)
+	}
+}
+
+// TestSondeClockEmptySend: empty Clock on send is handled (treated as no Clock).
+func TestSondeClockEmptySend(t *testing.T) {
+	c := copier()
+	send, err := c.Sonde(Request{File: "a.hurl", Kind: "send", Entry: 2, Clock: ""}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(send.Note, "Send reused captures from the run at") {
+		t.Errorf("empty Clock should not appear in note: %q", send.Note)
+	}
+	if !strings.Contains(send.Note, "Runs requests 1–2") {
+		t.Errorf("normal send note should appear: %q", send.Note)
 	}
 }

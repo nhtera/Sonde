@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -72,6 +73,7 @@ const (
 	RemoveEntry   = "removeEntry"
 	RemoveSection = "removeSection" // Section
 	AddLogin      = "addLogin"      // Key (the token's capture name); a login request before Entry
+	AppendEntries = "appendEntries" // Value: requests as text (an import), added at the end
 )
 
 // Bodies gives a stored response body (redacted).
@@ -152,6 +154,8 @@ func (e *Edits) Apply(b Buffer, op Op) (*Result, error) {
 		res, err = syntaxedit.RemoveSection(name, src, n, sec)
 	case AddLogin:
 		res, err = syntaxedit.AddLoginEntry(name, src, n, loginSpec(op.Key))
+	case AppendEntries:
+		res, err = appendEntries(name, src, op.Value)
 	default:
 		return nil, apperr.New(apperr.Invalid, "unknown edit "+op.Kind)
 	}
@@ -177,6 +181,33 @@ func addEntry(name string, src []byte, method, url string) (*syntaxedit.Result, 
 		return nil, err
 	}
 	return &syntaxedit.Result{Source: res.Source, Edits: diff(string(src), string(res.Source))}, nil
+}
+
+// appendEntries adds requests (text) after the last one, a blank line
+// between; the file must then have exactly those requests more.
+func appendEntries(name string, src []byte, text string) (*syntaxedit.Result, error) {
+	d := syntax.DialectFor(name)
+	before, err := syntax.Parse(name, src, d)
+	if err != nil {
+		return nil, err
+	}
+	added, err := syntax.Parse(name, []byte(text), d)
+	if err != nil {
+		return nil, err
+	}
+	if len(added.Entries) == 0 {
+		return nil, fmt.Errorf("no request to add")
+	}
+	out := string(src)
+	if out != "" {
+		out = strings.TrimRight(out, "\n") + "\n\n"
+	}
+	out += strings.TrimRight(text, "\n") + "\n"
+	after, err := syntax.Parse(name, []byte(out), d)
+	if err != nil || len(after.Entries) != len(before.Entries)+len(added.Entries) {
+		return nil, fmt.Errorf("the requests do not add up: %v", err)
+	}
+	return &syntaxedit.Result{Source: []byte(out), Edits: diff(string(src), out)}, nil
 }
 
 // loginSpec is an OAuth 2 client-credentials login: its token captured
