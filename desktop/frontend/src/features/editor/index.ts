@@ -5,6 +5,7 @@
 // format, comment, go to line) and its toolbar buttons.
 
 import { toggleComment } from "@codemirror/commands";
+import { forEachDiagnostic } from "@codemirror/lint";
 import { formatDocument } from "@codemirror/lsp-client";
 import { EditorSelection } from "@codemirror/state";
 import { registry } from "../../app/registry";
@@ -15,6 +16,8 @@ import { useUI } from "../../state/ui";
 import { TextEditor } from "./editor-view";
 import { entryAt } from "./entry-at";
 import { FormatButton, RunToCursorButton } from "./toolbar";
+import { DataPicker } from "./data-picker";
+import { lspReady } from "./lsp/client";
 import { activeView } from "./views";
 import "./editor.css";
 
@@ -61,6 +64,41 @@ registry.command({
   },
 });
 
+// Check only: what `sonde check` reports for the file (the language
+// server's diagnostics), without sending a request.
+registry.command({
+  id: "file.check",
+  title: "Check file",
+  hint: "sonde check",
+  when: hasEditor,
+  run: () => {
+    const a = activeView();
+    if (!a) return;
+    // No answer yet is not "no problems".
+    if (!lspReady()) {
+      useUI.getState().toast({ kind: "info", text: "The checker is starting: try again in a moment." });
+      return;
+    }
+    const found: { line: number; message: string }[] = [];
+    forEachDiagnostic(a.view.state, (d, from) => {
+      if (d.severity === "error" || d.severity === "warning") found.push({ line: a.view.state.doc.lineAt(from).number, message: d.message });
+    });
+    const name = a.path.split("/").at(-1);
+    if (found.length === 0) {
+      useUI.getState().toast({ kind: "success", text: `${name}: no problems found. Nothing was sent.` });
+      return;
+    }
+    found.sort((x, y) => x.line - y.line);
+    const first = a.view.state.doc.line(found[0].line);
+    a.view.dispatch({ selection: EditorSelection.cursor(first.from), scrollIntoView: true });
+    a.view.focus();
+    useUI.getState().toast({
+      kind: "warn",
+      text: `${name}: ${found.length} problem${found.length === 1 ? "" : "s"}; line ${found[0].line}: ${found[0].message}`,
+    });
+  },
+});
+
 registry.command({
   id: "editor.format",
   title: "Format file",
@@ -103,5 +141,6 @@ registry.command({
   },
 });
 
+registry.toolbarItem({ id: "editor.data", order: 10, render: DataPicker });
 registry.toolbarItem({ id: "editor.format", order: 40, render: FormatButton });
 registry.toolbarItem({ id: "editor.runTo", order: 90, render: RunToCursorButton });

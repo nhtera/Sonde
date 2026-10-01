@@ -75,27 +75,26 @@ export function NoFile() {
   );
 }
 
-/** A file with no requests yet, or never run. */
+/** A file never run: run it, or check it without sending. */
 export function FileEmpty({ file, hasRequests }: { file: string; hasRequests: boolean }) {
   const runKeys = useKeyLabel("file.run");
   return (
     <div className="empty">
-      <div style={{ maxWidth: 320, display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ font: "600 14px var(--font-ui)" }}>{hasRequests ? "Not run yet" : "No requests yet"}</div>
-        <div style={{ color: "var(--muted)", lineHeight: 1.5 }}>
-          {hasRequests
-            ? "Run the file to see each request, its captures and asserts here. Nothing is sent until you do."
-            : "Write a request (GET {{base_url}}/…) or add one from the file's menu."}
+      <div className="file-empty">
+        <span className="file-empty-icon" aria-hidden>
+          <PlayIcon />
+        </span>
+        <b>Not run yet</b>
+        <p>Run the file to see each request, its captures and asserts here. Nothing is sent until you do.</p>
+        <div className="row-gap">
+          <button className="btn" disabled={!hasRequests} onClick={() => void useRuns.getState().run(file)}>
+            Run file{runKeys && <kbd style={{ background: "none" }}>{runKeys}</kbd>}
+          </button>
+          <button className="btn" onClick={() => void registry.getCommand("file.check")?.run()}>
+            Check only
+          </button>
         </div>
-        {hasRequests && (
-          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-            <button className="btn" style={{ background: "var(--raised)", boxShadow: "none" }} onClick={() => void useRuns.getState().run(file)}>
-              <PlayIcon />
-              Run file{runKeys && <kbd style={{ background: "none" }}>{runKeys}</kbd>}
-            </button>
-          </div>
-        )}
-        <div style={{ marginTop: 14, fontSize: 11.5, color: "var(--faint)" }}>The same file runs in CI and for AI agents.</div>
+        <small>The same file runs in CI and for AI agents.</small>
       </div>
     </div>
   );

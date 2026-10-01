@@ -34,6 +34,16 @@ registry.command({
   },
 });
 
+// A curl command from the clipboard, into the open curl form.
+registry.command({
+  id: "import.paste",
+  title: "Import pasted curl",
+  hidden: true,
+  run: (text) => {
+    if (typeof text === "string" && useImport.getState().open) useImport.getState().update({ text });
+  },
+});
+
 for (const k of kinds) {
   registry.command({
     id: `import.${k.kind}`,

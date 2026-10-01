@@ -54,4 +54,4 @@ export type RunEvent =
   | { type: "entrySkipped"; entry: number; reason: string }
   | { type: "message"; entry: number; message: StreamMessage }
   | { type: "entryFinished"; entry: Entry }
-  | { type: "unitStarted"; file: string };
+  | { type: "unitStarted"; file: string; row?: number; label?: string };

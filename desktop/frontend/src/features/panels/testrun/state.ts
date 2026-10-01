@@ -61,7 +61,7 @@ export const useTestRun = create<TestRunState>((set, get) => ({
         if (dataHandle) {
           const file = files[0];
           const source = file in sources ? Promise.resolve(sources[file]) : Workspace.Read(file).then((f) => f?.text ?? "");
-          return source.then((text) => Runs.RunData({ runId, file, source: text, env, dataHandle, rows: [], secrets: [] })) as Promise<Summary>;
+          return source.then((text) => Runs.RunData({ runId, file, source: text, env, dataFile: "", dataHandle, rows: [], secrets: [] })) as Promise<Summary>;
         }
         return Runs.RunTest({ runId, files, sources, env }) as Promise<Summary>;
       },

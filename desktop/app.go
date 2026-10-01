@@ -92,6 +92,7 @@ func (h *Host) setup() error {
 			h.History.Add(s, results)
 			h.Mocks.Observe(results)
 		},
+		Protected: h.Workspace.Protected,
 	}
 	h.Sessions = wsession.New(h.Emit, h.Runs.Prepare)
 	h.Workspace.Secret = h.Envs.IsSecretFile

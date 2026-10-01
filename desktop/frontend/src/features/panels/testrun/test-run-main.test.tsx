@@ -38,7 +38,7 @@ describe("a data-driven run", () => {
     await useTestRun.getState().start(["login.hurl"], "data-handle");
     expect(api.Runs.RunTest).not.toHaveBeenCalled();
     expect(api.Runs.RunData).toHaveBeenCalledWith(
-      expect.objectContaining({ file: "login.hurl", source: "GET {{base_url}}/login\n", dataHandle: "data-handle", rows: [] }),
+      expect.objectContaining({ file: "login.hurl", source: "GET {{base_url}}/login\n", dataFile: "", dataHandle: "data-handle", rows: [] }),
     );
     expect(useTestRun.getState().summary?.units).toHaveLength(2);
   });

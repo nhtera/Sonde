@@ -55,19 +55,22 @@ test("6b: import a pasted curl command, secrets lifted", async ({ page }) => {
 test("6c: a variable's value and source on hover", async ({ page }) => {
   await open(page, "checkout.hurl");
   await run(page, /Failed/);
-  const variable = page.locator(".cm-line", { hasText: "GET {{base_url}}/users" }).first().locator("span", { hasText: /base_url/ }).last();
+  // A capture: its value, the request and line that set it.
+  const variable = page.locator(".cm-line", { hasText: "/carts/{{cart_id}}/items" }).first().locator("span", { hasText: /cart_id/ }).last();
   const box = (await variable.boundingBox())!;
   for (let i = 0; i < 6; i++) await page.mouse.move(box.x - 20 + i * 6, box.y + box.height / 2);
-  await expect(page.locator(".cm-sonde-hover")).toHaveCount(1);
+  await expect(page.locator(".cm-var-card")).toHaveCount(1);
+  await expect(page.locator(".cm-var-foot")).toContainText("Set by request 3");
   await snap(page, "6c");
 });
 
 test("6d: variable autocomplete while typing {{ in a header", async ({ page }) => {
   await open(page, "checkout.hurl");
+  await run(page, /Failed/);
   await endOf(page, "Authorization: Bearer {{token}}");
   await page.keyboard.press("Enter");
   await page.keyboard.type("X-User: {{");
-  await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible();
+  await expect(page.locator(".cm-tooltip-autocomplete.cm-var-complete")).toBeVisible();
   await snap(page, "6d");
 });
 
@@ -143,4 +146,14 @@ test("7c: a new file, never run", async ({ page }) => {
   await page.getByRole("dialog").getByRole("textbox").press("Enter");
   await expect(page.getByRole("tablist", { name: "Open files" }).getByRole("tab", { selected: true })).toContainText("new-request.hurl");
   await snap(page, "7c");
+});
+
+test("4b: a data-driven run, a pill per row", async ({ page }) => {
+  await open(page, "data-login.hurl");
+  await page.getByRole("button", { name: /^Data file:/ }).click();
+  await page.getByRole("menuitemradio", { name: "data/logins.csv" }).click();
+  await expect(page.getByRole("button", { name: "Data file: data/logins.csv" })).toBeVisible();
+  await run(page);
+  await expect(page.getByRole("region", { name: "Results" }).getByRole("tablist", { name: "Data rows" }).getByRole("tab")).toHaveCount(2);
+  await snap(page, "4b");
 });

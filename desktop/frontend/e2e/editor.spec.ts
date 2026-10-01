@@ -113,7 +113,8 @@ test("one hover for a variable, with its redacted value", async ({ page }) => {
   for (let i = 0; i < 6; i++) await page.mouse.move(box.x - 20 + i * 6, box.y + box.height / 2);
   const hover = page.locator(".cm-sonde-hover");
   await expect(hover).toHaveCount(1);
-  await expect(hover.locator(".cm-sonde-hover-value code")).toHaveText("***");
+  await expect(hover.locator(".cm-var-value")).toHaveText("***");
+  await expect(hover.locator(".cm-var-foot")).toContainText(/Set by request 1 · line \d+ · last run/);
   await expect(page.locator(".cm-tooltip")).toHaveCount(1);
 });
 
@@ -155,6 +156,45 @@ test("closing a tab with unsaved edits asks in the app", async ({ page }) => {
   await page.getByRole("button", { name: "Close users.hurl" }).click();
   await dialog.getByRole("button", { name: "Close without saving" }).click();
   await expect(tab).toHaveCount(0);
+});
+
+test("picks a data file and runs once per row", async ({ page }) => {
+  await open(page, "data-login.hurl");
+  await page.getByRole("button", { name: "Data file: none" }).click();
+  await page.getByRole("menuitemradio", { name: "data/logins.csv" }).click();
+  await expect(page.getByRole("button", { name: "Data file: data/logins.csv" })).toBeVisible();
+  await runFile(page);
+  const results = page.getByRole("region", { name: "Results" });
+  const pills = results.getByRole("tablist", { name: "Data rows" }).getByRole("tab");
+  await expect(pills).toHaveCount(2);
+  await expect(results).toContainText("Ran all 2 rows of logins.csv");
+  // The password column is a secret: its value never shows.
+  await expect(pills.first()).toHaveText(/Row 1 · ada/);
+  await pills.nth(1).click();
+  await expect(pills.nth(1)).toHaveAttribute("aria-selected", "true");
+  await results.getByRole("tab", { name: /^Request/ }).click();
+  await expect(results.getByRole("tabpanel")).not.toContainText("fixture-password");
+});
+
+test("variable completion lists earlier captures with their line", async ({ page }) => {
+  await open(page, "checkout.hurl");
+  await runFile(page);
+  await endOf(page, "Authorization: Bearer {{token}}");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("X-User: {{");
+  const list = page.locator(".cm-tooltip-autocomplete.cm-var-complete");
+  await expect(list).toBeVisible();
+  // The capture of request 1 first, its value from the run; a redacted
+  // one as ***.
+  await expect(list.locator("li").first()).toContainText("user_id");
+  await expect(list.locator("li", { hasText: "token" }).locator(".cm-var-option-source")).toHaveText("capture · line 6");
+  await expect(list.locator("li", { hasText: "token" }).locator(".cm-var-option-value")).toHaveText("***");
+  // Picking one closes the template.
+  await expect(list.locator("li[aria-selected=true]")).toContainText("user_id");
+  // A list takes Enter 75 ms after it opens (no pick by a fast typist).
+  await page.waitForTimeout(100);
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".cm-line", { hasText: "X-User:" })).toHaveText("X-User: {{user_id}}");
 });
 
 test("candidate screenshot: the editor after a run (1a)", async ({ page }) => {

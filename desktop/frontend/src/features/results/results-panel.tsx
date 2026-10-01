@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { counts } from "../../components/run/counts";
+import { DataRowPills, type DataRow } from "../../components/run/data-row-pills";
 import { requestRows } from "../../components/run/model";
 import { RequestList } from "../../components/run/request-list";
 import { ResultsHeader } from "../../components/run/results-header";
@@ -15,7 +16,7 @@ import { firstChangedLine, StaleBanner } from "../../components/run/stale-banner
 import { useEnv } from "../../state/env";
 import { useHistoryView } from "../../state/history-view";
 import { useRuns } from "../../state/run";
-import type { FileRun } from "../../state/run-model";
+import { rowFailed, type FileRun } from "../../state/run-model";
 import { useTabs } from "../../state/tabs";
 import { useWorkspace } from "../../state/workspace";
 import { EntryDetail } from "./entry-detail";
@@ -33,8 +34,30 @@ function useNow(ms = 5000) {
   return now;
 }
 
+/** A data run's rows as pills: once the run is done, each row's outcome
+ * (a row that could not start too); while it runs, a row is done once its
+ * last request finished. */
+function dataRows(run: FileRun): DataRow[] {
+  const rows = run.data?.rows ?? [];
+  if (!run.running && run.summary?.units?.length) {
+    const labels = new Map(rows.map((r) => [r.row, r.label]));
+    return [...run.summary.units].sort((a, b) => (a.row ?? 0) - (b.row ?? 0)).map((u) => ({ row: u.row ?? 0, label: labels.get(u.row ?? 0), state: u.success ? "passed" : "failed" }));
+  }
+  return rows.map((r) => {
+    const done = r.run.last > 0 && r.run.entries[r.run.last] !== undefined;
+    const state = rowFailed(r.run) ? "failed" : done || !run.running ? "passed" : "running";
+    return { row: r.row, label: r.label, state };
+  });
+}
+
 /** The muted line under the counts: what ran. */
 function noteOf(run: FileRun, total: number, now: Date): string {
+  if (run.data) {
+    const n = run.data.rows.length;
+    const name = run.data.file.split("/").at(-1);
+    const at = run.data.rows.at(-1)?.row ?? 1;
+    return run.running ? `Running row ${at} of ${name}` : `Ran all ${n} row${n === 1 ? "" : "s"} of ${name}`;
+  }
   if (run.kind === "send") {
     const base = run.summary?.baseRunAt ? ` · reused captures from the run ${ago(new Date(run.summary.baseRunAt), now)}` : "";
     return `Sent request ${run.sent} only${base}`;
@@ -70,7 +93,10 @@ export function ResultsPanel({ file }: { file: string }) {
   if (!run) return null;
 
   const entry = shownEntry(run, picked);
-  const { passed, failed } = counts(Object.values(run.entries));
+  const pills = run.data ? dataRows(run) : [];
+  const { passed, failed } = run.data
+    ? { passed: pills.filter((p) => p.state === "passed").length, failed: pills.filter((p) => p.state === "failed").length }
+    : counts(Object.values(run.entries));
   const rows = requestRows(requests, run).map((r) =>
     run.kind === "send" ? (r.entry === run.sent ? { ...r, tag: run.running ? "sending" : "just sent" } : { ...r, dim: true }) : r,
   );
@@ -94,7 +120,7 @@ export function ResultsPanel({ file }: { file: string }) {
         <ResultsHeader
           title={file.split("/").at(-1)!}
           outcome={outcomeOf(run)}
-          lead={run.kind === "send" ? `Sent request ${run.sent}` : undefined}
+          lead={run.data ? `${pills.length} row${pills.length === 1 ? "" : "s"}` : run.kind === "send" ? `Sent request ${run.sent}` : undefined}
           passed={passed}
           failed={failed}
           durationMs={run.summary?.durationMs}
@@ -119,6 +145,9 @@ export function ResultsPanel({ file }: { file: string }) {
           </div>
         ) : (
           changed > 0 && <StaleBanner line={changed} onRun={() => void useRuns.getState().run(file)} />
+        )}
+        {run.data && pills.length > 0 && (
+          <DataRowPills rows={pills} selected={run.data.row} onSelect={(row) => useRuns.getState().pickRow(file, row)} />
         )}
         {run.error && <p className="run-error">{run.error}</p>}
         <RequestList rows={rows} selected={entry} onSelect={(n) => useResults.getState().pick(file, run.runId, n)} />

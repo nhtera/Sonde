@@ -35,10 +35,13 @@ const (
 )
 
 // UnitStarted is a unit's first event: the file (project path) the
-// unit's events belong to (a test run runs several).
+// unit's events belong to (a test run runs several) and, in a data-driven
+// run, the data row (1-based) and what names it ("Grace Hopper").
 type UnitStarted struct {
-	Type string `json:"type"`
-	File string `json:"file"`
+	Type  string `json:"type"`
+	File  string `json:"file"`
+	Row   int    `json:"row,omitempty"`
+	Label string `json:"label,omitempty"`
 }
 
 // Log is a line of the engine's verbose output, attached to an entry (0

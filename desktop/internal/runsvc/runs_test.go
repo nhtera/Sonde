@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/credential"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
@@ -345,6 +347,72 @@ func TestRunData(t *testing.T) {
 	}
 }
 
+func TestRunDataProjectFile(t *testing.T) {
+	f := setup(t)
+	if err := os.WriteFile(filepath.Join(f.dir, "rows.csv"), []byte("id,name\n4,Grace Hopper\n5,Ada\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	src := "GET {{base}}/items/{{id}}\nHTTP 200\n"
+	s, err := f.runs.RunData(context.Background(), DataRequest{RunID: "d1", File: "slow.hurl", Source: src, Env: "local", DataFile: "rows.csv"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Files != 2 || s.Outcome != Passed {
+		t.Fatalf("data %+v", s)
+	}
+	got := f.shop.requests()
+	if len(got) != 2 || !strings.Contains(got[0], "/items/4") || !strings.Contains(got[1], "/items/5") {
+		t.Errorf("rows run: %v", got)
+	}
+	// Each unit names its row: what tells the rows apart in the results.
+	items, _ := f.events(t, "d1")
+	rows := map[int]string{}
+	for _, it := range items {
+		var ev view.UnitStarted
+		if json.Unmarshal(it.Event, &ev) == nil && ev.Type == view.TypeUnitStarted {
+			rows[ev.Row] = ev.Label
+		}
+	}
+	if rows[1] != "Grace Hopper" || rows[2] != "Ada" || len(rows) != 2 {
+		t.Errorf("unit rows %v", rows)
+	}
+	// Never a file the page can not read, a link, or not data.
+	f.runs.Hooks.Protected = func(file string) bool { return strings.HasPrefix(file, ".") }
+	if err := os.MkdirAll(filepath.Join(f.dir, ".private"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{".private/rows.csv", "rows.txt"} {
+		if err := os.WriteFile(filepath.Join(f.dir, filepath.FromSlash(name)), []byte("id\n1\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(filepath.Join(f.dir, "rows.csv"), filepath.Join(f.dir, "link.csv")); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{"../rows.csv", "/etc/hosts", "missing.csv", ".private/rows.csv", "rows.txt", "link.csv"} {
+		if _, err := f.runs.RunData(context.Background(), DataRequest{RunID: "d-" + bad, File: "slow.hurl", Source: src, DataFile: bad}); err == nil {
+			t.Errorf("data file %q ran", bad)
+		}
+	}
+}
+
+func TestRowLabel(t *testing.T) {
+	for _, c := range []struct {
+		row  engine.Row
+		want string
+	}{
+		{engine.Row{Variables: map[string]any{"id": "7", "name": "Grace Hopper"}}, "Grace Hopper"},
+		{engine.Row{Variables: map[string]any{"id": "7", "Email": "ada@example.test"}}, "ada@example.test"},
+		{engine.Row{Variables: map[string]any{"name": "Grace", "x": "1"}, Secrets: map[string]string{"name": "Grace"}}, ""},
+		{engine.Row{Variables: map[string]any{"token": "x", "id": 7}}, ""},
+		{engine.Row{Variables: map[string]any{"title": strings.Repeat("a", 50)}}, strings.Repeat("a", 39) + "…"},
+	} {
+		if got := rowLabel(&c.row); got != c.want {
+			t.Errorf("rowLabel(%v) = %q, want %q", c.row.Variables, got, c.want)
+		}
+	}
+}
+
 func TestPlanningErrorEndsRun(t *testing.T) {
 	f := setup(t)
 	_, err := f.runs.Run(context.Background(), RunRequest{RunID: "r1", File: "flow.hurl", Source: flow, Env: "nope"})
@@ -526,5 +594,28 @@ func TestExportTwice(t *testing.T) {
 	data, _ := os.ReadFile(b)
 	if n := strings.Count(string(data), "<testsuite "); n != 1 {
 		t.Errorf("the second report has %d suites", n)
+	}
+}
+
+func TestDataColumns(t *testing.T) {
+	dir := t.TempDir()
+	for name, text := range map[string]string{"a.csv": "user,pass\nada,x\n", "b.json": `[{"name":"ada","token":"x"}]`, "c.json": "[]"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := sandbox.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for file, want := range map[string][]string{"a.csv": {"user", "pass"}, "b.json": {"name", "token"}, "c.json": nil, "missing.csv": nil} {
+		if got := dataColumns(root, file); !slices.Equal(got, want) {
+			t.Errorf("%s: %v, want %v", file, got, want)
+		}
+	}
+	// The credential columns are the data secrets a project data file
+	// adds.
+	if !credential.Likely("pass", "") || !credential.Likely("token", "") || credential.Likely("user", "") || credential.Likely("passenger", "") {
+		t.Error("credential column names")
 	}
 }

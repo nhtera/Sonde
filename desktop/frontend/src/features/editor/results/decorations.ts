@@ -114,26 +114,41 @@ function marksField(effect: typeof setRunMarks) {
 const runMarksField = marksField(setRunMarks);
 const requestMarksField = marksField(setRequestMarks);
 
+/** Whether the cursor sits in a {{…}} still being typed on its line: its
+ * parse error is not news yet. */
+export function typingTemplate(state: EditorState): number | null {
+  const pos = state.selection.main.head;
+  const line = state.doc.lineAt(pos);
+  const before = line.text.slice(0, pos - line.from);
+  const open = before.lastIndexOf("{{");
+  if (open < 0 || before.indexOf("}}", open) >= 0) return null;
+  return /^[\s\w.-]*(\}\}|$)/.test(line.text.slice(pos - line.from)) ? line.number : null;
+}
+
 /** The language server's warnings and errors: ⚠ in the gutter and the
- * first message of each line as a ghost. */
+ * first message of each line as a ghost (not on a line whose {{…}} is
+ * being typed). */
 const diagnosticMarks = StateField.define<{ gutter: RangeSet<Mark>; ghosts: DecorationSet }>({
   create: () => ({ gutter: RangeSet.empty, ghosts: Decoration.none }),
   update(value, tr) {
-    if (!tr.docChanged && tr.effects.length === 0) return value;
+    if (!tr.docChanged && tr.effects.length === 0 && !tr.selection) return value;
+    const typing = typingTemplate(tr.state);
     const seen = new Set<number>();
     const gutter: { from: number; value: Mark }[] = [];
     const ghosts: { from: number; value: Decoration }[] = [];
     forEachDiagnostic(tr.state, (d, from) => {
       if (d.severity !== "warning" && d.severity !== "error") return;
       const line = tr.state.doc.lineAt(from);
-      if (seen.has(line.number)) return;
+      if (seen.has(line.number) || line.number === typing) return;
       seen.add(line.number);
       gutter.push({ from: line.from, value: new Mark("warn", undefined, false) });
       ghosts.push({ from: line.to, value: Decoration.widget({ widget: new Ghost(`⚠ ${shorten(d.message)}`, "warn", false), side: 2 }) });
     });
+    // Nor its squiggle (editor.css).
+    if (typing) ghosts.push({ from: tr.state.doc.line(typing).from, value: Decoration.line({ class: "cm-typing-template" }) });
     gutter.sort((a, b) => a.from - b.from);
     ghosts.sort((a, b) => a.from - b.from);
-    return { gutter: RangeSet.of(gutter.map((g) => g.value.range(g.from))), ghosts: Decoration.set(ghosts.map((g) => g.value.range(g.from))) };
+    return { gutter: RangeSet.of(gutter.map((g) => g.value.range(g.from))), ghosts: Decoration.set(ghosts.map((g) => g.value.range(g.from)), true) };
   },
   provide: (f) => EditorView.decorations.from(f, (m) => m.ghosts),
 });

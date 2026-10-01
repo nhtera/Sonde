@@ -275,6 +275,10 @@ func (s *Workspace) Requests(file string) ([]Request, error) {
 // dot files and folders (.env, .git/config…), *.secrets files and the
 // project's secrets files. Their values reach the page only through the
 // environment service, which hides them.
+// Protected reports whether file (project-relative) is one the page
+// never reads: a dot file or folder, a secrets file.
+func (s *Workspace) Protected(file string) bool { return s.protected(filepath.FromSlash(file)) }
+
 func (s *Workspace) protected(p string) bool {
 	slash := filepath.ToSlash(p)
 	return dotted(p) || strings.EqualFold(path.Ext(slash), ".secrets") || s.Secret != nil && s.Secret(slash)

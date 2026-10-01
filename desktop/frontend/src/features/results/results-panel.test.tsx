@@ -125,6 +125,107 @@ describe("Results panel", () => {
   });
 });
 
+/** A data run's summary: a unit per row. */
+const dataSummary = (rows: [number, boolean][]) => ({ ...recorded().summary!, kind: "data", units: rows.map(([row, success]) => ({ file: "checkout.hurl", row, success, interrupted: false, canceled: false, requests: 1, durationMs: 1 })) });
+
+describe("Results panel: data-driven runs", () => {
+  it("shows row pills with passed/failed states", () => {
+    const run: FileRun = {
+      ...recorded(),
+      kind: "data",
+      summary: dataSummary([[1, true], [2, false]]),
+      data: {
+        file: "data/logins.csv",
+        rows: [
+          { row: 1, label: "alice", run: recorded({ entries: { 1: { index: 1, line: 1, success: true, errors: [] } as never } }) },
+          { row: 2, label: "bob", run: recorded({ entries: { 1: { index: 1, line: 1, success: false, errors: [{ kind: "assert" } as never] } as never } }) },
+        ],
+        row: 2,
+        picked: false,
+      },
+    };
+    show(run);
+
+    const pills = screen.getAllByRole("tab", { name: /^Row \d+/ });
+    expect(pills).toHaveLength(2);
+    expect(pills[0]).toHaveTextContent("alice");
+    expect(pills[0]).toHaveClass("state-passed");
+    expect(pills[1]).toHaveTextContent("bob");
+    expect(pills[1]).toHaveClass("state-failed");
+  });
+
+  it("displays N rows lead text and file name", () => {
+    const run: FileRun = {
+      ...recorded(),
+      kind: "data",
+      summary: dataSummary([[1, true], [2, true]]),
+      data: {
+        file: "data/logins.csv",
+        rows: [
+          { row: 1, run: recorded({ entries: {} }) },
+          { row: 2, run: recorded({ entries: {} }) },
+        ],
+        row: 1,
+        picked: false,
+      },
+    };
+    show(run);
+
+    expect(screen.getByText("2 rows")).toBeInTheDocument();
+    expect(screen.getByText(/Ran all 2 rows of logins.csv/)).toBeInTheDocument();
+  });
+
+  it("clicking a pill shows that row's requests", async () => {
+    const user = userEvent.setup();
+    const run: FileRun = {
+      ...recorded(),
+      kind: "data",
+      summary: dataSummary([[1, true], [2, false]]),
+      data: {
+        file: "data/logins.csv",
+        rows: [
+          { row: 1, label: "alice", run: recorded({ entries: { 1: { index: 1, line: 1, success: true, errors: [] } as never } }) },
+          { row: 2, label: "bob", run: recorded({ entries: { 1: { index: 1, line: 1, success: false, errors: [{ kind: "assert" } as never] } as never } }) },
+        ],
+        row: 1,
+        picked: false,
+      },
+    };
+    show(run);
+
+    const pills = screen.getAllByRole("tab", { name: /^Row \d+/ });
+    await user.click(pills[1]);
+
+    // Row 2 shows, picked: its failed request is the one listed.
+    const shown = useRuns.getState().runs["checkout.hurl"];
+    expect(shown.data?.row).toBe(2);
+    expect(shown.data?.picked).toBe(true);
+    expect(shown.entries[1]?.success).toBe(false);
+    expect(screen.getAllByRole("tab", { name: /^Row \d+/ })[1]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("shows running state for incomplete rows", () => {
+    const run: FileRun = {
+      ...recorded(),
+      kind: "data",
+      running: true,
+      data: {
+        file: "data/logins.csv",
+        rows: [
+          { row: 1, run: recorded({ running: false, entries: { 1: { index: 1, line: 1, success: true, errors: [] } as never } }) },
+          { row: 2, run: recorded({ running: true, entries: {} }) },
+        ],
+        row: 1,
+        picked: false,
+      },
+    };
+    show(run);
+
+    const pills = screen.getAllByRole("tab", { name: /^Row \d+/ });
+    expect(pills[1]).toHaveClass("state-running");
+  });
+});
+
 describe("Results actions", () => {
   it("changes max-time when the request has it, adds it otherwise", async () => {
     useTabs.setState({ tabs: [{ path: "a.hurl", text: "GET x\n", savedText: "", hash: "", version: 4, conflict: false }] });

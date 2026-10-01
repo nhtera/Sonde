@@ -263,3 +263,22 @@ func TestRedactBodyTiming(t *testing.T) {
 		t.Fatal("secret left")
 	}
 }
+
+// TestRowLabelRedacted: a data row's label that holds a secret is not
+// sent; one that holds none is.
+func TestRowLabelRedacted(t *testing.T) {
+	mask := func(s string) string { return strings.ReplaceAll(s, "hunter2", "***") }
+	c := NewConverter("f", mask, nil, func(any) {})
+	c.SetRow(1, "Grace Hopper")
+	if got := c.redactLabel(); got != "Grace Hopper" {
+		t.Errorf("plain label %q", got)
+	}
+	c.SetRow(2, "hunter2")
+	if got := c.redactLabel(); got != "" {
+		t.Errorf("secret label %q", got)
+	}
+	c.SetRow(3, "ada hunter2")
+	if got := c.redactLabel(); got != "" {
+		t.Errorf("label holding a secret %q", got)
+	}
+}

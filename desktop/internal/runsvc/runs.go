@@ -10,9 +10,12 @@
 package runsvc
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/csv"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,10 +24,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/credential"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/view"
@@ -33,6 +38,7 @@ import (
 	"github.com/nhtera/sonde/internal/enginex"
 	"github.com/nhtera/sonde/internal/runplan"
 	"github.com/nhtera/sonde/internal/sandbox"
+	"github.com/nhtera/sonde/internal/value"
 )
 
 // Hooks connect runs to the app's other services; each may be nil.
@@ -49,6 +55,9 @@ type Hooks struct {
 	KeepCookies func(file string, cookies []engine.Cookie)
 	// Record stores a finished run in the history.
 	Record func(s *Summary, results []*engine.UnitResult)
+	// Protected reports a project file the page never reads (secrets, dot
+	// files): never a data file either.
+	Protected func(file string) bool
 }
 
 // Runs is the run service's core.
@@ -275,12 +284,28 @@ func (r *Runs) RunTest(ctx context.Context, req TestRequest) (*Summary, error) {
 // RunData runs a file once per row of a data file.
 func (r *Runs) RunData(ctx context.Context, req DataRequest) (*Summary, error) {
 	return r.start(ctx, req.RunID, "data", []string{req.File}, func(ctx context.Context, rn *run) error {
-		// Taken once the file is ours: a busy file keeps the handle.
-		data, err := r.handles.Take(req.DataHandle, handles.OpenFile)
-		if err != nil {
+		// A dialog's handle is taken once the file is ours: a busy file
+		// keeps it.
+		var data string
+		var err error
+		if req.DataFile != "" {
+			if data, err = r.dataFile(rn, req.DataFile); err != nil {
+				return err
+			}
+		} else if data, err = r.handles.Take(req.DataHandle, handles.OpenFile); err != nil {
 			return apperr.Wrap(apperr.Expired, err)
 		}
 		rn.dataSecrets = req.Secrets
+		if req.DataFile != "" {
+			// A project data file's credential columns (password, token…)
+			// are secrets, as if named with --data-secret: their values
+			// never reach the page.
+			for _, col := range dataColumns(rn.root, req.DataFile) {
+				if credential.Likely(col, "") && !slices.Contains(rn.dataSecrets, col) {
+					rn.dataSecrets = append(rn.dataSecrets, col)
+				}
+			}
+		}
 		if err := rn.plan(ctx, "run", req.Env, data, []string{req.File}, map[string]string{req.File: req.Source}); err != nil {
 			return err
 		}
@@ -288,6 +313,48 @@ func (r *Runs) RunData(ctx context.Context, req DataRequest) (*Summary, error) {
 		rn.execute(ctx, nil)
 		return nil
 	})
+}
+
+// dataFile is the absolute path of a project data file: a .csv or .json
+// the page could read, never a secrets or dot file.
+func (r *Runs) dataFile(rn *run, file string) (string, error) {
+	ext := strings.ToLower(filepath.Ext(file))
+	if ext != ".csv" && ext != ".json" {
+		return "", apperr.New(apperr.Invalid, "a data file is a .csv or .json file: "+file)
+	}
+	if r.Hooks.Protected != nil && r.Hooks.Protected(file) {
+		return "", apperr.New(apperr.Denied, file+" holds secrets or settings the app does not show")
+	}
+	abs, err := rn.abs(file)
+	if err != nil {
+		return "", err
+	}
+	// A plain file: not a link the run would follow out of the project.
+	if fi, err := rn.root.Lstat(filepath.FromSlash(file)); err != nil || !fi.Mode().IsRegular() {
+		return "", apperr.New(apperr.Denied, file+" is not a regular file in the project")
+	}
+	return abs, nil
+}
+
+// dataColumns lists the columns of a project data file: a CSV's header,
+// or the keys of a JSON array's first object.
+func dataColumns(root *sandbox.Root, file string) []string {
+	data, err := root.ReadFile(filepath.FromSlash(file))
+	if err != nil {
+		return nil
+	}
+	if strings.EqualFold(filepath.Ext(file), ".json") {
+		var rows []map[string]json.RawMessage
+		if json.Unmarshal(data, &rows) != nil || len(rows) == 0 {
+			return nil
+		}
+		return slices.Sorted(maps.Keys(rows[0]))
+	}
+	header, err := csv.NewReader(bytes.NewReader(data)).Read()
+	if err != nil {
+		return nil
+	}
+	return header
 }
 
 // start reserves files, runs body and always ends the run with Done.
@@ -557,6 +624,9 @@ func (rn *run) execute(ctx context.Context, stored func(*engine.UnitResult)) {
 				_, message := dto.(view.Message)
 				rn.bridge.add(seq, dto, message)
 			})
+			if job.Row != nil {
+				c.SetRow(job.Row.Index, rowLabel(job.Row))
+			}
 			converters[seq] = c
 			return c.Handle, nil
 		},
@@ -652,6 +722,38 @@ func (rn *run) finish(ctx context.Context) {
 		}
 	}
 	s.Outcome = outcome
+}
+
+// rowLabels are the data columns that name a row, best first.
+var rowLabels = []string{"name", "title", "label", "username", "user", "email", "id"}
+
+// rowLabel names a data row by its first naming column ("Grace Hopper"):
+// never a secret column or a value that looks like a credential, and short.
+func rowLabel(row *engine.Row) string {
+	names := slices.Sorted(maps.Keys(row.Variables))
+	for _, key := range rowLabels {
+		for _, name := range names {
+			if !strings.EqualFold(name, key) {
+				continue
+			}
+			v := row.Variables[name]
+			var text string
+			switch v := v.(type) {
+			case string:
+				text = v
+			case value.Value:
+				text = value.Display(v)
+			}
+			if _, secret := row.Secrets[name]; secret || text == "" || credential.Likely(name, text) {
+				continue
+			}
+			if r := []rune(text); len(r) > 40 {
+				text = string(r[:39]) + "…"
+			}
+			return text
+		}
+	}
+	return ""
 }
 
 func rowOf(job engine.Job) int {

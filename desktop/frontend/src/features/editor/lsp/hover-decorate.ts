@@ -1,19 +1,18 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// One hover: the language server's, and for a {{variable}} its value (***
-// for a secret) and where it comes from, as the app resolves it
-// (Vars.For, the last run's captures).
+// One hover. A {{variable}} the app knows gets a card: its name and
+// kind, its value (*** for a secret or a redacted capture), where it
+// comes from and, for a capture, a link to the line that sets it. Any
+// other hover is the language server's.
 
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
 import { LSPPlugin } from "@codemirror/lsp-client";
-import { hoverTooltip, type EditorView, type Tooltip } from "@codemirror/view";
+import { EditorView, hoverTooltip, type Tooltip } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
-import { Vars, type ScopeVar } from "../../../lib/api";
 import { useEnv } from "../../../state/env";
-import { on } from "../../../lib/events";
-import { useRuns } from "../../../state/run";
+import { describeVariable, type VariableInfo } from "../variables";
 import { lspReady } from "./client";
 
 /** The variable name under pos, when pos is inside a {{…}}. */
@@ -31,39 +30,6 @@ export function variableAt(view: EditorView, pos: number): string | null {
 
 /** How long a hover waits for the language server. */
 const HOVER_WAIT_MS = 300;
-
-const cache = new Map<string, Promise<ScopeVar[]>>();
-
-/** The variables a file can use in an environment (cached until the
- * environments, the overrides or a project file change). */
-function varsFor(file: string, env: string): Promise<ScopeVar[]> {
-  const key = `${file}\n${env}`;
-  let p = cache.get(key);
-  if (!p) {
-    p = Vars.For(file, env).then((v) => v ?? [], () => []);
-    cache.set(key, p);
-  }
-  return p;
-}
-
-export function clearVarsCache() {
-  cache.clear();
-}
-useEnv.subscribe((s, prev) => (s.project !== prev.project || s.overrides !== prev.overrides) && clearVarsCache());
-on("ws:changed", clearVarsCache);
-
-/** The value and source of name for file, as the app resolves it. */
-export async function describeVariable(file: string, name: string): Promise<{ value: string; source: string } | null> {
-  // A capture of the file's last run.
-  const run = useRuns.getState().runs[file];
-  for (const e of Object.values(run?.entries ?? {}).reverse()) {
-    const c = e.captures?.find((x) => x.name === name);
-    if (c) return { value: typeof c.value === "string" ? c.value : JSON.stringify(c.value), source: `captured by request ${e.index}` };
-  }
-  const v = (await varsFor(file, useEnv.getState().current)).find((x) => x.name === name);
-  if (!v) return null;
-  return { value: v.secret ? "***" : v.display, source: v.origin ? `${v.source} · ${v.origin}` : v.source };
-}
 
 export function sondeHover(file: string) {
   return hoverTooltip(async (view, pos): Promise<Tooltip | null> => {
@@ -91,33 +57,59 @@ export function sondeHover(file: string) {
       }
     }
     const name = variableAt(view, pos);
-    const value = name ? await describeVariable(file, name) : null;
-    if (!html && !value) return null;
+    const info = name ? await describeVariable(file, name, pos) : null;
+    if (!html && !info) return null;
     return {
       pos: range?.from ?? pos,
       end: range?.to ?? pos,
       above: true,
-      create() {
+      create(view) {
         const dom = document.createElement("div");
         dom.className = "cm-sonde-hover";
-        if (html) {
+        if (info) dom.append(variableCard(view, info));
+        else {
           const doc = document.createElement("div");
           doc.className = "cm-sonde-hover-doc";
           doc.innerHTML = html; // sanitized by the client (sanitize.ts)
           dom.append(doc);
         }
-        if (value) {
-          const row = document.createElement("div");
-          row.className = "cm-sonde-hover-value";
-          const code = document.createElement("code");
-          code.textContent = value.value || '""';
-          const source = document.createElement("span");
-          source.textContent = value.source;
-          row.append(code, source);
-          dom.append(row);
-        }
         return { dom };
       },
     };
   });
+}
+
+const el = (tag: string, className: string, text?: string) => Object.assign(document.createElement(tag), { className, textContent: text ?? "" });
+
+/** Where a variable comes from, in a sentence. */
+function origin(info: VariableInfo): string {
+  if (info.setBy) return `Set by request ${info.setBy.entry} · line ${info.setBy.line} · ${info.captured ? "last run" : "not run yet"}`;
+  if (info.kind === "override") return "Session override, used as --variable";
+  const env = useEnv.getState().current;
+  return `${env ? `Environment ${env} · ` : ""}${info.source}`;
+}
+
+/** The card of a variable: name and kind, value, origin and a link. */
+export function variableCard(view: EditorView, info: VariableInfo): HTMLElement {
+  const card = el("div", "cm-var-card");
+  const head = el("div", "cm-var-head");
+  head.append(el("code", "cm-var-name", `{{${info.name}}}`), el("span", `cm-var-kind k-${info.kind}`, info.kind === "project" ? "environment" : info.kind));
+  const value = el("code", "cm-var-value", info.value || (info.kind === "capture" ? "not captured yet" : '""'));
+  if (!info.value) value.classList.add("unset");
+  const foot = el("div", "cm-var-foot");
+  foot.append(el("span", "", origin(info)));
+  if (info.setBy) {
+    const line = info.setBy.line;
+    const go = el("button", "cm-var-link", "Go to capture") as HTMLButtonElement;
+    go.type = "button";
+    go.onmousedown = (e) => e.preventDefault();
+    go.onclick = () => {
+      const at = view.state.doc.line(Math.min(line, view.state.doc.lines));
+      view.dispatch({ selection: { anchor: at.from }, effects: EditorView.scrollIntoView(at.from, { y: "center" }) });
+      view.focus();
+    };
+    foot.append(go);
+  }
+  card.append(head, value, foot);
+  return card;
 }

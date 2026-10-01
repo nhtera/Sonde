@@ -6,10 +6,9 @@
 // goes to the tab store, and a text changed there (a reload from disk, an
 // edit from Go) replaces the editor's.
 
-import { autocompletion, closeBrackets } from "@codemirror/autocomplete";
+import { closeBrackets } from "@codemirror/autocomplete";
 import { history, undo } from "@codemirror/commands";
 import { bracketMatching, foldGutter, indentUnit } from "@codemirror/language";
-import { serverCompletion } from "@codemirror/lsp-client";
 import { highlightSelectionMatches } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
@@ -18,10 +17,12 @@ import { registerEditTarget } from "../../state/edits";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
+import { pasteAsCurl } from "./paste-curl";
 import { dropModel, modelOf } from "./entry-at";
 import { editorKeymap, ownKeys } from "./keymap";
 import { fileURI, lspClient } from "./lsp/client";
 import { sondeHover } from "./lsp/hover-decorate";
+import { sondeCompletion } from "./lsp/variable-completion";
 import { lspSync } from "./lsp/sync";
 import { methodColors } from "./methods";
 import { runGutter, setRequestMarks, setRunMarks } from "./results/decorations";
@@ -85,13 +86,22 @@ function extensions(path: string) {
     ownKeys,
     keymap.of(editorKeymap),
     lspClient().plugin(fileURI(path), "sonde"),
-    // Completion asks the server (after syncing the whole file) only once
-    // typing pauses, not on every letter.
-    autocompletion({ activateOnTypingDelay: 250 }),
-    serverCompletion(),
+    // Completion: the app's variables inside {{…}}, the server's elsewhere.
+    sondeCompletion(path),
     sondeHover(path),
     lspSync,
     EditorView.contentAttributes.of({ "aria-label": `${path} text` }),
+    // A curl command pasted into an empty file goes through the import,
+    // which writes it as a request.
+    EditorView.domEventHandlers({
+      paste: (e, view) => {
+        const text = e.clipboardData?.getData("text/plain") ?? "";
+        if (view.state.doc.toString().trim() !== "" || !/^\s*curl\s/.test(text)) return false;
+        e.preventDefault();
+        void pasteAsCurl(text);
+        return true;
+      },
+    }),
   ];
 }
 

@@ -25,6 +25,8 @@ import (
 // same way.
 type Converter struct {
 	file     string
+	row      int
+	label    string
 	fallback Redactor
 	bodies   BodyStore
 	out      func(dto any)
@@ -51,13 +53,40 @@ func NewConverter(file string, fallback Redactor, bodies BodyStore, out func(dto
 	return &Converter{file: file, fallback: fallback, bodies: bodies, out: out, cookies: newCookieValues()}
 }
 
+// SetRow names the data row the unit runs (before its first event).
+func (c *Converter) SetRow(row int, label string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.row, c.label = row, label
+}
+
+// redactLabel is the row's label with the unit's secrets masked; none
+// when masking leaves nothing to tell rows apart.
+func (c *Converter) redactLabel() string {
+	if c.label == "" {
+		return ""
+	}
+	r := c.redact
+	if r == nil {
+		r = c.fallback
+	}
+	if r == nil {
+		return c.label
+	}
+	if out := r(c.label); out != c.label {
+		return ""
+	}
+	return c.label
+}
+
 // Handle converts one engine event.
 func (c *Converter) Handle(ev engine.Event) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if r, ok := enginex.UnitStarted(ev); ok {
 		c.redact = r
-		c.out(UnitStarted{Type: TypeUnitStarted, File: c.file})
+		// The label is a data value: the row's secrets and the run's go.
+		c.out(UnitStarted{Type: TypeUnitStarted, File: c.file, Row: c.row, Label: c.redactLabel()})
 		c.flush()
 		return
 	}

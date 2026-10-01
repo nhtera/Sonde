@@ -40,13 +40,15 @@ type TestRequest struct {
 	Env     string            `json:"env"`
 }
 
-// DataRequest runs a file once per row of a data file picked in a dialog
+// DataRequest runs a file once per row of a data file: one of the
+// project's (DataFile, project-relative) or one picked in a dialog
 // (DataHandle). Rows selects rows by 1-based index (empty: all).
 type DataRequest struct {
 	RunID      string `json:"runId"`
 	File       string `json:"file"`
 	Source     string `json:"source"`
 	Env        string `json:"env"`
+	DataFile   string `json:"dataFile"`
 	DataHandle string `json:"dataHandle"`
 	Rows       []int  `json:"rows"`
 	// Secrets are the data file's secret columns (--data-secret).

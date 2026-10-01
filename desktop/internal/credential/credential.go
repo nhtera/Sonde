@@ -11,7 +11,7 @@ import (
 )
 
 // tokenName is a name that suggests a credential.
-var tokenName = regexp.MustCompile(`(?i)token|secret|key|password|passwd|session|auth|cookie|jwt|bearer`)
+var tokenName = regexp.MustCompile(`(?i)token|secret|key|password|passwd|^pass$|pwd|session|auth|cookie|jwt|bearer`)
 
 // jwtShape is a JWT-like value: three base64url parts.
 var jwtShape = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$`)
