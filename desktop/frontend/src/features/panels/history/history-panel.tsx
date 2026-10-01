@@ -37,7 +37,7 @@ export function HistoryPanel() {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [filter, setFilter] = useState("");
   const enabled = useSettings((s) => s.value?.history.enabled ?? true);
-  const shown = useHistoryView((s) => s.view?.id);
+  const shown = useHistoryView((s) => (s.view ? `${s.view.id}:${s.view.result ?? ""}:${s.view.entry ?? ""}` : ""));
   useEffect(() => {
     const load = () => void History.List().then((l) => setItems(l ?? []), fail);
     load();
@@ -48,10 +48,10 @@ export function HistoryPanel() {
       const rec = await History.Get(item.id);
       const file = call?.file ?? item.files?.[0];
       if (!rec || !file) return;
-      const run = historyRun(rec, file);
+      const run = historyRun(rec, file, call?.result);
       if (!run) return;
       await useTabs.getState().open(file);
-      useHistoryView.getState().show({ id: item.id, file, at: item.at, run, entry: call?.entry });
+      useHistoryView.getState().show({ id: item.id, file, at: item.at, run, entry: call?.entry, result: call?.result });
     } catch (err) {
       fail(err);
     }
@@ -90,10 +90,10 @@ export function HistoryPanel() {
           const head = n === 0 || days[n - 1] !== day;
           const time = new Date(item.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
           return (
-            <li key={`${item.id}:${call?.file ?? ""}:${call?.entry ?? 0}`}>
+            <li key={`${item.id}:${call?.result ?? ""}:${call?.entry ?? ""}`}>
               {head && <div className="day muted small">{day}</div>}
               {call ? (
-                <button aria-pressed={shown === item.id} onClick={() => void open(item, call)}>
+                <button aria-pressed={shown === `${item.id}:${call.result}:${call.entry}`} onClick={() => void open(item, call)}>
                   <span className={`method m-${call.method.toLowerCase()}`}>{call.method}</span>
                   <span className="mono path" title={call.url}>
                     {displayPath(call.url)}
@@ -104,7 +104,7 @@ export function HistoryPanel() {
                   </span>
                 </button>
               ) : (
-                <button aria-pressed={shown === item.id} onClick={() => void open(item)}>
+                <button aria-pressed={shown === `${item.id}::`} onClick={() => void open(item)}>
                   <span className="method">{item.kind}</span>
                   <span className="mono path">{(item.files ?? []).join(", ")}</span>
                   <span className={`status ${item.outcome === "passed" ? "pass" : "fail"}`}>{item.outcome}</span>

@@ -154,40 +154,48 @@ func (s *Service) Status(ctx context.Context) ([]FileStatus, error) {
 	if out, err := s.run(ctx, dir, false, "diff", "--no-ext-diff", "--no-textconv", "--numstat", "-z", "HEAD", "--"); err == nil {
 		maps.Copy(counts, parseNumstat(out))
 	}
-	untracked := 0
+	// A new file's lines are all added: counted here, from the repository
+	// root its path is relative to.
+	var top *sandbox.Root
+	if out, err := s.run(ctx, dir, false, "rev-parse", "--show-toplevel"); err == nil {
+		top, _ = sandbox.Open(strings.TrimSpace(string(out)))
+	}
 	for i := range list {
 		f := &list[i]
 		f.Secret = s.IsSecret(f.Path)
 		f.Added, f.Removed = -1, -1
 		if c, ok := counts[f.Path]; ok {
 			f.Added, f.Removed = c[0], c[1]
-		} else if f.Worktree == "?" && untracked < maxCounted {
-			// A new file: its lines, as git would count them once added.
-			untracked++
-			if out, err := s.runDiff(ctx, dir, "diff", "--no-ext-diff", "--no-textconv", "--no-index", "--numstat", "-z", "--", os.DevNull, f.Path); err == nil {
-				for _, c := range parseNumstat(out) {
-					f.Added, f.Removed = c[0], c[1]
-				}
-			}
+		} else if f.Worktree == "?" && top != nil {
+			f.Added, f.Removed = lines(top, f.Path), 0
 		}
+	}
+	if top != nil {
+		_ = top.Close()
 	}
 	return list, nil
 }
 
-// maxCounted bounds the new files whose lines Status counts one by one.
-const maxCounted = 50
+// maxCounted is the largest new file whose lines Status counts.
+const maxCounted = 4 << 20
 
-// runDiff runs a git diff that exits 1 when it finds differences (no
-// hooks: a diff runs none).
-func (s *Service) runDiff(ctx context.Context, dir string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, Timeout)
-	defer cancel()
-	out, err := s.command(ctx, dir, false, args...).Output()
-	var exit *exec.ExitError
-	if errors.As(err, &exit) && exit.ExitCode() == 1 {
-		return out, nil
+// lines counts a text file's lines, as git does (-1 for a binary, large
+// or unreadable file).
+func lines(root *sandbox.Root, rel string) int {
+	p := filepath.FromSlash(rel)
+	fi, err := root.Lstat(p)
+	if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxCounted {
+		return -1
 	}
-	return out, err
+	data, err := root.ReadFile(p)
+	if err != nil || bytes.IndexByte(data, 0) >= 0 {
+		return -1
+	}
+	n := bytes.Count(data, []byte("\n"))
+	if len(data) > 0 && data[len(data)-1] != '\n' {
+		n++
+	}
+	return n
 }
 
 // parseNumstat parses `git diff --numstat -z`: lines added and removed

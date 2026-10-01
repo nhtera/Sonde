@@ -54,3 +54,27 @@ describe("the history view", () => {
     expect(useHistoryView.getState().view).toBeNull();
   });
 });
+
+const result = (filename: string, status: number) => ({
+  filename,
+  success: status < 400,
+  time: 1,
+  entries: [{ index: 1, line: 1, time: 1, asserts: [{ success: status < 400, line: 2 }], captures: [], calls: [{ request: { method: "GET", url: `https://x/${status}` }, response: { status } }] }],
+});
+
+const multi = { id: "r", summary: null, results: [result("/p/a.hurl", 200), result("/p/sub/a.hurl", 500), result("/p/a.hurl", 422)] } as unknown as HistoryRecord;
+
+describe("historyRun by result", () => {
+  it("opens the call's own result: a data run's row, a file of a test run", () => {
+    const status = (n?: number) => (historyRun(multi, "a.hurl", n)?.entries[1] as unknown as { calls: { response: { status: number } }[] }).calls[0].response.status;
+    expect(status(0)).toBe(200);
+    expect(status(1)).toBe(500);
+    expect(status(2)).toBe(422);
+    // Without one, the file's first result.
+    expect(status()).toBe(200);
+  });
+
+  it("is null for a result the record does not have", () => {
+    expect(historyRun(multi, "a.hurl", 9)).toBeNull();
+  });
+});

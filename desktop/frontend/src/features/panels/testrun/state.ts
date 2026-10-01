@@ -61,6 +61,14 @@ export const useTestRun = create<TestRunState>((set, get) => ({
     // Open tabs run as the user sees them.
     const sources: Record<string, string> = {};
     for (const t of useTabs.getState().tabs) if (files.includes(t.path)) sources[t.path] = t.text;
+    // The others as they are now: what runs, and what the results show.
+    if (!dataHandle) {
+      await Promise.all(
+        files
+          .filter((f) => !(f in sources))
+          .map((f) => Workspace.Read(f).then((t) => t && (sources[f] = t.text), () => undefined)),
+      );
+    }
     const units: Record<number, string> = {};
     const handle = startRun<Summary>(
       (runId) => {
@@ -105,14 +113,11 @@ export const useTestRun = create<TestRunState>((set, get) => ({
     cancelRun = handle.cancel;
     try {
       await handle.result;
-      // Each file's text as it ran (the results show its lines): the open
-      // tab's, else the file's.
-      const ran = Object.keys(get().files);
-      const texts = await Promise.all(ran.map((f) => (f in sources ? Promise.resolve(sources[f]) : Workspace.Read(f).then((t) => t?.text ?? "", () => ""))));
+      // Each file's text as it ran: the results show its lines.
       set((s) => {
         if (s.runId !== handle.runId) return s;
         const files = { ...s.files };
-        ran.forEach((f, i) => files[f] && (files[f] = { ...files[f], source: texts[i] }));
+        for (const f of Object.keys(files)) if (f in sources) files[f] = { ...files[f], source: sources[f] };
         return { files };
       });
     } catch (err) {

@@ -106,7 +106,7 @@ func TestStoredRunIsRedacted(t *testing.T) {
 	// Each request, last first, from the record: never a secret, the
 	// query's token included.
 	calls := items[0].Calls
-	if len(calls) != 2 || calls[0].Entry != 2 || calls[0].Method != "GET" || calls[1].Method != "POST" || calls[0].Status != 200 || calls[0].File != "a.hurl" {
+	if len(calls) != 2 || calls[0].Entry != 2 || calls[0].Method != "GET" || calls[1].Method != "POST" || calls[0].Status != 200 || calls[0].File != "a.hurl" || calls[0].Result != 0 {
 		t.Fatalf("calls %+v", calls)
 	}
 	if !strings.Contains(calls[0].URL, "/orders/"+orderID) {

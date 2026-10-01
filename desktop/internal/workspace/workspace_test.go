@@ -530,4 +530,22 @@ func TestDuplicateFolder(t *testing.T) {
 	if _, err := s.Duplicate(".git"); err == nil {
 		t.Error("a dot folder duplicated")
 	}
+	// Secrets never get a copy the page could read: neither a *.secrets
+	// file nor one sonde.yaml declares.
+	write(t, dir, "env/prod.env", "TOKEN=x\n")
+	write(t, dir, "env/local.secrets", "password=x\n")
+	write(t, dir, "env/notes.hurl", "GET https://n\n")
+	s.Secret = func(rel string) bool { return rel == "env/prod.env" }
+	got, err = s.Duplicate("env")
+	if err != nil || got != "env copy" {
+		t.Fatalf("Duplicate(env) = %q, %v", got, err)
+	}
+	for _, f := range []string{"prod.env", "local.secrets"} {
+		if _, err := os.Stat(filepath.Join(dir, "env copy", f)); !os.IsNotExist(err) {
+			t.Errorf("%s copied: %v", f, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "env copy", "notes.hurl")); err != nil {
+		t.Errorf("notes.hurl not copied: %v", err)
+	}
 }

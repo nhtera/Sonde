@@ -96,7 +96,7 @@ export function TestRunSide() {
             aria-label="Parallel jobs"
             placeholder="auto"
             value={jobs || ""}
-            onChange={(e) => useTestRun.getState().setOptions({ jobs: Math.max(0, Math.min(64, Number(e.target.value) || 0)) })}
+            onChange={(e) => useTestRun.getState().setOptions({ jobs: Math.max(0, Math.min(64, Math.trunc(Number(e.target.value)) || 0)) })}
           />
         </label>
         <label className="opt-line">

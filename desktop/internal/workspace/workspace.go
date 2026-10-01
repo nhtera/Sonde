@@ -458,7 +458,9 @@ func (s *Workspace) Duplicate(file string) (string, error) {
 
 // duplicateDir copies the folder dir, its plain files at the same modes,
 // to a free "dir copy" next to it; dot files and links are left out, as
-// the tree leaves them out.
+// the tree leaves them out, and so are the files that hold secrets: a
+// copy at another path would no longer be one the app keeps from the
+// page.
 func (s *Workspace) duplicateDir(root *sandbox.Root, dir string) (string, error) {
 	var to string
 	for i := 1; i < 1000 && to == ""; i++ {
@@ -487,6 +489,9 @@ func (s *Workspace) duplicateDir(root *sandbox.Root, dir string) (string, error)
 				continue
 			}
 			src, dst := filepath.Join(from, e.Name()), filepath.Join(into, e.Name())
+			if s.protected(src) {
+				continue
+			}
 			fi, err := root.Lstat(src)
 			if err != nil {
 				return err

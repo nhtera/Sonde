@@ -17,8 +17,9 @@ export interface HistoryView {
   /** When it ran. */
   at: string;
   run: FileRun;
-  /** The request opened (its entry), shown first. */
+  /** The request opened (its entry and unit), shown first. */
   entry?: number;
+  result?: number;
 }
 
 export const useHistoryView = create<{ view: HistoryView | null; show(v: HistoryView | null): void }>((set) => ({
@@ -26,10 +27,12 @@ export const useHistoryView = create<{ view: HistoryView | null; show(v: History
   show: (view) => set({ view }),
 }));
 
-/** The run of file in a history record, as the Results panel shows a run
- * (its entries as the report kept them, redacted; no bodies). */
-export function historyRun(record: HistoryRecord, file: string): FileRun | null {
-  const res = record.results?.find((r) => r.filename === file || r.filename.endsWith(`/${file}`));
+/** The run of file in a history record (its result-th unit when given),
+ * as the Results panel shows a run (its entries as the report kept them,
+ * redacted; no bodies). */
+export function historyRun(record: HistoryRecord, file: string, result?: number): FileRun | null {
+  // A call names its result (a data run's row, a file of a test run).
+  const res = result !== undefined ? record.results?.[result] : record.results?.find((r) => r.filename === file || r.filename.endsWith(`/${file}`));
   if (!res) return null;
   const entries: Record<number, Entry> = {};
   for (const e of res.entries ?? []) {

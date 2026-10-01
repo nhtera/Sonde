@@ -94,7 +94,8 @@ export function ResultsPanel({ file, run: given }: { file: string; run?: FileRun
   if (!run) return null;
 
   // A request opened from the history shows first.
-  const entry = shownEntry(run, picked ?? (past?.entry ? { runId: run.runId, value: past.entry } : undefined));
+  // A pick from another run is no pick here.
+  const entry = shownEntry(run, picked?.runId === run.runId ? picked : past?.entry ? { runId: run.runId, value: past.entry } : undefined);
   const pills = run.data ? dataRows(run) : [];
   const { passed, failed } = run.data
     ? { passed: pills.filter((p) => p.state === "passed").length, failed: pills.filter((p) => p.state === "failed").length }
@@ -149,7 +150,7 @@ export function ResultsPanel({ file, run: given }: { file: string; run?: FileRun
           changed > 0 && <StaleBanner line={changed} onRun={() => void useRuns.getState().run(file)} />
         )}
         {run.data && pills.length > 0 && (
-          <DataRowPills rows={pills} selected={run.data.row} onSelect={(row) => useRuns.getState().pickRow(file, row)} />
+          <DataRowPills rows={pills} selected={run.data.row} onSelect={given ? undefined : (row) => useRuns.getState().pickRow(file, row)} />
         )}
         {run.error && <p className="run-error">{run.error}</p>}
         <RequestList rows={rows} selected={entry} onSelect={(n) => useResults.getState().pick(file, run.runId, n)} />

@@ -61,14 +61,17 @@ type Item struct {
 	Requests  int       `json:"requests"`
 	Succeeded int       `json:"succeeded"`
 	Duration  int64     `json:"durationMs"`
-	// Calls are the run's requests, last first, as the record keeps them
-	// (redacted).
+	// Calls are the run's requests, last first (the last maxCalls), as
+	// the record keeps them (redacted).
 	Calls []Call `json:"calls"`
 }
 
 // Call is a request of a run in the history: what was sent, what came
 // back, from which file and entry.
 type Call struct {
+	// Result is the call's unit in the record (a test run's file, a data
+	// run's row), to open the right one.
+	Result   int    `json:"result"`
 	File     string `json:"file"`
 	Entry    int    `json:"entry"`
 	Method   string `json:"method"`
@@ -348,9 +351,13 @@ func calls(rec *Record) []Call {
 				continue
 			}
 			c := e.Calls[len(e.Calls)-1]
-			out = append(out, Call{File: file, Entry: e.Index, Method: c.Request.Method, URL: c.Request.URL, Status: c.Response.Status, Duration: e.Time})
+			out = append(out, Call{Result: i, File: file, Entry: e.Index, Method: c.Request.Method, URL: c.Request.URL, Status: c.Response.Status, Duration: e.Time})
 		}
 	}
 	slices.Reverse(out)
-	return out
+	// The list shows the last ones; the record keeps them all.
+	return out[:min(len(out), maxCalls)]
 }
+
+// maxCalls bounds the requests a history item lists.
+const maxCalls = 50

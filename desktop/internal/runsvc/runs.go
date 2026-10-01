@@ -284,7 +284,8 @@ func (r *Runs) RunTest(ctx context.Context, req TestRequest) (*Summary, error) {
 				sources[f] = s
 			}
 		}
-		rn.tune = func(inv *runplan.Invocation) { TestOptions(inv, req.Jobs, req.ContinueOnError) }
+		// No more jobs than files.
+		rn.tune = func(inv *runplan.Invocation) { TestOptions(inv, min(req.Jobs, len(req.Files)), req.ContinueOnError) }
 		if err := rn.plan(ctx, "test", req.Env, "", req.Files, sources); err != nil {
 			return err
 		}

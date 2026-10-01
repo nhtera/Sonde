@@ -125,6 +125,19 @@ func TestTrustedStatusAndCommit(t *testing.T) {
 	if _, err := s.Commit(t.Context(), "m", []string{"--amend"}); err == nil {
 		t.Error("an option as a file")
 	}
+	// A committed file changed: its lines against HEAD.
+	if err := os.WriteFile(filepath.Join(dir, "a.hurl"), []byte("GET https://y\nHTTP 200\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err = s.Status(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range st {
+		if f.Path == "a.hurl" && (f.Added != 2 || f.Removed != 1) {
+			t.Errorf("a.hurl after an edit: +%d -%d, want +2 -1", f.Added, f.Removed)
+		}
+	}
 }
 
 func TestBranchDetachedAndWorktreeFile(t *testing.T) {
