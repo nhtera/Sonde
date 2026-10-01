@@ -106,7 +106,7 @@ export function FileTree() {
       </label>
       {filter && (
         <div style={{ padding: "0 16px 8px", fontSize: 11.5, color: "var(--muted)" }}>
-          {matchCount} request{matchCount === 1 ? "" : "s"} in {fileCount} file{fileCount === 1 ? "" : "s"}
+          {matchCount} request{matchCount === 1 ? "" : "s"} in {fileCount} file{fileCount === 1 ? "" : "s"} · matches method, path, headers and body
         </div>
       )}
       <div
@@ -234,9 +234,10 @@ export function FileTree() {
 
 function TreeMenu({ row }: { row: Row }) {
   const runKeys = useKeyLabel("file.run");
+  const index = useWorkspace((s) => s.index);
   const dir = row.kind === "dir" ? row.path : row.path.split("/").slice(0, -1).join("/");
-  const item = (label: string, run: () => unknown, hint?: string) => (
-    <ContextMenu.Item className="menu-item" onSelect={() => void Promise.resolve(run()).catch(report)}>
+  const item = (label: string, run: () => unknown, hint?: string, disabled = false) => (
+    <ContextMenu.Item className="menu-item" disabled={disabled} onSelect={() => void Promise.resolve(run()).catch(report)}>
       {label}
       {hint && <span className="hint">{hint}</span>}
     </ContextMenu.Item>
@@ -245,16 +246,20 @@ function TreeMenu({ row }: { row: Row }) {
   const runnable = isFile && isRequestFile(row.path, row.fileKind);
   // Secrets files are listed, never opened, copied or renamed.
   const secret = isFile && row.fileKind === "secrets";
+  // A folder's request files (what Run folder runs).
+  const files = row.kind === "dir" ? new Set(index.filter((r) => r.file.startsWith(`${row.path}/`)).map((r) => r.file)).size : 0;
   return (
     <ContextMenu.Portal>
       <ContextMenu.Content className="menu">
+        <ContextMenu.Label className="menu-label mono">{row.kind === "dir" ? `${row.path}/` : row.path}</ContextMenu.Label>
         {runnable && item("Run file", () => runPath(row.path), runKeys)}
-        {row.kind === "dir" && item("Run folder", () => runFolder(row.path))}
+        {row.kind === "dir" && item("Run folder", () => runFolder(row.path), `${files} file${files === 1 ? "" : "s"}`, files === 0)}
         {runnable && item("New request", () => newRequest(row.path))}
+        {row.kind === "dir" && item("New request here", () => newRequestIn(row.path))}
         {runnable && registry.getCommand("copyas.sonde.file") && item("Copy as sonde command", () => registry.getCommand("copyas.sonde.file")?.run(row.path))}
-        {item("New file", () => newFile(dir))}
+        {item("New file…", () => newFile(dir))}
         <ContextMenu.Separator className="menu-sep" />
-        {isFile && !secret && item("Duplicate", () => Workspace.Duplicate(row.path))}
+        {!secret && item("Duplicate", () => Workspace.Duplicate(row.path).then(() => useWorkspace.getState().refresh()))}
         {!secret && item("Rename", () => rename(row.path))}
         {item("Copy path", () => copyPath(row.path))}
         {!serverMode && item("Reveal in file manager", () => WorkspaceDesktop.Reveal(row.path))}
@@ -336,6 +341,18 @@ async function newFile(dir: string) {
     const path = await Workspace.NewFile(dir, name);
     // Listed now rather than when the folder watcher catches up.
     await Promise.all([useTabs.getState().open(path), useWorkspace.getState().refresh()]);
+  } catch (err) {
+    report(err);
+  }
+}
+
+/** A new request file in dir, with a request to start from. */
+async function newRequestIn(dir: string) {
+  const name = await ask({ title: "New request", label: "File name", value: "untitled.hurl", submit: "Create" });
+  if (!name) return;
+  try {
+    const path = await Workspace.NewFile(dir, name);
+    await Promise.all([useWorkspace.getState().refresh(), newRequest(path)]);
   } catch (err) {
     report(err);
   }

@@ -38,6 +38,11 @@ type TestRequest struct {
 	Files   []string          `json:"files"`
 	Sources map[string]string `json:"sources"`
 	Env     string            `json:"env"`
+	// Jobs runs that many files at a time (--jobs; 0: the default).
+	Jobs int `json:"jobs"`
+	// ContinueOnError runs a file's later requests after a failed one
+	// (--continue-on-error).
+	ContinueOnError bool `json:"continueOnError"`
 }
 
 // DataRequest runs a file once per row of a data file: one of the

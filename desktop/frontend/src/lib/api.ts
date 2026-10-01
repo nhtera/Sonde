@@ -30,7 +30,7 @@ export { Dialogs, Reports } from "@bindings/desktop";
 export { Service as Agents } from "@bindings/desktop/internal/agents";
 export type { Snippet as AgentSnippet, Tool as AgentTool } from "@bindings/desktop/internal/agents";
 export { Service as History } from "@bindings/desktop/internal/history";
-export type { Item as HistoryItem, Record as HistoryRecord } from "@bindings/desktop/internal/history";
+export type { Call as HistoryCall, Item as HistoryItem, Record as HistoryRecord } from "@bindings/desktop/internal/history";
 export { API as Imports } from "@bindings/desktop/internal/importsvc";
 export type {
   Candidate as ImportCandidate,

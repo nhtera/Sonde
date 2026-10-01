@@ -18,11 +18,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +46,10 @@ type FileStatus struct {
 	Worktree string `json:"worktree"` // unstaged change
 	// Secret: the file holds secrets (Commit refuses it).
 	Secret bool `json:"secret,omitempty"`
+	// Added and Removed count its changed lines against HEAD (an
+	// untracked file: all its lines); -1 when unknown (a binary file).
+	Added   int `json:"added"`
+	Removed int `json:"removed"`
 }
 
 // Info is the project's git state.
@@ -144,10 +150,70 @@ func (s *Service) Status(ctx context.Context) ([]FileStatus, error) {
 		return nil, err
 	}
 	list := parseStatus(out)
+	counts := map[string][2]int{}
+	if out, err := s.run(ctx, dir, false, "diff", "--no-ext-diff", "--no-textconv", "--numstat", "-z", "HEAD", "--"); err == nil {
+		maps.Copy(counts, parseNumstat(out))
+	}
+	untracked := 0
 	for i := range list {
-		list[i].Secret = s.IsSecret(list[i].Path)
+		f := &list[i]
+		f.Secret = s.IsSecret(f.Path)
+		f.Added, f.Removed = -1, -1
+		if c, ok := counts[f.Path]; ok {
+			f.Added, f.Removed = c[0], c[1]
+		} else if f.Worktree == "?" && untracked < maxCounted {
+			// A new file: its lines, as git would count them once added.
+			untracked++
+			if out, err := s.runDiff(ctx, dir, "diff", "--no-ext-diff", "--no-textconv", "--no-index", "--numstat", "-z", "--", os.DevNull, f.Path); err == nil {
+				for _, c := range parseNumstat(out) {
+					f.Added, f.Removed = c[0], c[1]
+				}
+			}
+		}
 	}
 	return list, nil
+}
+
+// maxCounted bounds the new files whose lines Status counts one by one.
+const maxCounted = 50
+
+// runDiff runs a git diff that exits 1 when it finds differences (no
+// hooks: a diff runs none).
+func (s *Service) runDiff(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, Timeout)
+	defer cancel()
+	out, err := s.command(ctx, dir, false, args...).Output()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		return out, nil
+	}
+	return out, err
+}
+
+// parseNumstat parses `git diff --numstat -z`: lines added and removed
+// by path (-1 for a binary file).
+func parseNumstat(out []byte) map[string][2]int {
+	m := map[string][2]int{}
+	parts := strings.Split(string(out), "\x00")
+	for i := 0; i < len(parts); i++ {
+		fields := strings.SplitN(parts[i], "\t", 3)
+		if len(fields) != 3 {
+			continue
+		}
+		num := func(s string) int {
+			n, err := strconv.Atoi(s)
+			if err != nil {
+				return -1
+			}
+			return n
+		}
+		name := fields[2]
+		if name == "" && i+2 < len(parts) { // a rename: old, then new
+			name, i = parts[i+2], i+2
+		}
+		m[name] = [2]int{num(fields[0]), num(fields[1])}
+	}
+	return m
 }
 
 // Commit commits files (project paths) with message and returns the new
@@ -204,14 +270,7 @@ func (s *Service) trustedDir() (string, error) {
 func (s *Service) run(ctx context.Context, dir string, hooks bool, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
-	full := []string{"-c", "core.fsmonitor=false"}
-	if !hooks {
-		full = append(full, "-c", "core.hooksPath="+os.DevNull)
-	}
-	full = append(full, args...)
-	cmd := exec.CommandContext(ctx, s.git, full...) //nolint:gosec // G204: fixed git subcommands; paths checked
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0")
+	cmd := s.command(ctx, dir, hooks, args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -223,6 +282,20 @@ func (s *Service) run(ctx context.Context, dir string, hooks bool, args ...strin
 		return nil, errors.New("git " + args[0] + ": " + msg)
 	}
 	return out, nil
+}
+
+// command is git with args in dir, hardened: no fsmonitor, no system
+// config, no prompt, no optional locks; hooks only when hooks is set.
+func (s *Service) command(ctx context.Context, dir string, hooks bool, args ...string) *exec.Cmd {
+	full := []string{"-c", "core.fsmonitor=false"}
+	if !hooks {
+		full = append(full, "-c", "core.hooksPath="+os.DevNull)
+	}
+	full = append(full, args...)
+	cmd := exec.CommandContext(ctx, s.git, full...) //nolint:gosec // G204: fixed git subcommands; paths checked
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0")
+	return cmd
 }
 
 // parseStatus parses `git status --porcelain=v1 -z`.

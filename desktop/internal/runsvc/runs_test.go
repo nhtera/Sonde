@@ -29,6 +29,7 @@ import (
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/cookiejar"
+	"github.com/nhtera/sonde/internal/runplan"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -393,6 +394,18 @@ func TestRunDataProjectFile(t *testing.T) {
 		if _, err := f.runs.RunData(context.Background(), DataRequest{RunID: "d-" + bad, File: "slow.hurl", Source: src, DataFile: bad}); err == nil {
 			t.Errorf("data file %q ran", bad)
 		}
+	}
+}
+
+func TestTestOptions(t *testing.T) {
+	inv := runplan.Invocation{Set: map[string]bool{}}
+	TestOptions(&inv, 0, false)
+	if inv.Set["jobs"] || inv.Set["continue-on-error"] {
+		t.Errorf("defaults set flags: %v", inv.Set)
+	}
+	TestOptions(&inv, 3, true)
+	if inv.Jobs != 3 || !inv.ContinueOnError || !inv.Set["jobs"] || !inv.Set["continue-on-error"] {
+		t.Errorf("options %+v", inv)
 	}
 }
 

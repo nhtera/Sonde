@@ -34,6 +34,12 @@
 .panel-body .opt-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; }
 .panel-body .cli-command p { overflow-wrap: anywhere; }
 .panel-body .cli-command code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* The report, and beside it the picked file's results. */
+.testrun-split { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.testrun-split > .testrun-main { min-width: 0; overflow: auto; }
+.testrun-results { width: 440px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; box-shadow: inset 1px 0 0 var(--line2); }
+.file-table tbody tr { cursor: pointer; }
+.file-table tbody tr[aria-selected="true"] td { background: var(--hover); }
 .testrun-main { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; font-size: 12.5px; }
 .testrun-main h1 { margin: 0; font: 600 18px var(--font-ui); }
 .testrun-main p { margin: 4px 0 0; }
@@ -116,10 +122,22 @@
 .panel-body .history-list .day { padding: 8px 2px 4px; }
 .panel-body .history-list button { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; padding: 6px 8px; border: 0; border-radius: 7px; background: none; color: var(--text); text-align: left; font: 12px var(--font-ui); }
 .panel-body .history-list button[aria-pressed="true"] { background: var(--raised); }
-.panel-body .history-list .kind { font: 600 10.5px var(--font-code); color: var(--accent); text-transform: uppercase; }
-.panel-body .history-list .file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-body .history-list .method { font: 600 10.5px var(--font-code); color: var(--accent); text-transform: uppercase; align-self: center; }
+.panel-body .history-list .method.m-get { color: var(--m-get); }
+.panel-body .history-list .method.m-post { color: var(--m-post); }
+.panel-body .history-list .method.m-put { color: var(--m-put); }
+.panel-body .history-list .method.m-patch { color: var(--m-patch); }
+.panel-body .history-list .method.m-delete { color: var(--m-delete); }
+.panel-body .history-list .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-body .history-list .status { font: 500 11.5px var(--font-code); }
+.panel-body .history-list .status.pass { color: var(--pass); }
+.panel-body .history-list .status.fail { color: var(--fail); }
+.panel-body .history-list .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-body .history-note { display: flex; gap: 8px; }
+.panel-body .history-note svg { flex: none; margin-top: 2px; }
 .panel-body .history-list .small { grid-column: 1 / -1; }
 .panel-body .side-note { display: block; margin: auto 0 0; padding: 10px 0 0; color: var(--faint); line-height: 1.5; }
+.panel-body .side-note.history-note { display: flex; }
 .history-banner { display: flex; align-items: center; gap: 10px; margin: 0 16px 10px; padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; }
 .history-banner span { flex: 1; }
 
@@ -143,6 +161,10 @@
 .changes-card { margin: 8px; padding: 10px 12px; border-radius: 10px; background: var(--raised); display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
 .changes-card .changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .changes-card .changes li { display: flex; gap: 8px; align-items: baseline; }
+.changes-card .changes .mono { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.changes-card .changes .lines { flex: none; font-size: 11px; }
+.changes-card .pass { color: var(--pass); }
+.changes-card .fail { color: var(--fail); }
 .changes-card .git-badge { width: 12px; font: 600 11px var(--font-code); color: var(--warn); }
 .changes-card .git-badge.g-A { color: var(--pass); }
 .changes-card .git-badge.g-D { color: var(--fail); }
@@ -164,3 +186,4 @@
 .cookie-jar .close { position: absolute; top: 12px; right: 12px; }
 .cookie-jar .kv-remove { width: 22px; height: 22px; border: 0; border-radius: 5px; background: none; color: var(--faint); }
 .cookie-jar .kv-remove:hover { color: var(--fail); background: var(--hover); }
+.panel-body .opt-line input.jobs { width: 56px; height: 26px; padding: 0 6px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-align: right; }

@@ -22,7 +22,7 @@ const item = (tool: "curl" | "sonde"): CopyItem => ({
   id: tool,
   title: tool,
   tool,
-  req: { file: "a.hurl", source: "GET https://a", env: "local", entry: 1, kind: "", files: [], shell: "posix", clock: "" },
+  req: { file: "a.hurl", source: "GET https://a", env: "local", entry: 1, kind: "", files: [], shell: "posix", clock: "", jobs: 0, continueOnError: false },
 });
 
 const writeText = vi.fn();

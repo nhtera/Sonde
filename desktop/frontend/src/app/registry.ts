@@ -6,6 +6,7 @@
 // results hosts. The shell never imports a feature, so features built in
 // parallel never edit the shell.
 
+import type { FileRun } from "../state/run-model";
 import type { ComponentType } from "react";
 import { useSyncExternalStore } from "react";
 
@@ -62,7 +63,9 @@ export interface EditorView {
 }
 
 export interface ResultsView {
-  render: ComponentType<{ file: string }>;
+  /** run, when given, is shown read-only instead of the file's last run
+   * (a file of a test run). */
+  render: ComponentType<{ file: string; run?: FileRun }>;
 }
 
 const commands = new Map<string, Command>();

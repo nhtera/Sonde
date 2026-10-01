@@ -71,11 +71,12 @@ function noteOf(run: FileRun, total: number, now: Date): string {
   return `Ran ${range}${failed ? " · stopped at the error" : ""}`;
 }
 
-export function ResultsPanel({ file }: { file: string }) {
+export function ResultsPanel({ file, run: given }: { file: string; run?: FileRun }) {
   const live = useRuns((s) => s.runs[file]);
   // A run opened from the history shows instead, read-only.
-  const past = useHistoryView((s) => (s.view?.file === file ? s.view : null));
-  const run = past?.run ?? live;
+  const history = useHistoryView((s) => (s.view?.file === file ? s.view : null));
+  const past = given ? null : history;
+  const run = given ?? past?.run ?? live;
   const session = useResults((s) => s.session);
   const picked = useResults((s) => s.picked[file]);
   const index = useWorkspace((s) => s.index);
@@ -85,14 +86,15 @@ export function ResultsPanel({ file }: { file: string }) {
   // The edited line only (a number): no render per keystroke.
   const changed = useTabs((s) => {
     const text = s.tabs.find((t) => t.path === file)?.text;
-    return run && !run.running && text !== undefined ? firstChangedLine(run.source, text) : 0;
+    return run && !run.running && !given && text !== undefined ? firstChangedLine(run.source, text) : 0;
   });
   const lines = useMemo(() => run?.source.split("\n") ?? [], [run?.source]);
 
-  if (session?.file === file) return <SessionPanel file={file} entry={session.entry} />;
+  if (session?.file === file && !given) return <SessionPanel file={file} entry={session.entry} />;
   if (!run) return null;
 
-  const entry = shownEntry(run, picked);
+  // A request opened from the history shows first.
+  const entry = shownEntry(run, picked ?? (past?.entry ? { runId: run.runId, value: past.entry } : undefined));
   const pills = run.data ? dataRows(run) : [];
   const { passed, failed } = run.data
     ? { passed: pills.filter((p) => p.state === "passed").length, failed: pills.filter((p) => p.state === "failed").length }

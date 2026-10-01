@@ -9,11 +9,14 @@
 import { useState, type KeyboardEvent } from "react";
 import { appError, Git } from "../../../lib/api";
 import { useUI } from "../../../state/ui";
+import { label } from "../../../app/keymap/keymap-manager";
 import { useWorkspace } from "../../../state/workspace";
 
 export function ChangesCard() {
   const git = useWorkspace((s) => s.git);
   const status = useWorkspace((s) => s.gitStatus);
+  const lines = useWorkspace((s) => s.gitLines);
+  const commitKeys = label("$mod+Enter");
   const secrets = useWorkspace((s) => s.gitSecrets);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -67,6 +70,12 @@ export function ChangesCard() {
           <li key={f}>
             <span className={`git-badge g-${status[f]}`}>{status[f]}</span>
             <span className="mono">{f}</span>
+            {lines[f] && lines[f][0] >= 0 && (
+              <span className="lines mono" aria-label={`${lines[f][0]} lines added, ${lines[f][1]} removed`}>
+                {lines[f][0] > 0 && <span className="pass">+{lines[f][0]}</span>}
+                {lines[f][1] > 0 && <span className="fail"> −{lines[f][1]}</span>}
+              </span>
+            )}
             {secrets.includes(f) && (
               <span className="fail small" title="This file holds secrets: keep it in .gitignore">
                 secrets · never committed
@@ -78,6 +87,7 @@ export function ChangesCard() {
       <textarea aria-label="Commit message" placeholder="Commit message" value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={onKey} />
       <button className="btn" disabled={!message.trim() || busy || files.length === 0} onClick={() => void commit()}>
         Commit to {git.branch || "HEAD"}
+        {commitKeys && <kbd aria-hidden>{commitKeys}</kbd>}
       </button>
       <p className="muted small">Uses your git, your hooks and your signing key.</p>
     </section>

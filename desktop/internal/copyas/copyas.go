@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/enginex"
 	"github.com/nhtera/sonde/internal/runflags"
@@ -33,6 +34,9 @@ type Request struct {
 	// Kind is the sonde command's: "run", "send" or "test".
 	Kind  string   `json:"kind"`
 	Files []string `json:"files"` // a test run's files
+	// Jobs and ContinueOnError are a test run's options.
+	Jobs            int  `json:"jobs"`
+	ContinueOnError bool `json:"continueOnError"`
 	// Shell is "posix", "powershell" or "cmd".
 	Shell string `json:"shell"`
 	// Clock is when the run whose captures a Send reused started, as the
@@ -117,6 +121,9 @@ func (c *Copier) Sonde(req Request, reveal bool) (*Text, error) {
 		return nil, apperr.New(apperr.Invalid, "unknown command kind "+req.Kind)
 	}
 	inv := c.plan.Invocation(cmd, req.Env, "", req.Kind, files)
+	if req.Kind == "test" {
+		runsvc.TestOptions(&inv, req.Jobs, req.ContinueOnError)
+	}
 	var held []string
 	if c.Command != nil {
 		held = c.Command(&inv)

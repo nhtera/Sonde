@@ -18,6 +18,11 @@ import type { Node } from "../../../lib/api";
 interface TestRunState {
   /** Files left out of the run (every request file is in by default). */
   excluded: string[];
+  /** Files run at a time (--jobs; 0: the default). */
+  jobs: number;
+  /** A file's later requests run after a failed one (--continue-on-error). */
+  continueOnError: boolean;
+  setOptions(o: { jobs?: number; continueOnError?: boolean }): void;
   runId: string | null;
   running: boolean;
   summary: Summary | null;
@@ -41,6 +46,9 @@ let cancelRun: (() => void) | null = null;
 
 export const useTestRun = create<TestRunState>((set, get) => ({
   excluded: [],
+  jobs: 0,
+  continueOnError: false,
+  setOptions: (o) => set(o),
   runId: null,
   running: false,
   summary: null,
@@ -63,7 +71,8 @@ export const useTestRun = create<TestRunState>((set, get) => ({
           const source = file in sources ? Promise.resolve(sources[file]) : Workspace.Read(file).then((f) => f?.text ?? "");
           return source.then((text) => Runs.RunData({ runId, file, source: text, env, dataFile: "", dataHandle, rows: [], secrets: [] })) as Promise<Summary>;
         }
-        return Runs.RunTest({ runId, files, sources, env }) as Promise<Summary>;
+        const { jobs, continueOnError } = get();
+        return Runs.RunTest({ runId, files, sources, env, jobs, continueOnError }) as Promise<Summary>;
       },
       {
         onItems: (items) =>
@@ -96,6 +105,16 @@ export const useTestRun = create<TestRunState>((set, get) => ({
     cancelRun = handle.cancel;
     try {
       await handle.result;
+      // Each file's text as it ran (the results show its lines): the open
+      // tab's, else the file's.
+      const ran = Object.keys(get().files);
+      const texts = await Promise.all(ran.map((f) => (f in sources ? Promise.resolve(sources[f]) : Workspace.Read(f).then((t) => t?.text ?? "", () => ""))));
+      set((s) => {
+        if (s.runId !== handle.runId) return s;
+        const files = { ...s.files };
+        ran.forEach((f, i) => files[f] && (files[f] = { ...files[f], source: texts[i] }));
+        return { files };
+      });
     } catch (err) {
       set({ running: false });
       useUI.getState().toast({ kind: "error", text: appError(err).message });

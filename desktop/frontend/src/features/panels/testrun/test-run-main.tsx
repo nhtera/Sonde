@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The Test run report: the summary `sonde --test` prints, the checks, a
-// row per file with its first failure, Re-run failed, and the reports.
+// row per file with its first failure, Re-run failed, and the reports;
+// beside it, the picked file's results (the first failed one at first).
 
+import { useState } from "react";
+import { registry, useRegistry } from "../../../app/registry";
 import { counts } from "../../../components/run/counts";
 import { DataRowPills } from "../../../components/run/data-row-pills";
 import { failureOf } from "../../../components/run/model";
@@ -57,6 +60,9 @@ export function TestRunMain() {
   };
   const failedFiles = (summary?.units ?? []).filter((u) => !u.success).map((u) => u.file);
   const order = requestFiles(tree);
+  const [picked, setPicked] = useState<string | null>(null);
+  useRegistry();
+  const Results = registry.getResults()?.render;
   const rows = [...new Set([...(summary?.units ?? []).map((u) => u.file), ...Object.keys(files)])].sort((a, b) => order.indexOf(a) - order.indexOf(b));
   if (!summary && !running) {
     return (
@@ -66,101 +72,111 @@ export function TestRunMain() {
       </div>
     );
   }
+  const shown = picked && files[picked] ? picked : (failedFiles.find((f) => files[f]) ?? rows.find((f) => files[f]) ?? null);
+  const finished = summary?.startedAt ? new Date(new Date(summary.startedAt).getTime() + (summary.durationMs ?? 0)) : null;
   return (
-    <div className="testrun-main">
-      <header className="testrun-head">
-        <div>
-          <h1>Test run</h1>
-          <p className="muted">
-            {summary ? `${summary.files} files · ${summary.env || "no env"} · ${summary.outcome}` : "Running…"}
-          </p>
-        </div>
-        <button className="btn" disabled={running || failedFiles.length === 0} onClick={() => void useTestRun.getState().start(failedFiles)}>
-          Re-run failed
-        </button>
-        <button className="btn" disabled={running || rows.length === 0} onClick={() => void useTestRun.getState().start(rows)}>
-          Run again
-        </button>
-      </header>
-      {summary?.text && (
-        <section className="summary-card">
-          <pre className="mono" aria-label="Test summary">
-            {totals(summary.text)}
-          </pre>
-          <div className="checks">
-            <div className="bar" aria-hidden>
-              <i className="ok" style={{ flex: passed || 0.0001 }} />
-              <i className="ko" style={{ flex: failed }} />
-            </div>
-            <div className="checks-line">
-              <span>
-                <b className="pass">{passed}</b> checks passed
-              </span>
-              {failed > 0 && <b className="fail">{failed} failed</b>}
-            </div>
-            <p className="muted">Same summary as sonde --test in CI.</p>
-            <button className="btn-ghost" onClick={() => void navigator.clipboard.writeText(summary.text ?? "")}>
-              Copy the output
-            </button>
+    <div className="testrun-split">
+      <div className="testrun-main">
+        <header className="testrun-head">
+          <div>
+            <h1>Test run</h1>
+            <p className="muted">
+              {summary ? `${summary.files} files · ${summary.env || "no env"} · ${summary.outcome}` : "Running…"}
+              {finished && !running && <span data-volatile> · finished {finished.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+            </p>
           </div>
-        </section>
-      )}
-      <table className="file-table" aria-label="Files">
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Result</th>
-            <th>Requests</th>
-            <th>Checks</th>
-            <th>Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((f) => {
-            const r = files[f];
-            const units = (summary?.units ?? []).filter((u) => u.file === f);
-            const unit = units[0];
-            // A data-driven file runs once per row: a pill each.
-            const dataRows = units.filter((u) => (u.row ?? 0) > 0);
-            const entries = Object.values(r?.entries ?? {});
-            const c = counts(entries);
-            const first = entries.map((e) => failureOf(e)).find(Boolean);
-            const res = outcome(r, fileSucceeded(f, summary, r), units.some((u) => !!u.parseError || !!u.error));
-            return (
-              <tr key={f} onClick={() => open(f)}>
-                <td>
-                  <span className="mono">{f}</span>
-                  {first && (
-                    <div className="first-fail mono">
-                      line {first.line} · {first.code ?? first.title}
-                      {first.actual !== undefined ? ` · got ${first.actual}` : ""}
-                    </div>
-                  )}
-                  {unit?.parseError && <div className="first-fail mono">line {unit.parseError.line} · {unit.parseError.description}</div>}
-                  {unit?.error && <div className="first-fail mono">{unit.error}</div>}
-                  {dataRows.length > 0 && <DataRowPills rows={dataRows.map((u) => ({ row: u.row ?? 0, state: u.success ? "passed" : "failed" }))} />}
-                </td>
-                <td>{res && <span className={`outcome outcome-${res.toLowerCase()}`}>{res}</span>}</td>
-                <td className="num">{unit ? units.reduce((n, u) => n + u.requests, 0) : entries.length}</td>
-                <td className="num">
-                  <span className="pass">✓ {c.passed}</span>
-                  {c.failed > 0 && <span className="fail"> ✕ {c.failed}</span>}
-                </td>
-                <td className="num mono" data-volatile>{unit ? `${units.reduce((n, u) => n + u.durationMs, 0)} ms` : ""}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {summary && runId && !serverMode && (
-        <div className="export-row">
-          <span className="muted">Export report</span>
-          {formats.map((f) => (
-            <button key={f.id} className="btn" onClick={() => void exportReport(runId, f.id)}>
-              {f.label}
-            </button>
-          ))}
-        </div>
+          <button className="btn" disabled={running || failedFiles.length === 0} onClick={() => void useTestRun.getState().start(failedFiles)}>
+            Re-run failed
+          </button>
+          <button className="btn" disabled={running || rows.length === 0} onClick={() => void useTestRun.getState().start(rows)}>
+            Run again
+          </button>
+        </header>
+        {summary?.text && (
+          <section className="summary-card">
+            <pre className="mono" aria-label="Test summary">
+              {totals(summary.text)}
+            </pre>
+            <div className="checks">
+              <div className="bar" aria-hidden>
+                <i className="ok" style={{ flex: passed || 0.0001 }} />
+                <i className="ko" style={{ flex: failed }} />
+              </div>
+              <div className="checks-line">
+                <span>
+                  <b className="pass">{passed}</b> checks passed
+                </span>
+                {failed > 0 && <b className="fail">{failed} failed</b>}
+              </div>
+              <p className="muted">Same summary as sonde --test in CI.</p>
+              <button className="btn-ghost" onClick={() => void navigator.clipboard.writeText(summary.text ?? "")}>
+                Copy the output
+              </button>
+            </div>
+          </section>
+        )}
+        <table className="file-table" aria-label="Files">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Result</th>
+              <th>Requests</th>
+              <th>Checks</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((f) => {
+              const r = files[f];
+              const units = (summary?.units ?? []).filter((u) => u.file === f);
+              const unit = units[0];
+              // A data-driven file runs once per row: a pill each.
+              const dataRows = units.filter((u) => (u.row ?? 0) > 0);
+              const entries = Object.values(r?.entries ?? {});
+              const c = counts(entries);
+              const first = entries.map((e) => failureOf(e)).find(Boolean);
+              const res = outcome(r, fileSucceeded(f, summary, r), units.some((u) => !!u.parseError || !!u.error));
+              return (
+                <tr key={f} aria-selected={f === shown} onClick={() => setPicked(f)} onDoubleClick={() => open(f)} title="Double-click to open the file">
+                  <td>
+                    <span className="mono">{f}</span>
+                    {first && (
+                      <div className="first-fail mono">
+                        line {first.line} · {first.code ?? first.title}
+                        {first.actual !== undefined ? ` · got ${first.actual}` : ""}
+                      </div>
+                    )}
+                    {unit?.parseError && <div className="first-fail mono">line {unit.parseError.line} · {unit.parseError.description}</div>}
+                    {unit?.error && <div className="first-fail mono">{unit.error}</div>}
+                    {dataRows.length > 0 && <DataRowPills rows={dataRows.map((u) => ({ row: u.row ?? 0, state: u.success ? "passed" : "failed" }))} />}
+                  </td>
+                  <td>{res && <span className={`outcome outcome-${res.toLowerCase()}`}>{res}</span>}</td>
+                  <td className="num">{unit ? units.reduce((n, u) => n + u.requests, 0) : entries.length}</td>
+                  <td className="num">
+                    <span className="pass">✓ {c.passed}</span>
+                    {c.failed > 0 && <span className="fail"> ✕ {c.failed}</span>}
+                  </td>
+                  <td className="num mono" data-volatile>{unit ? `${units.reduce((n, u) => n + u.durationMs, 0)} ms` : ""}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {summary && runId && !serverMode && (
+          <div className="export-row">
+            <span className="muted">Export report</span>
+            {formats.map((f) => (
+              <button key={f.id} className="btn" onClick={() => void exportReport(runId, f.id)}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {Results && shown && (
+        <aside className="testrun-results" aria-label={`Results of ${shown}`}>
+          <Results file={shown} run={files[shown]} />
+        </aside>
       )}
     </div>
   );

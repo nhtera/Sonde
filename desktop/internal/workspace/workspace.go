@@ -424,9 +424,16 @@ func textOf(s string) syntax.Text {
 	return t
 }
 
-// Duplicate copies file next to itself ("name copy.hurl", "name copy
-// 2.hurl"…) and returns the copy's path.
+// Duplicate copies file (or folder) next to itself ("name copy.hurl",
+// "name copy 2.hurl"…) and returns the copy's path.
 func (s *Workspace) Duplicate(file string) (string, error) {
+	if root, err := s.project(); err == nil {
+		if p, err := writable(file); err == nil {
+			if fi, err := root.Lstat(p); err == nil && fi.IsDir() {
+				return s.duplicateDir(root, p)
+			}
+		}
+	}
 	t, err := s.Read(file)
 	if err != nil {
 		return "", err
@@ -447,6 +454,62 @@ func (s *Workspace) Duplicate(file string) (string, error) {
 		}
 	}
 	return "", apperr.New(apperr.Invalid, "no free name for a copy of "+file)
+}
+
+// duplicateDir copies the folder dir, its plain files at the same modes,
+// to a free "dir copy" next to it; dot files and links are left out, as
+// the tree leaves them out.
+func (s *Workspace) duplicateDir(root *sandbox.Root, dir string) (string, error) {
+	var to string
+	for i := 1; i < 1000 && to == ""; i++ {
+		name := dir + " copy"
+		if i > 1 {
+			name += " " + strconv.Itoa(i)
+		}
+		if _, err := root.Lstat(name); errors.Is(err, fs.ErrNotExist) {
+			to = name
+		}
+	}
+	if to == "" {
+		return "", apperr.New(apperr.Invalid, "no free name for a copy of "+filepath.ToSlash(dir))
+	}
+	var copyDir func(from, into string) error
+	copyDir = func(from, into string) error {
+		if err := root.MkdirAll(into, 0o755); err != nil {
+			return err
+		}
+		entries, err := root.ReadDir(from)
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
+			src, dst := filepath.Join(from, e.Name()), filepath.Join(into, e.Name())
+			fi, err := root.Lstat(src)
+			if err != nil {
+				return err
+			}
+			switch {
+			case fi.IsDir():
+				err = copyDir(src, dst)
+			case fi.Mode().IsRegular():
+				var data []byte
+				if data, err = root.ReadFile(src); err == nil {
+					err = root.WriteFileAtomic(dst, data, fi.Mode().Perm())
+				}
+			}
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := copyDir(dir, to); err != nil {
+		return "", apperr.Wrap(apperr.Invalid, err)
+	}
+	return filepath.ToSlash(to), nil
 }
 
 // Rename renames file (or folder) to newName in the same folder and

@@ -17,6 +17,8 @@ export interface HistoryView {
   /** When it ran. */
   at: string;
   run: FileRun;
+  /** The request opened (its entry), shown first. */
+  entry?: number;
 }
 
 export const useHistoryView = create<{ view: HistoryView | null; show(v: HistoryView | null): void }>((set) => ({

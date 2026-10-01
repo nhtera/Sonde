@@ -35,11 +35,13 @@ export function TestRunSide() {
   const summary = useTestRun((s) => s.summary);
   // The overrides reload with every change of env or settings.
   const overrides = useEnv((s) => s.overrides);
+  const jobs = useTestRun((s) => s.jobs);
+  const continueOnError = useTestRun((s) => s.continueOnError);
   const [command, setCommand] = useState({ text: "", note: "" });
-  const key = `${env}|${picked.join(",")}|${JSON.stringify(overrides)}`;
+  const key = `${env}|${picked.join(",")}|${JSON.stringify(overrides)}|${jobs}|${continueOnError}`;
   useEffect(() => {
     let live = true;
-    CopyAs.Sonde({ file: "", source: "", env, entry: 0, kind: "test", files: picked, shell: "posix", clock: "" }).then(
+    CopyAs.Sonde({ file: "", source: "", env, entry: 0, kind: "test", files: picked, shell: "posix", clock: "", jobs, continueOnError }).then(
       (t) => live && setCommand({ text: t?.text ?? "", note: t?.note ?? "" }),
       () => live && setCommand({ text: "", note: "" }),
     );
@@ -84,6 +86,30 @@ export function TestRunSide() {
       </ul>
       <div className="panel-section">
         <h3>Options</h3>
+        <label className="opt-line">
+          <span>Parallel jobs</span>
+          <input
+            className="mono jobs"
+            type="number"
+            min={0}
+            max={64}
+            aria-label="Parallel jobs"
+            placeholder="auto"
+            value={jobs || ""}
+            onChange={(e) => useTestRun.getState().setOptions({ jobs: Math.max(0, Math.min(64, Number(e.target.value) || 0)) })}
+          />
+        </label>
+        <label className="opt-line">
+          <span>Continue after a failed request</span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            aria-label="Continue after a failed request"
+            checked={continueOnError}
+            onChange={(e) => useTestRun.getState().setOptions({ continueOnError: e.target.checked })}
+          />
+        </label>
         <label className="opt-line">
           <span>Check against the OpenAPI spec</span>
           <input type="checkbox" role="switch" className="switch" aria-label="Check responses against the OpenAPI spec" checked={!!settings?.contract.check} onChange={(e) => setCheck(e.target.checked)} />

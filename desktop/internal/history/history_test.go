@@ -5,6 +5,7 @@ package history
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -102,6 +103,17 @@ func TestStoredRunIsRedacted(t *testing.T) {
 	if err != nil || len(items) != 1 || items[0].Files[0] != "a.hurl" || items[0].Env != "local" {
 		t.Fatalf("list %+v %v", items, err)
 	}
+	// Each request, last first, from the record: never a secret, the
+	// query's token included.
+	calls := items[0].Calls
+	if len(calls) != 2 || calls[0].Entry != 2 || calls[0].Method != "GET" || calls[1].Method != "POST" || calls[0].Status != 200 || calls[0].File != "a.hurl" {
+		t.Fatalf("calls %+v", calls)
+	}
+	if !strings.Contains(calls[0].URL, "/orders/"+orderID) {
+		t.Errorf("url %q", calls[0].URL)
+	}
+	listed, _ := json.Marshal(items)
+	redactcheck.AssertNoSecretBytes(t, "history list", listed, accessToken, jwt, redactedValue, cookieValue, basic)
 	rec, err := h.Get(items[0].ID)
 	if err != nil || len(rec.Results) != 1 || len(rec.Results[0].Entries) != 2 {
 		t.Fatalf("get %+v %v", rec, err)

@@ -37,7 +37,7 @@ test("filters requests across files", async ({ page }) => {
   const filter = page.getByLabel("Filter requests in all files");
   await expect(filter).toBeFocused();
   await filter.fill("carts");
-  await expect(page.getByText(/^3 requests in 1 file$/)).toBeVisible();
+  await expect(page.getByText(/^3 requests in 1 file ·/)).toBeVisible();
   await expect(page.locator(".tree-row.req .hl").first()).toHaveText("carts");
   await filter.press("Escape");
   await expect(filter).toHaveValue("");

@@ -122,6 +122,17 @@ func (r *Runs) Invocation(cmd, env, data, kind string, files []string) runplan.I
 	return inv
 }
 
+// TestOptions sets a test run's options on inv, as the command's flags:
+// --jobs (0 keeps the default) and --continue-on-error.
+func TestOptions(inv *runplan.Invocation, jobs int, continueOnError bool) {
+	if jobs > 0 {
+		inv.Jobs, inv.Set["jobs"] = jobs, true
+	}
+	if continueOnError {
+		inv.ContinueOnError, inv.Set["continue-on-error"] = true, true
+	}
+}
+
 // Planned is a planned run of one file, not run: the options with the
 // job's project layers merged (for rendering curl commands, which read
 // the options only) and its captures from the file's last run.
@@ -273,6 +284,7 @@ func (r *Runs) RunTest(ctx context.Context, req TestRequest) (*Summary, error) {
 				sources[f] = s
 			}
 		}
+		rn.tune = func(inv *runplan.Invocation) { TestOptions(inv, req.Jobs, req.ContinueOnError) }
 		if err := rn.plan(ctx, "test", req.Env, "", req.Files, sources); err != nil {
 			return err
 		}
@@ -510,13 +522,15 @@ type run struct {
 	bridge  *bridge
 	summary *Summary
 
-	planned     *runplan.Plan
-	opts        engine.Options
-	files       map[string]string // absolute path -> project path
-	sources     map[string][]byte // absolute path -> buffer text
-	captures    func(*engine.Options, *engine.Job)
-	seed        []engine.Cookie
-	rows        []int
+	planned  *runplan.Plan
+	opts     engine.Options
+	files    map[string]string // absolute path -> project path
+	sources  map[string][]byte // absolute path -> buffer text
+	captures func(*engine.Options, *engine.Job)
+	seed     []engine.Cookie
+	rows     []int
+	// tune sets the run's own options on its invocation (a test run's).
+	tune        func(*runplan.Invocation)
 	dataSecrets []string
 	results     []*engine.UnitResult
 	seqs        map[*engine.UnitResult]int // each result's job, in input order
@@ -528,6 +542,9 @@ type run struct {
 // --env and --data; sources maps project paths to their buffer text.
 func (rn *run) plan(ctx context.Context, cmd, env, data string, files []string, sources map[string]string) error {
 	inv := rn.runs.Invocation(cmd, env, data, rn.summary.Kind, files)
+	if rn.tune != nil {
+		rn.tune(&inv)
+	}
 	inv.FileRoot = rn.root.Dir()
 	if len(rn.dataSecrets) > 0 {
 		inv.DataSecrets, inv.Set["data-secret"] = rn.dataSecrets, true

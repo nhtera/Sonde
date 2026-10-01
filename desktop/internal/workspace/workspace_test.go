@@ -505,3 +505,29 @@ func TestFilter(t *testing.T) {
 		}
 	}
 }
+
+func TestDuplicateFolder(t *testing.T) {
+	s, _, dir := open(t)
+	write(t, dir, "api/.cache/x", "x\n")
+	write(t, dir, "api/nested/c.hurl", "GET https://c\n")
+	got, err := s.Duplicate("api")
+	if err != nil || got != "api copy" {
+		t.Fatalf("Duplicate(api) = %q, %v", got, err)
+	}
+	for _, f := range []string{"users.hurl", "data.csv", "nested/c.hurl"} {
+		want, _ := os.ReadFile(filepath.Join(dir, "api", filepath.FromSlash(f)))
+		if data, err := os.ReadFile(filepath.Join(dir, "api copy", filepath.FromSlash(f))); err != nil || string(data) != string(want) {
+			t.Errorf("api copy/%s: %q %v", f, data, err)
+		}
+	}
+	// Dot files stay out, as in the tree.
+	if _, err := os.Stat(filepath.Join(dir, "api copy", ".cache")); !os.IsNotExist(err) {
+		t.Errorf(".cache copied: %v", err)
+	}
+	if got, err := s.Duplicate("api"); err != nil || got != "api copy 2" {
+		t.Errorf("second copy %q %v", got, err)
+	}
+	if _, err := s.Duplicate(".git"); err == nil {
+		t.Error("a dot folder duplicated")
+	}
+}

@@ -57,6 +57,14 @@ func TestCurl(t *testing.T) {
 	if err != nil || strings.Count(one.Text, "curl ") != 1 || !strings.Contains(one.Text, "/orders/") {
 		t.Errorf("entry 2: %+v %v", one, err)
 	}
+	// A test run's options are its flags; a plain run never has them.
+	opts, err := c.Sonde(Request{Kind: "test", Files: []string{"a.hurl"}, Jobs: 4, ContinueOnError: true}, false)
+	if err != nil || !strings.Contains(opts.Text, "--jobs 4") || !strings.Contains(opts.Text, "--continue-on-error") {
+		t.Errorf("test options %+v %v", opts, err)
+	}
+	if plain, _ := c.Sonde(Request{File: "a.hurl", Jobs: 4, ContinueOnError: true}, false); strings.Contains(plain.Text, "--jobs") || strings.Contains(plain.Text, "--continue-on-error") {
+		t.Errorf("a run with test options: %s", plain.Text)
+	}
 	var clip string
 	r := NewReveal(c, func(s string) error { clip = s; return nil })
 	note, err := r.Curl(context.Background(), Request{File: "a.sonde", Source: src, Entry: 1})
@@ -94,6 +102,14 @@ func TestSonde(t *testing.T) {
 	test, err := c.Sonde(Request{Kind: "test", Files: []string{"a.hurl", "b.hurl"}, Shell: "powershell"}, false)
 	if err != nil || !strings.HasPrefix(strings.SplitN(test.Text, "\n", 2)[len(strings.SplitN(test.Text, "\n", 2))-1], "sonde test") || !strings.Contains(test.Text, "b.hurl") {
 		t.Errorf("test %+v %v", test, err)
+	}
+	// A test run's options are its flags; a plain run never has them.
+	opts, err := c.Sonde(Request{Kind: "test", Files: []string{"a.hurl"}, Jobs: 4, ContinueOnError: true}, false)
+	if err != nil || !strings.Contains(opts.Text, "--jobs 4") || !strings.Contains(opts.Text, "--continue-on-error") {
+		t.Errorf("test options %+v %v", opts, err)
+	}
+	if plain, _ := c.Sonde(Request{File: "a.hurl", Jobs: 4, ContinueOnError: true}, false); strings.Contains(plain.Text, "--jobs") || strings.Contains(plain.Text, "--continue-on-error") {
+		t.Errorf("a run with test options: %s", plain.Text)
 	}
 	var clip string
 	r := NewReveal(c, func(s string) error { clip = s; return nil })

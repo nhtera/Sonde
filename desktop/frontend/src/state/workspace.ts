@@ -19,6 +19,8 @@ interface WorkspaceState {
   git: GitInfo | null;
   /** Changed files by project path (A, M, …), trusted folders only. */
   gitStatus: Record<string, string>;
+  /** Each changed file's lines added and removed (-1: unknown). */
+  gitLines: Record<string, [number, number]>;
   /** The changed files that hold secrets: never committed. */
   gitSecrets: string[];
   load(): Promise<void>;
@@ -36,6 +38,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   recent: [],
   git: null,
   gitStatus: {},
+  gitLines: {},
   gitSecrets: [],
   load: async () => {
     const project = await Workspace.Project();
@@ -47,16 +50,18 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     const [tree, index, git] = await Promise.all([Workspace.Tree(), Workspace.Index(), Git.Info()]);
     let gitStatus: Record<string, string> = {};
     let gitSecrets: string[] = [];
+    const gitLines: Record<string, [number, number]> = {};
     if (git?.trusted) {
       try {
         const list = (await Git.Status()) ?? [];
         gitStatus = statusMap(list);
         gitSecrets = list.filter((f) => f.secret).map((f) => f.path);
+        for (const f of list) gitLines[f.path] = [f.added, f.removed];
       } catch {
         // git unavailable: no badges
       }
     }
-    set({ tree, index: index ?? [], git, gitStatus, gitSecrets });
+    set({ tree, index: index ?? [], git, gitStatus, gitSecrets, gitLines });
   },
   openFolder: async () => {
     if (!(await discardEdits())) return;

@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -60,6 +61,20 @@ type Item struct {
 	Requests  int       `json:"requests"`
 	Succeeded int       `json:"succeeded"`
 	Duration  int64     `json:"durationMs"`
+	// Calls are the run's requests, last first, as the record keeps them
+	// (redacted).
+	Calls []Call `json:"calls"`
+}
+
+// Call is a request of a run in the history: what was sent, what came
+// back, from which file and entry.
+type Call struct {
+	File     string `json:"file"`
+	Entry    int    `json:"entry"`
+	Method   string `json:"method"`
+	URL      string `json:"url"`
+	Status   int    `json:"status"`
+	Duration int64  `json:"durationMs"`
 }
 
 // History is the run history of the open project.
@@ -138,6 +153,7 @@ func (h *History) List() ([]Item, error) {
 				it.Files = append(it.Files, u.File)
 			}
 		}
+		it.Calls = calls(rec)
 		out = append(out, it)
 	}
 	slices.SortFunc(out, func(a, b Item) int { return b.At.Compare(a.At) })
@@ -317,3 +333,24 @@ func (s *Service) Get(id string) (*Record, error) { return s.h.Get(id) }
 
 // Clear deletes the project's history.
 func (s *Service) Clear() error { return s.h.Clear() }
+
+// calls lists a record's requests, last first: each entry's last call
+// (the attempt that counted), in the file of its unit.
+func calls(rec *Record) []Call {
+	out := []Call{}
+	for i, res := range rec.Results {
+		file := path.Base(filepath.ToSlash(res.Filename))
+		if i < len(rec.Summary.Units) {
+			file = rec.Summary.Units[i].File
+		}
+		for _, e := range res.Entries {
+			if len(e.Calls) == 0 {
+				continue
+			}
+			c := e.Calls[len(e.Calls)-1]
+			out = append(out, Call{File: file, Entry: e.Index, Method: c.Request.Method, URL: c.Request.URL, Status: c.Response.Status, Duration: e.Time})
+		}
+	}
+	slices.Reverse(out)
+	return out
+}

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
@@ -107,6 +108,10 @@ func TestTrustedStatusAndCommit(t *testing.T) {
 	if len(st) != 2 || st[1].Path != "a.hurl" || st[1].Worktree != "?" {
 		t.Errorf("status %+v", st)
 	}
+	// A new file counts all its lines.
+	if want := strings.Count(string(mustRead(t, filepath.Join(dir, "a.hurl"))), "\n"); st[1].Added != want || st[1].Removed != 0 {
+		t.Errorf("a.hurl +%d -%d, want +%d -0", st[1].Added, st[1].Removed, want)
+	}
 	if exists(filepath.Join(markers, "fsmonitor")) {
 		t.Error("fsmonitor ran: it is always off")
 	}
@@ -147,6 +152,14 @@ func TestBranchDetachedAndWorktreeFile(t *testing.T) {
 	head, err := headFile(proj)
 	if err != nil || branchOf(head) != "wt" {
 		t.Errorf("worktree: %q %v", head, err)
+	}
+}
+
+func TestParseNumstat(t *testing.T) {
+	out := []byte("3\t1\ta.hurl\x00-\t-\tlogo.png\x002\t0\t\x00old.hurl\x00new.hurl\x00")
+	got := parseNumstat(out)
+	if got["a.hurl"] != [2]int{3, 1} || got["logo.png"] != [2]int{-1, -1} || got["new.hurl"] != [2]int{2, 0} || len(got) != 3 {
+		t.Errorf("%v", got)
 	}
 }
 
@@ -194,4 +207,13 @@ func TestSecretsNeverCommitted(t *testing.T) {
 	if out, err := head.Output(); err == nil {
 		t.Errorf("a commit was made: %s", out)
 	}
+}
+
+func mustRead(t *testing.T, name string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }
