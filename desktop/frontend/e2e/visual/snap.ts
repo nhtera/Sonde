@@ -21,6 +21,32 @@ export async function snap(page: Page, id: string) {
   await expect(page).toHaveScreenshot(`${id}.png`, { stylePath: "e2e/visual/visual.css", maxDiffPixelRatio: 0.001 });
 }
 
+/**
+ * Gives the timing waterfall fixed times (as the design's 3b), so the
+ * screen shows it: real times differ run to run and are hidden otherwise.
+ */
+export async function pinTimings(page: Page) {
+  await page.locator(".waterfall").evaluate((w) => {
+    const times: Record<string, [number, number] | string> = { DNS: [0, 0.4], Connect: [0.4, 0.9], TLS: "– http", Waiting: [1.3, 24.1], Download: [25.4, 2.6] };
+    const total = 28;
+    for (const row of w.querySelectorAll<HTMLElement>(".wf-row")) {
+      const name = row.querySelector(".wf-name")?.textContent ?? "";
+      const ms = row.querySelector<HTMLElement>(".wf-ms")!;
+      const bar = row.querySelector<HTMLElement>(".wf-bar");
+      const t = times[name];
+      if (name === "Total") ms.textContent = `${total.toFixed(1)} ms`;
+      else if (typeof t === "string") {
+        ms.textContent = t;
+        bar?.remove();
+      } else if (t) {
+        ms.textContent = `${t[1].toFixed(1)} ms`;
+        if (bar) Object.assign(bar.style, { left: `${(t[0] / total) * 100}%`, width: `max(2px, ${(t[1] / total) * 100}%)` });
+      }
+    }
+    w.setAttribute("data-pinned", "");
+  });
+}
+
 /** Opens the app on its tree. */
 export async function home(page: Page) {
   // The window's own controls show, as the design draws the window.

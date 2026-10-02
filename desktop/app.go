@@ -81,6 +81,7 @@ func (h *Host) setup() error {
 	h.History = history.New(h.Dirs.Config(), h.Workspace.Root, h.historyPolicy, h.Emit.Emit)
 	env := config.FromOSEnviron()
 	h.Envs = envsvc.New(h.Emit, h.Dirs.Config(), h.Workspace.Root, env, version, h.Settings.Apply)
+	h.Envs.KeepCookies = func() bool { return h.Settings.Get().Cookies.Keep }
 	h.Mocks = mocksvc.New(h.Emit.Emit, h.Workspace.Root, h.Envs.SetMock)
 	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, env, version, h.Bodies, h.Handles)
 	h.Runs.Hooks = runsvc.Hooks{

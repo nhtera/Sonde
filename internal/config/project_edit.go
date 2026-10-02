@@ -173,7 +173,7 @@ func (p *Project) SetSecret(env, name, secret string) ([]FileEdit, error) {
 		}
 		return e.result()
 	}
-	rel, err := p.secretsFileFor(env)
+	rel, err := p.SecretsFileFor(env)
 	if err != nil {
 		return nil, err
 	}
@@ -219,9 +219,9 @@ func (p *Project) editableNames(env string) (map[string]VariableSource, error) {
 
 var envFileRE = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
 
-// secretsFileFor is the secrets file a new secret of env goes to: the
+// SecretsFileFor is the secrets file a new secret of env goes to: the
 // last one env lists, else secrets/<env>.secrets (as an import names it).
-func (p *Project) secretsFileFor(env string) (string, error) {
+func (p *Project) SecretsFileFor(env string) (string, error) {
 	if files := p.Environments[env].SecretsFiles; len(files) > 0 {
 		return files[len(files)-1], nil
 	}

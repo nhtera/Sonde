@@ -129,53 +129,54 @@ export function EnvMain() {
         </p>
         {env.error && <p className="fail">{env.error}</p>}
       </header>
-      <table className="env-table" aria-label={`Variables in ${env.name}`}>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Value</th>
-            <th>Session override</th>
-            <th>Source</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {(env.variables ?? []).map((v) => {
-            const o = override(v);
-            return (
-              <tr key={v.name}>
-                <td className="mono name">{v.name}</td>
-                <td>
-                  {v.secret ? (
-                    <SuggestInput label={`${v.name} value`} className="mono" value="" placeholder="🔒 *** · type to replace" onCommit={(t) => t && set(v, t)} />
-                  ) : (
-                    <SuggestInput label={`${v.name} value`} className="mono" value={v.value} onCommit={(t) => set(v, t)} />
-                  )}
-                </td>
-                <td>
-                  {o ? (
-                    <span className="override-chip mono" title={o.flag}>
-                      {v.secret ? "***" : (o.origin ?? "set")}
-                      <button aria-label={`Remove the override of ${v.name}`} onClick={() => void Envs.RemoveOverride(v.name)}>
-                        ×
-                      </button>
-                    </span>
-                  ) : (
-                    <span className="muted">–</span>
-                  )}
-                </td>
-                <td className="muted small">{v.source}</td>
-                <td>
-                  <VarMenu env={env.name} v={v} />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {adding ? (
-        <NewVariable env={env.name} onDone={() => setAdding(false)} />
-      ) : (
+      <div className="env-box">
+        <table className="env-table" aria-label={`Variables in ${env.name}`}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Value</th>
+              <th>Session override</th>
+              <th>Source</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {(env.variables ?? []).map((v) => {
+              const o = override(v);
+              return (
+                <tr key={v.name}>
+                  <td className="mono name">{v.name}</td>
+                  <td>
+                    {v.secret ? (
+                      <SuggestInput label={`${v.name} value`} className="mono" value="" placeholder="🔒 *** · type to replace" onCommit={(t) => t && set(v, t)} />
+                    ) : (
+                      <SuggestInput label={`${v.name} value`} className="mono" value={v.value} onCommit={(t) => set(v, t)} />
+                    )}
+                  </td>
+                  <td>
+                    {o ? (
+                      <span className="override-chip mono" title={o.flag}>
+                        {v.secret ? "***" : (o.origin ?? "set")}
+                        <button aria-label={`Remove the override of ${v.name}`} onClick={() => void Envs.RemoveOverride(v.name)}>
+                          ×
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="muted">–</span>
+                    )}
+                  </td>
+                  <td className="muted small">{v.source}</td>
+                  <td>
+                    <VarMenu env={env.name} v={v} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {adding && <NewVariable env={env.name} secretsFile={env.secretsFile} onDone={() => setAdding(false)} />}
+      </div>
+      {!adding && (
         <button className="add-row" onClick={() => setAdding(true)}>
           + Add variable
         </button>
@@ -235,7 +236,7 @@ function VarMenu({ env, v }: { env: string; v: Var }) {
   );
 }
 
-function NewVariable({ env, onDone }: { env: string; onDone(): void }) {
+function NewVariable({ env, secretsFile, onDone }: { env: string; secretsFile: string; onDone(): void }) {
   const [secret, setSecret] = useState(false);
   return (
     <form
@@ -257,10 +258,11 @@ function NewVariable({ env, onDone }: { env: string; onDone(): void }) {
       }}
     >
       <input className="mono" name="name" aria-label="New variable name" placeholder="name" autoFocus />
-      <input className="mono" name="value" aria-label="New variable value" placeholder="value" type={secret ? "password" : "text"} />
+      <input className={`mono ${secret ? "secret" : ""}`} name="value" aria-label="New variable value" placeholder="value" type={secret ? "password" : "text"} />
       <label className="secret-check">
         <input type="checkbox" role="switch" className="switch" aria-label="Secret" checked={secret} onChange={(e) => setSecret(e.target.checked)} /> Secret
       </label>
+      {secret && secretsFile && <span className="secret-to">→ {secretsFile}</span>}
       <button className="btn" type="submit">
         Add
       </button>
@@ -270,7 +272,7 @@ function NewVariable({ env, onDone }: { env: string; onDone(): void }) {
       {secret && (
         <p className="secret-note">
           <LockIcon />
-          <span>Secret values are written to the environment&apos;s secrets file and never shown again or kept in history. Keep that file in .gitignore.</span>
+          <span>Secret values are written to {secretsFile || "the environment's secrets file"} and never shown again or kept in history. Keep that file in .gitignore.</span>
         </p>
       )}
     </form>

@@ -44,7 +44,7 @@
 }
 .body-search:focus-within { box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
 .body-search input { flex: 1; min-width: 0; height: auto; padding: 0; border: 0; outline: 0; background: none; box-shadow: none; color: var(--text); font: 11.5px var(--font-code); }
-.body-search input::placeholder { font-family: var(--font-ui); }
+.body-search input::placeholder { color: var(--faint); white-space: pre; }
 .body-search .count { font: 11.5px var(--font-ui); color: var(--muted); white-space: pre; }
 .btn-ghost.icon { width: 26px; justify-content: center; padding: 0; color: var(--muted); }
 .body-bar .segmented { padding: 2px; border-radius: 6px; background: var(--bg); }
@@ -86,7 +86,9 @@
 .large-actions .btn-ghost { height: 26px; padding: 0 10px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font: 500 12px var(--font-ui); }
 .raw-large { position: relative; flex: 0 1 210px; min-height: 0; display: flex; margin: 0 12px; border-radius: 8px; overflow: hidden; }
 /* Only the last lines fade: what scrolls into view stays readable. */
-.raw-large::after { content: ""; position: absolute; inset: auto 0 0; height: 36px; background: linear-gradient(transparent, var(--bg)); pointer-events: none; }
+.raw-large::after { content: ""; position: absolute; inset: auto 0 0; height: 64px; background: linear-gradient(transparent, var(--bg) 85%); pointer-events: none; }
+.raw-large .raw-view { margin: 0; }
+.large-foot { margin: 8px 12px 0; color: var(--faint); font-size: 11.5px; }
 .raw-large > * { flex: 1; min-height: 0; }
 .large-body p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .large-title { display: flex; gap: 10px; align-items: baseline; }
@@ -226,8 +228,8 @@
 .write-check { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11.5px; }
 .composer-hint { margin: 0; font-size: 11px; color: var(--faint); }
 .body-search + .btn-ghost.icon { margin-left: auto; }
-.body-search .keys { padding: 0 2px; background: none; color: var(--faint); font: 500 10.5px var(--font-code); }
 /* What a connection tried, under its error card. */
 .error-trace { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 11.5px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; }
+.error-note { margin: 10px 0 0; color: var(--faint); font-size: 11.5px; }
 /* The first thing to try, raised. */
 .error-actions > .btn:first-child { background: var(--raised); box-shadow: none; }

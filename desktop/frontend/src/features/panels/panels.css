@@ -80,18 +80,25 @@
 .env-main { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; font-size: 12.5px; }
 .env-head h1 { margin: 0; display: flex; align-items: center; gap: 8px; font: 600 16px var(--font-ui); }
 .env-head p { margin: 4px 0 0; }
-.env-table { width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
+/* The table, and the variable being added under it, in one box. */
+.env-box { border-radius: 10px; overflow: hidden; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
+.env-table { width: 100%; border-collapse: collapse; }
 .env-table th { text-align: left; padding: 9px 12px; color: var(--muted); font: 500 11.5px var(--font-ui); box-shadow: inset 0 -1px 0 var(--line2); }
 .env-table td { padding: 6px 12px; box-shadow: inset 0 -1px 0 var(--line2); }
+.env-box:not(:has(.new-variable)) tbody tr:last-child td { box-shadow: none; }
 .env-table .name { color: var(--t-key); }
 .env-table input { width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: 12px var(--font-code); }
 .env-table input:focus { background: var(--bg); box-shadow: inset 0 0 0 1px var(--accent-line); outline: 0; }
 .override-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-size: 11px; }
 .override-chip button { border: 0; background: none; color: inherit; padding: 0; }
-.env-main .add-row, .env-main .new-variable { align-self: flex-start; }
+.env-main .add-row { align-self: flex-start; }
 .env-main .add-row { border: 0; background: none; color: var(--accent); font: 500 12.5px var(--font-ui); padding: 4px 0; }
-.new-variable { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.new-variable input:not([type="checkbox"]) { height: 30px; padding: 0 9px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-code); }
+.new-variable { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 14px 14px; }
+.new-variable input:not([type="checkbox"]) { width: 140px; height: 28px; padding: 0 9px; border: 0; border-radius: 6px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-code); }
+.new-variable input:not([type="checkbox"]):focus { outline: 0; box-shadow: inset 0 0 0 1px var(--accent); }
+.new-variable input.secret { width: 126px; color: var(--warn); }
+.new-variable .secret-to { color: var(--warn); font-size: 11.5px; }
+.new-variable .btn, .new-variable .btn-ghost { height: 28px; }
 .new-variable .form-note, .env-main .form-note { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .menu-item.danger { color: var(--fail); }
 
@@ -166,7 +173,7 @@
 #settings-privacy > h2, #settings-privacy > p, #settings-privacy > .set-row:last-child { grid-column: 1 / -1; }
 #settings-privacy > p { padding: 9px 0; box-shadow: inset 0 -1px 0 var(--line2); }
 .set-banner { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 9px; background: var(--warn-soft); color: var(--text); font-size: 12px; }
-.set-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.set-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
 .set-grid > #settings-privacy { grid-column: 1 / -1; }
 .set-card { padding: 14px 18px 6px; border-radius: 10px; background: var(--panel); display: flex; flex-direction: column; gap: 0; }
 .set-card h2 { margin: 0 0 4px; font: 600 13px var(--font-ui); }
@@ -200,16 +207,25 @@
 
 /* Cookie jar */
 .cookie-jar { width: 780px; top: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 48px); max-height: 80vh; overflow: auto; }
-.cookie-jar .jar-body { display: grid; grid-template-columns: 160px minmax(0, 1fr); min-height: 220px; box-shadow: inset 0 -1px 0 var(--line2); }
-.cookie-jar .jar-domains { list-style: none; margin: 0; padding: 10px 8px; box-shadow: inset -1px 0 0 var(--line2); }
+.cookie-jar .jar-body { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: 260px; }
+.cookie-jar .jar-side { display: flex; flex-direction: column; padding: 10px 8px; box-shadow: inset -1px 0 0 var(--line2); }
+.cookie-jar .jar-domains { flex: 1; list-style: none; margin: 0; padding: 0; }
+.cookie-jar .jar-side .jar-clear.all { align-self: flex-start; height: 32px; padding: 0 10px; box-shadow: none; }
 .cookie-jar .jar-domains button { width: 100%; height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 8px; border: 0; border-radius: 6px; background: none; color: var(--text); font-size: 12px; }
 .cookie-jar .jar-domains button[aria-pressed="true"] { background: var(--accent-soft); }
 .cookie-jar .jar-domains .n { color: var(--faint); font: 11px var(--font-code); }
-.cookie-jar .jar-main { min-width: 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.cookie-jar .jar-main { min-width: 0; padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px; }
+/* Keep cookies, at the foot of the table's column. */
+.cookie-jar .jar-keep-row { margin-top: auto; padding-top: 14px; display: flex; align-items: center; gap: 12px; box-shadow: inset 0 1px 0 var(--line2); }
+.cookie-jar .jar-keep-row .jar-keep { flex: 1; max-width: none; }
+.cookie-jar .jar-head .btn { height: 26px; padding: 0 10px; }
+.cookie-jar .jar-table tr.editing { background: var(--hover); }
+.cookie-jar .jar-input { width: 100%; min-width: 0; height: 24px; box-sizing: border-box; padding: 0 7px; border: 0; border-radius: 5px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); font: 12px var(--font-code); outline: 0; }
+.cookie-jar .jar-actions { white-space: nowrap; text-align: right; }
+.cookie-jar .jar-input.domain { margin-top: 4px; }
 .cookie-jar .jar-head { display: flex; align-items: center; gap: 8px; }
 .cookie-jar .jar-head b { flex: 1; font-size: 12.5px; font-weight: 600; }
 .cookie-jar .jar-clear { height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: none; box-shadow: inset 0 0 0 1px var(--line); color: var(--fail); font: 500 12px var(--font-ui); cursor: pointer; }
-.cookie-jar .jar-foot .jar-clear { padding: 0; box-shadow: none; }
 .cookie-jar .jar-clear:hover:not(:disabled) { background: var(--fail-soft); }
 .cookie-jar .jar-clear:disabled { opacity: 0.5; }
 .cookie-jar .jar-table { width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; background: var(--bg); font-size: 12px; }
@@ -219,7 +235,6 @@
 .cookie-jar .jar-table .secret { color: var(--warn); }
 .cookie-jar .jar-table .flags, .cookie-jar .jar-table .file { color: var(--muted); font-size: 11.5px; }
 .cookie-jar .jar-note { margin: 0; color: var(--faint); font-size: 11.5px; }
-.cookie-jar .jar-foot { display: flex; align-items: center; gap: 12px; padding: 14px 20px; }
 .cookie-jar .jar-keep { display: flex; align-items: center; gap: 10px; max-width: 440px; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
 .cookie-jar .jar-keep b { color: var(--text); font-weight: 500; }
 .cookie-jar .kv-remove { width: 22px; height: 22px; border: 0; border-radius: 5px; background: none; color: var(--faint); }
@@ -228,8 +243,8 @@
 /* Environments: a row with its menu open, the secret notice. */
 .env-table tr:has([data-state="open"]) { background: var(--hover); }
 .env-menu { width: 280px; }
-.env-main .secret-check { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
-.env-main .secret-note { flex-basis: 100%; display: flex; gap: 8px; margin: 4px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--panel); color: var(--muted); font-size: 12px; line-height: 1.5; }
+.env-main .secret-check { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 12px; }
+.env-main .secret-note { flex-basis: 100%; display: flex; gap: 8px; margin: 0; padding: 8px 10px; border-radius: 7px; background: var(--warn-soft); color: var(--text); font-size: 12px; line-height: 1.45; }
 .env-main .secret-note svg { flex: none; margin-top: 3px; color: var(--warn); }
 .panel-body .mock-log .faint { color: var(--faint); }
 .panel-body .mock-log .pass { color: var(--pass); }

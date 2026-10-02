@@ -13,6 +13,16 @@ environments:
     secrets_files:
       - secrets/local.secrets
 
+  # The mock of openapi.yaml (the Contract panel's), when it runs.
+  mock:
+    variables:
+      base_url: http://127.0.0.1:4010
+      api: http://127.0.0.1:34120
+      ws: ws://127.0.0.1:34120
+      user: ada
+    secrets_files:
+      - secrets/local.secrets
+
 defaults:
   env: local
 

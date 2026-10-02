@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useKeyLabel } from "../../app/keymap/use-keys";
+import { useEnv } from "../../state/env";
 import { useRuns } from "../../state/run";
 import type { EntryError } from "../../lib/view";
 import { useRegistry } from "../../app/registry";
@@ -18,6 +19,14 @@ import { cardOf } from "./model";
 export function refusedText(message: string): string | undefined {
   const m = /connect to (\S+) port (\d+)/.exec(message);
   return m ? `${m[1]}:${m[2]} did not accept the connection.` : undefined;
+}
+
+/** What to do about a refused connection, naming its port and the
+ * project's spec when there is one. */
+export function refusedHint(message: string, spec: string): string | undefined {
+  const port = /connect to \S+ port (\d+)/.exec(message)?.[1];
+  if (!port) return undefined;
+  return `Nothing is listening on port ${port}. Start your API${spec ? `, or serve ${spec} with the mock server` : ""}.`;
 }
 
 /** "stg.shop.dev: no such host" from a failed lookup's message. */
@@ -45,6 +54,8 @@ export function ErrorCard({ file, entry, err }: { file: string; entry: number; e
     ].filter(Boolean) as string[];
   }, [err.message, err.transport, ms]);
   const [spec, setSpec] = useState("");
+  // An environment named mock (its base_url the mock's), not yet in use.
+  const mockEnv = useEnv((s) => s.current !== "mock" && !!s.project?.envs?.some((e) => e.name === "mock"));
   useEffect(() => {
     if (err.transport !== "connect") return;
     let live = true;
@@ -70,11 +81,16 @@ export function ErrorCard({ file, entry, err }: { file: string; entry: number; e
         <p className="error-message mono">
           {(err.transport === "connect" && refusedText(err.message)) || (err.transport === "resolve" && unresolvedText(err.message)) || err.message || err.description}
         </p>
-        <p className="error-hint">{card.hint}</p>
+        <p className="error-hint">{(err.transport === "connect" && refusedHint(err.message, spec)) || card.hint}</p>
         <div className="error-actions">
           {err.transport === "connect" && spec && (
             <button className="btn primary-soft" onClick={() => void startMock(file, entry)}>
               Start mock on :4010
+            </button>
+          )}
+          {err.transport === "connect" && mockEnv && (
+            <button className="btn" onClick={() => useEnv.getState().select("mock")}>
+              Switch to mock env
             </button>
           )}
           {(err.transport === "connect" || err.transport === "resolve") && hasCommand("env.pick") && (
@@ -108,6 +124,7 @@ export function ErrorCard({ file, entry, err }: { file: string; entry: number; e
           ))}
         </pre>
       )}
+      {!card.neutral && <p className="error-note">DNS failures, TLS certificate errors and timeouts use the same card.</p>}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { Entry } from "../../lib/view";
-import { ago, bodyKind, cardOf, formatBytes, formatMs, sentCookies, statusText, stopText, tabCounts, waterfall } from "./model";
+import { ago, bodyKind, cardOf, formatBytes, formatMs, outputOption, sentCookies, statusText, stopText, tabCounts, waterfall } from "./model";
 
 describe("results model", () => {
   it("formats the meta line", () => {
@@ -153,5 +153,38 @@ describe("results model", () => {
       sonde: { contract: { violations: [{ kind: "k", message: "m" }, { kind: "k", message: "m", warning: true }] } },
     } as unknown as Entry;
     expect(tabCounts(e)).toEqual({ headers: 1, asserts: { total: 4, failed: 2 }, captures: 1, cookies: 1, stream: 0 });
+  });
+});
+
+describe("outputOption", () => {
+  const text = [
+    "# Export",
+    "GET {{api}}/orders/export",
+    "[Options]",
+    "output: exports/orders.ndjson",
+    "HTTP 200",
+    "",
+    "GET {{api}}/health",
+    "HTTP 204",
+    "[Options]",
+    "output: after-the-response.txt",
+  ].join("\n");
+
+  it("reads the request's own [Options]", () => {
+    expect(outputOption(text, 2)).toBe("exports/orders.ndjson");
+  });
+
+  it("stops at the response and the next request", () => {
+    expect(outputOption(text, 7)).toBeUndefined();
+    expect(outputOption("GET a\nGET b\n[Options]\noutput: b.txt\n", 1)).toBeUndefined();
+  });
+
+  it("names no file for the standard output or a templated path", () => {
+    expect(outputOption("GET a\n[Options]\noutput: -\n", 1)).toBeUndefined();
+    expect(outputOption("GET a\n[Options]\noutput: {{dir}}/a.json\n", 1)).toBeUndefined();
+  });
+
+  it("ignores an output outside [Options]", () => {
+    expect(outputOption("POST a\n[Form]\noutput: x\n", 1)).toBeUndefined();
   });
 });

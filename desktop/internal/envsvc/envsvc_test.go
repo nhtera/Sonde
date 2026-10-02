@@ -225,6 +225,16 @@ func TestOverrides(t *testing.T) {
 	if o := e.Overrides(); o.Count != 1 {
 		t.Errorf("after removal %+v", o)
 	}
+	// Keep cookies: an override of every run while on.
+	keep := true
+	e.KeepCookies = func() bool { return keep }
+	if o := e.Overrides(); o.Count != 2 || o.Items[1].Name != "Keep cookies" || o.Items[1].Source != "settings" {
+		t.Errorf("with keep cookies %+v", o)
+	}
+	keep = false
+	if o := e.Overrides(); o.Count != 1 {
+		t.Errorf("keep cookies off %+v", o)
+	}
 }
 
 // TestMarkSecretKill kills the app at each write point of Mark secret: the

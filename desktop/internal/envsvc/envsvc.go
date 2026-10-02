@@ -49,6 +49,9 @@ type Env struct {
 	Name      string `json:"name"`
 	Default   bool   `json:"default"`
 	Variables []Var  `json:"variables"`
+	// SecretsFile is where a new secret of env goes ("" when env's
+	// name cannot name one).
+	SecretsFile string `json:"secretsFile"`
 	// Error is why env does not resolve (a missing file…).
 	Error string `json:"error,omitempty"`
 }
@@ -86,6 +89,9 @@ type Envs struct {
 	env      config.Env
 	version  string
 	settings func(inv *runplan.Invocation) // the settings' flags
+	// KeepCookies reports whether Settings › Keep cookies is on: runs then
+	// read and write each file's kept jar (-b and -c), an override too.
+	KeepCookies func() bool
 
 	editMu    sync.Mutex // one project edit at a time, load to journal removal
 	mu        sync.Mutex
@@ -141,6 +147,7 @@ func (e *Envs) List() (*Project, error) {
 	sort.Strings(names)
 	for _, n := range names {
 		env := Env{Name: n, Default: p.Defaults.Env == n, Variables: []Var{}}
+		env.SecretsFile, _ = p.SecretsFileFor(n)
 		sources, err := p.VariableNames(n)
 		if err != nil {
 			env.Error = err.Error()
@@ -430,6 +437,9 @@ func (e *Envs) Overrides() Overrides {
 		for _, flag := range sortedKeys(inv.Set) {
 			items = append(items, Override{Name: flagLabel(flag), Source: "settings", Flag: "--" + flag})
 		}
+	}
+	if e.KeepCookies != nil && e.KeepCookies() {
+		items = append(items, Override{Name: "Keep cookies", Source: "settings", Flag: "-b and -c (the file's kept jar)"})
 	}
 	e.mu.Lock()
 	if e.mock != "" {

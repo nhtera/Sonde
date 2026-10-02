@@ -223,3 +223,25 @@ export function logPrefix(level: string): string {
   if (level === "response" || level === "responseLine") return "<";
   return "*";
 }
+
+/**
+ * The `output:` option of the request at line (1-based) in text: where
+ * the run wrote its response body. Read from the request's [Options],
+ * up to its response (HTTP …) or the next request; undefined when none.
+ */
+export function outputOption(text: string, line: number): string | undefined {
+  const lines = text.split(/\r?\n/);
+  let section = "";
+  for (let i = line; i < lines.length; i++) {
+    const l = lines[i].trim();
+    if (/^HTTP(\/[\d.]+)?\s/.test(l) || /^[A-Z]+\s+\S/.test(l)) return undefined;
+    const head = /^\[(\w+)\]$/.exec(l);
+    if (head) section = head[1];
+    else if (section === "Options") {
+      const m = /^output\s*:\s*(.+)$/.exec(l);
+      // "-" is the standard output, and a {{variable}} is not known here.
+      if (m) return m[1].trim() === "-" || m[1].includes("{{") ? undefined : m[1].trim();
+    }
+  }
+  return undefined;
+}

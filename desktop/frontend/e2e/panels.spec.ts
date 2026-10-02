@@ -54,8 +54,9 @@ test.beforeEach(async ({ page }) => {
 test("the Test run says what sonde --test says", async ({ page }) => {
   await openApp(page);
   await panel(page, "Test run");
-  // Leave out the 48 MB export and the refused health check: the rest.
-  for (const f of ["big.hurl", "health.hurl"]) await page.getByRole("list", { name: "Files to run" }).getByText(f, { exact: true }).click();
+  // Leave out the large bodies (big, and the 48 MB export, which writes
+  // its output file) and the refused health check: the rest.
+  for (const f of ["big.hurl", "export.hurl", "health.hurl"]) await page.getByRole("list", { name: "Files to run" }).getByText(f, { exact: true }).click();
   const files = await page.getByRole("list", { name: "Files to run" }).locator("input:checked + span").allTextContents();
   await page.getByRole("button", { name: /^Run \d+ files?$/ }).click();
   const summary = page.getByLabel("Test summary");

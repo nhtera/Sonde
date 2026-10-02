@@ -63,7 +63,11 @@
 .failure-values dd { margin: 0; }
 .failure-values .fail { color: var(--fail); }
 .failure-message { margin: 0; white-space: pre-wrap; font: 12px var(--font-code); color: var(--muted); }
-.failure-actions { display: flex; gap: 8px; }
+.failure-actions { display: flex; gap: 6px; margin-top: 2px; }
+.failure-actions .btn { height: 24px; border-radius: 5px; background: var(--panel); }
+.failure-actions .btn:hover { background: var(--hover); }
+.failure-actions kbd { padding: 0; background: none; color: var(--muted); font: 500 10px var(--font-code); }
+.failure-actions .btn-ghost { height: 24px; padding: 0 9px; }
 .run-error { margin: 0 16px 8px; color: var(--fail); font-size: 12.5px; }
 .stale-banner { display: flex; align-items: center; gap: 10px; margin: 0 16px 10px; padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 12.5px; }
 .stale-banner span { flex: 1; }

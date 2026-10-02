@@ -24,3 +24,7 @@ testdata/conformance/hurl/**/__pycache__/
 # Agent config and memory stay private
 /.claude/
 .env.*
+
+# The output option of results-api/export.hurl (48 MiB).
+/desktop/testdata/results-api/exports/*
+!/desktop/testdata/results-api/exports/.gitkeep

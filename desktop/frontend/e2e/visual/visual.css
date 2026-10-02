@@ -2,12 +2,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /* Hidden in the visual baselines: what changes with time and the
-   machine (durations, "12s ago", times of day, waterfall bars, captured
+   machine (durations, "12s ago", times of day, waterfall bars unless pinned, captured
    ids and tokens in the editor's ghost text). */
 [data-volatile],
 .cm-ghost-muted::after,
 .cm-ghost-capture::after,
-.waterfall,
-.wf-ms {
+.waterfall:not([data-pinned]),
+.waterfall:not([data-pinned]) .wf-ms {
   visibility: hidden !important;
 }

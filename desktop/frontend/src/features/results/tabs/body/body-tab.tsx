@@ -7,16 +7,18 @@
 // 50 MB it is only saved or opened in another app.
 
 import { CopyIcon, DownloadIcon, SearchIcon } from "../../../../components/icons";
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useKeyLabel } from "../../../../app/keymap/use-keys";
 import { appError } from "../../../../lib/api";
 import { isMac, windowLook } from "../../../../lib/mode";
 import type { Body } from "../../../../lib/view";
+import { useRuns } from "../../../../state/run";
+import { useTabs } from "../../../../state/tabs";
 import { useUI } from "../../../../state/ui";
 import { addFromBody } from "../../actions";
 import { openExternally, saveBody } from "../../body-actions";
 import { LargeBody } from "../../large-body";
-import { bodyKind, FORMAT_LIMIT, RAW_PREVIEW, VIEW_LIMIT, type BodyKind } from "../../model";
+import { bodyKind, FORMAT_LIMIT, outputOption, RAW_PREVIEW, VIEW_LIMIT, type BodyKind } from "../../model";
 import { useResults, type BodyMode } from "../../state";
 import { fetchBody, hexDump, type BodyText } from "./body-fetch";
 import { Preview } from "./preview";
@@ -79,6 +81,13 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
   const onInvalid = useCallback(() => setInvalid(body.id), [body.id]);
 
   const tooLarge = body.size > VIEW_LIMIT;
+  // Where the request's output option wrote the whole body, read from
+  // the file as open (a large body shows only its start).
+  const line = useRuns((s) => s.runs[file]?.entries[entry]?.line);
+  // A write that failed is no copy.
+  const written = useRuns((s) => !s.runs[file]?.entries[entry]?.errors?.some((e) => e.kind === "file-write-access" || e.kind === "unauthorized-file-access"));
+  const fileText = useTabs((s) => s.tabs.find((t) => t.path === file)?.text);
+  const output = useMemo(() => (line && fileText ? outputOption(fileText, line) : undefined), [fileText, line]);
   const large = body.size > FORMAT_LIMIT && formatted !== body.id;
   const modes = modesOf(kind);
   let mode: BodyMode = modes.includes(chosen) ? chosen : modes[0];
@@ -167,12 +176,12 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
               <SearchIcon size={12} />
               <input
                 value={query}
-                placeholder="Search"
+                // The shortcut inside the placeholder, as the design has it.
+                placeholder={searchKeys ? `Search  ${searchKeys}` : "Search"}
                 aria-label="Search the body"
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onKey}
               />
-              {!query && searchKeys && <kbd className="keys">{searchKeys}</kbd>}
               {query && <span className="count mono">{matches.total ? `${matches.current + 1} of ${matches.total}` : "0 of 0"}  ↑↓</span>}
           </label>
           <button className="btn-ghost icon" title="Copy the body" aria-label="Copy the body" disabled={large} onClick={() => void copy()}>
@@ -199,6 +208,7 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
       {invalid === body.id && mode === "pretty" && kind === "json" && <p className="body-note">Not valid JSON: showing the text.</p>}
       {/* A large body's first megabyte, fading out: there is more. */}
       {large && !tooLarge && mode === "raw" ? <div className="raw-large">{content}</div> : content}
+      {large && output && written && <p className="large-foot">Full copy saved to {output} by the output option.</p>}
     </div>
   );
 }

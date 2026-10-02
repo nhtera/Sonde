@@ -6,7 +6,7 @@
 // the Changes card, an import, then a new file.
 
 import { expect, test, type Page } from "@playwright/test";
-import { dark, home, open, panel, run, snap } from "./visual/snap";
+import { dark, home, open, panel, pinTimings, run, snap } from "./visual/snap";
 
 test.describe.configure({ mode: "serial" });
 
@@ -34,6 +34,7 @@ test("3a, 3b, 3c: body, timeline and cookies", async ({ page }) => {
   await results(page).locator(".req-row").nth(0).click();
   await tab(page, "Timeline").click();
   await expect(results(page).getByRole("tabpanel").getByLabel("Log")).toBeVisible();
+  await pinTimings(page);
   await snap(page, "3b");
   await tab(page, "Cookies").click();
   await expect(results(page).getByRole("tabpanel")).toContainText("Received");
@@ -149,11 +150,10 @@ test("5a: environments", async ({ page }) => {
   await page.getByLabel("New variable name").fill("webhook_secret");
   await page.getByRole("switch", { name: "Secret" }).check();
   await page.getByLabel("New variable value").fill("whsec-visual");
-  // A variable's menu, its override picked.
-  await page.getByRole("button", { name: "ws actions" }).click();
-  await page.getByRole("menuitem", { name: /Override for this session/ }).hover();
+  // The new row in full (a variable's menu would cover it), its name
+  // being edited, as the design has it.
+  await page.getByLabel("New variable name").focus();
   await snap(page, "5a");
-  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Remove the override of user" }).click();
 });
 
