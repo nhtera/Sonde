@@ -11,6 +11,8 @@ package jar
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"io/fs"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -18,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/engine"
@@ -145,6 +148,70 @@ func (j *Jars) Delete(file, domain, cookiePath, name string) error {
 	})
 }
 
+// SetCookie is a cookie added to a jar, or a kept one changed: its value
+// is written, never read back to the page.
+type SetCookie struct {
+	Domain   string `json:"domain"`
+	Path     string `json:"path"`
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+	Expires  int64  `json:"expires"` // Unix seconds; 0: a session cookie
+	Secure   bool   `json:"secure"`
+	HTTPOnly bool   `json:"httpOnly"`
+}
+
+// Set adds c to file's jar, replacing the cookie of the same domain, path
+// and name. The jar is made when file has none yet.
+func (j *Jars) Set(file string, c SetCookie) error {
+	if c.Path == "" {
+		c.Path = "/"
+	}
+	// A line of the cookie file starting with # is a comment (or, as
+	// #HttpOnly_, a flag), so neither the domain nor the name may.
+	if c.Domain == "" || c.Name == "" || strings.HasPrefix(c.Domain, "#") || strings.HasPrefix(c.Name, "#") || !strings.HasPrefix(c.Path, "/") {
+		return apperr.New(apperr.Invalid, "a cookie needs a domain, a name and a path starting with /")
+	}
+	// A control character would split the file's line (tab, line break)
+	// or the Cookie header; a ; would add a cookie to it.
+	for _, f := range []string{file, c.Domain, c.Path, c.Name, c.Value} {
+		if strings.ContainsFunc(f, unicode.IsControl) {
+			return apperr.New(apperr.Invalid, "a cookie can not hold a control character")
+		}
+	}
+	if strings.ContainsAny(c.Name, " ;=,") || strings.ContainsAny(c.Domain, " /;") || strings.Contains(c.Value, ";") {
+		return apperr.New(apperr.Invalid, "the cookie's name, domain or value is not valid")
+	}
+	name, ok := j.name(file)
+	if !ok {
+		return apperr.New(apperr.NotFound, "no project is open")
+	}
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	// A new cookie of ".example.com" reaches its subdomains; a changed
+	// one keeps how it was kept.
+	sub := strings.HasPrefix(c.Domain, ".")
+	var kept []engine.Cookie
+	data, err := j.config.ReadFile(name)
+	switch {
+	case err == nil:
+		kept = slices.DeleteFunc(parse(data), func(k engine.Cookie) bool {
+			same := k.Domain == c.Domain && k.Path == c.Path && k.Name == c.Name
+			if same {
+				sub = k.IncludeSubdomain
+			}
+			return same
+		})
+	case errors.Is(err, fs.ErrNotExist):
+		if err := j.config.MkdirAll(path.Dir(name), 0o700); err != nil {
+			return err
+		}
+	default:
+		return err // never rewrite a jar that could not be read
+	}
+	kept = append(kept, engine.Cookie{Domain: c.Domain, IncludeSubdomain: sub, Path: c.Path, Name: c.Name, Value: c.Value, Expires: c.Expires, HTTPS: c.Secure, HTTPOnly: c.HTTPOnly})
+	return cookiejar.Write(j.config, name, file, kept, func(s string) string { return s })
+}
+
 // Clear empties file's jar; with file "", every jar of the project.
 func (j *Jars) Clear(file string) error {
 	if file != "" {
@@ -229,3 +296,7 @@ func (s *Service) Delete(file, domain, cookiePath, name string) error {
 
 // Clear empties file's jar, or every jar with file "".
 func (s *Service) Clear(file string) error { return s.j.Clear(file) }
+
+// Set adds a cookie to file's jar, or changes a kept one (its value is
+// written, never returned).
+func (s *Service) Set(file string, c SetCookie) error { return s.j.Set(file, c) }

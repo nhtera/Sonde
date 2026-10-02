@@ -137,8 +137,21 @@ test("12c: the cookie jar", async ({ page }) => {
     // From the run's Cookies tab, as the design opens it.
     await page.getByRole("region", { name: "Results" }).getByRole("tab", { name: /^Cookies/ }).click();
     await page.getByRole("button", { name: "Open cookie jar" }).click();
-    await expect(page.getByRole("dialog", { name: "Cookie jar" }).getByRole("row", { name: /sid/ })).toBeVisible();
+    const jar = page.getByRole("dialog", { name: "Cookie jar" });
+    await expect(jar.getByRole("row", { name: /sid/ })).toBeVisible();
+    // A cookie added, then its value being replaced inline (the design's).
+    await jar.getByRole("button", { name: "+ Add cookie" }).click();
+    await jar.getByLabel("New cookie name").fill("cart");
+    await jar.getByLabel("New cookie value").fill("c_8f2a41");
+    await jar.getByLabel("New cookie value").press("Enter");
+    await expect(jar.getByRole("row", { name: /cart/ })).toBeVisible();
+    await jar.getByRole("button", { name: "Edit cart" }).click();
+    await jar.getByLabel("New value of cart").fill("c_8f2a41");
     await snap(page, "12c");
+    await page.keyboard.press("Escape");
+    await expect(jar.getByLabel("New value of cart")).toBeHidden();
+    await jar.getByRole("button", { name: "Delete cart" }).click();
+    await expect(jar.getByRole("row", { name: /cart/ })).toBeHidden();
     await page.keyboard.press("Escape");
   } finally {
     if (!(await keep.isVisible())) await panel(page, "Settings");

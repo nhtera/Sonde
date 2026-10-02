@@ -62,6 +62,56 @@ func TestKeepListDeleteClear(t *testing.T) {
 	}
 }
 
+// Set adds a cookie (making the jar), then changes it in place; its
+// value reaches the jar file only, never the list.
+func TestSet(t *testing.T) {
+	cfg, _ := sandbox.Open(t.TempDir())
+	proj, _ := sandbox.Open(t.TempDir())
+	j := New(cfg, func() *sandbox.Root { return proj }, func() bool { return true })
+	if err := j.Set("a.hurl", SetCookie{Domain: "api.example", Name: "cart", Value: "c-first", HTTPOnly: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := j.Set("a.hurl", SetCookie{Domain: "api.example", Path: "/", Name: "cart", Value: "c-second", Expires: 4102444800}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(j.KeptJar("a.hurl"))
+	got := parse(data)
+	if len(got) != 1 || got[0].Value != "c-second" || got[0].Path != "/" || got[0].Expires != 4102444800 || got[0].HTTPOnly {
+		t.Fatalf("jar %+v", got)
+	}
+	jars, _ := j.List()
+	redactcheck.AssertNoSecret(t, "jar list", jars, "c-first", "c-second")
+	// A file name with a line break would write a line of its own.
+	if err := j.Set("a.hurl\nevil", SetCookie{Domain: "api.example", Name: "x"}); err == nil {
+		t.Error("a file name with a line break was taken")
+	}
+	// A kept cookie that reaches subdomains still does after an edit.
+	j.Keep("b.hurl", []engine.Cookie{{Domain: "shop.example", IncludeSubdomain: true, Path: "/", Name: "sid", Value: "v1"}})
+	if err := j.Set("b.hurl", SetCookie{Domain: "shop.example", Path: "/", Name: "sid", Value: "v2"}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ = os.ReadFile(j.KeptJar("b.hurl"))
+	if got := parse(data); len(got) != 1 || !got[0].IncludeSubdomain || got[0].Value != "v2" {
+		t.Errorf("after the edit %+v", got)
+	}
+	for _, bad := range []SetCookie{
+		{Domain: "api.example", Name: ""},
+		{Domain: "", Name: "x"},
+		{Domain: "api.example", Name: "x", Value: "a\tb"},
+		{Domain: "api.example", Name: "x", Value: "a\nb"},
+		{Domain: "api.example", Name: "a=b"},
+		{Domain: "api.example", Name: "#HttpOnly_x"},
+		{Domain: "api.example", Name: "x", Path: "relative"},
+		{Domain: "#HttpOnly_api.example", Name: "x"},
+		{Domain: "api.example", Name: "x", Value: "a; injected=1"},
+		{Domain: "api.example", Name: "x", Value: "a\x00b"},
+	} {
+		if err := j.Set("a.hurl", bad); err == nil {
+			t.Errorf("set %+v: no error", bad)
+		}
+	}
+}
+
 func contains(s, sub string) bool {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {
