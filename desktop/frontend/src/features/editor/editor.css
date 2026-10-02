@@ -9,34 +9,37 @@
 .cm-sonde-hover-doc { padding: 8px 10px; }
 .cm-sonde-hover-doc p { margin: 0; }
 .cm-sonde-hover-doc code { font: 12px var(--font-code); }
-/* A variable's card (hover) */
-.cm-var-card { min-width: 300px; display: flex; flex-direction: column; }
-.cm-var-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px 4px; }
-.cm-var-name { font: 500 12.5px var(--font-code); color: var(--t-var); }
-.cm-var-kind { padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-size: 10.5px; }
+/* A variable's card (hover), as the design draws it. */
+.cm-tooltip:has(> .cm-sonde-hover .cm-var-card), .cm-tooltip:has(> .cm-var-card) { border: 0; border-radius: 10px; background: var(--raised); box-shadow: var(--pop), inset 0 0 0 1px var(--line); }
+.cm-var-card { width: 330px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.cm-var-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cm-var-name { font: 600 12.5px var(--font-code); color: var(--accent); }
+.cm-var-kind { padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font: 500 10.5px var(--font-ui); }
 .cm-var-kind.k-secret { background: var(--warn-soft); color: var(--warn); }
 .cm-var-kind.k-override { background: var(--warn-soft); color: var(--warn); }
-.cm-var-value { padding: 2px 12px 10px; font: 12px/1.5 var(--font-code); color: var(--t-str); overflow-wrap: anywhere; max-height: 5.5em; overflow: hidden; }
+.cm-var-value { font: 12px/1.5 var(--font-code); color: var(--text); word-break: break-all; max-height: 5.5em; overflow: hidden; }
 .cm-var-value.unset { color: var(--faint); font-style: italic; }
-.cm-var-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 12px; box-shadow: inset 0 1px 0 var(--line2); color: var(--faint); font-size: 11.5px; }
+.cm-var-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
 .cm-var-link { border: 0; padding: 0; background: none; color: var(--accent); font: 11.5px var(--font-ui); cursor: pointer; white-space: nowrap; }
 .cm-var-link:hover { text-decoration: underline; }
 .cm-foldGutter .cm-gutterElement { opacity: 0; transition: opacity 0.12s; }
 .cm-gutters:hover .cm-foldGutter .cm-gutterElement { opacity: 1; }
 /* The variables list inside {{…}}: name and source, the value below, a
    footer with the keys and the count. */
-.cm-tooltip-autocomplete.cm-var-complete { min-width: 340px; }
+.cm-tooltip-autocomplete.cm-var-complete { width: 360px; padding: 4px; border: 0; border-radius: 10px; background: var(--raised); box-shadow: var(--pop), inset 0 0 0 1px var(--line); }
 .cm-tooltip-autocomplete.cm-var-complete > ul { max-height: 17em !important; }
-.cm-tooltip-autocomplete.cm-var-complete > ul > li { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; padding: 5px 10px !important; }
+.cm-tooltip-autocomplete.cm-var-complete > ul > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; padding: 6px 9px !important; border-radius: 6px; }
+.cm-tooltip-autocomplete.cm-var-complete > ul > li[aria-selected] { background: var(--accent-soft) !important; color: var(--text) !important; }
+.cm-tooltip-autocomplete.cm-var-complete > ul > li[aria-selected] .cm-completionLabel { color: var(--accent); }
 .cm-var-complete .cm-completionIcon { display: none; }
-.cm-var-complete .cm-completionLabel { font: 12.5px var(--font-code); color: var(--text); }
-.cm-var-option-source { font: 10.5px var(--font-ui); color: var(--faint); text-align: right; align-self: center; }
+.cm-var-complete .cm-completionLabel { font: 12px var(--font-code); color: var(--text); }
+.cm-var-option-source { font: 11px var(--font-ui); color: var(--muted); text-align: right; align-self: center; }
 .cm-var-option-source.k-secret, .cm-var-option-source.k-override { color: var(--warn); }
 .cm-var-option-value { grid-column: 1 / -1; font: 11px var(--font-code); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
 .cm-var-option-value.unset { font-style: italic; color: var(--faint); }
 .cm-tooltip-autocomplete.cm-var-complete::after {
-  content: "↵ insert   ↑↓ move   Esc close" "\00a0\00a0\00a0\00a0" attr(data-count); display: block; padding: 6px 10px; white-space: pre;
-  box-shadow: inset 0 1px 0 var(--line2); color: var(--faint); font: 10.5px var(--font-ui);
+  content: "↵ insert    ↑↓ move    Esc close" "\00a0\00a0\00a0\00a0" attr(data-count); display: block; margin-top: 2px; padding: 6px 9px 4px; white-space: pre;
+  border-top: 1px solid var(--line); color: var(--faint); font: 11px var(--font-ui);
 }
 /* An empty file */
 .editor-empty {

@@ -1,6 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { RunToIcon } from "../../components/icons";
 import { registry } from "../../app/registry";
 import { useKeyLabel } from "../../app/keymap/use-keys";
 import { useRuns } from "../../state/run";
@@ -24,7 +25,8 @@ export function RunToCursorButton({ file }: { file: string }) {
       aria-label="Run to cursor"
       title={`Run requests 1 to the one at the cursor${keys ? ` (${keys})` : ""}`}
     >
-      ⇥<span className="label"> Run to cursor</span>
+      <RunToIcon />
+      <span className="label">Run to cursor</span>
       {keys && <kbd style={{ background: "none" }}>{keys}</kbd>}
     </button>
   );

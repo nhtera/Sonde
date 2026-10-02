@@ -5,6 +5,7 @@
 // files (.csv, .json); Run file then runs the file once per row, as
 // `sonde --data FILE` does.
 
+import { ChevronDown } from "../../components/icons";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import type { Node } from "../../lib/api";
 import { useRuns } from "../../state/run";
@@ -30,7 +31,9 @@ export function DataPicker({ file }: { file: string }) {
   return (
     <Menu.Root>
       <Menu.Trigger className="btn-ghost data-picker" aria-label={`Data file: ${data || "none"}`} title="Run the file once per row of a data file">
-        <span className="muted">Data</span> <span className={data ? "mono" : ""}>{data ? data.split("/").at(-1) : "none"}</span> <span aria-hidden>▾</span>
+        <span className="muted">Data</span>
+        <span className={`value${data ? " mono" : ""}`}>{data ? data.split("/").at(-1) : "none"}</span>
+        <ChevronDown />
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Content className="menu" align="start" sideOffset={4}>

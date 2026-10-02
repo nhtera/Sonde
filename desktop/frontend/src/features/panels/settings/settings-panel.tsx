@@ -11,7 +11,7 @@ import { create } from "zustand";
 import { useKeyLabel } from "../../../app/keymap/use-keys";
 import { confirm } from "../../../components/ask";
 import { appError, Dialogs, History, Settings as SettingsSvc, type SettingsValue } from "../../../lib/api";
-import { serverMode } from "../../../lib/mode";
+import { windowLook } from "../../../lib/mode";
 import { useEnv } from "../../../state/env";
 import { useSettings, type Theme } from "../../../state/settings";
 import { useUI } from "../../../state/ui";
@@ -139,7 +139,7 @@ export function SettingsMain() {
   const tlsRow = (kind: "cacert" | "cert" | "key", name: string, flag: string) => (
     <Row name={name} flag={flag}>
       <span className="mono path">{v.tls[kind] || "none"}</span>
-      {!serverMode && (
+      {windowLook && (
         <button className="btn" onClick={() => void pickTLS(kind)}>
           Choose…
         </button>

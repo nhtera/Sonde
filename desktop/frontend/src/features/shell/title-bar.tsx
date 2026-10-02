@@ -3,7 +3,7 @@
 
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { BranchIcon, ChevronDown, PlayIcon, SearchIcon, SondeMark } from "../../components/icons";
-import { isMac, serverMode } from "../../lib/mode";
+import { isMac, serverMode, windowLook } from "../../lib/mode";
 import { useEnv } from "../../state/env";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
@@ -21,7 +21,18 @@ export function TitleBar() {
   const runKeys = useKeyLabel("file.run");
   return (
     <header className="titlebar">
-      {isMac && !serverMode && <div className="traffic" />}
+      {isMac && windowLook && (
+        <div className="traffic">
+          {/* The window draws its own; the harness draws them for the design screens. */}
+          {serverMode && (
+            <>
+              <i />
+              <i />
+              <i />
+            </>
+          )}
+        </div>
+      )}
       <div className="project">
         <SondeMark />
         <ProjectSwitcher name={project?.name ?? "Sonde"} />
@@ -61,7 +72,7 @@ export function TitleBar() {
 function ProjectSwitcher({ name }: { name: string }) {
   const recent = useWorkspace((s) => s.recent);
   const openKeys = useKeyLabel("folder.open");
-  if (serverMode) return <span style={{ fontWeight: 600 }}>{name}</span>;
+  if (!windowLook) return <span style={{ fontWeight: 600 }}>{name}</span>;
   return (
     <Menu.Root>
       <Menu.Trigger asChild>

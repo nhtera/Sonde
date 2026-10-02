@@ -94,7 +94,11 @@ export function variableCard(view: EditorView, info: VariableInfo): HTMLElement 
   const card = el("div", "cm-var-card");
   const head = el("div", "cm-var-head");
   head.append(el("code", "cm-var-name", `{{${info.name}}}`), el("span", `cm-var-kind k-${info.kind}`, info.kind === "project" ? "environment" : info.kind));
-  const value = el("code", "cm-var-value", info.value || (info.kind === "capture" ? "not captured yet" : '""'));
+  // A string shows quoted, as JSON writes it; numbers, booleans, null,
+  // objects and *** as they are.
+  const raw = info.value;
+  const shown = !raw || raw === "***" || /^(-?\d+(\.\d+)?|true|false|null|[[{][\s\S]*)$/.test(raw) ? raw : JSON.stringify(raw);
+  const value = el("code", "cm-var-value", shown || (info.kind === "capture" ? "not captured yet" : '""'));
   if (!info.value) value.classList.add("unset");
   const foot = el("div", "cm-var-foot");
   foot.append(el("span", "", origin(info)));

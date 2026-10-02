@@ -4,7 +4,7 @@
 import { registry, useRegistry } from "../../app/registry";
 import { useKeyLabel } from "../../app/keymap/use-keys";
 import { FilesIcon, ImportIcon, PlayIcon, SondeMark } from "../../components/icons";
-import { serverMode } from "../../lib/mode";
+import { windowLook } from "../../lib/mode";
 import { useRuns } from "../../state/run";
 import { useWorkspace } from "../../state/workspace";
 
@@ -26,7 +26,7 @@ export function Welcome() {
           <p>The same file runs in CI and for AI agents.</p>
         </div>
         <div className="actions">
-          {!serverMode && (
+          {windowLook && (
             <button onClick={() => void useWorkspace.getState().openFolder()}>
               <FilesIcon size={16} />
               <span>Open a folder</span>
@@ -82,15 +82,15 @@ export function FileEmpty({ file, hasRequests }: { file: string; hasRequests: bo
     <div className="empty">
       <div className="file-empty">
         <span className="file-empty-icon" aria-hidden>
-          <PlayIcon />
+          <PlayIcon size={14} />
         </span>
         <b>Not run yet</b>
         <p>Run the file to see each request, its captures and asserts here. Nothing is sent until you do.</p>
-        <div className="row-gap">
-          <button className="btn" disabled={!hasRequests} onClick={() => void useRuns.getState().run(file)}>
-            Run file{runKeys && <kbd style={{ background: "none" }}>{runKeys}</kbd>}
+        <div className="file-empty-actions">
+          <button className="run" disabled={!hasRequests} onClick={() => void useRuns.getState().run(file)}>
+            Run file{runKeys && <kbd>{runKeys}</kbd>}
           </button>
-          <button className="btn" onClick={() => void registry.getCommand("file.check")?.run()}>
+          <button className="check" onClick={() => void registry.getCommand("file.check")?.run()}>
             Check only
           </button>
         </div>

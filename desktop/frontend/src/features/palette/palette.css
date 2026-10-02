@@ -1,21 +1,26 @@
 /* Copyright 2026 The Sonde Authors */
 /* SPDX-License-Identifier: Apache-2.0 */
 
-.palette { top: 92px; width: 600px; }
+.palette { top: 92px; width: 600px; padding: 0; border-radius: 12px; overflow: hidden; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .palette-input { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 12px 0 16px; box-shadow: inset 0 -1px 0 var(--line2); color: var(--muted); }
-.palette-input input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--text); font: 14px var(--font-ui); }
+.palette-input input { flex: 1; height: auto; padding: 0; border: 0; outline: 0; box-shadow: none !important; background: transparent; color: var(--text); font: 14.5px var(--font-ui); }
+.palette .palette-input kbd { padding: 1px 5px; border-radius: 4px; background: var(--raised); color: var(--muted); font: 500 10.5px var(--font-code); }
 .palette-list { max-height: 360px; overflow: auto; padding: 6px; }
-.palette-list [cmdk-group-heading] { padding: 8px 10px 6px; font-size: 11.5px; color: var(--muted); }
+.palette-list [cmdk-group-heading] { padding: 8px 10px 4px; font: 500 11.5px var(--font-ui); color: var(--faint); }
+.palette-list [cmdk-group] + [cmdk-group] [cmdk-group-heading] { padding-top: 10px; }
 .palette-list [cmdk-item] { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 7px; font-size: 13px; cursor: default; }
 .palette-list [cmdk-item][data-selected="true"] { background: var(--accent-soft); }
-.palette-list [cmdk-item][data-selected="true"] .title { color: var(--accent); }
-.palette-list .ic { width: 6px; height: 6px; border-radius: 2px; background: var(--info); }
-.palette-list .chev { color: var(--faint); width: 8px; }
+.palette-list .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-list [cmdk-item] .ic + .title { flex: none; }
+.palette-list .match { font-weight: 600; color: var(--accent); }
+.palette-list .ic { width: 6px; height: 6px; border-radius: 2px; background: var(--accent); }
+.palette-list .chev { color: var(--faint); width: 6px; font-size: 11px; }
 .palette-list .hint { color: var(--faint); font-size: 12px; }
 .palette-list .hint.mono { font-size: 11.5px; }
 .palette-list .state { margin-left: auto; font-size: 11.5px; }
 .palette-list .state.fail { color: var(--fail); }
-.palette-list .keys { margin-left: auto; background: none; color: var(--faint); }
+.palette-list .keys { margin-left: auto; padding: 0; background: none; color: var(--muted); font: 500 10.5px var(--font-code); }
 .palette-empty { padding: 16px; color: var(--muted); font-size: 12.5px; }
-.palette-foot { display: flex; gap: 14px; padding: 8px 14px; box-shadow: inset 0 1px 0 var(--line2); font-size: 11.5px; color: var(--faint); }
+.palette-foot { height: 34px; display: flex; align-items: center; gap: 14px; padding: 0 16px; box-shadow: inset 0 1px 0 var(--line2); font-size: 11.5px; color: var(--faint); }
+.palette-foot b { font: 600 11.5px var(--font-code); color: var(--muted); }

@@ -6,12 +6,13 @@
 // beside it, the picked file's results (the first failed one at first).
 
 import { useState } from "react";
+import { useKeyLabel } from "../../../app/keymap/use-keys";
 import { registry, useRegistry } from "../../../app/registry";
 import { counts } from "../../../components/run/counts";
 import { DataRowPills } from "../../../components/run/data-row-pills";
 import { failureOf } from "../../../components/run/model";
 import { appError, Dialogs, Reports } from "../../../lib/api";
-import { serverMode } from "../../../lib/mode";
+import { windowLook } from "../../../lib/mode";
 import { useTabs } from "../../../state/tabs";
 import { useUI } from "../../../state/ui";
 import type { FileRun } from "../../../state/run-model";
@@ -22,6 +23,33 @@ import { useWorkspace } from "../../../state/workspace";
 export function totals(text: string): string {
   const at = text.indexOf("-----");
   return at < 0 ? text : text.slice(text.indexOf("\n", at) + 1).trimEnd();
+}
+
+/** The CLI's totals, its values colored: succeeded files green, failed
+ * ones red when there are some, the rates faint. */
+function SummaryLines({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("\n").map((line, i) => {
+        const m = /^(\s*[^:]+:)(\s+)(\S+)(.*)$/.exec(line);
+        if (!m) return <span key={i}>{line + "\n"}</span>;
+        const [, label, gap, value, rest] = m;
+        const tone = /^\s*Succeeded/.test(label) ? "pass" : /^\s*Failed/.test(label) && Number(value) > 0 ? "fail" : "";
+        return (
+          <span key={i}>
+            <span className="label">{label}</span>
+            {gap}
+            <span className={tone}>
+              {value}
+              {tone ? rest : ""}
+            </span>
+            {!tone && <span className="rest">{rest}</span>}
+            {"\n"}
+          </span>
+        );
+      })}
+    </>
+  );
 }
 
 const formats = [
@@ -62,6 +90,7 @@ export function TestRunMain() {
   const order = requestFiles(tree);
   const [picked, setPicked] = useState<string | null>(null);
   useRegistry();
+  const againKeys = useKeyLabel("testrun.again");
   const Results = registry.getResults()?.render;
   const rows = [...new Set([...(summary?.units ?? []).map((u) => u.file), ...Object.keys(files)])].sort((a, b) => order.indexOf(a) - order.indexOf(b));
   if (!summary && !running) {
@@ -88,14 +117,14 @@ export function TestRunMain() {
           <button className="btn" disabled={running || failedFiles.length === 0} onClick={() => void useTestRun.getState().start(failedFiles)}>
             Re-run failed
           </button>
-          <button className="btn" disabled={running || rows.length === 0} onClick={() => void useTestRun.getState().start(rows)}>
-            Run again
+          <button className="btn primary-soft" disabled={running || rows.length === 0} onClick={() => void useTestRun.getState().start(rows)}>
+            Run again{againKeys && <kbd>{againKeys}</kbd>}
           </button>
         </header>
         {summary?.text && (
           <section className="summary-card">
             <pre className="mono" aria-label="Test summary">
-              {totals(summary.text)}
+              <SummaryLines text={totals(summary.text)} />
             </pre>
             <div className="checks">
               <div className="bar" aria-hidden>
@@ -106,7 +135,11 @@ export function TestRunMain() {
                 <span>
                   <b className="pass">{passed}</b> checks passed
                 </span>
-                {failed > 0 && <b className="fail">{failed} failed</b>}
+                {failed > 0 && (
+                  <span>
+                    <b className="fail">{failed}</b> failed
+                  </span>
+                )}
               </div>
               <p className="muted">Same summary as sonde --test in CI.</p>
               <button className="btn-ghost" onClick={() => void navigator.clipboard.writeText(summary.text ?? "")}>
@@ -134,7 +167,9 @@ export function TestRunMain() {
               const dataRows = units.filter((u) => (u.row ?? 0) > 0);
               const entries = Object.values(r?.entries ?? {});
               const c = counts(entries);
-              const first = entries.map((e) => failureOf(e)).find(Boolean);
+              // The failing line as written, as the CLI shows it.
+              const lines = r?.source.split("\n");
+              const first = entries.map((e) => failureOf(e, lines)).find(Boolean);
               const res = outcome(r, fileSucceeded(f, summary, r), units.some((u) => !!u.parseError || !!u.error));
               return (
                 <tr key={f} aria-selected={f === shown} onClick={() => setPicked(f)} onDoubleClick={() => open(f)} title="Double-click to open the file">
@@ -162,7 +197,7 @@ export function TestRunMain() {
             })}
           </tbody>
         </table>
-        {summary && runId && !serverMode && (
+        {summary && runId && windowLook && (
           <div className="export-row">
             <span className="muted">Export report</span>
             {formats.map((f) => (

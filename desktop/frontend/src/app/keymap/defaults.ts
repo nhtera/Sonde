@@ -18,4 +18,7 @@ export const defaultKeys: Record<string, string> = {
   "folder.open": "$mod+KeyO",
   "import.open": "$mod+KeyI",
   "editor.gotoLine": "$mod+KeyG",
+  "copyas.curl.request": "$mod+Shift+KeyK",
+  "copyas.sonde.file": "$mod+Alt+KeyK",
+  "testrun.again": "$mod+Alt+KeyR",
 };

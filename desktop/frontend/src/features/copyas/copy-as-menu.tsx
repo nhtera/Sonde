@@ -7,11 +7,15 @@
 // only) copies them with their values, after a warning, through a
 // concealed clipboard Go clears after 60 s.
 
+import { ChevronDown, CopyIcon } from "../../components/icons";
+import { label } from "../../app/keymap/keymap-manager";
+import { useKeys } from "../../app/keymap/use-keys";
+import { useWorkspace } from "../../state/workspace";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { useEffect, useState } from "react";
 import { confirm } from "../../components/ask";
 import { appError, CopyAs, CopyAsReveal } from "../../lib/api";
-import { serverMode } from "../../lib/mode";
+import { serverMode, windowLook } from "../../lib/mode";
 import { useEnv } from "../../state/env";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
@@ -35,6 +39,7 @@ export async function itemsFor(file: string): Promise<CopyItem[]> {
     entry,
     run: useRuns.getState().runs[file],
     shell: shellOf(navigator.platform || navigator.userAgent),
+    requests: useWorkspace.getState().index.filter((r) => r.file === file).length,
   });
 }
 
@@ -83,6 +88,7 @@ function useAlt(on: boolean) {
 export function CopyAsMenu({ file }: { file: string }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CopyItem[]>([]);
+  const keys = useKeys();
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const overrides = useEnv((s) => s.overrides.count);
   const [held, setHeld] = useAlt(open);
@@ -103,8 +109,9 @@ export function CopyAsMenu({ file }: { file: string }) {
   return (
     <Menu.Root open={open} onOpenChange={setOpen}>
       <Menu.Trigger asChild>
-        <button className="btn-ghost" aria-label="Copy as" title="Copy as curl or sonde">
-          ⧉ ▾
+        <button className="btn-ghost copy-as-trigger" aria-label="Copy as" title="Copy as curl or sonde">
+          <CopyIcon />
+          <ChevronDown />
         </button>
       </Menu.Trigger>
       <Menu.Portal>
@@ -116,15 +123,16 @@ export function CopyAsMenu({ file }: { file: string }) {
                 {i.title}
                 {alt && " · with secrets"}
               </b>
-              <span className="sub mono copy-preview">{previews[i.id] ?? i.sub ?? "…"}</span>
+              {keys[`copyas.${i.id}`] && <span className="hint">{label(keys[`copyas.${i.id}`])}</span>}
+              <span className="sub mono copy-preview">{i.sub ?? previews[i.id] ?? "…"}</span>
             </Menu.Item>
           ))}
-          {!serverMode && (
+          {windowLook && (
             <>
               <Menu.Separator className="menu-sep" />
               <div className="menu-note">
                 <b>Copy with secret values</b> <span className="hint">hold ⌥</span>
-                <div className="warn small">Puts real tokens and passwords on the clipboard.</div>
+                <div className="warn small">⚠ Puts real tokens and passwords on the clipboard.</div>
               </div>
             </>
           )}

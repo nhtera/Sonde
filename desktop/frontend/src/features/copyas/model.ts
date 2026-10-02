@@ -44,11 +44,11 @@ export function clockOf(iso: string): string {
 
 /** The items for file (its text source), entry the request at the cursor
  * (0: none), run the file's last run. */
-export function copyItems(o: { file: string; source: string; env: string; entry: number; run?: FileRun; shell: string }): CopyItem[] {
+export function copyItems(o: { file: string; source: string; env: string; entry: number; run?: FileRun; shell: string; requests?: number }): CopyItem[] {
   const base: CopyRequest = { file: o.file, source: o.source, env: o.env, entry: 0, kind: "", files: [], shell: o.shell, clock: "", jobs: 0, continueOnError: false };
   const items: CopyItem[] = [];
   if (o.entry > 0) items.push({ id: "curl.request", title: "curl · this request", tool: "curl", req: { ...base, entry: o.entry } });
-  items.push({ id: "curl.file", title: "curl · whole file", tool: "curl", req: base, sub: "every request, captures filled from the last run" });
+  items.push({ id: "curl.file", title: "curl · whole file", tool: "curl", req: base, sub: o.requests ? `${o.requests} command${o.requests === 1 ? "" : "s"}, captures filled from the last run` : "every request, captures filled from the last run" });
   items.push({ id: "sonde.file", title: "sonde · run this file", tool: "sonde", req: { ...base, kind: "run" } });
   if (o.entry > 0) items.push({ id: "sonde.to", title: "sonde · run to this request", tool: "sonde", req: { ...base, kind: "send", entry: o.entry } });
   // After a Send: the command that runs up to the request sent.

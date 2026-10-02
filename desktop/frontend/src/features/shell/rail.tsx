@@ -10,6 +10,8 @@ import { useUI } from "../../state/ui";
 export function Rail() {
   useRegistry();
   const panel = useUI((s) => s.panel);
+  // With the side closed, the panel it would open stays marked.
+  const marked = useUI((s) => s.panel ?? s.lastPanel);
   const theme = useSettings((s) => (s.value?.appearance.theme ?? "system") as Theme);
   const dark = resolvedTheme(theme) === "dark";
   const panels = registry.panels().filter((p) => !(serverMode && p.windowOnly));
@@ -18,13 +20,13 @@ export function Rail() {
   return (
     <nav className="rail" aria-label="Panels">
       {top.map((p) => (
-        <button key={p.id} title={p.title} aria-label={p.title} aria-pressed={panel === p.id} onClick={() => useUI.getState().togglePanel(p.id)}>
+        <button key={p.id} className={marked === p.id ? "current" : undefined} title={p.title} aria-label={p.title} aria-pressed={panel === p.id} onClick={() => useUI.getState().togglePanel(p.id)}>
           <p.icon />
         </button>
       ))}
       <div className="grow" />
       {settings && (
-        <button title={settings.title} aria-label={settings.title} aria-pressed={panel === "settings"} onClick={() => useUI.getState().togglePanel("settings")}>
+        <button className={marked === "settings" ? "current" : undefined} title={settings.title} aria-label={settings.title} aria-pressed={panel === "settings"} onClick={() => useUI.getState().togglePanel("settings")}>
           <settings.icon />
         </button>
       )}

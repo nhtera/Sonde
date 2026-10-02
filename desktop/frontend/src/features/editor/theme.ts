@@ -20,7 +20,7 @@ export const editorTheme = EditorView.theme({
   ".cm-lineNumbers .cm-gutterElement": { padding: "0 14px 0 6px", minWidth: "32px" },
   ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--muted)" },
   ".cm-foldGutter .cm-gutterElement": { color: "var(--faint)" },
-  ".cm-tooltip": { backgroundColor: "var(--raised)", border: "none", borderRadius: "8px", boxShadow: "var(--pop), inset 0 0 0 1px var(--line)", color: "var(--text)" },
+  ".cm-tooltip": { backgroundColor: "var(--raised)", border: "none", borderRadius: "10px", boxShadow: "var(--pop), inset 0 0 0 1px var(--line)", color: "var(--text)" },
   ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--accent-soft)", color: "var(--text)" },
   ".cm-diagnostic-warning": { borderLeftColor: "var(--warn)" },
   ".cm-diagnostic-error": { borderLeftColor: "var(--fail)" },

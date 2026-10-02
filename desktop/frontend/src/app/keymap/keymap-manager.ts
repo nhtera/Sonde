@@ -77,16 +77,18 @@ export function isBindable(keys: string): boolean {
   return hasModifier(keys) || /(^|\+)F([1-9]|1[0-2])$/.test(keys) || keys === "Shift+Slash";
 }
 
-/** A key combination as the user sees it: ⌘⇧F, Ctrl+Shift+F. */
+/** A key combination as the user sees it: ⇧⌘F, Ctrl+Shift+F. */
 export function label(keys: string): string {
   const parts = keys.split("+");
   const key = (parts.pop() ?? "").replace(/^Key/, "").replace(/^Digit/, "");
   const names: Record<string, string> = isMac
     ? { $mod: "⌘", Meta: "⌘", Control: "⌃", Alt: "⌥", Shift: "⇧" }
     : { $mod: "Ctrl", Meta: "Win", Control: "Ctrl", Alt: "Alt", Shift: "Shift" };
-  const keyNames: Record<string, string> = { Enter: "↵", Slash: "/", Escape: "Esc", ArrowUp: "↑", ArrowDown: "↓" };
+  const keyNames: Record<string, string> = { Enter: "↵", Slash: "/", Escape: "Esc", ArrowUp: "↑", ArrowDown: "↓", ...(isMac ? { Backspace: "⌫" } : {}) };
   const k = keyNames[key] ?? key;
-  const mods = parts.map((p) => names[p] ?? p);
+  // macOS lists modifiers as ⌃⌥⇧⌘.
+  const order = ["Control", "Alt", "Shift", "$mod", "Meta"];
+  const mods = (isMac ? [...parts].sort((a, b) => order.indexOf(a) - order.indexOf(b)) : parts).map((p) => names[p] ?? p);
   return isMac ? [...mods, k].join("") : [...mods, k].join("+");
 }
 

@@ -38,7 +38,7 @@ test("1a and 1b: edited after the run: stale warning and an undefined variable",
 test("6a: the command palette", async ({ page }) => {
   await open(page, "checkout.hurl");
   await page.keyboard.press("ControlOrMeta+KeyK");
-  await page.keyboard.type("ch");
+  await page.keyboard.type("che");
   await expect(page.getByRole("dialog").getByRole("option").first()).toBeVisible();
   await snap(page, "6a");
 });
@@ -47,8 +47,13 @@ test("6b: import a pasted curl command, secrets lifted", async ({ page }) => {
   await page.keyboard.press("ControlOrMeta+KeyK");
   await page.keyboard.type("Import curl");
   await page.keyboard.press("Enter");
-  await page.getByLabel("Pasted input").fill("curl -H 'Authorization: Bearer visual-token-1234567' 'https://api.shop.test/orders?limit=5'");
+  // The design's command; the token is a stand-in.
+  await page
+    .getByLabel("Pasted input")
+    .fill("curl -X POST https://api.shop.dev/carts/c_8f2a41/items \\\n  -H 'Authorization: Bearer visual-token-1234567' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"sku\":\"TEA-EARL-250\",\"quantity\":2}'");
   await expect(page.getByLabel("Preview")).toContainText("Bearer {{token}}");
+  await page.getByLabel("Save as").fill("orders/add-item.hurl");
+  await expect(page.getByLabel("Preview").locator("..")).toContainText("orders/add-item.hurl");
   await snap(page, "6b");
 });
 
@@ -84,6 +89,10 @@ test("8a: requests under each file, a folder's menu", async ({ page }) => {
 test("8b: the filter searches requests across files", async ({ page }) => {
   await page.getByLabel("Filter requests in all files").fill("carts");
   await expect(page.getByRole("tree", { name: "Project files" })).toContainText("/carts");
+  // A match opens its request; the filter stays.
+  await page.locator(".tree-row", { hasText: "/carts/{{cart_id}}" }).first().click();
+  await expect(page.locator(".cm-content")).toBeVisible();
+  await page.getByLabel("Filter requests in all files").focus();
   await snap(page, "8b");
 });
 
@@ -94,6 +103,7 @@ test("8e: Copy as", async ({ page }) => {
   await page.getByRole("button", { name: "Copy as" }).click();
   await expect(page.getByRole("menuitem", { name: /^curl · this request/ })).toBeVisible();
   await expect(page.locator(".copy-preview").first()).not.toHaveText("…");
+  await page.getByRole("menuitem", { name: /^curl · this request/ }).hover();
   await snap(page, "8e");
 });
 
@@ -109,10 +119,12 @@ test("12c: the cookie jar", async ({ page }) => {
   await keep.click();
   await expect(keep).toBeChecked();
   try {
+    await panel(page, "Files");
     await open(page, "checkout.hurl");
     await run(page, /Failed/);
-    await panel(page, "Settings");
-    await page.getByRole("button", { name: "Manage the cookie jar" }).click();
+    // From the run's Cookies tab, as the design opens it.
+    await page.getByRole("region", { name: "Results" }).getByRole("tab", { name: /^Cookies/ }).click();
+    await page.getByRole("button", { name: "Open cookie jar" }).click();
     await expect(page.getByRole("dialog", { name: "Cookie jar" }).getByRole("row", { name: /sid/ })).toBeVisible();
     await snap(page, "12c");
     await page.keyboard.press("Escape");
@@ -126,6 +138,9 @@ test("12c: the cookie jar", async ({ page }) => {
 test("8c: the history", async ({ page }) => {
   await panel(page, "History");
   await expect(page.getByRole("list", { name: "History" }).getByRole("button").first()).toBeVisible();
+  // The request shown: the first, as the design has it.
+  await page.getByRole("list", { name: "History" }).getByRole("button").first().click();
+  await expect(page.getByRole("list", { name: "History" }).getByRole("button").first()).toHaveAttribute("aria-pressed", "true");
   await snap(page, "8c");
 });
 
@@ -149,11 +164,12 @@ test("7c: a new file, never run", async ({ page }) => {
 });
 
 test("4b: a data-driven run, a pill per row", async ({ page }) => {
-  await open(page, "data-login.hurl");
+  // The design's case: a user per row, the third with an invalid email.
+  await open(page, "create-user.hurl");
   await page.getByRole("button", { name: /^Data file:/ }).click();
-  await page.getByRole("menuitemradio", { name: "data/logins.csv" }).click();
-  await expect(page.getByRole("button", { name: "Data file: data/logins.csv" })).toBeVisible();
-  await run(page);
-  await expect(page.getByRole("region", { name: "Results" }).getByRole("tablist", { name: "Data rows" }).getByRole("tab")).toHaveCount(2);
+  await page.getByRole("menuitemradio", { name: "data/new-users.csv" }).click();
+  await expect(page.getByRole("button", { name: "Data file: data/new-users.csv" })).toBeVisible();
+  await run(page, /Failed/);
+  await expect(page.getByRole("region", { name: "Results" }).getByRole("tablist", { name: "Data rows" }).getByRole("tab")).toHaveCount(3);
   await snap(page, "4b");
 });

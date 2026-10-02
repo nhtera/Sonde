@@ -16,6 +16,7 @@ import { EnvMain, EnvSide } from "./env/env-panel";
 import { ChangesCard } from "./git/changes-card";
 import { HistoryPanel } from "./history/history-panel";
 import { goToSection, SettingsMain, SettingsSide } from "./settings/settings-panel";
+import { useTestRun } from "./testrun/state";
 import { TestRunMain } from "./testrun/test-run-main";
 import { TestRunSide } from "./testrun/test-run-side";
 import "./panels.css";
@@ -42,3 +43,14 @@ registry.command({
   },
 });
 registry.command({ id: "cookies.openJar", title: "Open the cookie jar", group: "Panels", run: () => useCookieJar.getState().setOpen(true) });
+registry.command({
+  id: "testrun.again",
+  title: "Run the test run again",
+  group: "Panels",
+  when: () => !!useTestRun.getState().summary && !useTestRun.getState().running,
+  run: () => {
+    const s = useTestRun.getState();
+    const files = [...new Set([...(s.summary?.units ?? []).map((u) => u.file), ...Object.keys(s.files)])];
+    if (files.length) void s.start(files);
+  },
+});

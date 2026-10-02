@@ -1,8 +1,8 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// The bar over the editor: breadcrumb, syntax chip, the features' toolbar
-// items, and the Text | Form switch.
+// The bar over the editor: breadcrumb, syntax chip, then the features'
+// toolbar items with the Text | Form switch after the data file.
 
 import { registry, useRegistry } from "../../app/registry";
 import { useUI } from "../../state/ui";
@@ -19,6 +19,7 @@ export function Toolbar({ file }: { file: string }) {
   const parts = file.split("/");
   const name = parts.pop();
   const sonde = file.endsWith(".sonde");
+  const items = registry.toolbarItems();
   return (
     <div className="toolbar">
       <nav className="crumbs" aria-label="Path">
@@ -33,13 +34,14 @@ export function Toolbar({ file }: { file: string }) {
         )}
         <b>{name}</b>
       </nav>
-      <span className="syntax-chip" title={sonde ? "Sonde extensions allowed" : "Plain Hurl 8 syntax"}>
+      <span className={`syntax-chip${sonde ? " sonde" : ""}`} title={sonde ? "Sonde extensions allowed" : "Plain Hurl 8 syntax"}>
         {sonde ? ".sonde · extensions" : ".hurl · Hurl 8"}
       </span>
-      {registry.toolbarItems().map((t) => (
+      <span style={{ flex: 1 }} />
+      {/* The data file, then the view switch, then the rest. */}
+      {items.filter((t) => t.order < 20).map((t) => (
         <t.render key={t.id} file={file} />
       ))}
-      <span style={{ flex: 1 }} />
       {editors.length > 1 && (
         <div className="segmented" role="group" aria-label="Editor view" title={toggleKeys && `Switch view (${toggleKeys})`}>
           {editors.map((e) => (
@@ -49,6 +51,9 @@ export function Toolbar({ file }: { file: string }) {
           ))}
         </div>
       )}
+      {items.filter((t) => t.order >= 20).map((t) => (
+        <t.render key={t.id} file={file} />
+      ))}
       {narrow && (
         <button className="btn" aria-pressed={resultsOpen} onClick={() => useUI.getState().setResultsOpen(!resultsOpen)}>
           Results

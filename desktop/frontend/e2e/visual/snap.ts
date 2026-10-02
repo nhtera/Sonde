@@ -17,11 +17,14 @@ export async function snap(page: Page, id: string) {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(150);
   await page.screenshot({ path: `${candidates}/visual/${id}.png` });
+  if (process.env.E2E_DUMP) await dump(page, `${process.env.E2E_DUMP}/${id}.json`);
   await expect(page).toHaveScreenshot(`${id}.png`, { stylePath: "e2e/visual/visual.css", maxDiffPixelRatio: 0.001 });
 }
 
 /** Opens the app on its tree. */
 export async function home(page: Page) {
+  // The window's own controls show, as the design draws the window.
+  await page.addInitScript(() => sessionStorage.setItem("sonde.windowLook", "1"));
   await page.goto("/");
   await expect(page.locator(".tree-row").first()).toBeVisible();
 }
@@ -65,3 +68,29 @@ export async function dark(page: Page) {
   }
   await expect(html).toHaveAttribute("data-theme", "dark");
 }
+
+/** Writes each element with text or a background, its box and computed
+ * style, to compare the screen with its design (E2E_DUMP=dir). */
+async function dump(page: Page, path: string) {
+  const rows = await page.evaluate(() => {
+    const keys = ["color", "backgroundColor", "backgroundImage", "boxShadow", "borderRadius", "border", "fontFamily", "fontSize", "fontWeight", "lineHeight", "padding", "height", "opacity", "gap", "display"] as const;
+    const out: unknown[] = [];
+    for (const el of document.body.querySelectorAll("*")) {
+      const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent?.trim() ?? "").join(" ").trim();
+      const cs = getComputedStyle(el);
+      if (!own && cs.backgroundColor === "rgba(0, 0, 0, 0)" && cs.boxShadow === "none" && el.tagName !== "svg" && el.tagName !== "INPUT") continue;
+      const b = el.getBoundingClientRect();
+      if (b.width === 0 || b.height === 0) continue;
+      const st: Record<string, string> = {};
+      for (const k of keys) st[k] = cs[k];
+      const value = (el as HTMLInputElement).value;
+      out.push({ tag: el.tagName.toLowerCase(), text: (own || (typeof value === "string" ? value : "")).slice(0, 60), x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height), st });
+    }
+    return out;
+  });
+  const { writeFile, mkdir } = await import("node:fs/promises");
+  const { dirname } = await import("node:path");
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, JSON.stringify(rows, null, 1));
+}
+

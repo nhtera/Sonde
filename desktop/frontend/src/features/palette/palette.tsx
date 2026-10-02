@@ -31,10 +31,10 @@ export function Palette() {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="scrim" style={{ background: "transparent" }} />
+        <Dialog.Overlay className="scrim" />
         <Dialog.Content className="dialog palette" aria-describedby={undefined}>
           <Dialog.Title className="sr-only">Search files and commands</Dialog.Title>
-          <Command label="Search files and commands" shouldFilter loop>
+          <Command label="Search files and commands" shouldFilter loop filter={paletteFilter}>
             <div className="palette-input">
               <SearchIcon size={14} />
               <Command.Input
@@ -63,7 +63,9 @@ export function Palette() {
                         }}
                       >
                         <i className="ic" />
-                        <span className="title">{name}</span>
+                        <span className="title">
+                          <Match text={name} query={query} />
+                        </span>
                         <span className="hint mono">{dir}</span>
                         {run && run.outcome !== "passed" && <span className="state fail">✕ {run.outcome}</span>}
                       </Command.Item>
@@ -82,8 +84,10 @@ export function Palette() {
                     }}
                   >
                     <span className="chev">›</span>
-                    <span className="title">{c.title}</span>
-                    {c.hint && <span className="hint">{c.hint}</span>}
+                    <span className="title">
+                      <Match text={c.title} query={query} />
+                      {c.hint && <span className="hint"> {c.hint}</span>}
+                    </span>
                     {keys[c.id] && <kbd className="keys">{label(keys[c.id])}</kbd>}
                   </Command.Item>
                 ))}
@@ -93,12 +97,37 @@ export function Palette() {
               <span>↑↓ move</span>
               <span>↵ open</span>
               <span style={{ flex: 1 }} />
-              <span>Type &gt; for commands</span>
+              <span>
+                Type <b>&gt;</b> for commands
+              </span>
             </div>
           </Command>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+/** A file or command matches when its text holds what is typed (">"
+ * for commands aside); the earlier the match, the higher. */
+export function paletteFilter(value: string, search: string): number {
+  const q = search.replace(/^>/, "").trim().toLowerCase();
+  if (!q) return 1;
+  const at = value.replace(/^>/, "").toLowerCase().indexOf(q);
+  return at < 0 ? 0 : 1 / (1 + at / 100);
+}
+
+/** text with the query's first match marked. */
+export function Match({ text, query }: { text: string; query: string }) {
+  const q = query.replace(/^>/, "").trim().toLowerCase();
+  const at = q ? text.toLowerCase().indexOf(q) : -1;
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <b className="match">{text.slice(at, at + q.length)}</b>
+      {text.slice(at + q.length)}
+    </>
   );
 }
 

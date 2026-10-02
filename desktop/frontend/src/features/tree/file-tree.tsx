@@ -4,13 +4,14 @@
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { fromEvent, label, normalize } from "../../app/keymap/keymap-manager";
 import { useKeyLabel } from "../../app/keymap/use-keys";
 import { registry } from "../../app/registry";
-import { ask } from "../../components/ask";
+import { ask, confirm } from "../../components/ask";
 import { ImportIcon, LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
 import { Clipboard } from "@wailsio/runtime";
 import { Workspace, WorkspaceDesktop, appError } from "../../lib/api";
-import { serverMode } from "../../lib/mode";
+import { isMac, serverMode, windowLook } from "../../lib/mode";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
@@ -102,7 +103,7 @@ export function FileTree() {
           onKeyDown={(e) => e.key === "Escape" && setFilter("")}
           spellCheck={false}
         />
-        {!filter && filterKeys && <kbd style={{ background: "none", color: "var(--faint)" }}>{filterKeys}</kbd>}
+        {filter ? <kbd className="filter-esc">Esc</kbd> : filterKeys && <kbd style={{ background: "none", color: "var(--faint)" }}>{filterKeys}</kbd>}
       </label>
       {filter && (
         <div style={{ padding: "0 16px 8px", fontSize: 11.5, color: "var(--muted)" }}>
@@ -117,6 +118,9 @@ export function FileTree() {
         tabIndex={0}
         aria-activedescendant={visible.length ? `tree-row-${cursor}` : undefined}
         onKeyDown={(e) => {
+          // Keys of the tree itself, not of its menu (a portal, whose
+          // events bubble here too).
+          if (e.target !== e.currentTarget) return;
           const row = visible[cursor];
           if (!row) return;
           const move = (i: number) => {
@@ -125,6 +129,16 @@ export function FileTree() {
             v.scrollToIndex(next);
           };
           const openState = row.kind === "dir" ? row.open : row.kind === "file" ? row.open : false;
+          // The menu's actions, by their keys.
+          const pressed = pressedAction(e.nativeEvent);
+          const run = pressed && keyAction(row, pressed);
+          if (run) {
+            // The tree's own keys: not also the app's (⌥⌘R runs a test).
+            e.preventDefault();
+            e.stopPropagation();
+            void Promise.resolve(run()).catch(report);
+            return;
+          }
           switch (e.key) {
             case "ArrowDown":
               move(cursor + 1);
@@ -232,20 +246,79 @@ export function FileTree() {
   );
 }
 
+/** The keys of the row actions (tinykeys syntax), on the focused row. */
+const rowKeys = {
+  newRequest: "$mod+KeyN",
+  newFile: "$mod+Alt+KeyN",
+  duplicate: "$mod+KeyD",
+  rename: "F2",
+  copyPath: "$mod+Alt+KeyC",
+  reveal: "$mod+Alt+KeyR",
+  trash: "$mod+Backspace",
+} as const;
+type RowAction = keyof typeof rowKeys;
+
+/** What a row action does, or undefined when it does not apply to row. */
+function rowAction(row: Row, a: RowAction): (() => unknown) | undefined {
+  if (row.kind === "req") return undefined;
+  const isFile = row.kind === "file";
+  // Secrets files are listed, never opened, copied or renamed.
+  const secret = isFile && row.fileKind === "secrets";
+  const dir = row.kind === "dir" ? row.path : row.path.split("/").slice(0, -1).join("/");
+  switch (a) {
+    case "newRequest":
+      return row.kind === "dir" ? () => newRequestIn(row.path) : isRequestFile(row.path, row.fileKind) ? () => newRequest(row.path) : undefined;
+    case "newFile":
+      return () => newFile(dir);
+    case "duplicate":
+      return secret ? undefined : () => Workspace.Duplicate(row.path).then(() => useWorkspace.getState().refresh());
+    case "rename":
+      return secret ? undefined : () => rename(row.path);
+    case "copyPath":
+      return () => copyPath(row.path);
+    case "reveal":
+      return windowLook ? () => WorkspaceDesktop.Reveal(row.path) : undefined;
+    case "trash":
+      return windowLook ? () => WorkspaceDesktop.Trash(row.path) : undefined;
+  }
+}
+
+/** A row action from the keyboard: Move to Trash asks first (a key is
+ * easy to press in the wrong place). */
+function keyAction(row: Row, a: RowAction): (() => unknown) | undefined {
+  const run = rowAction(row, a);
+  if (!run || a !== "trash") return run;
+  return async () => {
+    if (await confirm({ title: `Move ${row.path} to the Trash?`, message: row.kind === "dir" ? "The folder and everything in it." : "You can put it back from the Trash.", submit: "Move to Trash" })) {
+      await run();
+    }
+  };
+}
+
+/** The row action pressed in e, if any. */
+function pressedAction(e: KeyboardEvent): RowAction | undefined {
+  const keys = fromEvent(e);
+  if (!keys) return undefined;
+  const k = normalize(keys);
+  return (Object.keys(rowKeys) as RowAction[]).find((a) => normalize(rowKeys[a]) === k);
+}
+
 function TreeMenu({ row }: { row: Row }) {
   const runKeys = useKeyLabel("file.run");
   const index = useWorkspace((s) => s.index);
-  const dir = row.kind === "dir" ? row.path : row.path.split("/").slice(0, -1).join("/");
-  const item = (label: string, run: () => unknown, hint?: string, disabled = false) => (
+  const item = (text: string, run: () => unknown, hint?: string, disabled = false) => (
     <ContextMenu.Item className="menu-item" disabled={disabled} onSelect={() => void Promise.resolve(run()).catch(report)}>
-      {label}
+      {text}
       {hint && <span className="hint">{hint}</span>}
     </ContextMenu.Item>
   );
   const isFile = row.kind === "file";
   const runnable = isFile && isRequestFile(row.path, row.fileKind);
-  // Secrets files are listed, never opened, copied or renamed.
-  const secret = isFile && row.fileKind === "secrets";
+  // An action with its keys, when it applies to the row.
+  const act = (a: RowAction, text: string) => {
+    const run = rowAction(row, a);
+    return run && item(text, run, label(rowKeys[a]));
+  };
   // A folder's request files (what Run folder runs).
   const files = row.kind === "dir" ? new Set(index.filter((r) => r.file.startsWith(`${row.path}/`)).map((r) => r.file)).size : 0;
   return (
@@ -254,19 +327,21 @@ function TreeMenu({ row }: { row: Row }) {
         <ContextMenu.Label className="menu-label mono">{row.kind === "dir" ? `${row.path}/` : row.path}</ContextMenu.Label>
         {runnable && item("Run file", () => runPath(row.path), runKeys)}
         {row.kind === "dir" && item("Run folder", () => runFolder(row.path), `${files} file${files === 1 ? "" : "s"}`, files === 0)}
-        {runnable && item("New request", () => newRequest(row.path))}
-        {row.kind === "dir" && item("New request here", () => newRequestIn(row.path))}
+        {act("newRequest", row.kind === "dir" ? "New request here" : "New request")}
         {runnable && registry.getCommand("copyas.sonde.file") && item("Copy as sonde command", () => registry.getCommand("copyas.sonde.file")?.run(row.path))}
-        {item("New file…", () => newFile(dir))}
+        {act("newFile", "New file…")}
         <ContextMenu.Separator className="menu-sep" />
-        {!secret && item("Duplicate", () => Workspace.Duplicate(row.path).then(() => useWorkspace.getState().refresh()))}
-        {!secret && item("Rename", () => rename(row.path))}
-        {item("Copy path", () => copyPath(row.path))}
-        {!serverMode && item("Reveal in file manager", () => WorkspaceDesktop.Reveal(row.path))}
-        {!serverMode && (
+        {act("duplicate", "Duplicate")}
+        {act("rename", "Rename")}
+        {act("copyPath", "Copy path")}
+        {act("reveal", isMac ? "Reveal in Finder" : "Reveal in file manager")}
+        {windowLook && (
           <>
             <ContextMenu.Separator className="menu-sep" />
-            {item("Move to Trash", () => WorkspaceDesktop.Trash(row.path))}
+            <ContextMenu.Item className="menu-item danger" onSelect={() => void Promise.resolve(rowAction(row, "trash")?.()).catch(report)}>
+              Move to Trash
+              <span className="hint">{label(rowKeys.trash)}</span>
+            </ContextMenu.Item>
           </>
         )}
       </ContextMenu.Content>

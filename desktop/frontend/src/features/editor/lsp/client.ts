@@ -8,10 +8,13 @@
 // through Lsp.Configure once the server is initialized.
 
 import { LSPClient, serverDiagnostics } from "@codemirror/lsp-client";
-import { Lsp } from "../../../lib/api";
+import { Lsp, Workspace } from "../../../lib/api";
 import { onLspSession, restartLspSession } from "../../../lib/lsp-session";
 import { useEnv } from "../../../state/env";
+import { useRuns } from "../../../state/run";
+import { useTabs } from "../../../state/tabs";
 import { useWorkspace } from "../../../state/workspace";
+import { dataColumns } from "../data-columns";
 import { sanitizeHTML } from "./sanitize";
 import { WailsTransport } from "./wails-transport";
 
@@ -86,13 +89,32 @@ function connect(id: string) {
   );
 }
 
+/** The columns of the data file picked for the open file: its rows'
+ * variables. */
+let dataVars: { key: string; names: string[] } = { key: "", names: [] };
+
 /** Names the server treats as defined beyond the files: the session's
- * overrides. (A file's own captures it knows; another file's run does not
- * share its captures: runs and sessions are per file.) */
+ * overrides, and the open file's data columns. (A file's own captures it
+ * knows; another file's run does not share its captures: runs and
+ * sessions are per file.) */
 export function extraVariables(): string[] {
-  const names = new Set<string>();
+  const names = new Set<string>(dataVars.names);
   for (const o of useEnv.getState().overrides.items ?? []) if (o.name) names.add(o.name);
   return [...names].sort();
+}
+
+/** Reads the data file of the open file, then sends the names. */
+async function syncDataVars(): Promise<void> {
+  const active = useTabs.getState().active;
+  const data = active ? (useRuns.getState().dataFiles[active] ?? "") : "";
+  if (data === dataVars.key) return;
+  let names: string[] = [];
+  if (data) {
+    const f = await Workspace.Read(data).catch(() => null);
+    names = f ? dataColumns(data, f.text) : [];
+  }
+  dataVars = { key: data, names };
+  await configure();
 }
 
 let lastConfig = "";
@@ -116,7 +138,10 @@ onLspSession((id) => {
   else if (!id) disconnect();
 });
 
-// The environment and overrides change what is defined.
+// The environment and overrides change what is defined, and so does the
+// data file of the open file.
 useEnv.subscribe((s, prev) => {
   if (s.current !== prev.current || s.overrides !== prev.overrides) void configure();
 });
+useTabs.subscribe((s, prev) => s.active !== prev.active && void syncDataVars());
+useRuns.subscribe((s, prev) => s.dataFiles !== prev.dataFiles && void syncDataVars());

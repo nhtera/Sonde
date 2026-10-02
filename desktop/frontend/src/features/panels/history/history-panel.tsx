@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { confirm } from "../../../components/ask";
-import { LockIcon } from "../../../components/icons";
+import { LockIcon, SearchIcon } from "../../../components/icons";
 import { displayPath } from "../../../components/run/model";
 import { appError, History, type HistoryCall, type HistoryItem } from "../../../lib/api";
 import { on } from "../../../lib/events";
@@ -17,6 +17,9 @@ import { useTabs } from "../../../state/tabs";
 import { useUI } from "../../../state/ui";
 
 const fail = (err: unknown) => useUI.getState().toast({ kind: "error", text: appError(err).message });
+
+/** "28 ms", or "5.1 s" from a second on. */
+const duration = (ms: number) => (ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`);
 
 /** "Today", "Yesterday" or the date of an ISO time. */
 export function dayOf(iso: string, now = new Date()): string {
@@ -67,7 +70,7 @@ export function HistoryPanel() {
   // A day heading before each day's first row.
   const days = list.map((r) => dayOf(r.item.at));
   return (
-    <div className="panel-body">
+    <div className="panel-body history-panel">
       <div className="panel-head">
         <h2>History</h2>
         <button
@@ -82,7 +85,10 @@ export function HistoryPanel() {
           Clear
         </button>
       </div>
-      <input className="panel-filter" aria-label="Filter the history" placeholder="Filter by path, status or file" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <label className="filter">
+        <SearchIcon size={12} style={{ color: "var(--faint)", flex: "none" }} />
+        <input aria-label="Filter the history" placeholder="Filter by path, status or file" value={filter} onChange={(e) => setFilter(e.target.value)} spellCheck={false} />
+      </label>
       {!enabled && <p className="form-note">History is off (Settings › History &amp; privacy).</p>}
       <ul className="history-list" aria-label="History">
         {list.map(({ item, call }, n) => {
@@ -99,8 +105,10 @@ export function HistoryPanel() {
                     {displayPath(call.url)}
                   </span>
                   <span className={`status ${call.status >= 400 || call.status === 0 ? "fail" : "pass"}`}>{call.status || "ERR"}</span>
-                  <span className="muted small mono">
-                    {call.file} · <span data-volatile>{time} · {call.durationMs} ms</span>
+                  <span />
+                  <span className="src">{call.file}</span>
+                  <span className="when" data-volatile>
+                    {time} · {duration(call.durationMs)}
                   </span>
                 </button>
               ) : (
@@ -108,8 +116,10 @@ export function HistoryPanel() {
                   <span className="method">{item.kind}</span>
                   <span className="mono path">{(item.files ?? []).join(", ")}</span>
                   <span className={`status ${item.outcome === "passed" ? "pass" : "fail"}`}>{item.outcome}</span>
-                  <span className="muted small mono">
-                    <span data-volatile>{time}</span> · no request sent
+                  <span />
+                  <span className="src">no request sent</span>
+                  <span className="when" data-volatile>
+                    {time}
                   </span>
                 </button>
               )}
@@ -120,7 +130,7 @@ export function HistoryPanel() {
       </ul>
       <p className="side-note small history-note">
         <LockIcon />
-        <span>Stored in the app&apos;s data, not in the project. Authorization, Cookie and Set-Cookie values, captured tokens and declared secrets are saved as ***.</span>
+        <span>Stored in the app&apos;s data, not in the project. Authorization, Cookie, Set-Cookie, captured tokens and declared secrets are saved as ***.</span>
       </p>
     </div>
   );

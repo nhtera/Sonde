@@ -29,7 +29,10 @@
 .titlebar button,
 .titlebar [role="button"],
 .titlebar input { --wails-draggable: no-drag; }
-.titlebar .traffic { width: 60px; flex: none; }
+.titlebar .traffic { width: 60px; flex: none; display: flex; align-items: center; gap: 8px; }
+.titlebar .traffic i { width: 12px; height: 12px; border-radius: 50%; background: #ee6a5f; }
+.titlebar .traffic i:nth-child(2) { background: #f4be50; }
+.titlebar .traffic i:nth-child(3) { background: #5fc454; }
 .titlebar .project { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .chip-btn {
   display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; margin: 0 -6px;
@@ -87,7 +90,7 @@ kbd, .kbd {
   background: transparent; color: var(--faint);
 }
 .rail button:hover { color: var(--muted); background: var(--hover); }
-.rail button[aria-pressed="true"] { color: var(--text); background: var(--raised); }
+.rail button[aria-pressed="true"], .rail button.current { color: var(--accent); background: var(--accent-soft); }
 .rail .grow { flex: 1; }
 
 /* Side panel */
@@ -106,7 +109,10 @@ kbd, .kbd {
   margin: 0 10px 6px; height: 28px; flex: none; display: flex; align-items: center; gap: 8px;
   padding: 0 6px 0 9px; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); font-size: 12px;
 }
-.filter:focus-within { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.filter:focus-within { box-shadow: inset 0 0 0 1px var(--accent); }
+/* Typed text in the code font, as it matches paths. */
+.filter input:not(:placeholder-shown) { font-family: var(--font-code); }
+.filter .filter-esc { padding: 0; background: none; color: var(--faint); font: 500 10px var(--font-code); }
 .filter input {
   flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: 12px var(--font-ui);
 }
@@ -122,7 +128,7 @@ kbd, .kbd {
   color: var(--text); cursor: default; white-space: nowrap;
 }
 .tree-row:hover { background: var(--hover); }
-.tree-row[aria-selected="true"] { background: var(--raised); }
+.tree-row[aria-selected="true"] { background: var(--accent-soft); }
 .tree-row.req { height: 24px; font-family: var(--font-code); font-size: 11.5px; color: var(--muted); }
 .tree-row .chev { width: 10px; flex: none; color: var(--faint); font-size: 9px; text-align: center; }
 .tree-row .ic { width: 6px; height: 6px; border-radius: 2px; flex: none; }
@@ -151,7 +157,7 @@ kbd, .kbd {
 .tab .x { opacity: 0; }
 .tab:hover .x { opacity: 1; }
 .toolbar {
-  height: 40px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 16px; container-type: inline-size;
+  height: 40px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 14px; container-type: inline-size;
   box-shadow: inset 0 -1px 0 var(--line2); white-space: nowrap; font-size: 12.5px;
 }
 /* The folders give way first; the file name keeps its width. */
@@ -162,7 +168,11 @@ kbd, .kbd {
 @container (max-width: 860px) { .run-to kbd { display: none; } }
 @container (max-width: 660px) { .run-to .label { display: none; } }
 @container (max-width: 600px) { .toolbar .syntax-chip, .data-picker .muted { display: none; } }
-.syntax-chip { font: 500 10.5px var(--font-code); padding: 1px 6px; border-radius: 4px; background: var(--raised); color: var(--muted); }
+.syntax-chip { flex: none; height: 20px; display: inline-flex; align-items: center; margin-left: 4px; padding: 0 7px; border-radius: 4px; background: var(--raised); color: var(--muted); font: 500 11px var(--font-code); }
+.syntax-chip.sonde { background: color-mix(in srgb, var(--t-sec) 12%, transparent); color: var(--t-sec); }
+.toolbar .btn-ghost { height: 26px; padding: 0 5px; font: 500 12px var(--font-ui); }
+.toolbar .copy-as-trigger { gap: 4px; padding: 0 6px; }
+.run-to { gap: 6px; }
 .segmented { display: inline-flex; padding: 2px; border-radius: 7px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
 .segmented button {
   height: 22px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); font: 500 12px var(--font-ui);
@@ -184,11 +194,18 @@ kbd, .kbd {
 
 /* Empty states */
 .empty { flex: 1; display: grid; place-items: center; padding: 24px; }
-.file-empty { max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.file-empty { max-width: 300px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .file-empty b { font: 600 14px var(--font-ui); }
-.file-empty p { margin: 0; color: var(--muted); line-height: 1.5; }
-.file-empty small { margin-top: 14px; font-size: 11.5px; color: var(--faint); }
-.file-empty-icon { width: 36px; height: 36px; border-radius: 9px; background: var(--raised); display: grid; place-items: center; color: var(--muted); }
+.file-empty p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.file-empty-actions { display: flex; gap: 6px; margin-top: 4px; }
+.file-empty-actions button { height: 28px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 6px; background: none; color: var(--text); font: 500 12.5px var(--font-ui); }
+.file-empty-actions .run { padding: 0 6px 0 10px; background: var(--raised); }
+.file-empty-actions .check { box-shadow: inset 0 0 0 1px var(--line); }
+.file-empty-actions button:hover:not(:disabled) { background: var(--hover); }
+.file-empty-actions button:disabled { opacity: 0.5; }
+.file-empty-actions kbd { padding: 0; background: none; color: var(--muted); font: 500 10.5px var(--font-code); }
+.file-empty small { margin-top: 18px; font-size: 11.5px; line-height: 1.5; color: var(--faint); }
+.file-empty-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--raised); display: grid; place-items: center; color: var(--muted); }
 .empty .card { width: 440px; display: flex; flex-direction: column; gap: 22px; }
 .empty .logo { width: 48px; height: 48px; border-radius: 12px; background: var(--raised); display: grid; place-items: center; }
 .empty h1 { margin: 0; font: 600 20px var(--font-ui); letter-spacing: -0.015em; }
@@ -225,11 +242,30 @@ kbd, .kbd {
 .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 40; }
 .dialog {
   position: fixed; left: 50%; top: 14%; transform: translateX(-50%); z-index: 41; width: 560px; max-width: calc(100% - 32px);
-  border-radius: 12px; background: var(--raised); box-shadow: var(--pop), inset 0 0 0 1px var(--line); overflow: hidden;
+  border-radius: 12px; background: var(--panel); box-shadow: var(--pop), inset 0 0 0 1px var(--line); overflow: hidden;
 }
+.dialog:focus { outline: none; }
+/* A switch, as the design draws it. */
+input.switch { appearance: none; -webkit-appearance: none; flex: none; width: 28px; height: 16px; margin: 0; border-radius: 999px; background: var(--raised); box-shadow: none; position: relative; cursor: pointer; }
+input.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: left 0.12s; }
+input.switch:checked { background: var(--accent); }
+input.switch:checked::after { left: 14px; background: #fff; }
+input.switch:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
 .dialog-pad { padding: 16px; }
 /* Controls a feature does not style itself take the theme. */
-input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+/* Checkboxes and radios as the design draws them (a switch keeps its own
+   look). */
+input[type="checkbox"]:not([role="switch"]), input[type="radio"] {
+  appearance: none; -webkit-appearance: none; flex: none; margin: 0; display: inline-grid; place-items: center; cursor: pointer;
+  background: transparent; box-shadow: inset 0 0 0 1.5px var(--faint);
+}
+input[type="checkbox"]:not([role="switch"]) { width: 14px; height: 14px; border-radius: 4px; }
+input[type="checkbox"]:not([role="switch"]):checked { background: var(--accent); box-shadow: none; }
+input[type="checkbox"]:not([role="switch"]):checked::after { content: "✓"; color: var(--accent-ink); font: 700 9px/1 var(--font-ui); }
+input[type="radio"] { width: 10px; height: 10px; border-radius: 50%; }
+input[type="radio"]:checked { box-shadow: inset 0 0 0 3px var(--accent); }
+input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.5; cursor: default; }
+input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
 :where(.dialog) :where(input:not([type]), input[type="text"], input[type="number"], textarea, select) {
   min-height: 30px; padding: 0 9px; border: 0; border-radius: 6px; background: var(--bg);
   box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12.5px var(--font-ui); outline: 0;
@@ -238,6 +274,11 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 :where(.dialog) :where(.mono) { font-family: var(--font-code); font-size: 12px; font-variant-ligatures: none; }
 :where(.dialog) :where(input, textarea, select):focus { box-shadow: inset 0 0 0 1px var(--accent-line); }
 .dialog-title { margin: 0 0 12px; font: 600 14px var(--font-ui); }
+/* A dialog's head as the design draws it: title, note, Esc. */
+.dialog-head { padding: 16px 64px 14px 20px; box-shadow: inset 0 -1px 0 var(--line2); }
+.dialog-head .dialog-title { margin: 0; font: 600 15px var(--font-ui); }
+.dialog-head p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+.dialog-esc { position: absolute; top: 17px; right: 20px; padding: 1px 5px; border: 0; border-radius: 4px; background: var(--raised); color: var(--muted); font: 500 10.5px var(--font-code); cursor: pointer; }
 .dialog-note { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
 .dialog-error { margin: 0 0 10px; color: var(--fail); font-size: 12.5px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
@@ -249,23 +290,27 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .shortcut-list .title { flex: 1; }
 .shortcut-list .keycap { min-width: 96px; justify-content: center; }
 .menu {
-  min-width: 200px; padding: 4px; border-radius: 8px; background: var(--raised);
+  min-width: 200px; padding: 4px; border-radius: 10px; background: var(--raised);
   box-shadow: var(--pop), inset 0 0 0 1px var(--line); font-size: 12.5px; z-index: 45;
 }
 .menu-item {
-  height: 28px; display: flex; align-items: center; gap: 10px; padding: 0 8px; border-radius: 5px; outline: 0; cursor: default;
+  height: 28px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 5px; outline: 0; cursor: default;
 }
-.menu-item[data-highlighted] { background: var(--hover); }
+.menu-item[data-highlighted] { background: var(--accent-soft); }
+.menu-item.danger { color: var(--fail); }
 .menu-item[data-disabled] { color: var(--faint); }
 /* The row a menu is open on. */
 .tree-row[data-state="open"] { box-shadow: inset 0 0 0 1px var(--accent-line); }
-.menu-item .hint { margin-left: auto; color: var(--faint); font: 500 10.5px var(--font-code); }
-.menu-sep { height: 1px; margin: 4px 6px; background: var(--line2); }
-.menu-label { padding: 6px 8px 4px; font-size: 11px; color: var(--faint); }
+.menu-item .hint { margin-left: auto; color: var(--faint); font: 11px var(--font-code); }
+.menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+.menu-label { padding: 5px 10px 4px; font: 500 11px var(--font-ui); color: var(--faint); }
+.menu-label.mono { font-family: var(--font-code); }
 /* A pick in a list of choices: a ✓ in a column every choice keeps. */
 .menu-item[role="menuitemradio"]::before { content: ""; display: inline-block; width: 16px; flex: none; color: var(--accent); }
 .menu-item[role="menuitemradio"][data-state="checked"]::before { content: "✓"; }
-.data-picker { flex: none; }
+.data-picker { flex: none; gap: 6px; }
+.toolbar .data-picker { padding: 0 6px; color: var(--muted); font-weight: 400; }
+.data-picker .value { color: var(--text); }
 .data-picker .mono { font-family: var(--font-code); font-size: 12px; }
 
 /* Hosts */

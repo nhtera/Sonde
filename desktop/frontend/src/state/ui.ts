@@ -13,6 +13,8 @@ export interface Toast {
 interface UIState {
   /** The side panel shown next to the rail (a registry panel id), or null. */
   panel: string | null;
+  /** The panel last shown: the rail marks it while the side is closed. */
+  lastPanel: string;
   paletteOpen: boolean;
   /** Text to prefill the palette with (">" for commands only). */
   paletteQuery: string;
@@ -43,6 +45,7 @@ let nextToast = 0;
 
 export const useUI = create<UIState>((set, get) => ({
   panel: "files",
+  lastPanel: "files",
   paletteOpen: false,
   paletteQuery: "",
   shortcutsOpen: false,
@@ -52,8 +55,8 @@ export const useUI = create<UIState>((set, get) => ({
   editorView: null,
   cursor: null,
   toasts: [],
-  setPanel: (panel) => set({ panel }),
-  togglePanel: (id) => set({ panel: get().panel === id ? null : id }),
+  setPanel: (panel) => set(panel ? { panel, lastPanel: panel } : { panel }),
+  togglePanel: (id) => set(get().panel === id ? { panel: null } : { panel: id, lastPanel: id }),
   openPalette: (query = "") => set({ paletteOpen: true, paletteQuery: query }),
   closePalette: () => set({ paletteOpen: false }),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
