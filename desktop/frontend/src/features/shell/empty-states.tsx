@@ -3,7 +3,7 @@
 
 import { registry, useRegistry } from "../../app/registry";
 import { useKeyLabel } from "../../app/keymap/use-keys";
-import { FilesIcon, ImportIcon, PlayIcon, SondeMark } from "../../components/icons";
+import { DocIcon, FilesIcon, ImportIcon, PlayIcon, SondeMark } from "../../components/icons";
 import { windowLook } from "../../lib/mode";
 import { useRuns } from "../../state/run";
 import { useWorkspace } from "../../state/workspace";
@@ -42,7 +42,7 @@ export function Welcome() {
           )}
           {example && (
             <button onClick={() => void example.run()}>
-              <FilesIcon size={16} />
+              <DocIcon size={16} />
               <span>Try the example project</span>
               <span className="hint mono" style={{ fontSize: 11 }}>shop-api</span>
             </button>

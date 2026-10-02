@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { create } from "zustand";
-import { Git, Workspace, WorkspaceDesktop, type FileStatus, type GitInfo, type Node, type Project, type Recent, type Request } from "../lib/api";
+import { appError, Git, Workspace, WorkspaceDesktop, type FileStatus, type GitInfo, type Node, type Project, type Recent, type Request } from "../lib/api";
 import { on } from "../lib/events";
 import { confirm } from "../components/ask";
 import { harnessFixture, serverMode } from "../lib/mode";
@@ -27,6 +27,8 @@ interface WorkspaceState {
   refresh(): Promise<void>;
   openFolder(): Promise<void>;
   openRecent(id: string): Promise<void>;
+  /** Writes the example project (Documents/Sonde/shop-api) and opens it. */
+  openExample(): Promise<void>;
   trust(): Promise<void>;
 }
 
@@ -69,6 +71,16 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   openFolder: async () => {
     if (!(await discardEdits())) return;
     const project = await WorkspaceDesktop.OpenFolder();
+    if (project) await afterOpen(project);
+  },
+  openExample: async () => {
+    if (!(await discardEdits())) return;
+    // It writes files (Documents/Sonde): a full disk or a denied folder
+    // is said, not dropped.
+    const project = await WorkspaceDesktop.OpenExample().catch((err: unknown) => {
+      useUI.getState().toast({ kind: "error", text: appError(err).message });
+      return null;
+    });
     if (project) await afterOpen(project);
   },
   openRecent: async (id) => {

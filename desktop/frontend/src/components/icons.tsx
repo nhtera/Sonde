@@ -26,6 +26,7 @@ export const SunIcon = ({ size = 16, ...p }: P) => svg(size, 24, p, <><circle cx
 export const SearchIcon = ({ size = 13, ...p }: P) => svg(size, 16, p, <><circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5L14 14" /></>);
 export const PlusIcon = ({ size = 14, ...p }: P) => svg(size, 16, p, <path d="M8 3v10M3 8h10" />);
 export const ImportIcon = ({ size = 14, ...p }: P) => svg(size, 16, p, <path d="M8 2.5v8M4.5 7L8 10.5 11.5 7M3 13.5h10" />);
+export const DocIcon = ({ size = 16, ...p }: P) => svg(size, 16, p, <><rect x="2.5" y="2.5" width="11" height="11" rx="2" /><path d="M5.5 6h5M5.5 9h3" /></>);
 export const BranchIcon = ({ size = 11, ...p }: P) => svg(size, 16, p, <><circle cx="4" cy="3.5" r="1.6" /><circle cx="4" cy="12.5" r="1.6" /><circle cx="12" cy="5.5" r="1.6" /><path d="M4 5v6M12 7c0 3-8 2-8 4" /></>);
 export const ChevronDown = ({ size = 9, ...p }: P) => (
   <svg width={size} height={size} viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth={1.4} aria-hidden {...p}>

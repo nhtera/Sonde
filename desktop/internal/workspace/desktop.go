@@ -9,6 +9,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,6 +19,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/example"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/osfile"
 	"github.com/nhtera/sonde/internal/sandbox"
@@ -58,6 +61,31 @@ func (d *Desktop) OpenFolder() (*Project, error) {
 	dir, err := d.pickFolder()
 	if err != nil || dir == "" {
 		return nil, err
+	}
+	return d.open(dir)
+}
+
+// OpenExample writes the example project into Documents/Sonde (Sonde in
+// the home folder when Documents is missing or denied) and opens it. One there
+// already is opened as it is.
+func (d *Desktop) OpenExample() (*Project, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	// Documents, unless there is none or macOS denies access to it.
+	var dir string
+	docs := filepath.Join(home, "Documents")
+	if fi, serr := os.Stat(docs); serr == nil && fi.IsDir() {
+		dir, err = example.Write(filepath.Join(docs, "Sonde"))
+	} else {
+		err = fs.ErrNotExist
+	}
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) {
+		dir, err = example.Write(filepath.Join(home, "Sonde"))
+	}
+	if err != nil {
+		return nil, fmt.Errorf("the example project could not be written: %w", err)
 	}
 	return d.open(dir)
 }

@@ -84,6 +84,7 @@ registry.command({
 // The window's own (the harness shows it for the design screens).
 if (windowLook) {
   registry.command({ id: "folder.open", title: "Open a folder…", run: () => useWorkspace.getState().openFolder() });
+  registry.command({ id: "project.openExample", title: "Try the example project", run: () => useWorkspace.getState().openExample() });
 }
 
 registry.command({

@@ -1,0 +1,16 @@
+# shop-api: Sonde's example project. Its API is the mock of openapi.yaml:
+# start it in the Contract panel (or run `sonde mock openapi.yaml`), then
+# run a file.
+version: 1
+
+environments:
+  local:
+    variables:
+      base_url: http://127.0.0.1:4010
+      sku: TEA-EARL-250
+
+defaults:
+  env: local
+
+openapi:
+  spec: openapi.yaml

@@ -1,0 +1,81 @@
+openapi: 3.0.3
+info:
+  title: shop-api
+  version: "1"
+  description: The example project's API. Sonde mocks it from these examples.
+servers:
+  - url: http://127.0.0.1:4010
+paths:
+  /products:
+    get:
+      summary: List the products
+      responses:
+        "200":
+          description: the products
+          content:
+            application/json:
+              example:
+                items:
+                  - {sku: TEA-EARL-250, name: "Earl Grey, 250 g", price: 12.9}
+                  - {sku: TEA-SENCHA-100, name: "Sencha, 100 g", price: 9.5}
+  /products/{sku}:
+    get:
+      summary: One product
+      parameters:
+        - {name: sku, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: the product
+          content:
+            application/json:
+              example: {sku: TEA-EARL-250, name: "Earl Grey, 250 g", price: 12.9, stock: 42}
+  /carts:
+    post:
+      summary: New cart
+      responses:
+        "201":
+          description: the cart
+          content:
+            application/json:
+              example: {id: c_8f2a41, items: [], subtotal: 0}
+  /carts/{id}/items:
+    post:
+      summary: Add an item
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sku, quantity]
+              properties:
+                sku: {type: string}
+                quantity: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: the cart
+          content:
+            application/json:
+              example:
+                id: c_8f2a41
+                items:
+                  - {sku: TEA-EARL-250, quantity: 2}
+                subtotal: 25.8
+  /orders:
+    post:
+      summary: Order a cart
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cart_id]
+              properties:
+                cart_id: {type: string}
+      responses:
+        "201":
+          description: the order
+          content:
+            application/json:
+              example: {id: ord_1093, cart_id: c_8f2a41, status: pending, total: 25.8}
