@@ -38,12 +38,16 @@ const (
 type Server struct {
 	mu    sync.Mutex
 	carts map[string][]string
+	// users created by POST /users, by id.
+	users map[string]map[string]string
 	seen  []string
 	wire  []string
 }
 
 // New returns a fresh shop-api.
-func New() *Server { return &Server{carts: map[string][]string{}} }
+func New() *Server {
+	return &Server{carts: map[string][]string{}, users: map[string]map[string]string{}}
+}
 
 // Wire returns "METHOD path|Authorization|Cookie" of every request so far,
 // for comparing requests on the wire.
@@ -91,6 +95,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		http.SetCookie(w, &http.Cookie{Name: "sid", Value: Session, Path: "/", HttpOnly: true}) //nolint:gosec // test cookie
 		writeJSON(w, 200, map[string]any{"token": Token, "user": map[string]any{"id": 7, "name": User}})
+	case r.Method == "GET" && len(parts) == 2 && parts[0] == "users" && s.user(parts[1]) != nil:
+		writeJSON(w, 200, s.user(parts[1]))
 	case r.Method == "GET" && len(parts) == 2 && parts[0] == "users":
 		if !s.authorized(r) {
 			writeJSON(w, 401, map[string]string{"error": "unauthorized"})
@@ -98,9 +104,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, 200, map[string]any{"id": 7, "name": User, "big": json.Number("12345678901234567890")})
 	case r.Method == "POST" && p == "users":
-		w.Header().Set("Content-Type", "application/problem+json")
-		w.WriteHeader(422)
-		_, _ = io.WriteString(w, `{"title":"invalid user","errors":[{"field":"email","message":"is required"}]}`)
+		// A user with a name and an email is created; an email that is not
+		// one is refused, and so is a user without one.
+		var u struct{ Name, Email string }
+		_ = json.NewDecoder(r.Body).Decode(&u)
+		switch {
+		case u.Email == "":
+			w.Header().Set("Content-Type", "application/problem+json")
+			w.WriteHeader(422)
+			_, _ = io.WriteString(w, `{"title":"invalid user","errors":[{"field":"email","message":"is required"}]}`)
+		case !validEmail(u.Email):
+			writeJSON(w, 422, map[string]string{"error": "invalid_email", "field": "email"})
+		default:
+			writeJSON(w, 201, s.addUser(u.Name, u.Email))
+		}
 	case r.Method == "POST" && p == "carts":
 		if !s.authorized(r) {
 			writeJSON(w, 401, map[string]string{"error": "unauthorized"})
@@ -224,4 +241,27 @@ func (s *Server) ws(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// user returns the user created with id, or nil.
+func (s *Server) user(id string) map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.users[id]
+}
+
+// addUser creates a user and returns it.
+func (s *Server) addUser(name, email string) map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id := strconv.Itoa(100 + len(s.users))
+	s.users[id] = map[string]string{"id": id, "name": name, "email": email}
+	return s.users[id]
+}
+
+// validEmail reports whether e looks like an email: a name, @, a domain
+// with a dot.
+func validEmail(e string) bool {
+	at := strings.LastIndex(e, "@")
+	return at > 0 && strings.Contains(e[at+1:], ".") && !strings.HasSuffix(e, ".")
 }
