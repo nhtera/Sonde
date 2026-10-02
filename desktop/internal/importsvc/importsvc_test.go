@@ -335,6 +335,24 @@ func TestPostmanCountsAndSuggestions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// What lines became: the status check and the path variable
+	// converted, the other test statements kept as comments.
+	want := map[string]Wrote{
+		"pm.response.to.have.status(200)":   {To: "HTTP 200", Kind: "converted"},
+		"GET /users/:id":                    {To: "GET /users/{{id}}", Kind: "converted"},
+		"pm.expect(jsonData.id).to.eql(42)": {To: "# pm.expect(jsonData.id).to.eql(42)", Kind: "comment"},
+	}
+	for _, x := range w.Wrote {
+		if exp, ok := want[x.From]; ok {
+			if x.To != exp.To || x.Kind != exp.Kind {
+				t.Errorf("wrote %+v, want %+v", x, exp)
+			}
+			delete(want, x.From)
+		}
+	}
+	if len(want) > 0 || len(w.Wrote) > maxWrote {
+		t.Errorf("wrote %+v: missing %v", w.Wrote, want)
+	}
 	c := w.Counts
 	if c.Files != 3 || c.Requests != 3 || c.Environments != 2 || c.PathVariables != 1 || c.StatusChecks != 1 || c.SecretStubs < 1 || c.Scripts < 1 {
 		t.Errorf("counts %+v", c)

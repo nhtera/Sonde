@@ -17,7 +17,8 @@
 .import-kinds button { height: 26px; padding: 0 10px; border: 0; border-radius: 999px; background: none; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font: 500 12px var(--font-ui); cursor: pointer; }
 .import-kinds button[aria-selected="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line); color: var(--accent); }
 .import-form { display: flex; flex-direction: column; gap: 10px; padding: 14px 20px 0; }
-.import-form .dialog-actions { margin: 6px -20px 0; bottom: 0; }
+/* The form's footer: 16px under the buttons, inside the dialog. */
+.import-dialog .import-form .dialog-actions { margin: 0 -20px; padding: 6px 20px 16px; bottom: 0; }
 /* curl: paste beside the preview, 240px high, the secrets as a strip. */
 .curl-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .curl-columns .import-label { display: flex; justify-content: space-between; color: var(--muted); font: 500 11.5px var(--font-ui); margin-bottom: 6px; }
@@ -30,7 +31,7 @@
 .curl-columns .code-preview .cm-line { padding: 0 12px; }
 .curl-columns pre.import-code { padding: 12px; color: var(--faint); font: 12px/20px var(--font-code); }
 .save-as { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12.5px; }
-.save-as input { height: 28px; width: 220px; padding: 0 10px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-code); }
+.save-as input { box-sizing: border-box; height: 28px; min-width: 120px; max-width: 320px; padding: 0 10px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-code); }
 .import-source textarea { width: 100%; box-sizing: border-box; resize: vertical; font-size: 12px; }
 .import-source .picked { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; background: var(--panel); }
 .row-gap { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
@@ -103,8 +104,25 @@
   align-items: center; position: sticky; bottom: -16px; z-index: 1; margin: 12px -20px -16px; padding: 16px 20px; background: var(--panel);
 }
 .import-dialog .dialog-actions button { white-space: nowrap; }
+.import-dialog .dialog-actions .btn-ghost { height: 28px; padding: 0 10px; font-size: 12.5px; }
+.import-dialog .dialog-actions .btn-primary { height: 28px; padding: 0 5px 0 11px; gap: 8px; }
 .import-dialog .dialog-actions > span { margin-right: auto; }
 .import-result { display: flex; flex-direction: column; }
+/* What the importer wrote: a collection line, what it became, how. */
+.import-wrote { margin-top: 10px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line2); }
+.wrote-head { padding: 8px 12px; color: var(--faint); font: 500 11.5px var(--font-ui); box-shadow: inset 0 -1px 0 var(--line2); }
+.wrote-row { display: grid; grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 64px; align-items: center; gap: 8px; height: 29px; padding: 0 12px; font-size: 11.5px; }
+.wrote-row .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11.5px var(--font-code); }
+.wrote-row .from { color: var(--muted); }
+.wrote-row .arrow { color: var(--faint); text-align: center; }
+.wrote-row .to { color: var(--text); }
+.wrote-row .com { color: var(--t-com); }
+.wrote-row .t-http { color: var(--t-http); font-weight: 500; }
+.wrote-row .t-num { color: var(--t-num); }
+.wrote-row .t-var { color: var(--t-var); }
+.wrote-row .kind { justify-self: end; font: 500 11px var(--font-ui); }
+.wrote-row .kind.converted { color: var(--pass); }
+.wrote-row .kind.comment { color: var(--warn); }
 .warn-cards { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow: auto; }
 .warn-card { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line2); font-size: 12.5px; }
 .warn-card .warn-text > :first-child { font-weight: 500; }

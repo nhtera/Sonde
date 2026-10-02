@@ -41,6 +41,7 @@ export type {
   Request as ImportRequest,
   Suggestion as ImportSuggestion,
   Written as ImportWritten,
+  Wrote as ImportWrote,
 } from "@bindings/desktop/internal/importsvc";
 export { Service as Jar } from "@bindings/desktop/internal/jar";
 export { Service as Perf } from "@bindings/desktop/internal/perftrace";

@@ -417,6 +417,8 @@ function SaveAs({ path }: { path: string }) {
     <input
       className="mono"
       aria-label="Save as"
+      // As wide as the name (a monospace character is 1ch).
+      style={{ width: `calc(${Math.max(value.length, 12)}ch + 20px)` }}
       value={value}
       placeholder="curl.hurl"
       spellCheck={false}

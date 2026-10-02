@@ -151,6 +151,8 @@ type Written struct {
 	Kept    []string `json:"kept"`    // existing files left as they were
 	Secrets []string `json:"secrets"` // lifted, by name
 	Counts  Counts   `json:"counts"`
+	// Wrote is, for a Postman collection, what lines became.
+	Wrote []Wrote `json:"wrote,omitempty"`
 }
 
 // plan is an import computed: the converter's output and the files.
@@ -269,6 +271,7 @@ func (s *Service) Write(ctx context.Context, req Request, overwrite []string) (*
 	w := &Written{Files: []string{}, Kept: []string{}, Secrets: []string{}, Counts: p.counts()}
 	if req.Kind == Postman {
 		_, w.Counts.Folders = collection(p.data)
+		w.Wrote = p.wrote()
 	}
 	keep := func(f convert.PlannedFile) bool {
 		return p.exists[f.Path] && !slices.Contains(overwrite, p.project(f.Path))
