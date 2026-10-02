@@ -130,14 +130,16 @@ export function SessionPanel({ file, entry }: { file: string; entry: number }) {
   return (
     <div className="session-panel" aria-label="Interactive session" ref={panel}>
       <header className="session-head">
-        <div className="run-title">
+        <div className="session-title">
           <h2>Session</h2>
-          <span className={`outcome ${status === "open" ? "outcome-passed" : status === "closed" ? "" : "outcome-running"}`}>
+          <span className={`session-state ${status}`}>
+            <i aria-hidden />
             {status === "open" ? "Open" : status === "closed" ? "Closed" : "Opening"}
           </span>
-          <button className="btn danger" style={{ marginLeft: "auto" }} onClick={close}>
-            Close <kbd>Esc</kbd>
+          <button className="session-close" onClick={close} aria-keyshortcuts="Escape">
+            Close
           </button>
+          <kbd>Esc</kbd>
         </div>
         <div className="session-url mono">
           {url || "…"}
@@ -146,7 +148,7 @@ export function SessionPanel({ file, entry }: { file: string; entry: number }) {
         <p className="session-warn">Interactive session, not part of the test. Nothing here is written unless you ask.</p>
         {error && <p className="run-error">{error}</p>}
       </header>
-      <MessageTable messages={messages} protocol="websocket" />
+      <MessageTable messages={messages} protocol="websocket" filters={false} />
       <Composer disabled={status !== "open"} onSend={send} />
     </div>
   );

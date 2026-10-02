@@ -28,6 +28,8 @@ export interface ResultsHeaderProps {
   note?: ReactNode;
   /** When it ran ("12s ago"). */
   when?: string;
+  /** The counts in place of passed and failed (a stream's events). */
+  counts?: ReactNode;
 }
 
 /** The title, outcome and counts above a run's results. */
@@ -46,13 +48,17 @@ export function ResultsHeader(p: ResultsHeaderProps) {
       </div>
       <div className="run-counts">
         {p.lead && <span>{p.lead}</span>}
-        <span>
-          <b className="pass">{p.passed}</b> passed
-        </span>
-        <span>
-          <b className={p.failed ? "fail" : ""}>{p.failed}</b> failed
-        </span>
-        {p.durationMs !== undefined && (
+        {p.counts ?? (
+          <>
+            <span>
+              <b className="pass">{p.passed}</b> passed
+            </span>
+            <span>
+              <b className={p.failed ? "fail" : ""}>{p.failed}</b> failed
+            </span>
+          </>
+        )}
+        {p.durationMs !== undefined && !p.counts && (
           <span className="mono" data-volatile>
             {p.durationMs} ms
           </span>

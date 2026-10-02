@@ -112,7 +112,7 @@ test("an interactive WebSocket session sends, echoes, and writes 2 lines", async
   await run(page, "live.sonde", /Passed/);
   await page.screenshot({ path: `${candidates}/results-ws-11b.png` });
   await results(page).getByRole("button", { name: "Open interactive session" }).click();
-  await expect(results(page).locator(".session-head .outcome")).toHaveText("Open");
+  await expect(results(page).locator(".session-state")).toHaveText("Open");
   await results(page).getByLabel("Message", { exact: true }).fill('{"type": "ping"}');
   await results(page).getByRole("checkbox", { name: "Also write to file" }).check();
   await page.keyboard.press("ControlOrMeta+Enter");

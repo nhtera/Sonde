@@ -20,12 +20,33 @@ export interface MessageTableProps {
   dropped?: number;
   /** Shown at the end of the filter row. */
   actions?: ReactNode;
+  /** The All/Sent/Received (or event) filters and the type tags; off
+   * in the session, a plain transcript. */
+  filters?: boolean;
+}
+
+/** The types read so far, by message: a row parses its data once. */
+const types = new WeakMap<StreamMessage, string | undefined>();
+function typeOf(m: StreamMessage): string | undefined {
+  if (!types.has(m)) types.set(m, messageType(m.data));
+  return types.get(m);
+}
+
+/** A WebSocket JSON message's "type", shown as a tag before it. */
+export function messageType(data: string): string | undefined {
+  if (!data.startsWith("{")) return undefined;
+  try {
+    const t = (JSON.parse(data) as { type?: unknown }).type;
+    return typeof t === "string" && t ? t : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** "+5.12" seconds. */
 const at = (ms: number) => `+${(ms / 1000).toFixed(2)}`;
 
-export function MessageTable({ messages, protocol, dropped = 0, actions }: MessageTableProps) {
+export function MessageTable({ messages, protocol, dropped = 0, actions, filters: showFilters = true }: MessageTableProps) {
   const sse = protocol === "sse";
   const [filter, setFilter] = useState("all");
   const events = useMemo(() => (sse ? [...new Set(messages.map((m) => m.event || "message"))].slice(0, 6) : []), [messages, sse]);
@@ -46,15 +67,18 @@ export function MessageTable({ messages, protocol, dropped = 0, actions }: Messa
 
   return (
     <div className="stream-log">
-      <div className="stream-filters" role="group" aria-label="Filter messages">
-        {filters.map((f) => (
-          <button key={f} className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-            {f === "all" ? "All" : f === "sent" ? "Sent" : f === "received" ? "Received" : f}
-          </button>
-        ))}
-        {actions && <div className="stream-actions">{actions}</div>}
-      </div>
-      <div className={`stream-head mono ${sse ? "sse" : "ws"}`}>
+      {showFilters && (
+        <div className="stream-filters" role="group" aria-label="Filter messages">
+          {filters.map((f) => (
+            <button key={f} className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
+              {f === "all" ? "All" : f === "sent" ? "Sent" : f === "received" ? "Received" : f}
+            </button>
+          ))}
+          {actions && <div className="stream-actions">{actions}</div>}
+        </div>
+      )}
+      <div className="stream-table">
+      <div className={`stream-head ${sse ? "sse" : "ws"}`}>
         <span>Time</span>
         {sse ? <span>nth</span> : <span />}
         <span>{sse ? "Event" : "Type"}</span>
@@ -65,18 +89,21 @@ export function MessageTable({ messages, protocol, dropped = 0, actions }: Messa
         <div style={{ height: virtual.getTotalSize(), position: "relative" }}>
           {virtual.getVirtualItems().map((v) => {
             const { m, nth } = shown[v.index];
+            const type = sse || m.binary || !showFilters ? undefined : typeOf(m);
             return (
               <div key={v.key} role="row" className={`stream-row mono ${sse ? "sse" : "ws"} dir-${m.direction}`} style={{ transform: `translateY(${v.start}px)` }}>
                 <span className="t">{at(m.time)}</span>
                 {sse ? <span className="nth">{nth ?? ""}</span> : <span className="dir">{m.direction === "sent" ? "↑" : "↓"}</span>}
                 <span className="ev">{sse ? m.event || "message" : m.binary ? "binary" : "text"}</span>
                 <span className="data" title={m.data}>
+                  {type && <span className="type-tag">{type}</span>}
                   {m.binary && !sse ? atobHex(m.data) : m.data}
                 </span>
               </div>
             );
           })}
         </div>
+      </div>
       </div>
     </div>
   );

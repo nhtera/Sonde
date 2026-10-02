@@ -49,7 +49,7 @@ export function Composer({ disabled, onSend }: ComposerProps) {
         <label className="write-check">
           <input type="checkbox" checked={write} onChange={(e) => setWrite(e.target.checked)} /> Also write to file
         </label>
-        <button className="btn" disabled={disabled || !data} onClick={() => void send()}>
+        <button className="composer-send" disabled={disabled || !data} onClick={() => void send()}>
           Send <kbd>{isMac ? "⌘↵" : "Ctrl+↵"}</kbd>
         </button>
       </div>

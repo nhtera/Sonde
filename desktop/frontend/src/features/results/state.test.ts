@@ -92,6 +92,8 @@ describe("results state", () => {
     const stream = entry(1, { sonde: { stream: { protocol: "websocket", messages: [{ data: "x", direction: "received", time: 0 }], received: 1, sent: 0 } } });
     const tabs = tabsOf(stream);
     expect(tabs[0]).toBe("stream");
+    // Without captures or cookies a stream shows neither tab.
+    expect(tabs).toEqual(["stream", "headers", "asserts", "timeline", "request"]);
     // Persisted tab should still be available
     expect(shownTab(stream, "r1", { runId: "r1", value: "stream" })).toBe("stream");
     // If tab is not available, should redirect to first available

@@ -38,15 +38,25 @@ function Meta({ e, run, entry }: { e?: Entry; run: FileRun; entry: number }) {
   if (call) {
     const status = call.response.status;
     const size = e!.bodies?.at(-1)?.size ?? 0;
+    const stream = e!.sonde?.stream;
+    // 101 Switching Protocols: the code in the info color, the reason muted.
+    const info = status < 200;
+    const reason = statusText(status).slice(String(status).length + 1);
+    const type = call.response.headers?.find((h) => h.name.toLowerCase() === "content-type")?.value.split(";")[0];
     return (
       <div className="entry-meta">
-        <b className={`mono ${status >= 400 ? "fail" : "pass"}`}>{statusText(status)}</b>
+        <b className={`mono ${status >= 400 ? "fail" : info ? "info" : "pass"}`}>{info ? status : statusText(status)}</b>
         <span className="mono path">
+          {info && reason && `${reason} · `}
           {call.request.method} {displayPath(call.request.url)}
         </span>
-        <span className="mono right" data-volatile>
-          {formatMs(e!.time)} · {formatBytes(size)}
-        </span>
+        {stream ? (
+          <span className="mono right kind">{stream.protocol === "websocket" ? "websocket" : (type ?? stream.protocol)}</span>
+        ) : (
+          <span className="mono right" data-volatile>
+            {formatMs(e!.time)} · {formatBytes(size)}
+          </span>
+        )}
       </div>
     );
   }

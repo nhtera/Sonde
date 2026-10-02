@@ -111,5 +111,10 @@ export function failureOf(entry: Entry, lines?: string[]): Failure | null {
   };
   f.expected = value(err.message, "expected");
   f.actual = value(err.message, "actual");
+  // A status check: the status the HTTP line expects, the one received.
+  if (err.kind === "assert-status") {
+    f.expected ??= /^HTTP(?:\/[\d.]+)?\s+(\S+)/.exec(f.code ?? "")?.[1];
+    f.actual ??= /<(\d{3})>/.exec(err.message)?.[1] ?? (entry.calls?.at(-1)?.response.status ? String(entry.calls.at(-1)!.response.status) : undefined);
+  }
   return f;
 }

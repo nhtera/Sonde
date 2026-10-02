@@ -30,7 +30,7 @@ export function RequestList({ rows, selected, onSelect }: RequestListProps) {
             <span className="skip mono">skip</span>
           ) : (
             <>
-              <span className={`code mono ${r.state === "failed" ? "fail" : "pass"}`}>{r.status ?? (r.state === "failed" ? "ERR" : "")}</span>
+              <span className={`code mono ${r.state === "failed" ? "fail" : (r.status ?? 200) < 200 ? "info" : "pass"}`}>{r.status ?? (r.state === "failed" ? "ERR" : "")}</span>
               <span className="ms mono" data-volatile>{r.ms !== undefined ? `${r.ms} ms` : ""}</span>
             </>
           )}

@@ -64,9 +64,13 @@ export function tabsOf(e: Entry | undefined): TabId[] {
   if (!e) return ["timeline", "request"];
   const hasResponse = (e.calls?.length ?? 0) > 0;
   if (!hasResponse) return cardOf(e.errors?.[0]) ? ["error", "timeline", "request"] : ["asserts", "timeline", "request"];
-  const tabs: TabId[] = e.sonde?.stream ? ["stream"] : ["body"];
-  tabs.push("headers", "asserts", "captures", "cookies", "timeline", "request");
-  return tabs;
+  // A stream's captures and cookies show only when it has some.
+  if (e.sonde?.stream) {
+    const call = e.calls?.at(-1);
+    const cookies = (call?.request.cookies?.length ?? 0) + (call?.response.cookies?.length ?? 0);
+    return ["stream", "headers", "asserts", ...(e.captures?.length ? (["captures"] as const) : []), ...(cookies ? (["cookies"] as const) : []), "timeline", "request"];
+  }
+  return ["body", "headers", "asserts", "captures", "cookies", "timeline", "request"];
 }
 
 /** The tab an entry shows: the one picked for this run when it has it,

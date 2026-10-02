@@ -15,6 +15,7 @@
 .run-counts b { font-weight: 600; color: var(--text); }
 .run-counts b.pass { color: var(--pass); }
 .run-counts b.fail { color: var(--fail); }
+.run-counts b.stopped { color: var(--accent); }
 .run-note { font-size: 11.5px; color: var(--faint); }
 
 .request-list { list-style: none; margin: 0; padding: 4px 8px; }
@@ -30,6 +31,7 @@
 .req-row .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .req-row .code.pass { color: var(--pass); }
 .req-row .code.fail { color: var(--fail); }
+.req-row .code.info { color: var(--info); }
 .req-row .ms, .req-row .skip { color: var(--muted); font-size: 11.5px; }
 .req-row .mark { text-align: center; color: var(--faint); }
 .req-row.state-passed .mark { color: var(--pass); }

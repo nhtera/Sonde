@@ -20,7 +20,7 @@ import { rowFailed, type FileRun } from "../../state/run-model";
 import { useTabs } from "../../state/tabs";
 import { useWorkspace } from "../../state/workspace";
 import { EntryDetail } from "./entry-detail";
-import { ago } from "./model";
+import { ago, stopText } from "./model";
 import { shownEntry, useResults } from "./state";
 import { SessionPanel } from "./ws-session/session-panel";
 
@@ -104,6 +104,10 @@ export function ResultsPanel({ file, run: given }: { file: string; run?: FileRun
     run.kind === "send" ? (r.entry === run.sent ? { ...r, tag: run.running ? "sending" : "just sent" } : { ...r, dim: true }) : r,
   );
   const started = run.summary?.startedAt ? new Date(run.summary.startedAt) : null;
+  // A file of one stream request: its events and why it stopped.
+  const only = Object.values(run.entries);
+  const stream = !run.data && run.kind !== "send" && !run.running && requests.length === 1 && only.length === 1 ? only[0].sonde?.stream : undefined;
+  const secs = run.summary?.durationMs !== undefined ? `${(run.summary.durationMs / 1000).toFixed(2)} s` : "";
   const onKey = (e: KeyboardEvent) => {
     // ⌘F in the panel searches the body.
     if (e.key === "f" && (e.metaKey || e.ctrlKey)) {
@@ -129,12 +133,42 @@ export function ResultsPanel({ file, run: given }: { file: string; run?: FileRun
           durationMs={run.summary?.durationMs}
           env={run.summary?.env || undefined}
           when={started ? ago(started, now) : undefined}
+          counts={
+            stream && (
+              <>
+                {stream.protocol === "websocket" ? (
+                  <>
+                    <span>{stream.sent} sent</span>
+                    <span>{stream.received} received</span>
+                  </>
+                ) : (
+                  <span>
+                    {stream.messages?.length ?? 0} event{stream.messages?.length === 1 ? "" : "s"}
+                  </span>
+                )}
+                {secs && (
+                  <span className="mono" data-volatile>
+                    {secs}
+                  </span>
+                )}
+                {stream.stop_reason === "script" ? <span>closed after last step</span> : <b className="stopped">stopped: {stopText(stream)}</b>}
+              </>
+            )
+          }
           note={
+            stream ? (
+              stream.protocol === "websocket" ? (
+                <>Ran the scripted steps · stopped: {stopText(stream)}</>
+              ) : (
+                <>Stopped: {stopText(stream)} · also stops at timeout, max-bytes or server close</>
+              )
+            ) : (
             <>
               {/* A Send's note says how long ago its run was. */}
               <span data-volatile={run.kind === "send" || undefined}>{noteOf(run, requests.length, now)}</span>
               {overrides > 0 && <span className="overrides-chip small">{overrides} override{overrides === 1 ? "" : "s"}</span>}
             </>
+            )
           }
         />
         {past ? (

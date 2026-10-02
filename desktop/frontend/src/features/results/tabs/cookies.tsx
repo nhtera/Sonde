@@ -14,6 +14,7 @@ export function CookiesTab({ file, entry, entries }: { file: string; entry: Entr
   const sent = sentCookies(entries, entry.index);
   const received = entry.calls?.at(-1)?.response.cookies ?? [];
   const sentNames = new Set(sent.map((c) => c.name));
+  const http = /^http:/i.test(entry.calls?.at(-1)?.request.url ?? "");
   const first = received[0];
   const quoted = (s: string) => s.replace(/[\\"]/g, "\\$&");
   const assertText = first ? `cookie "${quoted(first.name)}${first.httponly ? "[HttpOnly]" : ""}" exists` : "";
@@ -22,6 +23,7 @@ export function CookiesTab({ file, entry, entries }: { file: string; entry: Entr
       <section className="kv-section">
         <h3>
           Sent with this request <span className="muted">{sent.length}</span>
+          {sent.some((c) => c.setBy) && <span className="h3-note mono">set earlier in this run</span>}
         </h3>
         {sent.length === 0 ? (
           <p className="body-note">No cookies were sent.</p>
@@ -30,7 +32,7 @@ export function CookiesTab({ file, entry, entries }: { file: string; entry: Entr
             {sent.map((c, i) => (
               <div key={i}>
                 <dt>{c.name}</dt>
-                <dd>{c.value}</dd>
+                <dd className={c.value === "***" ? "secret" : undefined}>{c.value}</dd>
                 <dd className="muted">{c.setBy ? `set by request ${c.setBy}` : "from the jar"}</dd>
               </div>
             ))}
@@ -45,7 +47,7 @@ export function CookiesTab({ file, entry, entries }: { file: string; entry: Entr
         {received.map((c, i) => (
           <div key={i} className="cookie-card">
             <div className="cookie-name mono">
-              <b>{c.name}</b> = {c.value}
+              <b>{c.name}</b> = <span className={c.value === "***" ? "secret" : undefined}>{c.value}</span>
               {!sentNames.has(c.name) && <span className="new-chip">new</span>}
             </div>
             <dl className="cookie-attrs">
@@ -53,8 +55,12 @@ export function CookiesTab({ file, entry, entries }: { file: string; entry: Entr
               <div><dt>Path</dt><dd className="mono">{c.path || "–"}</dd></div>
               <div><dt>Expires</dt><dd className="mono">{c.expires || (c.max_age ? `max-age ${c.max_age}` : "session")}</dd></div>
               <div><dt>SameSite</dt><dd className="mono">{c.same_site || "–"}</dd></div>
-              <div><dt>HttpOnly</dt><dd className="mono">{c.httponly ? "✓" : "–"}</dd></div>
-              <div><dt>Secure</dt><dd className="mono">{c.secure ? "✓" : "–"}</dd></div>
+              <div><dt>HttpOnly</dt><dd className={c.httponly ? "yes" : "mono"}>{c.httponly ? "✓" : "–"}</dd></div>
+              <div>
+                <dt>Secure</dt>
+                {/* Not Secure over plain http: worth a look. */}
+                <dd className={c.secure ? "yes" : http ? "warn" : "mono"}>{c.secure ? "✓" : http ? "– (http)" : "–"}</dd>
+              </div>
             </dl>
           </div>
         ))}
@@ -70,7 +76,9 @@ export function CookiesTab({ file, entry, entries }: { file: string; entry: Entr
       {assertText && (
         <button className="assert-helper" onClick={() => void addAssert(file, entry.index, assertText)}>
           <span className="muted">Assert a cookie in the file</span>
-          <code className="mono">{assertText}</code>
+          <code className="mono">
+            <span className="tk-q">cookie</span> <span className="tk-str">{assertText.slice(7, assertText.lastIndexOf('"') + 1)}</span> <span className="tk-op">exists</span>
+          </code>
         </button>
       )}
     </div>

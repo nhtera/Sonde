@@ -6,10 +6,11 @@
 // body over 20 MB shows its first megabyte until formatted anyway; over
 // 50 MB it is only saved or opened in another app.
 
+import { CopyIcon, DownloadIcon, SearchIcon } from "../../../../components/icons";
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import { useKeyLabel } from "../../../../app/keymap/use-keys";
 import { appError } from "../../../../lib/api";
-import { serverMode } from "../../../../lib/mode";
+import { windowLook } from "../../../../lib/mode";
 import type { Body } from "../../../../lib/view";
 import { useUI } from "../../../../state/ui";
 import { addFromBody } from "../../actions";
@@ -110,7 +111,7 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
 
   let content;
   if (tooLarge) content = null;
-  else if (mode === "preview") content = <Preview id={body.id} kind={kind} onOpenExternally={serverMode ? undefined : () => void openExternally(body.id)} />;
+  else if (mode === "preview") content = <Preview id={body.id} kind={kind} onOpenExternally={!windowLook ? undefined : () => void openExternally(body.id)} />;
   else if (tree)
     content = (
       <PrettyJsonTree
@@ -156,16 +157,16 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
           </div>
           {mode !== "preview" && (
             <label className="body-search">
-              <span aria-hidden>⌕</span>
+              <SearchIcon size={12} />
               <input value={query} placeholder="Search" aria-label="Search the body" onChange={(e) => setQuery(e.target.value)} onKeyDown={onKey} />
-              {query && <span className="count mono">{matches.total ? `${matches.current + 1} of ${matches.total}` : "0 of 0"}</span>}
+              {query && <span className="count mono">{matches.total ? `${matches.current + 1} of ${matches.total}` : "0 of 0"}  ↑↓</span>}
             </label>
           )}
           <button className="btn-ghost icon" title="Copy the body" aria-label="Copy the body" disabled={large} onClick={() => void copy()}>
-            ⧉
+            <CopyIcon size={12} />
           </button>
           <button className="btn-ghost icon" title={`Save response to file ${saveKeys ?? ""}`} aria-label="Save response to file" onClick={() => void saveBody(body)}>
-            ⤓
+            <DownloadIcon />
           </button>
         </div>
       )}
@@ -175,7 +176,7 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
           contentType={body.contentType}
           saveKeys={saveKeys}
           onSave={() => void saveBody(body)}
-          onOpen={serverMode ? undefined : () => void openExternally(body.id)}
+          onOpen={!windowLook ? undefined : () => void openExternally(body.id)}
           onFormat={() => {
             setFormatted(body.id);
             useResults.getState().setBodyMode("pretty");
