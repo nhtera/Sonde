@@ -10,6 +10,7 @@ import { useRuns } from "../../../state/run";
 import { useTabs } from "../../../state/tabs";
 import { formEdit, setRow } from "../edit";
 import { ExpectedStatus } from "../expected-status";
+import { ListInput } from "../list-input";
 import { RowMenu } from "../row-menu";
 import { lineOf, rowsOf, useForm, type Check, type EntryModel } from "../model";
 import { SuggestInput, varSuggester } from "../suggest-input";
@@ -56,7 +57,6 @@ export function AssertsTab({ file, entry }: { file: string; entry: EntryModel })
       </datalist>
       <div className="check-grid asserts" role="table" aria-label="Asserts">
         <div className="check-head" role="row">
-          <span />
           <span>Query</span>
           <span>Predicate</span>
           <span>Value</span>
@@ -69,12 +69,11 @@ export function AssertsTab({ file, entry }: { file: string; entry: EntryModel })
           const write = (next: Pick<Check, "query" | "predicate" | "value">) => void setRow(file, n, "asserts", i, "", joinCheck(next));
           return (
             <div key={`${i}:${r.Value}`} role="row" className={`check-row${r.Disabled ? " off" : ""}${res && !res.success ? " failed" : ""}`}>
-              <input type="checkbox" aria-label={`Enable assert ${i + 1}`} checked={!r.Disabled} onChange={() => void formEdit(file, { kind: "toggleRow", entry: n, section: "asserts", index: i })} />
               {c?.parsed ? (
                 <>
                   <SuggestInput label={`Assert query ${i + 1}`} className="mono" value={c.query} onCommit={(q) => write({ ...c, query: q })} />
-                  <PredicateInput label={`Assert predicate ${i + 1}`} value={c.predicate} onCommit={(p) => write({ ...c, predicate: p })} />
-                  <SuggestInput label={`Assert value ${i + 1}`} className="mono" value={c.value} suggest={vars} onCommit={(v) => write({ ...c, value: v })} />
+                  <ListInput label={`Assert predicate ${i + 1}`} list="predicates" className="predicate" value={c.predicate} onCommit={(p) => write({ ...c, predicate: p })} />
+                  <SuggestInput label={`Assert value ${i + 1}`} className="mono check-value" value={c.value} suggest={vars} onCommit={(v) => write({ ...c, value: v })} />
                 </>
               ) : (
                 <span className="check-whole">
@@ -103,20 +102,6 @@ export function AssertsTab({ file, entry }: { file: string; entry: EntryModel })
         </button>
       )}
     </div>
-  );
-}
-
-function PredicateInput({ label, value, onCommit }: { label: string; value: string; onCommit(v: string): void }) {
-  return (
-    <input
-      className="mono predicate"
-      aria-label={label}
-      list="predicates"
-      defaultValue={value}
-      key={value}
-      onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== value && onCommit(e.target.value.trim())}
-      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-    />
   );
 }
 

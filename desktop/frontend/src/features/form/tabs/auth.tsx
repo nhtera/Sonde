@@ -6,6 +6,9 @@
 // [Query] row, a client certificate [Options] cert and key. OAuth 2 is a
 // login request before this one, capturing the token.
 
+import { useEffect, useState, type ReactNode } from "react";
+import { Vars, type ScopeVar } from "../../../lib/api";
+import { useEnv } from "../../../state/env";
 import { formEdit, setRow, type Op } from "../edit";
 import { authOf, escapeFilename, rowsOf, useForm, type Auth, type AuthKind, type EntryModel } from "../model";
 import { SuggestInput, varSuggester } from "../suggest-input";
@@ -50,6 +53,54 @@ function addOps(n: number, kind: AuthKind): Op[] {
   return [];
 }
 
+/** A line of file text in parts, colored as the editor colors them. */
+type Seg = [kind: "key" | "sec" | "var" | "str" | "plain", text: string];
+
+/** The parts of a value: {{variables}} among plain text. */
+function valueSegs(text: string): Seg[] {
+  return text.split(/(\{\{[^}]*\}\})/).filter(Boolean).map((t): Seg => [t.startsWith("{{") ? "var" : "plain", t]);
+}
+
+function Segs({ segs }: { segs: Seg[] }) {
+  return (
+    <>
+      {segs.map(([kind, text], i) => (
+        <span key={i} className={`tk-${kind}`}>
+          {text}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** What each other type writes, for the table under the fields. */
+const others: [string, Seg[]][] = [
+  ["Basic", [["sec", "[BasicAuth]"], ["plain", "  "], ["var", "{{user}}"], ["plain", ": "], ["var", "{{password}}"]]],
+  ["API key · header", [["key", "X-API-Key"], ["plain", ": "], ["var", "{{api_key}}"]]],
+  ["API key · query", [["sec", "[Query]"], ["plain", "  api_key: "], ["var", "{{api_key}}"]]],
+  ["Client certificate", [["sec", "[Options]"], ["plain", "  cert: "], ["str", "certs/client.pem"], ["plain", "  key: "], ["str", "certs/client.key"]]],
+];
+
+/** The variable a field's {{name}} names, as a run would see it. */
+function useVar(file: string, text: string): ScopeVar | undefined {
+  const name = /^\{\{\s*([\w.-]+)\s*\}\}$/.exec(text.trim())?.[1];
+  const env = useEnv((s) => s.current);
+  // Kept with the name it was found for: a stale answer never shows.
+  const [found, setFound] = useState<{ name: string; v?: ScopeVar }>({ name: "" });
+  useEffect(() => {
+    if (!name) return;
+    let live = true;
+    void Vars.For(file, env).then(
+      (l) => live && setFound({ name, v: (l ?? []).find((v) => v.name === name) }),
+      () => live && setFound({ name }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [file, env, name]);
+  return name && found.name === name ? found.v : undefined;
+}
+
 export function AuthTab({ file, entry }: { file: string; entry: EntryModel }) {
   const n = entry.Index;
   const auth = authOf(entry);
@@ -58,16 +109,27 @@ export function AuthTab({ file, entry }: { file: string; entry: EntryModel }) {
   const row = auth.sec !== undefined && auth.index !== undefined ? rowsOf(entry, auth.sec)[auth.index] : undefined;
   const opt = (key: string) => rowsOf(entry, "options").findIndex((r) => r.Key === key);
 
+  const token = auth.kind === "bearer" ? row!.Value.replace(/^Bearer\s+/, "") : "";
+  const tokenVar = useVar(file, token);
+  // The lines this auth writes, the auth's own marked.
+  let lines: { segs: Seg[]; mark?: boolean }[] = [];
   let detail;
   switch (auth.kind) {
     case "bearer":
+      lines = [{ segs: [["key", row!.Key], ["plain", ": "], ...valueSegs(row!.Value)], mark: true }];
       detail = (
         <Field title="Bearer token" about="Sends an Authorization header. Point it at a variable so the token never lands in the file.">
-          <SuggestInput label="Token" className="mono" value={row!.Value.replace(/^Bearer\s+/, "")} suggest={vars} onCommit={(v) => void setRow(file, n, "headers", auth.index!, row!.Key, `Bearer ${v.trim()}`)} />
+          <span className="auth-label">Token</span>
+          <span className="auth-input">
+            <SuggestInput label="Token" className="mono" value={token} suggest={vars} onCommit={(v) => void setRow(file, n, "headers", auth.index!, row!.Key, `Bearer ${v.trim()}`)} />
+            {tokenVar && <span className="src">{tokenVar.origin || tokenVar.source}</span>}
+          </span>
+          {tokenVar && <span className="auth-value mono">= {tokenVar.secret ? "***" : JSON.stringify(tokenVar.display)}</span>}
         </Field>
       );
       break;
     case "basic":
+      lines = [{ segs: [["sec", "[BasicAuth]"]], mark: true }, { segs: [...valueSegs(row!.Key), ["plain", ": "], ...valueSegs(row!.Value)] }];
       detail = (
         <Field title="Basic" about="Written to [BasicAuth] as user: password.">
           <SuggestInput label="User" className="mono" value={row!.Key} suggest={vars} onCommit={(v) => void setRow(file, n, "basic-auth", 0, v.trim(), row!.Value)} />
@@ -76,6 +138,10 @@ export function AuthTab({ file, entry }: { file: string; entry: EntryModel }) {
       );
       break;
     case "apikey":
+      lines =
+        auth.sec === "query"
+          ? [{ segs: [["sec", "[Query]"]] }, { segs: [["plain", `${row!.Key}: `], ...valueSegs(row!.Value)], mark: true }]
+          : [{ segs: [["key", row!.Key], ["plain", ": "], ...valueSegs(row!.Value)], mark: true }];
       detail = (
         <Field title="API key" about="A header, or a [Query] row.">
           <SuggestInput label="Name" className="mono" value={row!.Key} onCommit={(v) => void setRow(file, n, auth.sec!, auth.index!, v.trim(), row!.Value)} />
@@ -98,6 +164,10 @@ export function AuthTab({ file, entry }: { file: string; entry: EntryModel }) {
       );
       break;
     case "cert":
+      lines = [
+        { segs: [["sec", "[Options]"]] },
+        ...(["cert", "key"] as const).filter((k) => opt(k) >= 0).map((k) => ({ segs: [["plain", `${k}: `], ["str", rowsOf(entry, "options")[opt(k)].Value]] as Seg[], mark: true })),
+      ];
       detail = (
         <Field title="Client certificate" about="Paths in the project; the key's contents are never read here.">
           {(["cert", "key"] as const).map((k) => (
@@ -140,19 +210,32 @@ export function AuthTab({ file, entry }: { file: string; entry: EntryModel }) {
       </div>
       <div className="auth-detail">
         {detail}
+        {lines.length > 0 && (
+          <section className="auth-writes" aria-label="Write-back preview">
+            <div className="section-note">
+              <span>Writes to request {n}</span>
+              <span className="sub">same line the Headers tab shows</span>
+            </div>
+            <div className="code-segs">
+              {lines.map((l, i) => (
+                <div key={i} className={l.mark ? "wb-mark" : undefined}>
+                  <Segs segs={l.segs} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <div className="auth-others">
-          <div className="section-note">
-            <span>What the other types write</span>
-          </div>
-          <dl className="mono">
-            <dt>Basic</dt>
-            <dd>[BasicAuth] {"{{user}}: {{password}}"}</dd>
-            <dt>API key · header</dt>
-            <dd>X-API-Key: {"{{api_key}}"}</dd>
-            <dt>API key · query</dt>
-            <dd>[Query] api_key: {"{{api_key}}"}</dd>
-            <dt>Client certificate</dt>
-            <dd>[Options] cert: certs/client.pem key: certs/client.key</dd>
+          <span className="auth-label">What the other types write</span>
+          <dl>
+            {others.map(([name, segs]) => (
+              <div key={name}>
+                <dt>{name}</dt>
+                <dd className="code-segs">
+                  <Segs segs={segs} />
+                </dd>
+              </div>
+            ))}
           </dl>
         </div>
       </div>
@@ -160,7 +243,7 @@ export function AuthTab({ file, entry }: { file: string; entry: EntryModel }) {
   );
 }
 
-function Field({ title, about, children }: { title: string; about: string; children: React.ReactNode }) {
+function Field({ title, about, children }: { title: string; about: string; children: ReactNode }) {
   return (
     <section className="auth-field">
       <b>{title}</b>

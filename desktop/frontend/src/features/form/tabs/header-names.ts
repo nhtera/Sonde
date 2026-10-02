@@ -4,8 +4,8 @@
 /** Request header names offered as completions, with what they are for. */
 export const headerNames = [
   { name: "Accept", hint: "Media types the client can handle" },
-  { name: "Accept-Charset", hint: "Preferred character sets" },
   { name: "Accept-Encoding", hint: "gzip, br · or use compressed in Options" },
+  { name: "Accept-Charset", hint: "Preferred character sets" },
   { name: "Accept-Language", hint: "Preferred languages" },
   { name: "Authorization", hint: "Credentials · or use the Auth tab" },
   { name: "Cache-Control", hint: "Caching directives" },

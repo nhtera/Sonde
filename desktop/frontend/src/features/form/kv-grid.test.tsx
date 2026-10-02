@@ -179,7 +179,7 @@ describe("KvGrid", () => {
 
     // Find the new row inputs
     const keyInputs = screen.getAllByPlaceholderText("Key");
-    const valueInputs = screen.getAllByPlaceholderText("Value");
+    const valueInputs = screen.getAllByLabelText("New value");
 
     const newKeyInput = keyInputs[keyInputs.length - 1];
     const newValueInput = valueInputs[valueInputs.length - 1];
@@ -206,7 +206,7 @@ describe("KvGrid", () => {
     const addButton = screen.getByRole("button", { name: /add row/i });
     await user.click(addButton);
 
-    const valueInputs = screen.getAllByPlaceholderText("Value");
+    const valueInputs = screen.getAllByLabelText("New value");
     const newValueInput = valueInputs[valueInputs.length - 1];
     await user.type(newValueInput, "some-value");
 

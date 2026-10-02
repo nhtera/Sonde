@@ -14,6 +14,7 @@ service Inventory {
 message StockRequest {
   string sku = 1;
   string warehouse = 2;
+  bool include_reserved = 3;
 }
 
 message StockLevel {

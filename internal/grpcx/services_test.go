@@ -13,7 +13,12 @@ import (
 func TestServices(t *testing.T) {
 	protos := map[string]string{"a.proto": `syntax = "proto3";
 package t;
-message Req {}
+message Req {
+  string sku = 1;
+  repeated int32 counts = 2;
+  map<string, Res> byName = 3;
+  Res last = 5;
+}
 message Res {}
 service Zed { rpc Z(Req) returns (Res); }
 service Alpha {
@@ -31,13 +36,19 @@ service Alpha {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fields := []FieldInfo{
+		{Name: "sku", Type: "string", Number: 1},
+		{Name: "counts", Type: "repeated int32", Number: 2},
+		{Name: "byName", Type: "map<string, t.Res>", Number: 3},
+		{Name: "last", Type: "t.Res", Number: 5},
+	}
 	want := []Service{
 		{Name: "t.Alpha", Methods: []MethodInfo{
-			{Name: "One", Path: "/t.Alpha/One", Input: "t.Req", Output: "t.Res"},
-			{Name: "Watch", Path: "/t.Alpha/Watch", ServerStreaming: true, Input: "t.Req", Output: "t.Res"},
-			{Name: "Chat", Path: "/t.Alpha/Chat", ClientStreaming: true, ServerStreaming: true, Input: "t.Req", Output: "t.Res"},
+			{Name: "One", Path: "/t.Alpha/One", Input: "t.Req", Output: "t.Res", InputFields: fields},
+			{Name: "Watch", Path: "/t.Alpha/Watch", ServerStreaming: true, Input: "t.Req", Output: "t.Res", InputFields: fields},
+			{Name: "Chat", Path: "/t.Alpha/Chat", ClientStreaming: true, ServerStreaming: true, Input: "t.Req", Output: "t.Res", InputFields: fields},
 		}},
-		{Name: "t.Zed", Methods: []MethodInfo{{Name: "Z", Path: "/t.Zed/Z", Input: "t.Req", Output: "t.Res"}}},
+		{Name: "t.Zed", Methods: []MethodInfo{{Name: "Z", Path: "/t.Zed/Z", Input: "t.Req", Output: "t.Res", InputFields: fields}}},
 	}
 	if got := d.Services(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Services =\n%+v\nwant\n%+v", got, want)

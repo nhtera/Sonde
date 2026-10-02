@@ -26,9 +26,12 @@ export interface KvGridProps {
   /** A value cell of its own (form-data's Text/File). */
   renderValue?(row: ModelRow, index: number): ReactNode;
   addLabel?: string;
+  /** A row another tab writes (the Auth tab's header): shown greyed,
+   * with a link to that tab instead of the row menu. */
+  managed?: (r: ModelRow, i: number) => { title: string; open(): void } | undefined;
 }
 
-export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value", valueHead, keySuggest, only, renderValue, addLabel = "+ Add row" }: KvGridProps) {
+export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value", valueHead, keySuggest, only, renderValue, addLabel = "+ Add row", managed }: KvGridProps) {
   const rows = rowsOf(entry, sec)
     .map((r, i) => ({ r, i }))
     .filter(({ r, i }) => !only || only(r, i));
@@ -36,7 +39,7 @@ export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value
   const n = entry.Index;
   const vars = varSuggester(file);
   return (
-    <div className="kv-grid" role="table" aria-label={`${sec} rows`}>
+    <div className={`kv-grid ${sec}`} role="table" aria-label={`${sec} rows`}>
       {(rows.length > 0 || adding) && (
         <div className="kv-head" role="row">
           <span />
@@ -47,8 +50,9 @@ export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value
       )}
       {rows.map(({ r, i }) => {
         const multiline = r.Value.includes("\n");
+        const by = managed?.(r, i);
         return (
-          <div key={`${i}:${r.Key}`} className={`kv-row${r.Disabled ? " off" : ""}`} role="row">
+          <div key={`${i}:${r.Key}`} className={`kv-row${r.Disabled ? " off" : ""}${by ? " managed" : ""}`} role="row">
             <input
               type="checkbox"
               aria-label={`${r.Disabled ? "Enable" : "Disable"} ${r.Key}`}
@@ -70,9 +74,15 @@ export function KvGrid({ file, entry, sec, keyLabel = "Key", valueLabel = "Value
                 {r.Value.split("\n")[0]} …
               </span>
             ) : (
-              <SuggestInput label={`${valueLabel} ${i + 1}`} className="mono" value={r.Value} suggest={vars} onCommit={(v) => void setRow(file, n, sec, i, r.Key, v)} />
+              <SuggestInput label={`${valueLabel} ${i + 1}`} className="mono" highlight="vars" value={r.Value} suggest={vars} onCommit={(v) => void setRow(file, n, sec, i, r.Key, v)} />
             )}
-            <RowMenu file={file} entry={n} section={sec} index={i} count={rows.length} label={`${r.Key || keyLabel} ${i + 1}`} disabled={!!r.Disabled} copy={{ kind: "addRow", entry: n, section: sec, key: r.Key, value: r.Value }} />
+            {by ? (
+              <button className="kv-link" title={by.title} aria-label={by.title} onClick={by.open}>
+                ↗
+              </button>
+            ) : (
+              <RowMenu file={file} entry={n} section={sec} index={i} count={rows.length} label={`${r.Key || keyLabel} ${i + 1}`} disabled={!!r.Disabled} copy={{ kind: "addRow", entry: n, section: sec, key: r.Key, value: r.Value }} />
+            )}
           </div>
         );
       })}
@@ -113,7 +123,7 @@ function NewRow({ keyLabel, valueLabel, keySuggest, vars, onDone }: { keyLabel: 
     >
       <input type="checkbox" checked disabled aria-label="New row" />
       <SuggestInput label={`New ${keyLabel.toLowerCase()}`} className="mono" value={key} suggest={keySuggest} onCommit={(k) => { latest.current.key = k; setKey(k); }} placeholder={keyLabel} />
-      <SuggestInput label={`New ${valueLabel.toLowerCase()}`} className="mono" value={value} suggest={vars} onCommit={(v) => { latest.current.value = v; setValue(v); }} placeholder={valueLabel} />
+      <SuggestInput label={`New ${valueLabel.toLowerCase()}`} className="mono" highlight="vars" value={value} suggest={vars} onCommit={(v) => { latest.current.value = v; setValue(v); }} />
       <span />
     </div>
   );

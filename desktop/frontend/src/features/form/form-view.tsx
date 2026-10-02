@@ -9,7 +9,7 @@ import { useEffect } from "react";
 import { useUI } from "../../state/ui";
 import { openView } from "../editor/views";
 import { formEdit } from "./edit";
-import { GrpcForm } from "./grpc/grpc-form";
+import { GrpcForm, GrpcPickers } from "./grpc/grpc-form";
 import { authOf, bodyKindOf, countOf, shownEntry, useFileModel, useForm, type EntryModel } from "./model";
 import { RequestStrip } from "./request-strip";
 import { AssertsTab } from "./tabs/asserts";
@@ -20,7 +20,7 @@ import { HeadersTab } from "./tabs/headers";
 import { OptionsTab } from "./tabs/options";
 import { ParamsTab } from "./tabs/params";
 import { UrlBar } from "./url-bar";
-import { WriteBackPreview } from "./write-back-preview";
+import { WriteBackPreview, type WriteBackFocus } from "./write-back-preview";
 import { useTabs } from "../../state/tabs";
 import "./form.css";
 
@@ -60,6 +60,45 @@ function tabsOf(e: EntryModel, grpc: boolean): { id: string; title: string; note
   ];
 }
 
+// The marks are kept here: a new function would remake the preview.
+const marks = {
+  query: (l: string) => /^\[(Query|QueryStringParams)\]\s*$/.test(l),
+  fileRow: (l: string) => /^[^#\s][^:]*:\s*file,/.test(l),
+  form: (l: string) => /^\[(Form|FormParams)\]\s*$/.test(l),
+  grpc: (l: string) => /^\[SondeGrpc\]\s*$/.test(l),
+};
+
+/** What the write-back preview shows under a tab; null: none (Auth
+ * shows its own lines; Headers and Options show theirs in the rows). */
+export function writeBackFocus(tab: string, entry: EntryModel, file: string): WriteBackFocus | null {
+  const request = `Writes to request ${entry.Index}`;
+  switch (tab) {
+    case "params":
+      return { title: request, sub: "the URL stays readable; params live in [Query]", part: "request", mark: marks.query };
+    case "auth":
+    case "headers":
+    case "options":
+      return null;
+    case "body":
+      switch (bodyKindOf(entry)) {
+        case "form-data":
+          return { sub: "unchecked rows become # comments", part: "request", mark: marks.fileRow };
+        case "urlencoded":
+          return { sub: "unchecked rows become # comments", part: "request", mark: marks.form };
+        case "graphql":
+          return null;
+        default:
+          return { part: "request" };
+      }
+    case "message":
+      return { title: `Writes to ${file}`, sub: "method is always POST", mark: marks.grpc };
+    case "captures":
+    case "asserts":
+      return { part: "response" };
+  }
+  return {};
+}
+
 export function FormView({ file }: { file: string }) {
   // The Text editor holds the tab's text and undo history, shown or not.
   useEffect(() => void openView(file), [file]);
@@ -91,6 +130,7 @@ export function FormView({ file }: { file: string }) {
   const grpc = file.endsWith(".sonde") && !!entry.Rows?.grpc;
   const tabs = tabsOf(entry, grpc);
   const current = tabs.some((t) => t.id === tab) ? tab : tabs[0].id;
+  const focus = writeBackFocus(current, entry, file);
   let content;
   switch (current) {
     case "message":
@@ -115,7 +155,8 @@ export function FormView({ file }: { file: string }) {
       content = <AssertsTab file={file} entry={entry} />;
       break;
     case "options":
-      content = <OptionsTab file={file} entry={entry} />;
+      // Its More options open state belongs to the request.
+      content = <OptionsTab key={entry.Index} file={file} entry={entry} />;
       break;
   }
   return (
@@ -123,6 +164,7 @@ export function FormView({ file }: { file: string }) {
       <RequestStrip file={file} entries={entries} current={entry.Index} />
       {model.invalid && <p className="form-invalid">The text does not read right now ({model.invalid}): the form shows it as it last read.</p>}
       <UrlBar file={file} entry={entry} grpcHint={grpc} />
+      {grpc && <GrpcPickers file={file} entry={entry} />}
       <div className="form-tabs" role="tablist" aria-label="Request parts">
         {tabs.map((t) => (
           <button key={t.id} role="tab" aria-selected={t.id === current} onClick={() => useForm.getState().setTab(t.id)}>
@@ -135,7 +177,7 @@ export function FormView({ file }: { file: string }) {
       <div role="tabpanel" aria-label={tabs.find((t) => t.id === current)?.title}>
         {content}
       </div>
-      <WriteBackPreview file={file} entry={entry} count={entries.length} version={model.version} />
+      {focus && <WriteBackPreview file={file} entry={entry} count={entries.length} version={model.version} focus={focus} />}
     </div>
   );
 }

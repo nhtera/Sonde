@@ -5,11 +5,12 @@
 // options set differently from the default are written; clearing one
 // removes its line. Other options are raw rows under More options.
 
-import type { ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { formEdit, type Op } from "../edit";
 import { KvGrid } from "../kv-grid";
 import { countOf, rowsOf, type EntryModel } from "../model";
 import { SuggestInput } from "../suggest-input";
+import { Chevron } from "../url-bar";
 
 const versions = ["http1.0", "http1.1", "http2", "http3"];
 /** The options the controls own; the rest are More options. */
@@ -70,12 +71,25 @@ export function OptionsTab({ file, entry }: { file: string; entry: EntryModel })
       .filter((k) => get(k))
       .map((k) => `${k}: ${get(k)}`)
       .join(" · ") || "default";
-  const text = (key: string, label: string, placeholder = "default") => (
-    <SuggestInput label={label} className="mono opt-input" value={get(key)} placeholder={placeholder} onCommit={(v) => set(key, v.trim())} />
-  );
+  // A value chip, sized to its text: "max 5", "every 500ms".
+  const text = (key: string, label: string, affix: { pre?: string; post?: string; placeholder?: string } = {}) => {
+    const v = get(key);
+    const placeholder = affix.placeholder ?? "default";
+    return (
+      <label className="opt-chip" style={{ "--w": `${Math.max((v || placeholder).length, 1)}ch` } as CSSProperties}>
+        {v && affix.pre && <span>{affix.pre}</span>}
+        <SuggestInput label={label} className="mono" highlight={false} value={v} placeholder={placeholder} onCommit={(n) => set(key, n.trim())} />
+        {v && affix.post && <span>{affix.post}</span>}
+      </label>
+    );
+  };
   const toggle = (key: string, label: string) => (
     <input type="checkbox" role="switch" className="switch" aria-label={label} checked={get(key) === "true"} onChange={(e) => set(key, e.target.checked ? "true" : "")} />
   );
+  const extra = rows.filter((r) => !controlled.has(r.Key)).length;
+  const [more, setMore] = useState(extra > 0);
+  // HTTP/1.0 is offered only when the file already asks for it.
+  const shown = versions.filter((v) => v !== "http1.0" || version === v);
   return (
     <div className="form-tab options-tab">
       <div className="opt-head">
@@ -85,7 +99,7 @@ export function OptionsTab({ file, entry }: { file: string; entry: EntryModel })
       </div>
       <Opt name="Follow redirects" hint="Up to a maximum number of hops" writes={writes("location", "max-redirs")}>
         {toggle("location", "Follow redirects")}
-        {text("max-redirs", "Maximum redirects", "max")}
+        {text("max-redirs", "Maximum redirects", { pre: "max", placeholder: "max" })}
       </Opt>
       <Opt name="Connect timeout" hint="Time to open the connection" writes={writes("connect-timeout")}>
         {text("connect-timeout", "Connect timeout")}
@@ -94,21 +108,31 @@ export function OptionsTab({ file, entry }: { file: string; entry: EntryModel })
         {text("max-time", "Max time")}
       </Opt>
       <Opt name="Retry" hint="Retry until asserts pass" writes={writes("retry", "retry-interval")}>
-        {text("retry", "Retry times", "times")}
-        {text("retry-interval", "Retry interval", "every")}
+        {text("retry", "Retry times", { post: "times", placeholder: "times" })}
+        {text("retry-interval", "Retry interval", { pre: "every", placeholder: "every" })}
       </Opt>
       <Opt name="Delay" hint="Wait before sending" writes={writes("delay")}>
-        {text("delay", "Delay")}
+        {text("delay", "Delay", { placeholder: "0 ms" })}
       </Opt>
-      <Opt name="Skip TLS verification" hint="Accept any certificate" writes={writes("insecure")}>
+      <Opt
+        name="Skip TLS verification"
+        hint="Accept any certificate"
+        writes={writes("insecure")}
+        warn={get("insecure") === "true"}
+        after={
+          get("insecure") === "true" && (
+            <p className="opt-warn">
+              <span aria-hidden>⚠</span>
+              <span>Certificates are not checked for this request. Prefer adding a CA file in Settings → Certificates.</span>
+            </p>
+          )
+        }
+      >
         {toggle("insecure", "Skip TLS verification")}
       </Opt>
-      {get("insecure") === "true" && (
-        <p className="opt-warn">⚠ Certificates are not checked for this request. Prefer adding a CA file in Settings → Certificates.</p>
-      )}
       <Opt name="HTTP version" hint="Negotiated when Auto" writes={writes(...versions)}>
-        <div className="segmented" role="group" aria-label="HTTP version">
-          {["", ...versions].map((v) => (
+        <div className="segmented opt-seg" role="group" aria-label="HTTP version">
+          {["", ...shown].map((v) => (
             <button key={v} aria-pressed={version === v} onClick={() => setVersion(v)}>
               {v ? v.replace("http", "") : "Auto"}
             </button>
@@ -116,25 +140,35 @@ export function OptionsTab({ file, entry }: { file: string; entry: EntryModel })
         </div>
       </Opt>
       <Opt name="Proxy" hint="Overrides Settings → Network" writes={writes("proxy")}>
-        {text("proxy", "Proxy", "none")}
+        {text("proxy", "Proxy", { placeholder: "none" })}
       </Opt>
       <Opt name="Compressed" hint="Ask for gzip/br and decode" writes={writes("compressed")}>
         {toggle("compressed", "Compressed")}
       </Opt>
       <div className="opt-more">
         <div>
-          <b>More options</b>
+          <button className="opt-more-toggle" aria-expanded={more} onClick={() => setMore(!more)}>
+            More options
+            <Chevron />
+          </button>
           <span className="muted">Raw key: value rows for everything else</span>
         </div>
         <div className="opt-chips">
           {extras.map(([k, v]) => (
-            <button key={k} className="chip" onClick={() => void formEdit(file, { kind: "addRow", entry: entry.Index, section: "options", key: k, value: v })}>
+            <button
+              key={k}
+              className="opt-add"
+              onClick={() => {
+                setMore(true);
+                void formEdit(file, { kind: "addRow", entry: entry.Index, section: "options", key: k, value: v });
+              }}
+            >
               + {k}
             </button>
           ))}
         </div>
       </div>
-      <KvGrid file={file} entry={entry} sec="options" keyLabel="Option" only={(r) => !controlled.has(r.Key)} addLabel="+ Add option" />
+      {more && <KvGrid file={file} entry={entry} sec="options" keyLabel="Option" only={(r) => !controlled.has(r.Key)} addLabel="+ Add option" />}
       <p className="form-note">
         Only changed options are written. This request has {countOf(entry, "options")} line{countOf(entry, "options") === 1 ? "" : "s"} in [Options], matching the tab count.
       </p>
@@ -142,7 +176,7 @@ export function OptionsTab({ file, entry }: { file: string; entry: EntryModel })
   );
 }
 
-function Opt({ name, hint, writes, children }: { name: string; hint: string; writes: string; children: ReactNode }) {
+function Opt({ name, hint, writes, warn, after, children }: { name: string; hint: string; writes: string; warn?: boolean; after?: ReactNode; children: ReactNode }) {
   return (
     <div className="opt-row">
       <div>
@@ -150,7 +184,8 @@ function Opt({ name, hint, writes, children }: { name: string; hint: string; wri
         <div className="muted">{hint}</div>
       </div>
       <div className="opt-controls">{children}</div>
-      <div className={`opt-writes mono${writes === "default" ? " muted" : ""}`}>{writes}</div>
+      <div className={`opt-writes mono${writes === "default" ? " muted" : ""}${warn ? " warn" : ""}`}>{writes}</div>
+      {after}
     </div>
   );
 }

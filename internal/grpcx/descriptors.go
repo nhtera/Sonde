@@ -211,6 +211,46 @@ type MethodInfo struct {
 	ServerStreaming bool
 	// Input and Output are the full names of the message types.
 	Input, Output string
+	// InputFields are the input message's fields, in declaration order.
+	InputFields []FieldInfo
+}
+
+// FieldInfo describes a field of a message: Type is as written in a
+// .proto ("string", "repeated int32", "map<string, Item>", "pkg.Item").
+type FieldInfo struct {
+	Name   string
+	Type   string
+	Number int
+}
+
+// fieldsOf lists md's fields.
+func fieldsOf(md protoreflect.MessageDescriptor) []FieldInfo {
+	var out []FieldInfo
+	for i := range md.Fields().Len() {
+		fd := md.Fields().Get(i)
+		out = append(out, FieldInfo{Name: string(fd.Name()), Type: typeName(fd), Number: int(fd.Number())})
+	}
+	return out
+}
+
+// typeName is fd's type as a .proto writes it.
+func typeName(fd protoreflect.FieldDescriptor) string {
+	if fd.IsMap() {
+		return "map<" + typeName(fd.MapKey()) + ", " + typeName(fd.MapValue()) + ">"
+	}
+	var t string
+	switch fd.Kind() {
+	case protoreflect.MessageKind, protoreflect.GroupKind:
+		t = string(fd.Message().FullName())
+	case protoreflect.EnumKind:
+		t = string(fd.Enum().FullName())
+	default:
+		t = fd.Kind().String()
+	}
+	if fd.IsList() {
+		return "repeated " + t
+	}
+	return t
 }
 
 // Services lists every service of the descriptors, sorted by name, with
@@ -230,6 +270,7 @@ func (d *Descriptors) Services() []Service {
 					ServerStreaming: md.IsStreamingServer(),
 					Input:           string(md.Input().FullName()),
 					Output:          string(md.Output().FullName()),
+					InputFields:     fieldsOf(md.Input()),
 				})
 			}
 			out = append(out, s)

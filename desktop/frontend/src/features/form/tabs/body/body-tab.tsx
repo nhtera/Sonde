@@ -83,7 +83,7 @@ export function BodyTab({ file, entry }: { file: string; entry: EntryModel }) {
       content = <FormData file={file} entry={entry} />;
       break;
     case "urlencoded":
-      content = <KvGrid file={file} entry={entry} sec="form" addLabel="+ Add field" />;
+      content = <KvGrid file={file} entry={entry} sec="form" />;
       break;
     case "json":
       content = <CodeField label="JSON body" language={jsonBodyLanguage} value={entry.Body} onCommit={(v) => setBody(v.trim() || "{}")} minLines={8} />;
@@ -100,19 +100,24 @@ export function BodyTab({ file, entry }: { file: string; entry: EntryModel }) {
     case "graphql": {
       const { query, variables } = graphqlParts(entry.Body);
       content = (
-        <div className="graphql-body">
-          <div>
-            <div className="pane-head">Query</div>
-            <CodeField label="GraphQL query" language={graphqlLanguage} value={query} onCommit={(q) => setBody(graphqlBody(q, variables))} minLines={10} />
-          </div>
-          <div>
-            <div className="pane-head">
-              Variables <span className="muted">JSON</span>
+        <>
+          <div className="graphql-title">Query and variables</div>
+          <div className="graphql-body">
+            <div className="gq-pane">
+              <div className="pane-head">Query</div>
+              <CodeField label="GraphQL query" language={graphqlLanguage} value={query} onCommit={(q) => setBody(graphqlBody(q, variables))} minLines={18} />
             </div>
-            <CodeField label="GraphQL variables" language={jsonBodyLanguage} value={variables} onCommit={(v) => setBody(graphqlBody(query, v))} minLines={10} />
+            <div className="gq-pane">
+              <div className="pane-head">
+                Variables <span className="kind">JSON</span>
+              </div>
+              <CodeField label="GraphQL variables" language={jsonBodyLanguage} value={variables} onCommit={(v) => setBody(graphqlBody(query, v))} minLines={14} />
+              <p className="gq-note">
+                Stored in the file as a <code>```graphql</code> body with a <code>variables</code> block.
+              </p>
+            </div>
           </div>
-          <p className="form-note">Stored in the file as a ```graphql body with a variables block.</p>
-        </div>
+        </>
       );
       break;
     }
@@ -138,18 +143,21 @@ export function BodyTab({ file, entry }: { file: string; entry: EntryModel }) {
               <input type="radio" name={`body-${n}`} aria-label={k.label} checked={on} onChange={() => void formEdit(file, ...bodyKindOps(entry, k.kind))} />
               {k.label}
               {raw && (
-                <select
-                  className="raw-kind"
-                  aria-label="Raw body type"
-                  value={isRaw(kind) ? kind : "json"}
-                  onChange={(e) => void formEdit(file, ...bodyKindOps(entry, e.target.value as BodyKind))}
-                >
-                  {raws.map((r) => (
-                    <option key={r.kind} value={r.kind}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
+                <span className="raw-pick">
+                  <select
+                    className="raw-kind"
+                    aria-label="Raw body type"
+                    value={isRaw(kind) ? kind : "json"}
+                    onChange={(e) => void formEdit(file, ...bodyKindOps(entry, e.target.value as BodyKind))}
+                  >
+                    {raws.map((r) => (
+                      <option key={r.kind} value={r.kind}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span aria-hidden>▾</span>
+                </span>
               )}
             </label>
           );
@@ -157,6 +165,15 @@ export function BodyTab({ file, entry }: { file: string; entry: EntryModel }) {
       </div>
       {content}
     </div>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg className="file-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.1" aria-hidden>
+      <path d="M3 1.5h4l2.5 2.5v6.5H3z" />
+      <path d="M7 1.5V4h2.5" />
+    </svg>
   );
 }
 
@@ -194,12 +211,19 @@ function FormData({ file, entry }: { file: string; entry: EntryModel }) {
               </span>
               {f ? (
                 <>
-                  <SuggestInput label={`${r.Key} file`} className="mono" value={f.path} onCommit={(p) => p.trim() && void asFile(p.trim())} />
+                  <span className="file-field">
+                    <FileIcon />
+                    <SuggestInput label={`${r.Key} file`} className="mono" value={f.path} onCommit={(p) => p.trim() && void asFile(p.trim())} />
+                  </span>
                   <SelectFile onPath={(p) => void asFile(p)} onOutside={(o) => setOutside({ row: i, o })} />
-                  <SuggestInput label={`${r.Key} content type`} className="mono ct" value={f.type} placeholder="content type" onCommit={(ct) => void asFile(f.path, ct.trim())} />
+                  <SuggestInput label={`${r.Key} content type`} className="mono ct" highlight={false} value={f.type} onCommit={(ct) => void asFile(f.path, ct.trim())} />
                 </>
               ) : (
-                <SuggestInput label={`${r.Key} value`} className="mono" value={r.Value} onCommit={(v) => write(r, i, v)} />
+                <>
+                  <SuggestInput label={`${r.Key} value`} className="mono" highlight="vars" value={r.Value} onCommit={(v) => write(r, i, v)} />
+                  {/* A text field has no content type: its cell stays empty. */}
+                  <span className="ct ct-none" aria-hidden />
+                </>
               )}
             </span>
           );
@@ -216,7 +240,14 @@ function FormData({ file, entry }: { file: string; entry: EntryModel }) {
           }}
         />
       )}
-      <p className="form-note">Paths are relative to the project folder; unchecked rows become # comments.</p>
+      <p className="form-note info">
+        <span className="i" aria-hidden>
+          i
+        </span>
+        <span>
+          Paths are relative to the project folder. The CLI resolves them from each file's own folder and rejects .., so Copy as › sonde adds <code>--file-root .</code>
+        </span>
+      </p>
     </>
   );
 }

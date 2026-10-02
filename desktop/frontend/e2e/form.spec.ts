@@ -22,7 +22,8 @@ const request = (page: Page, n: number) => page.getByRole("tablist", { name: "Re
 
 /** Commits a form field: fill, then Enter. */
 async function set(page: Page, label: string, value: string) {
-  const f = page.getByRole("textbox", { name: label, exact: true });
+  // (A field with a list of choices is a combobox.)
+  const f = page.getByRole("textbox", { name: label, exact: true }).or(page.getByRole("combobox", { name: label, exact: true }));
   await f.fill(value);
   await f.press("Enter");
 }
@@ -115,7 +116,7 @@ test("an edit next to emoji and CJK lands on the right columns", async ({ page }
   await tab(page, "Headers");
   await set(page, "Value 1", "🚀 lift-off 名前");
   await tab(page, "Params");
-  await page.getByRole("button", { name: "+ Add parameter" }).click();
+  await page.getByRole("button", { name: "+ Add row" }).click();
   await page.getByRole("textbox", { name: "New key" }).fill("lang");
   await page.getByRole("textbox", { name: "New value" }).fill("日本語");
   await page.getByRole("textbox", { name: "New value" }).press("Enter");

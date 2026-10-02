@@ -2,5 +2,12 @@
 POST http://127.0.0.1:50051/inventory.v1.Inventory/GetStock
 [SondeGrpc]
 proto: protos/inventory.proto
-{"sku": "TEA-EARL-250", "warehouse": "ams-1"}
+{
+  "sku": "TEA-EARL-250",
+  "warehouse": "{{warehouse}}",
+  "include_reserved": true
+}
 HTTP 200
+[Asserts]
+sondeGrpc == "OK"
+jsonpath "$.available" == 12

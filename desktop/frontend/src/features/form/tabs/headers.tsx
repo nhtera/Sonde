@@ -7,11 +7,9 @@
 
 import { useRuns } from "../../../state/run";
 import { KvGrid } from "../kv-grid";
-import { bodyKindOf, rowsOf, type EntryModel } from "../model";
+import { authOf, bodyKindOf, rowsOf, useForm, type EntryModel } from "../model";
 import { listSuggester } from "../suggest-input";
 import { headerNames } from "./header-names";
-
-const names = listSuggester(headerNames);
 
 const contentTypes: Partial<Record<string, string>> = {
   json: "application/json",
@@ -44,9 +42,20 @@ export function automaticHeaders(entry: EntryModel, sent?: { name: string; value
 export function HeadersTab({ file, entry }: { file: string; entry: EntryModel }) {
   const sent = useRuns((s) => s.runs[file]?.entries[entry.Index]?.calls?.[0]?.request.headers ?? undefined);
   const auto = automaticHeaders(entry, sent);
+  // Names offered: those the request does not set yet.
+  const own = new Set(rowsOf(entry, "headers").map((r) => r.Key.toLowerCase()));
+  const names = listSuggester(headerNames.filter((h) => !own.has(h.name.toLowerCase())));
+  const auth = authOf(entry);
   return (
     <div className="form-tab">
-      <KvGrid file={file} entry={entry} sec="headers" keyLabel="Header" keySuggest={names} addLabel="+ Add header" />
+      <KvGrid
+        file={file}
+        entry={entry}
+        sec="headers"
+        keyLabel="Header"
+        keySuggest={names}
+        managed={(_, i) => (auth.sec === "headers" && auth.index === i ? { title: "Set in the Auth tab", open: () => useForm.getState().setTab("auth") } : undefined)}
+      />
       <section className="auto-headers" aria-label="Headers Sonde adds">
         <div className="section-note">
           <span>Added by Sonde{sent ? " (as the last run sent them)" : ""}</span>

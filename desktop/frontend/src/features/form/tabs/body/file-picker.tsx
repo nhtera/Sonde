@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { appError, Dialogs, WorkspaceDesktop } from "../../../../lib/api";
-import { serverMode } from "../../../../lib/mode";
+import { windowLook } from "../../../../lib/mode";
 import { useUI } from "../../../../state/ui";
 import { useWorkspace } from "../../../../state/workspace";
 
@@ -20,7 +20,7 @@ export interface Outside {
 /** A "Select file…" button: onPath gets a project path; a file outside
  * the project is reported with onOutside. */
 export function SelectFile({ onPath, onOutside }: { onPath(path: string): void; onOutside(o: Outside): void }) {
-  if (serverMode) return null;
+  if (!windowLook) return null;
   const pick = async () => {
     try {
       const handle = await Dialogs.OpenFile("Select a file", "", "");

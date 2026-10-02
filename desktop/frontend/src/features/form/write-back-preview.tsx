@@ -6,11 +6,12 @@
 // the lines that will be saved, comments kept.
 
 import { unifiedMergeView } from "@codemirror/merge";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorState, RangeSetBuilder } from "@codemirror/state";
+import { Decoration, EditorView } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
 import { sondeLanguage } from "../../lang";
 import { useTabs } from "../../state/tabs";
+import { methodColors } from "../editor/methods";
 import { editorHighlight, editorTheme } from "../editor/theme";
 import { lineOf, type EntryModel } from "./model";
 
@@ -19,7 +20,29 @@ import { lineOf, type EntryModel } from "./model";
  * removed moves the others: the baselines start again). */
 const originals = new Map<string, { count: number; texts: Map<number, string> }>();
 
-export function WriteBackPreview({ file, entry, count, version }: { file: string; entry: EntryModel; count: number; version: number }) {
+/** What the preview shows for a tab: its title and note, the part of
+ * the request the tab writes, and the lines it marks. */
+export interface WriteBackFocus {
+  title?: string;
+  sub?: string;
+  /** "response": from the HTTP line on; "request": the lines before it. */
+  part?: "request" | "response";
+  mark?: (line: string) => boolean;
+}
+
+/** The part of a request's text the preview shows, and where it starts
+ * (in characters). */
+export function partOf(text: string, part: WriteBackFocus["part"]): { text: string; at: number } {
+  if (!part) return { text, at: 0 };
+  // The response line: HTTP, a version maybe, a status or *.
+  const m = /^HTTP(\/[\d.]+)?[ \t]+(\d{3}|\*)[ \t]*$/m.exec(text);
+  const cut = m ? m.index : text.length;
+  return part === "request" ? { text: text.slice(0, cut), at: 0 } : { text: text.slice(cut), at: cut };
+}
+
+const marked = Decoration.line({ class: "wb-mark" });
+
+export function WriteBackPreview({ file, entry, count, version, focus = {} }: { file: string; entry: EntryModel; count: number; version: number; focus?: WriteBackFocus }) {
   const tab = useTabs((s) => s.tabs.find((t) => t.path === file));
   const text = tab?.text ?? "";
   // The model's ranges hold for the text it was read from only: until it
@@ -37,7 +60,10 @@ export function WriteBackPreview({ file, entry, count, version }: { file: string
     const original = o.texts.get(entry.Index)!;
     if (shown.current !== current || shown.original !== original) setShown({ current, original });
   }
-  const { current, original } = shown;
+  const cur = partOf(shown.current, focus.part);
+  const current = cur.text;
+  const original = partOf(shown.original, focus.part).text;
+  const { mark } = focus;
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const v = new EditorView({
@@ -50,22 +76,32 @@ export function WriteBackPreview({ file, entry, count, version }: { file: string
           sondeLanguage(),
           editorTheme,
           editorHighlight,
-          unifiedMergeView({ original, mergeControls: false, gutter: true }),
+          methodColors,
+          unifiedMergeView({ original, mergeControls: false, gutter: false }),
           EditorView.contentAttributes.of({ "aria-label": "Lines written to the file" }),
+          EditorView.decorations.of((view) => {
+            const b = new RangeSetBuilder<Decoration>();
+            if (mark) {
+              for (let n = 1; n <= view.state.doc.lines; n++) {
+                const line = view.state.doc.line(n);
+                if (mark(line.text)) b.add(line.from, line.from, marked);
+              }
+            }
+            return b.finish();
+          }),
         ],
       }),
     });
     return () => v.destroy();
-  }, [current, original]);
-  const from = lineOf(text, entry.Range.Start);
-  const to = lineOf(text, entry.Range.End);
+  }, [current, original, mark]);
+  const start = entry.Range.Start + cur.at;
+  const from = lineOf(text, start);
+  const to = focus.part ? lineOf(text, start + current.replace(/\n+$/, "").length) : lineOf(text, entry.Range.End);
   return (
     <section className="write-back" aria-label="Write-back preview">
       <div className="section-note">
-        <span>Writes to {file}</span>
-        <span>
-          lines {from}–{to} · comments kept
-        </span>
+        <span>{focus.title ?? `Writes to ${file}`}</span>
+        <span className="sub">{focus.sub ?? `lines ${from}–${to} · comments kept`}</span>
       </div>
       <div ref={host} />
     </section>

@@ -4,7 +4,10 @@
 import { useRuns } from "../../state/run";
 import { formEdit } from "./edit";
 import type { EntryModel } from "./model";
-import { SuggestInput } from "./suggest-input";
+import { ListInput } from "./list-input";
+
+/** Statuses offered (any other can be typed; * is any). */
+const statuses = ["200", "201", "202", "204", "301", "302", "304", "400", "401", "403", "404", "409", "422", "429", "500", "503", "*"];
 
 /** The expected status: it writes the `HTTP N` line (never an assert
  * row), with the last run's result next to it. */
@@ -15,12 +18,18 @@ export function ExpectedStatus({ file, entry }: { file: string; entry: EntryMode
   return (
     <div className="expected-status">
       <span className="label">Expected status</span>
-      <SuggestInput
+      <datalist id="statuses">
+        {statuses.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
+      <ListInput
         label="Expected status"
-        className="mono status-input"
+        list="statuses"
+        className="status-input"
         value={status}
         placeholder="none"
-        onCommit={(v) => /^(\*|\d{3})$/.test(v.trim()) && void formEdit(file, { kind: "setStatus", entry: entry.Index, value: v.trim() })}
+        onCommit={(v) => /^(\*|\d{3})$/.test(v) && void formEdit(file, { kind: "setStatus", entry: entry.Index, value: v })}
       />
       {got !== undefined && status !== "" && (
         <span className={ok ? "pass" : "fail"} title={`The last run got ${got}`}>

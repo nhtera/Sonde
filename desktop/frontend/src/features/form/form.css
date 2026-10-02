@@ -5,11 +5,11 @@
 
 .form-view { height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 0; padding-bottom: 24px; font-size: 12.5px; }
 .form-view input:not([type]), .form-view input[type="text"], .form-view select, .form-view .new-check input {
-  height: 30px; min-width: 0; padding: 0 9px; border: 0; border-radius: 6px; background: var(--bg);
+  height: 30px; min-width: 0; padding: 0 9px; border: 0; border-radius: 6px; background: var(--panel);
   box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12.5px var(--font-ui); outline: 0;
 }
 .form-view input.mono, .form-view .new-check input.mono { font-family: var(--font-code); font-size: 12px; font-variant-ligatures: none; }
-.form-view input:focus { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.form-view input:focus { box-shadow: inset 0 0 0 1px var(--accent); }
 .form-view input[readonly] { color: var(--muted); }
 .form-view .form-note { margin: 8px 16px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .form-view .form-note.fail { color: var(--fail); }
@@ -21,102 +21,187 @@
 .form-view .fail { color: var(--fail); }
 
 /* Strip, URL bar, tabs */
-.form-view .request-strip { display: flex; gap: 4px; padding: 8px 12px; overflow-x: auto; box-shadow: inset 0 -1px 0 var(--line2); flex: none; }
+.form-view .request-strip { display: flex; gap: 4px; padding: 10px 12px; overflow-x: auto; box-shadow: inset 0 -1px 0 var(--line2); flex: none; }
 .form-view .strip-chip, .form-view .add-request {
   flex: none; height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-radius: 6px;
-  background: transparent; color: var(--muted); font: 500 12px var(--font-ui); white-space: nowrap;
+  background: transparent; color: var(--muted); font: 400 12px var(--font-code); white-space: nowrap;
 }
+.form-view .add-request { font: 500 12px var(--font-ui); }
 .form-view .strip-chip[aria-selected="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
 .form-view .strip-chip .idx { color: var(--faint); font-size: 11px; }
 .form-view .strip-chip .mth { font: 600 10.5px var(--font-code); }
-.form-view .strip-chip .path { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.form-view .strip-chip .path { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .form-view .add-request { color: var(--accent); }
-.form-view .url-bar { display: flex; gap: 8px; padding: 12px 16px 8px; align-items: center; flex: none; }
-.form-view .url-bar .method { width: 96px; font-family: var(--font-code); font-weight: 600; }
+.form-view .url-bar { display: flex; gap: 6px; padding: 14px 16px 12px; align-items: center; flex: none; }
+/* The method: a pill in the method's color, its chevron too. */
+.form-view .method-pick { position: relative; flex: none; display: inline-flex; }
+.form-view .method-pick select.method {
+  appearance: none; -webkit-appearance: none; height: 34px; padding: 0 26px 0 10px; border-radius: 7px; background: var(--panel);
+  color: inherit; font: 600 12px var(--font-code); cursor: pointer;
+}
+.form-view .method-pick .chev { position: absolute; right: 10px; top: 50%; translate: 0 -50%; pointer-events: none; }
+.form-view .method-pick.m-get { color: var(--m-get); }
+.form-view .method-pick.m-post { color: var(--m-post); }
+.form-view .method-pick.m-put { color: var(--m-put); }
+.form-view .method-pick.m-patch { color: var(--m-patch); }
+.form-view .method-pick.m-delete { color: var(--m-delete); }
+.form-view .method-pick.m-other { color: var(--text); }
 .form-view .url-field { flex: 1; min-width: 0; position: relative; display: flex; }
 .form-view .url-field .suggest, .form-view .url-field input { flex: 1; width: 100%; height: 34px; }
-.form-view .send-split { display: inline-flex; }
-.form-view .send-split .btn-primary { height: 34px; border-radius: 6px 0 0 6px; }
-.form-view .send-split .btn-primary.split { border-radius: 0 6px 6px 0; margin-left: 1px; padding: 0 8px; }
-.send-menu { min-width: 300px; }
+.form-view .url-field input { padding: 0 12px; border-radius: 7px; font-size: 12.5px; }
+/* Send: raised, its split after a line. */
+.form-view .send-split { display: inline-flex; height: 34px; border-radius: 7px; background: var(--raised); flex: none; }
+.form-view .send-split > button {
+  height: 34px; display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--text); font: 600 12.5px var(--font-ui);
+}
+.form-view .send-split > button:hover { background: var(--hover); }
+.form-view .send-split > button.send { padding: 0 8px 0 14px; border-radius: 7px 0 0 7px; }
+.form-view .send-split > button.send kbd { background: var(--bg); color: var(--muted); }
+.form-view .send-split > button.split { padding: 0 11px; border-radius: 0 7px 7px 0; box-shadow: inset 1px 0 0 var(--line); }
+.send-menu { width: 360px; border-radius: 10px; }
+.send-menu .menu-item.tall[data-highlighted] { background: var(--accent-soft); }
+.send-menu .menu-item .hint { color: var(--muted); }
+.send-menu .menu-item b { font-weight: 500; }
+.send-menu .menu-note { margin: 6px 0 0; padding: 6px 10px 5px; box-shadow: inset 0 1px 0 var(--line2); color: var(--faint); font-size: 11px; }
 .menu-item.tall { display: grid; grid-template-columns: 1fr auto; row-gap: 2px; padding: 8px 10px; height: auto; }
 .menu-item.tall .sub { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; white-space: normal; }
-.form-view .form-tabs { display: flex; gap: 14px; padding: 0 16px; box-shadow: inset 0 -1px 0 var(--line2); flex: none; }
-.form-view .form-tabs button { height: 34px; padding: 0; border: 0; background: none; color: var(--muted); font: 500 12.5px var(--font-ui); box-shadow: inset 0 -2px 0 transparent; }
+.form-view .form-tabs { display: flex; gap: 18px; padding: 0 16px; box-shadow: inset 0 -1px 0 var(--line2); flex: none; }
+.form-view .form-tabs button { height: 32px; padding: 6px 0 9px; display: inline-flex; align-items: baseline; border: 0; background: none; color: var(--muted); font: 500 12.5px var(--font-ui); box-shadow: inset 0 -2px 0 transparent; }
 .form-view .form-tabs button[aria-selected="true"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
-.form-view .form-tabs .n { margin-left: 5px; color: var(--faint); font: 500 11px var(--font-code); }
+.form-view .form-tabs .n { margin-left: 3px; color: var(--faint); font: 500 11px var(--font-code); }
 .form-view .form-tab { padding: 12px 16px 4px; }
 
 /* Suggestions */
 .form-view .suggest { position: relative; display: flex; min-width: 0; }
 .form-view .suggest input { width: 100%; }
-.form-view .suggest-list {
-  position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; min-width: 260px; max-width: 420px; margin: 0; padding: 4px; list-style: none;
-  border-radius: 8px; background: var(--raised); box-shadow: var(--pop);
+.suggest-list {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 330px; max-width: 420px; margin: 0; padding: 4px; list-style: none;
+  border-radius: 10px; background: var(--raised); box-shadow: var(--pop), inset 0 0 0 1px var(--line);
 }
-.form-view .suggest-list li { display: grid; grid-template-columns: 1fr auto; column-gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: default; }
-.form-view .suggest-list li[aria-selected="true"] { background: var(--hover); }
-.form-view .suggest-list .src { color: var(--faint); font-size: 11px; }
-.form-view .suggest-list .detail { grid-column: 1 / -1; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-list li { display: grid; grid-template-columns: 1fr auto; column-gap: 10px; row-gap: 1px; padding: 6px 9px; border-radius: 6px; cursor: default; }
+.suggest-list li[aria-selected="true"] { background: var(--accent-soft); }
+.suggest-list li .mono { font: 12px var(--font-code); color: var(--text); }
+.suggest-list li[aria-selected="true"] > .mono:first-child { color: var(--t-var); }
+/* A key's list opens under it, from the left. */
+.form-view .kv-row > .suggest:first-of-type .suggest-list, .form-view .new-row > .suggest:first-of-type .suggest-list { right: auto; left: 0; }
+.suggest-list .src { color: var(--muted); font: 11px var(--font-ui); text-align: right; }
+/* A name's description (no source) in the UI font; a value in code. */
+.suggest-list li:not(:has(.src)) .detail { font-family: var(--font-ui); }
+.suggest-list .detail { grid-column: 1 / -1; color: var(--muted); font: 11px var(--font-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-list li.secret .src, .suggest-list li.secret .detail { color: var(--warn); }
+.suggest-list li.foot { display: flex; gap: 12px; margin-top: 2px; padding: 7px 9px 5px; border-radius: 0; box-shadow: inset 0 1px 0 var(--line2); color: var(--faint); font: 11px var(--font-ui); }
 
 /* Grids */
 .form-view .kv-grid, .form-view .check-grid { display: flex; flex-direction: column; gap: 5px; }
+.form-view .check-grid { gap: 4px; }
 .form-view .kv-head, .form-view .kv-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1.6fr) 24px; gap: 6px; align-items: center; }
-.form-view .kv-head, .form-view .check-head { color: var(--muted); font-size: 11.5px; padding-bottom: 2px; }
-.form-view .kv-row.off input:not([type="checkbox"]), .form-view .check-row.off input:not([type="checkbox"]) { color: var(--faint); }
-.form-view .kv-row.new { opacity: 0.9; }
+.form-view .kv-head, .form-view .check-head { color: var(--faint); font-size: 11.5px; font-weight: 500; line-height: normal; padding: 0 2px 2px; }
+.form-view .kv-row.off .suggest, .form-view .check-row.off .suggest { opacity: 0.55; }
+/* Keys in the key color. */
+.form-view .kv-row > .suggest:first-of-type .field-mirror { color: var(--t-key); }
+/* A row another tab writes: greyed, a link to that tab. */
+.form-view .kv-row.managed .field-mirror, .form-view .kv-row.managed .field-mirror span { color: var(--muted) !important; background: none !important; }
+.form-view .kv-link { width: 24px; height: 24px; border: 0; border-radius: 5px; background: none; color: var(--accent); font-size: 11px; }
+.form-view .kv-link:hover { background: var(--hover); }
+.form-view .kv-row.new input[type="checkbox"]:disabled { opacity: 1; }
 .form-view .kv-remove { width: 24px; height: 24px; border: 0; border-radius: 5px; background: none; color: var(--faint); font-size: 14px; }
 .form-view .kv-remove:hover { background: var(--hover); color: var(--fail); }
 .form-view .kv-multiline { color: var(--muted); padding: 0 9px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.form-view .add-row { align-self: flex-start; margin-top: 6px; border: 0; background: none; color: var(--accent); font: 500 12.5px var(--font-ui); padding: 4px 0; }
-.form-view .check-head, .form-view .check-row { display: grid; grid-template-columns: 20px minmax(0, 1.4fr) minmax(90px, 0.6fr) minmax(0, 1fr) 48px; gap: 6px; align-items: center; }
+.form-view .add-row { align-self: flex-start; margin-top: 0; border: 0; background: none; color: var(--accent); font: 500 12px var(--font-ui); padding: 4px 2px; }
+.form-view .check-head, .form-view .check-row { display: grid; grid-template-columns: minmax(0, 1.5fr) 110px minmax(0, 1fr) 50px; gap: 4px 6px; align-items: center; }
 .form-view .check-grid.captures .check-head, .form-view .check-grid.captures .check-row { grid-template-columns: 20px minmax(0, 0.8fr) minmax(0, 1.6fr) 44px 24px; }
-.form-view .check-row.failed input.mono { box-shadow: inset 0 0 0 1px var(--fail-line); }
-.form-view .check-whole { grid-column: 2 / 5; display: flex; }
+.form-view .check-row.failed input.check-value:not(:focus) { box-shadow: inset 0 0 0 1px var(--fail-line); }
+.form-view .check-whole { grid-column: 1 / 4; display: flex; }
 .form-view .check-query { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .form-view .check-query .got, .form-view .check-fail { color: var(--muted); font-size: 11px; margin: 0; }
-.form-view .check-fail { grid-column: 2 / -1; color: var(--fail); }
-.form-view .check-state { display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.form-view .check-fail { grid-column: 1 / -1; padding: 0 2px 4px; color: var(--fail); font-size: 11.5px; }
+.form-view .check-state { display: grid; grid-template-columns: 22px 22px; gap: 6px; align-items: center; justify-items: center; }
+.form-view .check-state > :first-child:last-child { grid-column: 2; }
 .form-view .new-check { display: flex; gap: 6px; margin-top: 8px; }
 .form-view .new-check input { flex: 1; }
-.form-view .expected-status { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.form-view .expected-status .label { color: var(--muted); }
-.form-view .expected-status .status-input { width: 90px; }
-.form-view .expected-status .note { margin-left: auto; color: var(--faint); font-size: 11px; }
+.form-view .expected-status { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 0 2px 12px; box-shadow: inset 0 -1px 0 var(--line2); }
+.form-view .expected-status .label { min-width: 110px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.form-view .expected-status .status-input { width: 96px; color: var(--t-num); }
+.form-view .expected-status .note { margin-left: auto; color: var(--faint); font-size: 11.5px; }
 .form-view .section-note { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
 .form-view .auto-headers { margin-top: 18px; }
 .form-view .auto-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1.6fr); gap: 6px; padding: 4px 0; color: var(--faint); font-size: 12px; }
 .form-view .auto-tag { font: 500 10px var(--font-code); color: var(--faint); }
 
 /* Auth */
-.form-view .auth-tab { display: grid; grid-template-columns: 200px 1fr; gap: 18px; }
-.form-view .auth-kinds { display: flex; flex-direction: column; gap: 4px; }
-.form-view .auth-kind { display: grid; grid-template-columns: 16px 1fr auto; gap: 6px; align-items: center; padding: 7px 8px; border-radius: 7px; color: var(--text); cursor: pointer; }
-.form-view .auth-kind.on { background: var(--raised); }
+.form-view .auth-tab { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: max(360px, calc(100vh - 290px)); padding: 0; }
+.form-view .auth-kinds { display: flex; flex-direction: column; gap: 2px; padding: 12px 10px; box-shadow: inset -1px 0 0 var(--line2); }
+.form-view .auth-kind { height: 32px; display: flex; align-items: center; gap: 9px; padding: 0 10px; border-radius: 6px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+.form-view .auth-kind > span:first-of-type { flex: 1; }
+.form-view .auth-kind.on { background: var(--raised); color: var(--text); }
 .form-view .auth-kind .where { color: var(--faint); font-size: 10.5px; }
-.form-view .oauth-card { margin-top: 12px; padding: 12px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 6px; }
-.form-view .oauth-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-.form-view .auth-detail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.form-view .oauth-card { margin: 14px 4px 0; padding: 10px 12px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line2); display: flex; flex-direction: column; gap: 8px; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.form-view .oauth-card b { color: var(--text); font: 600 12px var(--font-ui); }
+.form-view .oauth-card p { margin: 0; }
+.form-view .oauth-card .btn { align-self: flex-start; height: 26px; padding: 0 9px; border-radius: 6px; background: var(--raised); box-shadow: none; font: 500 12px var(--font-ui); }
+.form-view .auth-detail { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 16px 18px; }
 .form-view .auth-field { display: flex; flex-direction: column; gap: 6px; }
-.form-view .auth-field p { margin: 0; color: var(--muted); line-height: 1.5; }
+.form-view .auth-field > b { font: 600 13.5px var(--font-ui); }
+.form-view .auth-field > p { margin: -4px 0 8px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .form-view .auth-inputs { display: flex; flex-direction: column; gap: 6px; }
-.form-view .auth-others dl { display: grid; grid-template-columns: 150px 1fr; margin: 0; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line2); }
-.form-view .auth-others dt, .form-view .auth-others dd { margin: 0; padding: 8px 10px; box-shadow: inset 0 -1px 0 var(--line2); font-size: 11.5px; }
-.form-view .auth-others dt { font-family: var(--font-ui); color: var(--muted); }
+.form-view .auth-label { color: var(--muted); font: 500 11.5px var(--font-ui); }
+.form-view .auth-input { position: relative; display: flex; }
+.form-view .auth-input .suggest { flex: 1; }
+.form-view .auth-inputs input.mono { height: 32px; padding: 0 10px; font-size: 12.5px; }
+.form-view .auth-input .src { position: absolute; right: 10px; top: 50%; translate: 0 -50%; color: var(--muted); font-size: 11px; pointer-events: none; }
+.form-view .auth-value { color: var(--faint); font-size: 11.5px; }
+.form-view .auth-writes { padding: 12px 14px; border-radius: 9px; background: var(--panel); }
+.form-view .auth-writes .section-note { font-weight: 500; line-height: normal; }
+.form-view .auth-writes .section-note .sub { color: var(--faint); }
+.form-view .code-segs { font: 12px/19px var(--font-code); white-space: pre; }
+.form-view .code-segs .wb-mark { margin-left: -6px; padding-left: 6px; background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+.form-view .code-segs .tk-key { color: var(--t-key); }
+.form-view .code-segs .tk-sec { color: var(--t-sec); }
+.form-view .code-segs .tk-str { color: var(--t-str); }
+.form-view .code-segs .tk-var { color: var(--t-var); background: var(--accent-soft); border-radius: 3px; }
+.form-view .auth-others { display: flex; flex-direction: column; gap: 6px; }
+.form-view .auth-others dl { margin: 0; border-radius: 8px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line2); }
+.form-view .auth-others dl > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 12px; box-shadow: inset 0 -1px 0 var(--line2); }
+.form-view .auth-others dt { color: var(--muted); font-size: 12px; }
+.form-view .auth-others dd { margin: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Body */
 .form-view .body-kinds { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
-.form-view .body-kind { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; color: var(--muted); cursor: pointer; }
+.form-view .body-kind { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 9px; border-radius: 6px; color: var(--muted); font: 500 12px var(--font-ui); cursor: pointer; }
 .form-view .body-kind.on { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+.form-view .body-kinds { gap: 8px 10px; }
 .form-view .code-field { border-radius: 8px; overflow: hidden; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); }
 .form-view .code-field .cm-editor { min-height: inherit; }
 .form-view .code-field .cm-editor.cm-focused { outline: 0; box-shadow: inset 0 0 0 1px var(--accent-line); }
-.form-view .graphql-body { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
-.form-view .graphql-body .form-note { grid-column: 1 / -1; margin: 4px 0; }
+/* GraphQL: one box, the query beside its variables. */
+.form-view .graphql-title { margin: 2px 0 12px; color: var(--muted); font: 500 12px var(--font-ui); }
+.form-view .graphql-body { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); min-height: max(360px, calc(100vh - 374px)); border-radius: 9px; overflow: hidden; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
+.form-view .gq-pane { display: flex; flex-direction: column; min-width: 0; }
+.form-view .gq-pane:first-child { box-shadow: inset -1px 0 0 var(--line2); }
+.form-view .gq-pane .pane-head { height: 32px; align-items: center; padding: 0 12px; font-weight: 500; box-shadow: inset 0 -1px 0 var(--line2); }
+.form-view .gq-pane .pane-head .kind { margin-left: auto; color: var(--faint); font: 11px var(--font-code); }
+.form-view .gq-pane .code-field { flex: 1; border-radius: 0; box-shadow: none; }
+.form-view .gq-pane:last-child .code-field { background: none; }
+.form-view .gq-pane:first-child .code-field { margin: 0 1px 1px; }
+.form-view .gq-note { margin: 0; padding: 10px 12px; box-shadow: inset 0 1px 0 var(--line2); color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.form-view .gq-note code { font: 11.5px var(--font-code); }
 .form-view .pane-head { padding: 8px 2px 6px; color: var(--muted); font-size: 11.5px; display: flex; gap: 6px; }
 .form-view .multipart-value { display: flex; gap: 6px; align-items: center; min-width: 0; }
 .form-view .multipart-value .suggest { flex: 1; }
-.form-view .multipart-value .ct { width: 110px; flex: none; }
+.form-view .multipart-value .ct { width: 96px; flex: none; }
+.form-view .multipart-value .suggest:has(> input.ct) { flex: none; width: 96px; }
+.form-view .multipart-value .file-field { position: relative; flex: 1; display: flex; min-width: 0; }
+.form-view .multipart-value .file-field .file-icon { position: absolute; left: 9px; top: 50%; translate: 0 -50%; z-index: 1; pointer-events: none; }
+.form-view .multipart-value .file-field input.mono { padding-left: 28px; }
+.form-view .kv-row.off .multipart-value > :not(.suggest, .file-field) { opacity: 0.55; }
+.form-view .multipart-value input.ct, .form-view .multipart-value .ct-none { height: 30px; border-radius: 6px; background: none; box-shadow: inset 0 0 0 1px var(--line2); color: var(--muted); font-size: 11.5px; }
+.form-view .multipart-value input.ct:focus { box-shadow: inset 0 0 0 1px var(--accent); }
+.form-view .multipart-value .segmented { flex: none; width: 92px; height: 30px; border-radius: 6px; }
+.form-view .multipart-value .segmented button { flex: 1; height: 26px; padding: 0; border-radius: 4px; font-size: 11.5px; }
+.form-view .kv-grid.multipart .kv-head, .form-view .kv-grid.multipart .kv-row { grid-template-columns: 20px minmax(0, 1fr) minmax(0, 2.7fr) 24px; }
+.form-view .form-note.info { display: flex; gap: 8px; margin: 8px 0 0; padding: 0 2px; color: var(--muted); font-size: 11.5px; }
+.form-view .form-note.info .i { flex: none; display: grid; place-items: center; width: 12px; height: 12px; margin-top: 2px; border-radius: 50%; box-shadow: inset 0 0 0 1.2px currentColor; font: 600 8.5px var(--font-ui); }
+.form-view .form-note.info code { font: 11.5px var(--font-code); color: var(--text); }
 .form-view .outside-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); line-height: 1.5; }
 .form-view .outside-notice span { flex: 1 1 260px; }
 .form-view .binary-body { display: flex; gap: 8px; align-items: center; }
@@ -124,52 +209,116 @@
 .form-view .btn-ghost.accent { color: var(--accent); }
 
 /* Options */
-.form-view .opt-head, .form-view .opt-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(160px, 1fr) minmax(0, 1fr); gap: 12px; align-items: center; }
-.form-view .opt-head { color: var(--muted); font-size: 11.5px; padding-bottom: 4px; }
-.form-view .opt-row { padding: 9px 0; box-shadow: inset 0 -1px 0 var(--line2); }
+.form-view .opt-head, .form-view .opt-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px 220px; gap: 6px 14px; align-items: center; padding: 7px 4px; }
+.form-view .opt-head { color: var(--faint); font-size: 11.5px; font-weight: 500; line-height: normal; padding-top: 2px; padding-bottom: 8px; }
+.form-view .opt-row { box-shadow: inset 0 -1px 0 var(--line2); }
 .form-view .opt-name { font-weight: 500; }
 .form-view .opt-row .muted { font-size: 11.5px; }
-.form-view .opt-controls { display: flex; gap: 6px; align-items: center; }
-.form-view .opt-input { width: 90px; }
-.form-view .opt-writes { font-size: 11.5px; color: var(--t-key); overflow: hidden; text-overflow: ellipsis; }
+.form-view .opt-controls { display: flex; gap: 6px; align-items: center; min-width: 0; }
+/* A value chip sized to its text, with its unit inside: "max 5". */
+.form-view .opt-chip {
+  display: inline-flex; align-items: center; gap: 1ch; height: 26px; padding: 0 8px; border-radius: 6px; background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line); font: 12px var(--font-code); color: var(--text); white-space: nowrap; cursor: text;
+}
+.form-view .opt-chip:focus-within { box-shadow: inset 0 0 0 1px var(--accent); }
+.form-view .opt-chip input.mono { width: var(--w); max-width: 120px; height: 24px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
+.form-view .opt-chip input::placeholder { color: var(--text); }
+.form-view .opt-writes { font-size: 11.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .form-view .opt-writes.muted { color: var(--faint); }
-.form-view .opt-warn { margin: 6px 0; padding: 7px 10px; border-radius: 7px; background: var(--warn-soft); color: var(--warn); }
-.form-view .opt-more { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0 8px; }
-.form-view .opt-more > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+.form-view .opt-writes.warn { color: var(--warn); }
+.form-view .opt-warn { grid-column: 1 / -1; display: flex; gap: 0.5em; margin: 0; padding: 7px 10px; border-radius: 6px; background: var(--warn-soft); color: var(--warn); font-size: 11.5px; }
+.form-view .opt-seg { padding: 2px; border-radius: 6px; }
+.form-view .opt-seg button { height: 19px; padding: 0 9px; border-radius: 4px; font-size: 11.5px; }
+.form-view .opt-more { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 9px 4px; box-shadow: inset 0 -1px 0 var(--line2); }
+.form-view .opt-more .muted { display: block; font-size: 11.5px; }
+.form-view .opt-more-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--text); font: 500 12.5px var(--font-ui); cursor: pointer; }
+.form-view .opt-more-toggle svg { color: var(--muted); transition: transform 0.12s; }
+.form-view .opt-more-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .form-view .opt-chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
-.form-view .switch { appearance: none; width: 30px; height: 18px; border-radius: 9px; background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); position: relative; cursor: pointer; }
-.form-view .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: left 0.12s; }
-.form-view .switch:checked { background: var(--accent); }
-.form-view .switch:checked::after { left: 15px; background: var(--accent-ink); }
+.form-view .opt-add { height: 21px; padding: 0 7px; border: 0; border-radius: 5px; background: none; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font: 500 11.5px var(--font-code); cursor: pointer; }
+.form-view .opt-add:hover { color: var(--text); background: var(--hover); }
+.form-view .options-tab .form-note { padding: 10px 4px; margin: 0; color: var(--faint); font-size: 11.5px; }
 
 /* gRPC */
-.form-view .grpc-form { display: flex; flex-direction: column; gap: 10px; }
-.form-view .grpc-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.form-view .grpc-pickers label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 11.5px; }
+/* Service and method under the URL, each its label inside. */
+.form-view .grpc-pickers { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 0 16px; margin-top: -2px; }
+.form-view .grpc-pick {
+  position: relative; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 7px;
+  background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-align: left; min-width: 0; cursor: pointer;
+}
+.form-view .grpc-pick .label { color: var(--faint); font: 500 11.5px var(--font-ui); }
+.form-view .grpc-pick select { appearance: none; -webkit-appearance: none; flex: 1; min-width: 0; height: 32px; padding: 0; border: 0; background: none; box-shadow: none; color: var(--text); font: 12px var(--font-code); cursor: pointer; }
+.form-view .grpc-pick .value { flex: 1; min-width: 0; font: 12px var(--font-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.form-view .grpc-pick .kind { color: var(--muted); font: 11px var(--font-ui); }
+.form-view .grpc-pick .chev { flex: none; color: var(--muted); pointer-events: none; }
+.form-view .grpc-pick:focus-within, .form-view .grpc-pick[data-state="open"] { box-shadow: inset 0 0 0 1px var(--accent); }
+.form-view .grpc-files { margin: 6px 16px 0; color: var(--faint); font-size: 11.5px; }
+.form-view .grpc-files .link { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.form-view .grpc-rows { padding: 8px 16px 0; }
+/* The message beside its type in the .proto. */
+.form-view .grpc-message { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); border-radius: 9px; overflow: hidden; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
+.form-view .grpc-message .pane-head { height: 30px; justify-content: space-between; }
+.form-view .grpc-message .pane-head .state { font: 11px var(--font-code); }
+.form-view .grpc-message .gq-pane:first-child .code-field { background: var(--bg); }
+.form-view .grpc-schema { display: flex; flex-direction: column; margin: 0; padding: 10px 12px; color: var(--muted); font-size: 11.5px; line-height: 19px; white-space: pre; }
+.form-view .grpc-schema .tk-sec { color: var(--t-sec); }
+.form-view .grpc-schema .tk-key { color: var(--t-key); }
+.form-view .grpc-schema .returns { margin-top: 6px; }
+.form-view .grpc-schema .returns b { color: var(--text); font-weight: 400; }
+.form-view .method-pick.fixed select.method { padding: 0 10px; cursor: default; opacity: 1; }
+.form-view .url-field .url-hint { position: absolute; right: 12px; top: 50%; translate: 0 -50%; color: var(--faint); font: 11px var(--font-ui); pointer-events: none; }
+.field-mirror .tk-muted { color: var(--muted); }
+.form-view .url-field.has-hint input { padding-right: 190px; }
 
 /* Write-back */
-.form-view .write-back { margin: 16px 16px 0; padding: 12px; border-radius: 10px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
+.form-view .write-back { margin: 10px 16px 0; padding: 12px 14px; border-radius: 9px; background: var(--panel); }
+.form-view .write-back .section-note { font-weight: 500; font-size: 11.5px; line-height: normal; }
+.form-view .write-back .cm-scroller { font-size: 12px; line-height: 19px; }
 .form-view .write-back .cm-editor { background: transparent; }
+.form-view .write-back .section-note .sub { color: var(--faint); }
+/* The lines the tab writes. */
+.form-view .write-back .cm-content { padding: 0; }
+/* Lines sit 6px in, so a marked line's bar shows left of its text. */
+.form-view .write-back .cm-editor { margin-left: -6px; }
+.form-view .write-back .cm-line { padding: 0 0 0 6px; }
+/* The lines the tab writes, and the lines the form changed. */
+.form-view .write-back .cm-line.wb-mark, .form-view .write-back .cm-changedLine { background: var(--accent-soft) !important; box-shadow: inset 2px 0 0 var(--accent); }
+.form-view .write-back .cm-changedText { background: none !important; }
 .form-view .body-readonly { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 12px; white-space: pre-wrap; }
-/* A predicate picks from a list: a chevron says so. */
-.form-view input.predicate {
-  padding-right: 22px;
-  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238593ab' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 8px center;
-}
-.form-view .row-menu { font-weight: 600; letter-spacing: 1px; }
+/* A field that picks from a list: a chevron in its color says so. */
+.form-view .list-pick { position: relative; display: inline-flex; min-width: 0; }
+.form-view .list-pick input.mono { width: 100%; padding: 0 22px 0 9px; color: inherit; }
+.form-view .list-pick .chev { position: absolute; right: 8px; top: 50%; translate: 0 -50%; pointer-events: none; }
+.form-view .list-pick.predicate { color: var(--t-op); }
+.form-view .check-row.off .list-pick { opacity: 0.55; }
+.form-view .row-menu { font-size: 11px; color: var(--faint); }
 /* raw: one choice, its kind beside it. */
-.form-view .body-kind select.raw-kind { height: 22px; padding: 0 4px; box-shadow: none; background: transparent; color: var(--muted); font: 11px var(--font-code); }
+.form-view .raw-pick { position: relative; display: inline-flex; align-items: center; gap: 3px; color: var(--faint); font: 500 11px var(--font-code); }
+.form-view .raw-pick > span { pointer-events: none; }
+.form-view .body-kind select.raw-kind { appearance: none; -webkit-appearance: none; height: 22px; padding: 0; box-shadow: none; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 /* form-data: Type, Value and Content type over their cells. */
 .form-view .multipart-head { display: flex; gap: 6px; }
-.form-view .multipart-head > :first-child { width: 88px; flex: none; }
+.form-view .multipart-head > :first-child { width: 92px; flex: none; }
 .form-view .multipart-head > :nth-child(2) { flex: 1; }
-.form-view .multipart-head > :last-child { width: 110px; flex: none; }
-.form-view .grpc-method { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 11.5px; }
-.form-view .grpc-method-trigger {
-  height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 9px; border: 0; border-radius: 6px;
-  background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12.5px var(--font-ui); text-align: left;
+.form-view .multipart-head > :last-child { width: 96px; flex: none; }
+.grpc-methods { width: 330px; border-radius: 10px; }
+.grpc-methods .menu-label { padding: 6px 10px 4px; font: 500 11.5px var(--font-ui); }
+.grpc-methods .menu-item { height: auto; padding: 7px 10px; border-radius: 6px; justify-content: space-between; gap: 10px; }
+.grpc-methods .menu-item::before { display: none !important; }
+.grpc-methods .menu-item .mono { font: 12px var(--font-code); }
+.grpc-methods .menu-item .hint { color: var(--muted); font: 11px var(--font-ui); }
+.grpc-methods .menu-item[data-state="checked"], .grpc-methods .menu-item[data-highlighted] { background: var(--accent-soft); }
+.grpc-methods .menu-item[data-disabled] { opacity: 0.45; }
+.grpc-methods .menu-note { margin: 4px 0 0; padding: 7px 10px 5px; box-shadow: inset 0 1px 0 var(--line2); color: var(--faint); font-size: 11px; }
+/* A colored field: its text drawn under the input's transparent text. */
+.suggest.colored { position: relative; }
+.suggest.colored > input { color: transparent; caret-color: var(--text); }
+.suggest.colored > .field-mirror {
+  position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; white-space: pre;
+  pointer-events: none; color: var(--text);
 }
-.form-view .grpc-method-trigger .mono { flex: 1; font-family: var(--font-code); font-size: 12px; }
-.grpc-methods { min-width: 320px; }
-.grpc-methods .menu-item { display: flex; justify-content: space-between; gap: 16px; }
-.grpc-methods .menu-item[data-disabled] .hint { color: var(--faint); }
+.field-mirror .tk-var { color: var(--t-var); background: var(--accent-soft); border-radius: 3px; }
+.field-mirror .tk-str { color: var(--t-str); }
+.field-mirror .tk-num { color: var(--t-num); }
+.field-mirror .tk-query { color: var(--t-q); }
+.field-mirror .tk-op { color: var(--t-op); }

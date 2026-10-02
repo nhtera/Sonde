@@ -30,7 +30,7 @@ export function RowMenu({ file, entry, section, index, count, label, disabled, c
     <Menu.Root>
       <Menu.Trigger asChild>
         <button className="kv-remove row-menu" aria-label={`${label} actions`} title="More">
-          …
+          ⋯
         </button>
       </Menu.Trigger>
       <Menu.Portal>
