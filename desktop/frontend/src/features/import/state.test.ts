@@ -33,7 +33,7 @@ describe("import helpers", () => {
   });
 
   it("needs an input to preview", () => {
-    const req = { kind: "curl", input: "", text: "  ", environments: [], group: "", baseUrlVar: "", ext: "", folder: "", env: "", lift: null, target: "", targetText: "" };
+    const req = { kind: "curl", input: "", text: "  ", environments: [], group: "", baseUrlVar: "", ext: "", folder: "", name: "", env: "", lift: null, target: "", targetText: "" };
     expect(ready(req)).toBe(false);
     expect(ready({ ...req, text: "curl x" })).toBe(true);
     expect(ready({ ...req, input: "id" })).toBe(true);

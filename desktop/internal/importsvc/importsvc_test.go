@@ -855,3 +855,20 @@ func TestFolderAsProjectPath(t *testing.T) {
 		t.Error("written in .git")
 	}
 }
+
+func TestCurlName(t *testing.T) {
+	s, _, _, _ := service(t)
+	text := "curl https://api.test/carts -X POST"
+	pv, err := s.Preview(context.Background(), Request{Kind: Curl, Text: text, Folder: "orders", Name: "add-item"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pv.Files) != 1 || pv.Files[0].Path != "orders/add-item.hurl" {
+		t.Fatalf("files %+v", pv.Files)
+	}
+	for _, bad := range []string{"../up", "a/b", ".hidden"} {
+		if _, err := s.Preview(context.Background(), Request{Kind: Curl, Text: text, Name: bad}); err == nil {
+			t.Errorf("name %q: no error", bad)
+		}
+	}
+}

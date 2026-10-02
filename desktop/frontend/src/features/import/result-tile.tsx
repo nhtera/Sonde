@@ -95,14 +95,16 @@ export function ImportResult() {
         }
       }}
     >
-      <Dialog.Title className="dialog-title">
-        {name ? `Imported \u201c${name}\u201d from ${kindTitle[req.kind]}` : `Imported from ${kindTitle[req.kind] ?? req.kind}`}
-      </Dialog.Title>
-      <p className="muted small">
-        {layout ? `${layout} → ${into}` : `${files.length} file${files.length === 1 ? "" : "s"} written into ${into}`}
-        {kept.length > 0 && `, ${kept.length} existing kept`}
-        {secrets.length > 0 && ` · ${secrets.join(", ")} in the secrets file`}. Nothing was sent.
-      </p>
+      <div className="import-head">
+        <Dialog.Title className="dialog-title">
+          {name ? `Imported \u201c${name}\u201d from ${kindTitle[req.kind]}` : `Imported from ${kindTitle[req.kind] ?? req.kind}`}
+        </Dialog.Title>
+        <p>
+          {layout ? `${layout} → ${into}` : `${files.length} file${files.length === 1 ? "" : "s"} written into ${into}`}
+          {kept.length > 0 && `, ${kept.length} existing kept`}
+          {secrets.length > 0 && ` · ${secrets.join(", ")} in the secrets file`}. Nothing was sent.
+        </p>
+      </div>
       <div className="import-tiles" aria-label="Import counts">
         {tiles.map(([n, label]) => (
           <div key={label} className="tile">
@@ -133,7 +135,7 @@ export function ImportResult() {
         )}
       </div>
       <div className="dialog-actions">
-        {changes > 0 && <span className="muted small">Suggestions for asserts, captures and a login request are optional, shown change by change.</span>}
+        <span className="foot-note">{changes > 0 && "Suggestions for asserts, captures and a login request are optional, shown change by change."}</span>
         {changes > 0 && (
           <button className="btn" onClick={() => useImport.getState().review()}>
             Review {changes} suggestion{changes === 1 ? "" : "s"}

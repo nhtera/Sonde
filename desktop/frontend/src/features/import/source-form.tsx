@@ -11,6 +11,7 @@ import { useEnv } from "../../state/env";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
 import { label } from "../../app/keymap/keymap-manager";
+import { CodePreview } from "../editor/code-preview";
 import { pickInput } from "./pick";
 import { liftOf, requestFile, useImport } from "./state";
 
@@ -47,6 +48,8 @@ export function SourceForm() {
   const envs = useEnv((s) => s.project?.envs ?? []);
   const active = useTabs((s) => s.active);
   const [shown, setShown] = useState(0);
+  // curl: what is lifted shows as one line; its choices on Change.
+  const [editLift, setEditLift] = useState(false);
   const importKeys = label("$mod+Enter");
   const update = useImport.getState().update;
   const envIds = req.environments ?? [];
@@ -89,16 +92,18 @@ export function SourceForm() {
       ) : (
         <PasteBox key={req.kind} placeholder={pasteHint[req.kind]} rows={curl ? 11 : 5} />
       )}
-      <div className="row-gap">
-        <button className="btn" onClick={() => void pick()}>
-          Choose file…
-        </button>
-        {req.kind === "opencollection" && !serverMode && (
-          <button className="btn" onClick={() => void pick(true)}>
-            Choose folder…
+      {!curl && (
+        <div className="row-gap">
+          <button className="btn" onClick={() => void pick()}>
+            Choose file…
           </button>
-        )}
-      </div>
+          {req.kind === "opencollection" && !serverMode && (
+            <button className="btn" onClick={() => void pick(true)}>
+              Choose folder…
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
   const fileList = preview && (
@@ -150,7 +155,7 @@ export function SourceForm() {
         }
       }}
     >
-      {curl ? (
+      {req.kind === "postman" && req.input ? null : curl ? (
         <div className="curl-columns">
           {source}
           <div className="curl-preview">
@@ -165,33 +170,19 @@ export function SourceForm() {
                 file && !error && <span className="valid">✓ valid</span>
               )}
             </span>
-            <pre className="mono import-text" role="region" aria-label="Preview">
-              {file?.text ?? "The request appears here as you paste."}
-            </pre>
+            {file ? (
+              <CodePreview className="import-code" text={file.text} label="Preview" />
+            ) : (
+              <pre className="mono import-text import-code" role="region" aria-label="Preview">
+                The request appears here as you paste.
+              </pre>
+            )}
           </div>
         </div>
       ) : (
         source
       )}
 
-      {(req.kind === "postman" || req.kind === "http") && (
-        <div className="import-row">
-          <span>{req.kind === "postman" ? "Environment files" : "Env files"}</span>
-          <div className="row-gap wrap">
-            {envIds.map((id) => (
-              <span key={id} className="chip mono">
-                {names[id] ?? id}
-                <button aria-label={`Remove ${names[id] ?? id}`} onClick={() => update({ environments: envIds.filter((e) => e !== id) })}>
-                  ×
-                </button>
-              </span>
-            ))}
-            <button className="btn-ghost accent" onClick={() => void addEnv()}>
-              + Add
-            </button>
-          </div>
-        </div>
-      )}
 
       {layout && (
         <div className="import-layout-pick">
@@ -227,20 +218,42 @@ export function SourceForm() {
         </label>
       )}
 
-      <label className="import-row">
-        <span>{curl ? "Save in" : "Into"}</span>
-        <FolderInput key={req.kind} />
-      </label>
-      <div className="import-row">
-        <span>Format</span>
-        <div className="segmented" role="group" aria-label="Format">
-          {(["hurl", "sonde"] as const).map((x) => (
-            <button key={x} aria-pressed={(req.ext || "hurl") === x} onClick={() => update({ ext: x })}>
-              .{x}
+      {!curl && (
+        <label className="import-row">
+          <span>Into</span>
+          <FolderInput key={req.kind} />
+        </label>
+      )}
+      {(req.kind === "postman" || req.kind === "http") && (
+        <div className="import-row">
+          <span>{req.kind === "postman" ? "Environment files" : "Env files"}</span>
+          <div className="row-gap wrap">
+            {envIds.map((id) => (
+              <span key={id} className="chip mono">
+                {names[id] ?? id}
+                <button aria-label={`Remove ${names[id] ?? id}`} onClick={() => update({ environments: envIds.filter((e) => e !== id) })}>
+                  ×
+                </button>
+              </span>
+            ))}
+            <button className="btn-ghost accent" onClick={() => void addEnv()}>
+              + Add
             </button>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
+      {!curl && req.kind !== "postman" && (
+        <div className="import-row">
+          <span>Format</span>
+          <div className="segmented" role="group" aria-label="Format">
+            {(["hurl", "sonde"] as const).map((x) => (
+              <button key={x} aria-pressed={(req.ext || "hurl") === x} onClick={() => update({ ext: x })}>
+                .{x}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {req.kind === "postman" && counts && (
         <dl className="import-summary">
           <dt>Environments</dt>
@@ -253,10 +266,28 @@ export function SourceForm() {
       )}
 
       {lifting && (
-        <fieldset className="import-secrets">
-          <legend>
-            <span aria-hidden>⚠ </span>Secrets become {"{{names}}"}; their values go to the environment&apos;s secrets file
-          </legend>
+        <div className="import-secrets" role="group" aria-labelledby="import-secrets-line">
+          <p className="strip-line" id="import-secrets-line">
+            <span aria-hidden>⚠ </span>
+            {lift.length > 0 && req.env
+              ? (preview?.candidates ?? [])
+                  .filter((c) => lift.includes(c.id))
+                  .map((c, i) => (
+                    <span key={c.id}>
+                      {i > 0 && " "}
+                      {c.where} replaced with <span className="var">{`{{${c.name}}}`}</span>.
+                    </span>
+                  ))
+              : "Secrets become {{names}}; their values go to the environment's secrets file."}
+            {lift.length > 0 && req.env && <> Values go to {req.env}&apos;s secrets file.</>}
+            {curl && (
+              <button className="strip-edit" aria-expanded={editLift} onClick={() => setEditLift(!editLift)}>
+                {editLift ? "Done" : "Change"}
+              </button>
+            )}
+          </p>
+          {(!curl || editLift) && (
+            <>
           {envs.length === 0 && <p className="muted small">The project has no sonde.yaml environments: the values stay in the file.</p>}
           {(preview?.candidates ?? []).map((c) => (
             <label key={c.id} className="check-row">
@@ -282,7 +313,9 @@ export function SourceForm() {
               ))}
             </select>
           </label>
-        </fieldset>
+            </>
+          )}
+        </div>
       )}
 
       {error && <p className="run-error">{error}</p>}
@@ -306,6 +339,13 @@ export function SourceForm() {
           )}
 
       <div className="dialog-actions">
+        {curl && (
+          <label className="save-as">
+            <span>Save as</span>
+            <SaveAs path={file?.path ?? ""} />
+          </label>
+        )}
+        <span style={{ flex: 1 }} />
         {exists.length > 0 && (
           <span className="muted small">
             {exists.length - exists.filter((f) => overwrite.includes(f.path)).length} existing file(s) kept
@@ -351,6 +391,40 @@ function PasteBox({ placeholder, rows }: { placeholder: string; rows: number }) 
     return () => clearTimeout(t);
   }, [text]);
   return <textarea className="mono" aria-label="Pasted input" placeholder={placeholder} value={text} onChange={(e) => setText(e.target.value)} rows={rows} />;
+}
+
+/** A curl command's file: its folder, name and format in one path,
+ * previewed after a pause in typing. */
+function SaveAs({ path }: { path: string }) {
+  const [value, setValue] = useState(path);
+  const [editing, setEditing] = useState(false);
+  // The preview's path shows while the field is not being typed in (a
+  // preview that failed keeps what was typed, to be fixed).
+  const [shown, setShown] = useState(path);
+  if (path && path !== shown) {
+    setShown(path);
+    if (!editing) setValue(path);
+  }
+  useEffect(() => {
+    if (!value.trim() || value === path) return;
+    const t = setTimeout(() => {
+      const m = /^(?:(.*)\/)?([^/]+?)(?:\.(hurl|sonde))?$/.exec(value.trim());
+      if (m) useImport.getState().update({ folder: m[1] ?? "", name: m[2], ...(m[3] ? { ext: m[3] } : {}) });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [value, path]);
+  return (
+    <input
+      className="mono"
+      aria-label="Save as"
+      value={value}
+      placeholder="curl.hurl"
+      spellCheck={false}
+      onFocus={() => setEditing(true)}
+      onBlur={() => setEditing(false)}
+      onChange={(e) => setValue(e.target.value)}
+    />
+  );
 }
 
 /** The folder written into, previewed after a pause in typing. */

@@ -15,27 +15,39 @@ export function ImportDialog() {
   const open = useImport((s) => s.open);
   const step = useImport((s) => s.step);
   const kind = useImport((s) => s.req.kind);
+  // A collection picked: its preview, without the source choices.
+  const picked = useImport((s) => s.req.kind === "postman" && s.req.input !== "");
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && useImport.getState().close()}>
       <Dialog.Portal>
         <Dialog.Overlay className="scrim" />
-        <Dialog.Content className={`dialog dialog-pad import-dialog${step === "suggestions" || (step === "form" && kind === "curl") ? " wide" : ""}`} aria-describedby={undefined}>
+        <Dialog.Content className={`dialog import-dialog${step === "suggestions" ? " wide" : step === "result" ? " result" : step === "form" && picked ? " compact" : ""}`} aria-describedby={undefined}>
           {step === "form" && (
             <>
               <ImportTitle />
-              <div className="segmented import-kinds" role="tablist" aria-label="Import from">
-                {kinds.map((k) => (
-                  <button key={k.kind} role="tab" aria-selected={kind === k.kind} onClick={() => useImport.getState().update({ kind: k.kind })}>
-                    {k.title}
-                  </button>
-                ))}
-              </div>
+              {!picked && (
+                <div className="import-kinds" role="tablist" aria-label="Import from">
+                  {kinds.map((k) => (
+                    <button key={k.kind} role="tab" aria-selected={kind === k.kind} onClick={() => useImport.getState().update({ kind: k.kind })}>
+                      {k.title}
+                    </button>
+                  ))}
+                </div>
+              )}
               <SourceForm />
             </>
           )}
-          {step === "result" && <ImportResult />}
-          {step === "suggestions" && <SuggestionsStep />}
-          <Dialog.Close className="btn-ghost close">Esc</Dialog.Close>
+          {step === "result" && (
+            <div className="import-step">
+              <ImportResult />
+            </div>
+          )}
+          {step === "suggestions" && (
+            <div className="import-step">
+              <SuggestionsStep />
+            </div>
+          )}
+          <Dialog.Close className="close">Esc</Dialog.Close>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -53,8 +65,9 @@ function ImportTitle() {
   if (!name || !c) {
     return (
       <>
-        <Dialog.Title className="dialog-title">Import</Dialog.Title>
-        <p className="muted small">Converted the way `sonde import` does. Nothing is sent.</p>
+        <div className="import-head">
+          <Dialog.Title className="dialog-title">Import</Dialog.Title>
+        </div>
       </>
     );
   }
@@ -62,11 +75,13 @@ function ImportTitle() {
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
   return (
     <>
-      <Dialog.Title className="dialog-title">{`Import \u201c${name}\u201d from Postman`}</Dialog.Title>
-      <p className="muted small">
-        {from}
-        {plural(c.requests, "request")} in {plural(c.folders, "folder")} · {plural(c.environments, "environment")}. Nothing is sent.
-      </p>
+      <div className="import-head">
+        <Dialog.Title className="dialog-title">{`Import \u201c${name}\u201d from Postman`}</Dialog.Title>
+        <p>
+          {from}
+          {plural(c.requests, "request")} in {plural(c.folders, "folder")} · {plural(c.environments, "environment")}. Nothing is sent.
+        </p>
+      </div>
     </>
   );
 }

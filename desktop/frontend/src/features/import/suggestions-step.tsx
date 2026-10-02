@@ -92,8 +92,10 @@ export function SuggestionsStep() {
         }
       }}
     >
-      <Dialog.Title className="dialog-title">Suggestions · optional</Dialog.Title>
-      <p className="muted small">Nothing has changed yet. Accept or reject each change per file. Rejected scripts stay as # comments.</p>
+      <div className="import-head">
+        <Dialog.Title className="dialog-title">Suggestions · optional</Dialog.Title>
+        <p>Nothing has changed yet. Accept or reject each change per file. Rejected scripts stay as # comments.</p>
+      </div>
       <div className="suggestions-body">
         <ul className="suggestion-files" aria-label="Files with suggestions">
           {suggestions.map((x) => {

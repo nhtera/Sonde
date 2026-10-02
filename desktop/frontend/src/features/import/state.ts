@@ -77,7 +77,7 @@ function defaultEnv(): string {
 }
 
 export function freshRequest(kind: ImportKind): ImportRequest {
-  return { kind, input: "", text: "", environments: [], group: "", baseUrlVar: "", ext: "hurl", folder: kind === "curl" ? "" : "imported", env: defaultEnv(), lift: null, target: "", targetText: "" };
+  return { kind, input: "", text: "", environments: [], group: "", baseUrlVar: "", ext: "hurl", folder: kind === "curl" ? "" : "imported", name: "", env: defaultEnv(), lift: null, target: "", targetText: "" };
 }
 
 /** Whether req has an input to preview. */

@@ -25,11 +25,13 @@ test.beforeEach(async ({ page }) => {
 test("3a, 3b, 3c: body, timeline and cookies", async ({ page }) => {
   await open(page, "users.hurl");
   await run(page, /Failed/);
-  await results(page).locator(".req-row").nth(0).click();
+  // The failing request, its body searched for the value (as the design).
+  await results(page).locator(".req-row").nth(1).click();
   await tab(page, "Body").click();
-  const id = results(page).locator(".jt-row", { hasText: '"token"' }).first();
-  await id.hover();
+  await results(page).getByLabel("Search the body").fill("ada");
+  await expect(results(page).locator(".body-search")).toContainText("1 of 1");
   await snap(page, "3a");
+  await results(page).locator(".req-row").nth(0).click();
   await tab(page, "Timeline").click();
   await expect(results(page).getByRole("tabpanel").getByLabel("Log")).toBeVisible();
   await snap(page, "3b");
@@ -67,10 +69,12 @@ test("11b and 11b2: a WebSocket transcript, then an interactive session", async 
   await run(page, /Passed/);
   await snap(page, "11b");
   await results(page).getByRole("button", { name: "Open interactive session" }).click();
-  await expect(results(page).locator(".session-head .outcome")).toHaveText("Open");
+  await expect(results(page).locator(".session-state")).toHaveText("Open");
   await results(page).getByLabel("Message", { exact: true }).fill('{"type": "ping"}');
   await page.keyboard.press("ControlOrMeta+Enter");
   await expect(results(page).locator(".stream-row")).toHaveCount(2);
+  // The next message being written, as the design shows it.
+  await results(page).getByLabel("Message", { exact: true }).fill('{"type": "ping"}');
   await snap(page, "11b2");
   await page.keyboard.press("Escape");
 });

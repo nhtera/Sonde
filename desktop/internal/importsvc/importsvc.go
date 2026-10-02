@@ -90,6 +90,9 @@ type Request struct {
 	Ext        string `json:"ext"` // hurl (default) or sonde
 	// Folder is the project folder written into ("" the project's).
 	Folder string `json:"folder"`
+	// Name is a single curl command's file name, without its extension
+	// ("" the converter's).
+	Name string `json:"name"`
 	// Env receives the lifted secrets; Lift picks them (Candidate IDs).
 	// Without a pick (null), every candidate is lifted when there is an
 	// Env: no value reaches the page unless the user keeps it in.
@@ -252,7 +255,7 @@ func requestFiles(p *plan) []string {
 // the options that change the files.
 func layoutKey(req Request) string {
 	sum := sha256.Sum256([]byte(req.Text))
-	return strings.Join([]string{req.Kind, req.Input, hex.EncodeToString(sum[:]), strings.Join(req.Environments, ","), req.Group, req.Ext, req.Folder}, "\x00")
+	return strings.Join([]string{req.Kind, req.Input, hex.EncodeToString(sum[:]), strings.Join(req.Environments, ","), req.Group, req.Ext, req.Folder, req.Name}, "\x00")
 }
 
 // Write imports: the lifted secrets first (a request never names a secret
@@ -399,6 +402,12 @@ func (s *Service) plan(ctx context.Context, req Request) (*plan, error) {
 		return nil, err
 	}
 	if req.Kind == Curl && len(p.out.Files) == 1 {
+		if name := strings.TrimSpace(req.Name); name != "" {
+			if strings.ContainsAny(name, `/\`) || strings.HasPrefix(name, ".") {
+				return nil, apperr.New(apperr.Invalid, "a file name, without folders: "+name)
+			}
+			p.out.Files[0].Path = name
+		}
 		if err := s.liftCurl(req, opts.Dialect(), p); err != nil {
 			return nil, err
 		}
