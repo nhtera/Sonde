@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // A release binary must not hold the test-only harness (built with the
-// e2eharness tag): its files and tag leave their names in the binary.
+// e2eharness tag): its files and tag leave their names in the binary,
+// and the harness's frontend bundle (vite --mode harness) marks itself
+// with the same tag, should a release embed a stale harness dist.
 // Usage: node scripts/check-no-harness.mjs BINARY...
 
 import { readFileSync } from "node:fs";

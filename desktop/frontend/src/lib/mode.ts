@@ -10,6 +10,10 @@ import { isServerMode } from "../transport/server-auth";
  */
 export const serverMode = isServerMode(window.location);
 
+// Marks the test harness's bundle: the release check refuses a binary
+// that embeds it (scripts/check-no-harness.mjs looks for "e2eharness").
+if (import.meta.env.MODE === "harness") document.documentElement.dataset.build = "e2eharness";
+
 /** Whether the visual tests asked the harness to look like the window. */
 function harnessWindowLook(): boolean {
   return String(harnessFixture<string | number>("windowLook")) === "1";
