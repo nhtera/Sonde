@@ -10,7 +10,7 @@ import { CopyIcon, DownloadIcon, SearchIcon } from "../../../../components/icons
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import { useKeyLabel } from "../../../../app/keymap/use-keys";
 import { appError } from "../../../../lib/api";
-import { windowLook } from "../../../../lib/mode";
+import { isMac, windowLook } from "../../../../lib/mode";
 import type { Body } from "../../../../lib/view";
 import { useUI } from "../../../../state/ui";
 import { addFromBody } from "../../actions";
@@ -66,6 +66,7 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
   const chosen = useResults((s) => s.bodyMode);
   const saveKeys = useKeyLabel("response.save");
   const [query, setQuery] = useState("");
+  const searchKeys = isMac ? "⌘F" : "Ctrl+F";
   // Searched once typing pauses (a large body takes a while to scan).
   const [searched, setSearched] = useState("");
   useEffect(() => {
@@ -155,13 +156,22 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
               </button>
             ))}
           </div>
-          {mode !== "preview" && (
-            <label className="body-search">
+          {/* In Preview, a search shows the text it searches (Raw). */}
+          <label className="body-search">
               <SearchIcon size={12} />
-              <input value={query} placeholder="Search" aria-label="Search the body" onChange={(e) => setQuery(e.target.value)} onKeyDown={onKey} />
+              <input
+                value={query}
+                placeholder="Search"
+                aria-label="Search the body"
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (mode === "preview" && e.target.value) useResults.getState().setBodyMode("raw");
+                }}
+                onKeyDown={onKey}
+              />
+              {!query && searchKeys && <kbd className="keys">{searchKeys}</kbd>}
               {query && <span className="count mono">{matches.total ? `${matches.current + 1} of ${matches.total}` : "0 of 0"}  ↑↓</span>}
-            </label>
-          )}
+          </label>
           <button className="btn-ghost icon" title="Copy the body" aria-label="Copy the body" disabled={large} onClick={() => void copy()}>
             <CopyIcon size={12} />
           </button>
@@ -184,7 +194,8 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
         />
       )}
       {invalid === body.id && mode === "pretty" && kind === "json" && <p className="body-note">Not valid JSON: showing the text.</p>}
-      {content}
+      {/* A large body's first megabyte, fading out: there is more. */}
+      {large && !tooLarge && mode !== "pretty" ? <div className="raw-large">{content}</div> : content}
     </div>
   );
 }

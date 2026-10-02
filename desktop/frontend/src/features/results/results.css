@@ -76,12 +76,17 @@
 
 .preview { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
 .preview-note { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11.5px; }
-.preview-frame { flex: 1; min-height: 240px; border: 0; border-radius: 8px; background: #fff; }
+.preview-frame { flex: 0 1 270px; min-height: 160px; border: 0; border-radius: 8px; background: #fff; }
 .preview-image { align-items: center; justify-content: center; }
 .preview-image img { max-width: 100%; max-height: 100%; image-rendering: auto; background: repeating-conic-gradient(var(--raised) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
 
-.large-body { margin: 0 12px 10px; padding: 12px 14px; border-radius: 10px; background: var(--raised); display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; }
-.large-body p { margin: 0; color: var(--muted); line-height: 1.5; }
+.large-body { margin: 0 12px 8px; padding: 14px; border-radius: 10px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; }
+.large-actions .btn { height: 26px; padding: 0 10px; font: 500 12px var(--font-ui); }
+.large-actions .btn:first-child { background: var(--raised); box-shadow: none; }
+.large-actions .btn-ghost { height: 26px; padding: 0 10px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font: 500 12px var(--font-ui); }
+.raw-large { flex: 0 1 210px; min-height: 0; display: flex; margin: 0 12px; border-radius: 8px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+.raw-large > * { flex: 1; min-height: 0; }
+.large-body p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .large-title { display: flex; gap: 10px; align-items: baseline; }
 .large-title span { color: var(--muted); font-size: 11.5px; }
 .large-actions { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -208,7 +213,7 @@
 .session-warn { margin: 0; font-size: 11.5px; color: var(--warn); line-height: 1.45; }
 .session-panel .stream-log { padding-top: 10px; }
 .session-panel .stream-table, .session-panel .stream-rows { flex: 0 1 auto; }
-.btn.danger { color: var(--fail); box-shadow: inset 0 0 0 1px var(--fail-line); }
+.btn.danger { height: 22px; padding: 0 8px; border-radius: 5px; background: var(--fail-soft); color: var(--fail); box-shadow: none; font: 500 12px var(--font-ui); }
 .composer { flex: none; margin: 10px 12px 12px; padding: 10px 12px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); display: flex; flex-direction: column; gap: 10px; }
 .composer:focus-within { box-shadow: inset 0 0 0 1px var(--accent-line); }
 .composer textarea { min-height: 38px; resize: none; padding: 0; border: 0; outline: 0; background: none; color: var(--text); font: 12px/19px var(--font-code); }
@@ -220,3 +225,9 @@
 .write-check { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11.5px; }
 .composer-hint { margin: 0; font-size: 11px; color: var(--faint); }
 .body-search + .btn-ghost.icon { margin-left: auto; }
+.body-search .keys { padding: 0 2px; background: none; color: var(--faint); font: 500 10.5px var(--font-code); }
+/* What a connection tried, under its error card. */
+.error-trace { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 11.5px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; }
+.error-note { margin: 10px 0 0; color: var(--faint); font-size: 11.5px; }
+/* The first thing to try, raised. */
+.error-actions > .btn:first-child { background: var(--raised); box-shadow: none; }

@@ -51,7 +51,8 @@ test("10a: the sandboxed HTML preview", async ({ page }) => {
 });
 
 test("10b: a very large body", async ({ page }) => {
-  await open(page, "big.hurl");
+  // Lines of NDJSON, as the design's export.
+  await open(page, "export.hurl");
   await run(page, /Passed/);
   await expect(results(page).getByLabel("Large response")).toBeVisible();
   await snap(page, "10b");
@@ -133,6 +134,9 @@ test("4a: a test run", async ({ page }) => {
 });
 
 test("5a: environments", async ({ page }) => {
+  // A file's last run beside the environment, as the design has it.
+  await open(page, "users.hurl");
+  await run(page, /Failed/);
   await panel(page, "Environments");
   await expect(page.getByRole("table", { name: "Variables in local" })).toBeVisible();
   // A session override, then a secret being added.
@@ -143,9 +147,13 @@ test("5a: environments", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Remove the override of user" })).toBeVisible();
   await page.getByRole("button", { name: "+ Add variable" }).click();
   await page.getByLabel("New variable name").fill("webhook_secret");
-  await page.getByRole("checkbox", { name: "Secret" }).check();
+  await page.getByRole("switch", { name: "Secret" }).check();
   await page.getByLabel("New variable value").fill("whsec-visual");
+  // A variable's menu, its override picked.
+  await page.getByRole("button", { name: "ws actions" }).click();
+  await page.getByRole("menuitem", { name: /Override for this session/ }).hover();
   await snap(page, "5a");
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Remove the override of user" }).click();
 });
 
