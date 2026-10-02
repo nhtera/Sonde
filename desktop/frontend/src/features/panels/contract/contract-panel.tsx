@@ -21,10 +21,29 @@ interface Status {
 /** The mock's last 200 requests, kept while the panel is closed (a run
  * hits the mock from the Files panel); a project opened starts empty. */
 const useMockLog = create<{ lines: string[] }>(() => ({ lines: [] }));
-on("mock:log", (d) => useMockLog.setState((s) => ({ lines: [...s.lines.slice(-199), String(d)] })));
+on("mock:log", (d) => useMockLog.setState((s) => ({ lines: [...s.lines.slice(-199), `${clock(new Date())} ${String(d)}`] })));
 on("ws:opened", () => useMockLog.setState({ lines: [] }));
 
 const fail = (err: unknown) => useUI.getState().toast({ kind: "error", text: appError(err).message });
+
+/** "01:14:07", the time a request reached the mock. */
+const clock = (d: Date) => d.toTimeString().slice(0, 8);
+
+/** A mock request: its time, method in its color, path and status. */
+function MockLine({ line }: { line: string }) {
+  const m = /^(\S+) (\S+) (.*) → (\d+)$/.exec(line);
+  if (!m) return <span>{line + "\n"}</span>;
+  const [, at, method, path, code] = m;
+  return (
+    <span>
+      <span className="faint" data-volatile>
+        {at}
+      </span>{" "}
+      <span className={`m-${method}`}>{method}</span> {path} <span className={Number(code) >= 400 ? "fail" : "pass"}>{code}</span>
+      {"\n"}
+    </span>
+  );
+}
 
 export function ContractPanel() {
   const settings = useSettings((s) => s.value);
@@ -135,7 +154,9 @@ export function ContractPanel() {
         </p>
         {log.length > 0 && (
           <pre className="mock-log mono" aria-label="Mock requests">
-            {log.join("\n")}
+            {log.map((l, i) => (
+              <MockLine key={i} line={l} />
+            ))}
           </pre>
         )}
       </section>

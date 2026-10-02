@@ -14,7 +14,9 @@
 .panel-body .fail, .testrun-main .fail, .env-main .fail, .changes-card .fail { color: var(--fail); }
 .panel-body .accent { color: var(--accent); }
 .panel-body .section-note, .changes-card .section-note { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 11.5px; }
-.panel-body .card { padding: 10px 12px; border-radius: 10px; background: var(--raised); display: flex; flex-direction: column; gap: 8px; }
+.panel-body .card { padding: 10px 12px; border-radius: 10px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); display: flex; flex-direction: column; gap: 8px; }
+.panel-body .mock-card { padding: 12px; }
+.panel-body .mock-log { padding-top: 6px; box-shadow: inset 0 1px 0 var(--line2); line-height: 17.6px; }
 .panel-body .toggle-card, .panel-body .toggle-line { display: flex; flex-direction: row; justify-content: space-between; gap: 10px; align-items: flex-start; }
 .panel-body .toggle-card span, .panel-body .toggle-line span { display: flex; flex-direction: column; gap: 2px; }
 .panel-body .btn-primary.wide { justify-content: center; width: 100%; }
@@ -153,25 +155,35 @@
 .history-banner span { flex: 1; }
 
 /* Settings */
-.panel-body .settings-nav { display: flex; flex-direction: column; gap: 2px; }
-.panel-body .settings-nav button { height: 30px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--text); text-align: left; font: 500 12.5px var(--font-ui); }
+.panel-body .settings-nav { display: flex; flex-direction: column; gap: 1px; }
+.panel-body .settings-nav button { height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: none; color: var(--muted); text-align: left; font: 12.5px var(--font-ui); }
 .panel-body .settings-nav button:hover { background: var(--hover); }
-.panel-body .settings-nav button[aria-current="true"] { background: var(--raised); }
+.panel-body .settings-nav button[aria-current="true"] { background: var(--accent-soft); color: var(--text); }
 .settings-main .btn-ghost.inline { height: auto; padding: 0; vertical-align: baseline; }
-.settings-main { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; font-size: 12.5px; }
-.set-banner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: var(--warn-soft); color: var(--text); }
-.set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
-.set-card { padding: 16px 18px; border-radius: 12px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); display: flex; flex-direction: column; gap: 2px; }
-.set-card h2 { margin: 0 0 8px; font: 600 13px var(--font-ui); }
-.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; box-shadow: inset 0 -1px 0 var(--line2); }
+.settings-main { padding: 22px 32px; display: flex; flex-direction: column; gap: 14px; font-size: 12.5px; }
+/* History & privacy: full width, its two settings side by side. */
+#settings-privacy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; }
+#settings-privacy > h2, #settings-privacy > p, #settings-privacy > .set-row:last-child { grid-column: 1 / -1; }
+#settings-privacy > p { padding: 9px 0; box-shadow: inset 0 -1px 0 var(--line2); }
+.set-banner { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 9px; background: var(--warn-soft); color: var(--text); font-size: 12px; }
+.set-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.set-grid > #settings-privacy { grid-column: 1 / -1; }
+.set-card { padding: 14px 18px 6px; border-radius: 10px; background: var(--panel); display: flex; flex-direction: column; gap: 0; }
+.set-card h2 { margin: 0 0 4px; font: 600 13px var(--font-ui); }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; box-shadow: inset 0 -1px 0 var(--line2); font-size: 12.5px; }
+.set-row .small { font-size: 11.5px; margin-top: 1px; }
 .set-row .flag { color: var(--warn); }
 .set-control { display: flex; align-items: center; gap: 6px; }
-.set-control input:not([type="checkbox"]) { width: 180px; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-code); }
+.set-control input:not([type="checkbox"]) { width: 170px; height: 28px; padding: 0 9px; border: 0; border-radius: 6px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-code); text-align: right; }
+.set-control input:not([type="checkbox"]):focus { box-shadow: inset 0 0 0 1px var(--accent); outline: 0; }
+.set-row kbd { height: 24px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 5px; background: none; box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 500 11.5px var(--font-code); }
 .set-control .path { color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-card .btn-ghost.accent { align-self: flex-start; color: var(--accent); margin-top: 6px; }
 
 /* Changes card */
-.changes-card { margin: 8px; padding: 10px 12px; border-radius: 10px; background: var(--raised); display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.changes-card { margin: 8px 10px; padding: 12px; border-radius: 10px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); display: flex; flex-direction: column; gap: 9px; font-size: 12px; }
+.changes-card > .btn { height: 28px; justify-content: center; background: var(--raised); box-shadow: none; font: 500 12.5px var(--font-ui); }
+.changes-card > .muted.small { color: var(--faint); font-size: 11.5px; line-height: 1.45; }
 .changes-card .changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .changes-card .changes li { display: flex; gap: 8px; align-items: baseline; }
 .changes-card .changes .mono { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -181,7 +193,10 @@
 .changes-card .git-badge { width: 12px; font: 600 11px var(--font-code); color: var(--warn); }
 .changes-card .git-badge.g-A { color: var(--pass); }
 .changes-card .git-badge.g-D { color: var(--fail); }
-.changes-card textarea { min-height: 52px; resize: vertical; padding: 8px; border: 0; border-radius: 7px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-ui); }
+.changes-card textarea { min-height: 54px; resize: none; padding: 7px 9px; border: 0; border-radius: 6px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12.5px var(--font-ui); }
+.changes-card textarea:focus { outline: 0; box-shadow: inset 0 0 0 1px var(--accent); }
+.changes-card .changes .mono, .changes-card .changes .lines { font-size: 12px; }
+.changes-card .git-badge { font-weight: 400 !important; font-size: 12px !important; }
 
 /* Cookie jar */
 .cookie-jar { width: 780px; top: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 48px); max-height: 80vh; overflow: auto; }
@@ -210,3 +225,12 @@
 .cookie-jar .kv-remove { width: 22px; height: 22px; border: 0; border-radius: 5px; background: none; color: var(--faint); }
 .cookie-jar .kv-remove:hover { color: var(--fail); background: var(--hover); }
 .panel-body .opt-line input.jobs { width: 56px; height: 26px; padding: 0 6px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-align: right; }
+/* Environments: a row with its menu open, the secret notice. */
+.env-table tr:has([data-state="open"]) { background: var(--hover); }
+.env-menu { width: 280px; }
+.env-main .secret-check { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.env-main .secret-note { flex-basis: 100%; display: flex; gap: 8px; margin: 4px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--panel); color: var(--muted); font-size: 12px; line-height: 1.5; }
+.env-main .secret-note svg { flex: none; margin-top: 3px; color: var(--warn); }
+.panel-body .mock-log .faint { color: var(--faint); }
+.panel-body .mock-log .pass { color: var(--pass); }
+.panel-body .mock-log .fail { color: var(--fail); }

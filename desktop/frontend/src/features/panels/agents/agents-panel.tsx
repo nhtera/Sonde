@@ -10,7 +10,7 @@ import { Agents, appError, type AgentSnippet } from "../../../lib/api";
 import { useUI } from "../../../state/ui";
 
 const clients = [
-  { id: "claude", label: "Claude" },
+  { id: "claude", label: "Claude Code" },
   { id: "cursor", label: "Cursor" },
   { id: "vscode", label: "VS Code" },
 ];

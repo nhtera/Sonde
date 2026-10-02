@@ -333,3 +333,13 @@ input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible { outlin
 
 /* A panel's main view (Test run report, environment editor, settings). */
 .panel-main { flex: 1; min-height: 0; overflow: auto; }
+/* The project switcher: recent folders, the open one first. */
+.project-menu { width: 330px; }
+.project-menu .menu-item.folder { height: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; padding: 6px 10px; }
+.project-menu .menu-item.folder.current { background: var(--accent-soft); }
+.project-menu .folder.current .folder-when { color: var(--accent); }
+.project-menu .folder-name { font-weight: 500; }
+.project-menu .folder-when { color: var(--faint); font-size: 10.5px; text-align: right; }
+.project-menu .folder-dir { grid-column: 1 / -1; color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-menu .menu-note { padding: 6px 10px 5px; margin-top: 4px; box-shadow: inset 0 1px 0 var(--line2); color: var(--faint); font-size: 11px; }
+.window[data-welcome] > .empty { grid-column: 1 / -1 !important; grid-row: 2 / -1; background: var(--bg); }

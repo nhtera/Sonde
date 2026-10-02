@@ -6,6 +6,7 @@
 // variable comes from (sonde.yaml, a variables file, a secrets file); a
 // session override is used by this window's runs only (--variable).
 
+import { LockIcon } from "../../../components/icons";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { useState } from "react";
 import { create } from "zustand";
@@ -204,7 +205,13 @@ function VarMenu({ env, v }: { env: string; v: Var }) {
         </button>
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Content className="menu" align="end" sideOffset={4}>
+        <Menu.Content className="menu env-menu" align="end" sideOffset={4}>
+          {!v.secret && (
+            <Menu.Item className="menu-item" onSelect={() => setTimeout(() => (document.querySelector(`[aria-label="${v.name} value"]`) as HTMLInputElement | null)?.focus())}>
+              Edit value
+              <span className="hint">↵</span>
+            </Menu.Item>
+          )}
           <Menu.Item className="menu-item tall" onSelect={() => void overrideIt()}>
             <b>Override for this session</b>
             <span className="sub">Used by runs in this window. Not written to any file.</span>
@@ -252,7 +259,7 @@ function NewVariable({ env, onDone }: { env: string; onDone(): void }) {
       <input className="mono" name="name" aria-label="New variable name" placeholder="name" autoFocus />
       <input className="mono" name="value" aria-label="New variable value" placeholder="value" type={secret ? "password" : "text"} />
       <label className="secret-check">
-        <input type="checkbox" checked={secret} onChange={(e) => setSecret(e.target.checked)} /> Secret
+        <input type="checkbox" role="switch" className="switch" aria-label="Secret" checked={secret} onChange={(e) => setSecret(e.target.checked)} /> Secret
       </label>
       <button className="btn" type="submit">
         Add
@@ -260,7 +267,12 @@ function NewVariable({ env, onDone }: { env: string; onDone(): void }) {
       <button className="btn-ghost" type="button" onClick={onDone}>
         Cancel
       </button>
-      {secret && <p className="form-note">Secret values are written to the environment's secrets file and never shown again or kept in history. Keep that file in .gitignore.</p>}
+      {secret && (
+        <p className="secret-note">
+          <LockIcon />
+          <span>Secret values are written to the environment&apos;s secrets file and never shown again or kept in history. Keep that file in .gitignore.</span>
+        </p>
+      )}
     </form>
   );
 }

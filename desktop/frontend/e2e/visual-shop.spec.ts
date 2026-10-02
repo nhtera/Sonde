@@ -4,7 +4,7 @@
 // Design screens on shop-api (see e2e/visual/snap.ts). In order: later
 // screens show what earlier ones left (a run in the history, a new file).
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { dark, home, light, open, panel, run, snap } from "./visual/snap";
 
 test.describe.configure({ mode: "serial" });
@@ -110,7 +110,19 @@ test("8e: Copy as", async ({ page }) => {
 test("12a: Settings", async ({ page }) => {
   await panel(page, "Settings");
   await expect(page.getByRole("region", { name: "Appearance" })).toBeVisible();
+  // A section shows its card alone, marked in the nav; General all of them.
+  const nav = page.getByRole("navigation", { name: "Settings sections" });
+  await nav.getByRole("button", { name: "Network" }).click();
+  await expect(page.getByRole("region", { name: "Network" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Appearance" })).toHaveCount(0);
+  await expect(nav.getByRole("button", { name: "Network" })).toHaveAttribute("aria-current", "true");
+  await nav.getByRole("button", { name: "General" }).click();
+  await expect(page.getByRole("region", { name: "Appearance" })).toBeVisible();
+  // The theme picked, as the design shows it (then back to the system's).
+  const theme = page.getByRole("group", { name: "Theme" });
+  await theme.getByRole("button", { name: "Dark" }).click();
   await snap(page, "12a");
+  await theme.getByRole("button", { name: "System" }).click();
 });
 
 test("12c: the cookie jar", async ({ page }) => {
@@ -172,4 +184,43 @@ test("4b: a data-driven run, a pill per row", async ({ page }) => {
   await run(page, /Failed/);
   await expect(page.getByRole("region", { name: "Results" }).getByRole("tablist", { name: "Data rows" }).getByRole("tab")).toHaveCount(3);
   await snap(page, "4b");
+});
+
+/** Reloads the page with a workspace the harness cannot reach itself
+ * (see lib/mode.ts harnessFixture). */
+async function withWorkspace(page: Page, fixture: object) {
+  await page.evaluate((f) => sessionStorage.setItem("sonde.workspace", JSON.stringify(f)), fixture);
+  await page.reload();
+}
+
+test("7a and 7b: no folder open, dark and light", async ({ page }) => {
+  await withWorkspace(page, { noProject: true });
+  await expect(page.getByRole("heading", { name: "The desktop app for .hurl files." })).toBeVisible();
+  await snap(page, "7a");
+  // The theme is a setting: light, then back.
+  await page.evaluate(() => sessionStorage.removeItem("sonde.workspace"));
+  await page.reload();
+  await light(page);
+  await withWorkspace(page, { noProject: true });
+  await expect(page.getByRole("heading", { name: "The desktop app for .hurl files." })).toBeVisible();
+  await snap(page, "7b");
+  await page.evaluate(() => sessionStorage.removeItem("sonde.workspace"));
+  await page.reload();
+  await dark(page);
+});
+
+test("8d: the recent folders", async ({ page }) => {
+  const hours = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+  await withWorkspace(page, {
+    recent: [
+      // "@project": the folder open (its path is the harness's).
+      { id: "1", name: "shop-api", dir: "@project", openedAt: hours(0) },
+      { id: "2", name: "payments-api", dir: "~/code/payments-api", openedAt: hours(2) },
+      { id: "3", name: "inventory-grpc", dir: "~/work/inventory", openedAt: hours(30) },
+      { id: "4", name: "hurl-examples", dir: "~/src/hurl-examples", openedAt: hours(24 * 8) },
+    ],
+  });
+  await page.getByRole("banner").getByRole("button", { name: /^shop-api/ }).click();
+  await expect(page.getByRole("menu")).toContainText("Recent folders");
+  await snap(page, "8d");
 });

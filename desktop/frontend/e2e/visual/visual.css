@@ -8,7 +8,6 @@
 .cm-ghost-muted::after,
 .cm-ghost-capture::after,
 .waterfall,
-.wf-ms,
-.mock-log {
+.wf-ms {
   visibility: hidden !important;
 }

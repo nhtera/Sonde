@@ -1,6 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { registry } from "../../app/registry";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { BranchIcon, ChevronDown, PlayIcon, SearchIcon, SondeMark } from "../../components/icons";
 import { isMac, serverMode, windowLook } from "../../lib/mode";
@@ -69,10 +70,27 @@ export function TitleBar() {
   );
 }
 
+/** When a folder was last opened: "2 h ago", "yesterday", "last week". */
+export function openedWhen(iso: string, now = new Date()): string {
+  const h = Math.floor((now.getTime() - new Date(iso).getTime()) / 3_600_000);
+  if (Number.isNaN(h)) return "";
+  if (h < 1) return "just now";
+  if (h < 24) return `${h} h ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "yesterday";
+  if (d < 7) return `${d} days ago`;
+  if (d < 14) return "last week";
+  return new Date(iso).toLocaleDateString();
+}
+
 function ProjectSwitcher({ name }: { name: string }) {
   const recent = useWorkspace((s) => s.recent);
+  const here = useWorkspace((s) => s.project?.dir);
   const openKeys = useKeyLabel("folder.open");
+  const importKeys = useKeyLabel("import.open");
   if (!windowLook) return <span style={{ fontWeight: 600 }}>{name}</span>;
+  // The folder open first, then the others, latest first.
+  const folders = [...recent].sort((a, b) => Number(b.dir === here) - Number(a.dir === here) || b.openedAt.localeCompare(a.openedAt));
   return (
     <Menu.Root>
       <Menu.Trigger asChild>
@@ -82,20 +100,27 @@ function ProjectSwitcher({ name }: { name: string }) {
         </button>
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Content className="menu" align="start" sideOffset={6}>
-          <Menu.Item className="menu-item" onSelect={() => void useWorkspace.getState().openFolder()}>
-            Open a folder…<span className="hint">{openKeys}</span>
-          </Menu.Item>
-          {recent.length > 0 && <Menu.Separator className="menu-sep" />}
-          {recent.length > 0 && <Menu.Label className="menu-label">Recent</Menu.Label>}
-          {recent.map((r) => (
-            <Menu.Item key={r.id} className="menu-item" onSelect={() => void useWorkspace.getState().openRecent(r.id)} title={r.dir}>
-              {r.name}
-              <span className="hint" style={{ fontFamily: "var(--font-ui)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {r.dir}
+        <Menu.Content className="menu project-menu" align="start" sideOffset={6}>
+          {folders.length > 0 && <Menu.Label className="menu-label">Recent folders</Menu.Label>}
+          {folders.map((r) => (
+            <Menu.Item key={r.id} className={`menu-item folder${r.dir === here ? " current" : ""}`} onSelect={() => r.dir !== here && void useWorkspace.getState().openRecent(r.id)} title={r.dir}>
+              <span className="folder-name">{r.name}</span>
+              <span className="folder-when" data-volatile={r.dir === here ? undefined : true}>
+                {r.dir === here ? "current" : openedWhen(r.openedAt)}
               </span>
+              <span className="folder-dir mono">{r.dir}</span>
             </Menu.Item>
           ))}
+          {folders.length > 0 && <Menu.Separator className="menu-sep" />}
+          <Menu.Item className="menu-item" onSelect={() => void useWorkspace.getState().openFolder()}>
+            Open folder…<span className="hint">{openKeys}</span>
+          </Menu.Item>
+          {registry.getCommand("import.open") && (
+            <Menu.Item className="menu-item" onSelect={() => void registry.getCommand("import.open")?.run()}>
+              Import collection…<span className="hint">{importKeys}</span>
+            </Menu.Item>
+          )}
+          <div className="menu-note">Each folder has its own sonde.yaml, history and cookie jar.</div>
         </Menu.Content>
       </Menu.Portal>
     </Menu.Root>

@@ -74,6 +74,7 @@ export function Layout() {
   const results = appearance?.resultsWidth ?? 440;
   // A panel with a main view shows it in place of the tabs and editor.
   const PanelMain = project ? panel?.main : undefined;
+  const welcome = loaded && !project;
   const showResults = !!project && !!active && (!narrow || resultsOpen) && !(PanelMain && panel?.wide);
   // Narrow: the side panel is an overlay (no column); results are docked
   // at 400px and toggled from the toolbar.
@@ -84,10 +85,12 @@ export function Layout() {
     <div
       className="window"
       data-narrow={narrow ? "yes" : "no"}
+      data-welcome={welcome || undefined}
       style={{ ["--side-w" as string]: `${sideCol}px`, ["--results-w" as string]: `${resultsCol}px` }}
     >
       <TitleBar />
-      <Rail />
+      {/* No folder open: the welcome alone, under the title bar. */}
+      {!welcome && <Rail />}
       {!loaded ? (
         <div style={{ gridColumn: "2 / -1" }} />
       ) : !project ? (
@@ -130,7 +133,7 @@ export function Layout() {
           )}
         </>
       )}
-      <StatusBar />
+      {!welcome && <StatusBar />}
     </div>
   );
 }

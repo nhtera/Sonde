@@ -6,7 +6,7 @@
 
 import { FilesIcon } from "../components/icons";
 import { FileTree } from "../features/tree/file-tree";
-import { serverMode } from "../lib/mode";
+import { windowLook } from "../lib/mode";
 import { useRuns } from "../state/run";
 import { resolvedTheme, useSettings, type Theme } from "../state/settings";
 import { isDirty, useTabs } from "../state/tabs";
@@ -81,7 +81,8 @@ registry.command({
   },
 });
 
-if (!serverMode) {
+// The window's own (the harness shows it for the design screens).
+if (windowLook) {
   registry.command({ id: "folder.open", title: "Open a folder…", run: () => useWorkspace.getState().openFolder() });
 }
 

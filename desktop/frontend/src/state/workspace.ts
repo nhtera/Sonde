@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { Git, Workspace, WorkspaceDesktop, type FileStatus, type GitInfo, type Node, type Project, type Recent, type Request } from "../lib/api";
 import { on } from "../lib/events";
 import { confirm } from "../components/ask";
-import { serverMode } from "../lib/mode";
+import { harnessFixture, serverMode } from "../lib/mode";
 import { useRuns } from "./run";
 import { isDirty, useTabs } from "./tabs";
 import { useUI } from "./ui";
@@ -41,8 +41,11 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   gitLines: {},
   gitSecrets: [],
   load: async () => {
-    const project = await Workspace.Project();
-    const recent = serverMode ? [] : ((await WorkspaceDesktop.Recent()) ?? []);
+    // The visual tests show the welcome and the recent folders through
+    // the harness, which always has a project and no window.
+    const shown = harnessFixture<{ noProject?: boolean; recent?: Recent[] }>("workspace");
+    const project = shown?.noProject ? null : await Workspace.Project();
+    const recent = shown?.recent?.map((r) => (r.dir === "@project" && project ? { ...r, dir: project.dir } : r)) ?? (serverMode ? [] : ((await WorkspaceDesktop.Recent()) ?? []));
     set({ project, recent, loaded: true });
     if (project) await get().refresh();
   },

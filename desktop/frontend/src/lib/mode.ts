@@ -12,11 +12,27 @@ export const serverMode = isServerMode(window.location);
 
 /** Whether the visual tests asked the harness to look like the window. */
 function harnessWindowLook(): boolean {
-  if (import.meta.env.MODE !== "harness") return false;
+  return String(harnessFixture<string | number>("windowLook")) === "1";
+}
+
+/**
+ * A stand-in the visual tests give the test harness, under "sonde.<name>"
+ * in sessionStorage (JSON, or a plain string): a state the harness cannot
+ * reach otherwise (no project open, recent folders). Never read outside
+ * the harness's build.
+ */
+export function harnessFixture<T>(name: string): T | undefined {
+  if (import.meta.env.MODE !== "harness") return undefined;
   try {
-    return sessionStorage.getItem("sonde.windowLook") === "1";
+    const raw = sessionStorage.getItem(`sonde.${name}`);
+    if (raw === null) return undefined;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return raw as T;
+    }
   } catch {
-    return false;
+    return undefined;
   }
 }
 
