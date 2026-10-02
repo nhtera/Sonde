@@ -138,6 +138,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"cart": parts[1], "items": n})
 	case r.Method == "POST" && len(parts) == 3 && parts[0] == "carts" && parts[2] == "checkout":
 		writeJSON(w, 200, map[string]string{"order": "o-" + parts[1], "status": "pending"})
+	case p == "orders/export":
+		s.export(w, r)
 	case r.Method == "GET" && len(parts) == 2 && parts[0] == "orders":
 		writeJSON(w, 200, map[string]string{"id": parts[1], "status": "pending"})
 	case p == "events":
@@ -175,8 +177,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // page is an HTML receipt whose script, if it ran, would change the title
 // and call the server.
-const page = `<!doctype html><html><head><title>Receipt</title></head><body>
-<h1 id="title">Receipt</h1><p>Order o-c1 · 25.80 EUR</p>
+const page = `<!doctype html><html><head><title>Receipt</title><style>
+body{margin:0;padding:22px 24px;font:14px/1.5 -apple-system,system-ui,sans-serif;color:#1d2433;background:#fff}
+.shop{font-size:11px;letter-spacing:.12em;color:#6b7385}h1{margin:4px 0 0;font-size:22px;font-weight:600}
+.sub{color:#6b7385;margin:0 0 14px}table{width:100%;border-collapse:collapse;border-top:1px solid #e3e6ec}
+td{padding:6px 0}td+td{text-align:right}.muted td{color:#8a91a1}.total td{font-weight:600;border-top:1px solid #e3e6ec;padding-top:8px}
+.badge{display:inline-block;margin-top:10px;padding:2px 8px;border-radius:5px;background:#fdf1d6;color:#8a5a00;font-size:12px;font-weight:600}
+</style></head><body>
+<div class="shop">SHOP</div><h1 id="title">Receipt</h1><p class="sub">Order o-c1 · 29 Sep 2026</p>
+<table><tr><td>Earl Grey 250 g × 2</td><td>25.80 EUR</td></tr><tr class="muted"><td>Shipping</td><td>0.00 EUR</td></tr>
+<tr class="total"><td>Total</td><td>25.80 EUR</td></tr></table><span class="badge">Payment pending</span>
 <img src="/health?from=preview-img" alt="">
 <script>document.getElementById("title").textContent = "SCRIPT RAN"; fetch("/health?from=preview-script");</script>
 </body></html>`
@@ -200,6 +210,23 @@ func (s *Server) big(w http.ResponseWriter, r *http.Request) {
 		size += n
 	}
 	_, _ = io.WriteString(bw, "]")
+	_ = bw.Flush()
+}
+
+// export streams ?mb= MiB (default 1) of orders as NDJSON, one a line.
+func (s *Server) export(w http.ResponseWriter, r *http.Request) {
+	mb, err := strconv.Atoi(r.URL.Query().Get("mb"))
+	if err != nil || mb < 1 || mb > 200 {
+		mb = 1
+	}
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	bw := bufio.NewWriterSize(w, 1<<16)
+	statuses := []string{"paid", "paid", "refunded", "paid", "pending", "paid", "paid", "cancelled", "paid"}
+	size := 0
+	for i := 1; size < mb<<20; i++ {
+		n, _ := fmt.Fprintf(bw, `{"id":"ord_%d","status":%q,"total":%d.%d,"currency":"EUR"}`+"\n", 1000+i, statuses[i%len(statuses)], 9+(i*7)%90, i%10)
+		size += n
+	}
 	_ = bw.Flush()
 }
 
