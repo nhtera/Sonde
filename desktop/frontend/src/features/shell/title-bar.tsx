@@ -90,7 +90,7 @@ function ProjectSwitcher({ name }: { name: string }) {
   const importKeys = useKeyLabel("import.open");
   if (!windowLook) return <span style={{ fontWeight: 600 }}>{name}</span>;
   // The folder open first, then the others, latest first.
-  const folders = [...recent].sort((a, b) => Number(b.dir === here) - Number(a.dir === here) || b.openedAt.localeCompare(a.openedAt));
+  const folders = [...recent].sort((a, b) => Number(b.dir === here) - Number(a.dir === here) || Date.parse(b.openedAt) - Date.parse(a.openedAt));
   return (
     <Menu.Root>
       <Menu.Trigger asChild>

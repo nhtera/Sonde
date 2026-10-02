@@ -83,6 +83,9 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
   const modes = modesOf(kind);
   let mode: BodyMode = modes.includes(chosen) ? chosen : modes[0];
   if (large && mode === "pretty") mode = "raw";
+  // A search in an HTML preview shows the text it searches (Raw), for this
+  // search only: the chosen mode stays for later bodies.
+  if (mode === "preview" && kind === "html" && query) mode = "raw";
   const tree = mode === "pretty" && kind === "json" && invalid !== body.id;
   const needsText = !tooLarge && !tree && mode !== "preview";
   const limit = large ? RAW_PREVIEW : FORMAT_LIMIT;
@@ -150,7 +153,10 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
                 key={m}
                 aria-pressed={mode === m}
                 disabled={!modes.includes(m) || (m === "pretty" && large)}
-                onClick={() => useResults.getState().setBodyMode(m)}
+                onClick={() => {
+                  useResults.getState().setBodyMode(m);
+                  if (m === "preview") setQuery("");
+                }}
               >
                 {modeLabel[m]}
               </button>
@@ -163,10 +169,7 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
                 value={query}
                 placeholder="Search"
                 aria-label="Search the body"
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  if (mode === "preview" && e.target.value) useResults.getState().setBodyMode("raw");
-                }}
+                onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onKey}
               />
               {!query && searchKeys && <kbd className="keys">{searchKeys}</kbd>}
@@ -195,7 +198,7 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
       )}
       {invalid === body.id && mode === "pretty" && kind === "json" && <p className="body-note">Not valid JSON: showing the text.</p>}
       {/* A large body's first megabyte, fading out: there is more. */}
-      {large && !tooLarge && mode !== "pretty" ? <div className="raw-large">{content}</div> : content}
+      {large && !tooLarge && mode === "raw" ? <div className="raw-large">{content}</div> : content}
     </div>
   );
 }

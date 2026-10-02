@@ -224,7 +224,10 @@ func (s *Server) export(w http.ResponseWriter, r *http.Request) {
 	statuses := []string{"paid", "paid", "refunded", "paid", "pending", "paid", "paid", "cancelled", "paid"}
 	size := 0
 	for i := 1; size < mb<<20; i++ {
-		n, _ := fmt.Fprintf(bw, `{"id":"ord_%d","status":%q,"total":%d.%d,"currency":"EUR"}`+"\n", 1000+i, statuses[i%len(statuses)], 9+(i*7)%90, i%10)
+		n, err := fmt.Fprintf(bw, `{"id":"ord_%d","status":%q,"total":%d.%d,"currency":"EUR"}`+"\n", 1000+i, statuses[i%len(statuses)], 9+(i*7)%90, i%10)
+		if err != nil {
+			return // the client went away
+		}
 		size += n
 	}
 	_ = bw.Flush()

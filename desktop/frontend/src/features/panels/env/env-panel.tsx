@@ -207,7 +207,7 @@ function VarMenu({ env, v }: { env: string; v: Var }) {
       <Menu.Portal>
         <Menu.Content className="menu env-menu" align="end" sideOffset={4}>
           {!v.secret && (
-            <Menu.Item className="menu-item" onSelect={() => setTimeout(() => (document.querySelector(`[aria-label="${v.name} value"]`) as HTMLInputElement | null)?.focus())}>
+            <Menu.Item className="menu-item" onSelect={() => setTimeout(() => (document.querySelector(`[aria-label="${CSS.escape(v.name)} value"]`) as HTMLInputElement | null)?.focus())}>
               Edit value
               <span className="hint">↵</span>
             </Menu.Item>

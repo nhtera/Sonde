@@ -26,6 +26,9 @@ export function unresolvedText(message: string): string | undefined {
   return m ? `${m[1]}: no such host` : undefined;
 }
 
+// Failures before the request left: a timeout may come after it was sent.
+const unsent = new Set(["connect", "resolve", "tls", "host-denied"]);
+
 export function ErrorCard({ file, entry, err }: { file: string; entry: number; err: EntryError }) {
   useRegistry();
   const card = cardOf(err);
@@ -38,9 +41,9 @@ export function ErrorCard({ file, entry, err }: { file: string; entry: number; e
     return [
       at && `Trying ${at[1]}:${at[2]}...`,
       ...err.message.split("\n").filter(Boolean),
-      `Failed${ms !== undefined ? ` after ${ms} ms` : ""} · no request sent`,
+      `Failed${ms !== undefined ? ` after ${ms} ms` : ""}${unsent.has(err.transport ?? "") ? " · no request sent" : ""}`,
     ].filter(Boolean) as string[];
-  }, [err.message, ms]);
+  }, [err.message, err.transport, ms]);
   const [spec, setSpec] = useState("");
   useEffect(() => {
     if (err.transport !== "connect") return;
@@ -105,7 +108,6 @@ export function ErrorCard({ file, entry, err }: { file: string; entry: number; e
           ))}
         </pre>
       )}
-      {!card.neutral && <p className="error-note">DNS failures, TLS certificate errors and timeouts use the same card.</p>}
     </div>
   );
 }
