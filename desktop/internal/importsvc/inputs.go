@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/handles"
@@ -63,8 +64,9 @@ func (s *Service) Upload(name, data string) (*Input, error) {
 	if err != nil {
 		return nil, apperr.New(apperr.Invalid, "not base64: "+err.Error())
 	}
-	base := filepath.Base(filepath.Clean("/" + name))
-	if base == "/" || base == "." {
+	// The page's file name, cut at either separator on every OS.
+	base := name[strings.LastIndexAny(name, `/\`)+1:]
+	if base == "" || base == "." || base == ".." {
 		base = "upload"
 	}
 	path, err := s.temp(base, b)

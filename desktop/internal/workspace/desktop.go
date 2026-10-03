@@ -91,6 +91,7 @@ func writeExample(base string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer func() { _ = root.Close() }()
 	if fi, err := root.Stat("."); err != nil || !fi.IsDir() {
 		return "", fs.ErrNotExist
 	}
