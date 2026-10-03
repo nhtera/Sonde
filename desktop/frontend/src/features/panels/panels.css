@@ -266,5 +266,8 @@
 .theme-card { display: flex; flex-direction: column; gap: 7px; padding: 10px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); }
 .theme-card-head { display: flex; align-items: center; gap: 6px; font-weight: 600; }
 .theme-active { margin-left: auto; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font: 500 10.5px var(--font-ui); }
-.theme-card select { height: 28px; padding: 0 6px; border: 0; border-radius: 6px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-ui); }
-.theme-card select:focus { box-shadow: inset 0 0 0 1px var(--accent); outline: 0; }
+/* Flat, as the app's other pickers: no native gradient, our chevron. */
+.theme-select { position: relative; display: flex; }
+.theme-card select { appearance: none; -webkit-appearance: none; flex: 1; min-width: 0; height: 28px; margin: 0; padding: 0 26px 0 9px; border: 0; border-radius: 6px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-ui); cursor: pointer; }
+.theme-card select:hover { box-shadow: inset 0 0 0 1px var(--faint); }
+.theme-select .chev { position: absolute; right: 10px; top: 50%; translate: 0 -50%; color: var(--muted); pointer-events: none; }

@@ -7,7 +7,7 @@
 import type { ReactNode } from "react";
 import { ThemePreview } from "../../../app/theme/theme-preview";
 import { themes } from "../../../app/theme/themes";
-import { MoonIcon, SunIcon } from "../../../components/icons";
+import { ChevronDown, MoonIcon, SunIcon } from "../../../components/icons";
 import { appError } from "../../../lib/api";
 import { resolvedTheme, useOsLight, useSettings, type ThemePrefs } from "../../../state/settings";
 import { useUI } from "../../../state/ui";
@@ -84,7 +84,8 @@ function ThemeCard(props: {
       </div>
       <div className="muted small">{props.note}</div>
       <ThemePreview id={props.id} />
-      <select aria-label={props.title} value={props.id} onChange={(e) => props.onPick(e.target.value)}>
+      <span className="theme-select">
+        <select aria-label={props.title} value={props.id} onChange={(e) => props.onPick(e.target.value)}>
         {kinds.map((kind) => (
           <optgroup key={kind} label={kind === "light" ? "Light" : "Dark"}>
             {themes
@@ -96,7 +97,9 @@ function ThemeCard(props: {
               ))}
           </optgroup>
         ))}
-      </select>
+        </select>
+        <ChevronDown className="chev" />
+      </span>
     </div>
   );
 }
