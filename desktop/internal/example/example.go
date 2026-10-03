@@ -7,12 +7,15 @@
 package example
 
 import (
+	"crypto/rand"
 	"embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
-	"path/filepath"
+	"path"
+
+	"github.com/nhtera/sonde/internal/sandbox"
 )
 
 // Name is the example project's folder name.
@@ -21,54 +24,61 @@ const Name = "shop-api"
 //go:embed all:shop-api
 var files embed.FS
 
-// Write copies the example into parent/Name and returns that folder. A
-// folder already there is left as it is (the example tried before,
-// perhaps changed since): it is opened, never overwritten.
-func Write(parent string) (string, error) {
-	dir := filepath.Join(parent, Name)
-	if fi, err := os.Stat(dir); err == nil {
+// Write copies the example into the folder dir/Name of root (dir is
+// made when missing) and returns that folder's path in root. A folder
+// already there is left as it is (the example tried before, perhaps
+// changed since): it is opened, never overwritten.
+func Write(root *sandbox.Root, dir string) (string, error) {
+	target := path.Join(dir, Name)
+	if fi, err := root.Stat(target); err == nil {
 		if !fi.IsDir() {
-			return "", fmt.Errorf("%s is a file, not a folder", dir)
+			return "", fmt.Errorf("%s is a file, not a folder", target)
 		}
-		return dir, nil
+		return target, nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return "", err
 	}
-	// Written beside dir, then renamed: no half-written example remains.
-	if err := os.MkdirAll(parent, 0o755); err != nil {
+	// Written beside the target, then renamed: no half-written example
+	// remains under its name.
+	var b [6]byte
+	_, _ = rand.Read(b[:])
+	tmp := path.Join(dir, "."+Name+"-"+hex.EncodeToString(b[:]))
+	if err := root.MkdirAll(tmp, 0o750); err != nil {
 		return "", err
 	}
-	tmp, err := os.MkdirTemp(parent, "."+Name+"-")
-	if err != nil {
-		return "", err
-	}
-	defer os.RemoveAll(tmp)
-	err = fs.WalkDir(files, Name, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || p == Name {
+	err := fs.WalkDir(files, Name, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
 			return err
-		}
-		rel, _ := filepath.Rel(Name, filepath.FromSlash(p))
-		if d.IsDir() {
-			return os.Mkdir(filepath.Join(tmp, rel), 0o755)
 		}
 		data, err := files.ReadFile(p)
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(filepath.Join(tmp, rel), data, 0o644)
+		return root.WriteFileAtomic(path.Join(tmp, p[len(Name)+1:]), data, 0o600)
 	})
+	if err == nil {
+		err = root.Rename(tmp, target)
+	}
 	if err != nil {
-		return "", err
-	}
-	if err := os.Chmod(tmp, 0o755); err != nil {
-		return "", err
-	}
-	if err := os.Rename(tmp, dir); err != nil {
+		removeTree(root, tmp)
 		// Written meanwhile (a second click): that one is opened.
-		if fi, serr := os.Stat(dir); serr == nil && fi.IsDir() {
-			return dir, nil
+		if fi, serr := root.Stat(target); serr == nil && fi.IsDir() {
+			return target, nil
 		}
 		return "", err
 	}
-	return dir, nil
+	return target, nil
+}
+
+// removeTree removes dir of root and what it holds, as far as it can.
+func removeTree(root *sandbox.Root, dir string) {
+	entries, _ := root.ReadDir(dir)
+	for _, e := range entries {
+		if e.IsDir() {
+			removeTree(root, path.Join(dir, e.Name()))
+		} else {
+			_ = root.Remove(path.Join(dir, e.Name()))
+		}
+	}
+	_ = root.Remove(dir)
 }

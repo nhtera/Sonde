@@ -74,20 +74,31 @@ func (d *Desktop) OpenExample() (*Project, error) {
 		return nil, err
 	}
 	// Documents, unless there is none or macOS denies access to it.
-	var dir string
-	docs := filepath.Join(home, "Documents")
-	if fi, serr := os.Stat(docs); serr == nil && fi.IsDir() {
-		dir, err = example.Write(filepath.Join(docs, "Sonde"))
-	} else {
-		err = fs.ErrNotExist
-	}
+	dir, err := writeExample(filepath.Join(home, "Documents"))
 	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) {
-		dir, err = example.Write(filepath.Join(home, "Sonde"))
+		dir, err = writeExample(home)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("the example project could not be written: %w", err)
 	}
 	return d.open(dir)
+}
+
+// writeExample writes the example into base/Sonde, base an existing
+// folder, through a file root on base; it returns the example's path.
+func writeExample(base string) (string, error) {
+	root, err := sandbox.Open(base)
+	if err != nil {
+		return "", err
+	}
+	if fi, err := root.Stat("."); err != nil || !fi.IsDir() {
+		return "", fs.ErrNotExist
+	}
+	rel, err := example.Write(root, "Sonde")
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, filepath.FromSlash(rel)), nil
 }
 
 // OpenRecent opens the recent project id.

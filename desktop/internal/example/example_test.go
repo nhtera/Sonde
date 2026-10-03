@@ -17,14 +17,15 @@ import (
 )
 
 func TestWrite(t *testing.T) {
-	parent := filepath.Join(t.TempDir(), "Sonde")
-	dir, err := Write(parent)
+	base := t.TempDir()
+	rel, err := Write(open(t, base), "Sonde")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dir != filepath.Join(parent, Name) {
-		t.Fatalf("dir = %s", dir)
+	if rel != "Sonde/"+Name {
+		t.Fatalf("rel = %s", rel)
 	}
+	parent, dir := filepath.Join(base, "Sonde"), filepath.Join(base, "Sonde", Name)
 	for _, f := range []string{"sonde.yaml", "openapi.yaml", "products.hurl", "checkout.hurl"} {
 		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
 			t.Errorf("%s: %v", f, err)
@@ -38,16 +39,17 @@ func TestWrite(t *testing.T) {
 
 // A second try opens the folder as it is: a change made since stays.
 func TestWriteKeepsExisting(t *testing.T) {
-	parent := t.TempDir()
-	dir, err := Write(parent)
+	base := t.TempDir()
+	root := open(t, base)
+	rel, err := Write(root, ".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	mine := filepath.Join(dir, "products.hurl")
-	if err := os.WriteFile(mine, []byte("GET http://example.test\n"), 0o644); err != nil {
+	mine := filepath.Join(base, rel, "products.hurl")
+	if err := os.WriteFile(mine, []byte("GET http://example.test\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Write(parent); err != nil {
+	if _, err := Write(root, "."); err != nil {
 		t.Fatal(err)
 	}
 	if b, _ := os.ReadFile(mine); string(b) != "GET http://example.test\n" {
@@ -58,10 +60,12 @@ func TestWriteKeepsExisting(t *testing.T) {
 // The example's files pass against the mock of its own spec: their
 // asserts follow the spec's examples.
 func TestExampleRunsAgainstItsMock(t *testing.T) {
-	dir, err := Write(t.TempDir())
+	base := t.TempDir()
+	rel, err := Write(open(t, base), ".")
 	if err != nil {
 		t.Fatal(err)
 	}
+	dir := filepath.Join(base, rel)
 	root, err := sandbox.Open(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +77,7 @@ func TestExampleRunsAgainstItsMock(t *testing.T) {
 		t.Fatal(err)
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	ln.Close()
+	_ = ln.Close()
 	st, err := m.Start(context.Background(), port)
 	if err != nil {
 		t.Fatal(err)
@@ -92,4 +96,13 @@ func TestExampleRunsAgainstItsMock(t *testing.T) {
 			t.Errorf("%s: %+v %v", f, res, err)
 		}
 	}
+}
+
+func open(t *testing.T, dir string) *sandbox.Root {
+	t.Helper()
+	root, err := sandbox.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
 }
