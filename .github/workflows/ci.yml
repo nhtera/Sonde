@@ -170,6 +170,10 @@ jobs:
     # mode and the test-only e2e harness. Frontend dependencies install
     # with scripts disabled; the browser tests run against the harness.
     runs-on: ubuntu-latest
+    env:
+      # wails3 too: its cgo part (the WebKit version, for `wails3 doctor`)
+      # needs GTK headers this job does not install.
+      CGO_ENABLED: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
