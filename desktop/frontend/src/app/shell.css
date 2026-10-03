@@ -70,7 +70,8 @@ kbd, .kbd {
   border: 0; border-radius: 6px; background: transparent; box-shadow: inset 0 0 0 1px var(--line);
   font: 500 12px var(--font-ui); color: var(--text);
 }
-.btn:hover, .btn-ghost:hover { background: var(--hover); }
+.btn:hover:not(:disabled), .btn-ghost:hover:not(:disabled) { background: var(--hover); }
+.btn:disabled { opacity: 0.5; }
 .btn-ghost {
   height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 7px;
   border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 500 12px var(--font-ui);

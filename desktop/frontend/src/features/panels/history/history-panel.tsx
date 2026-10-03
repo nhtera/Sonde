@@ -104,7 +104,14 @@ export function HistoryPanel() {
                   <span className="mono path" title={call.url}>
                     {displayPath(call.url)}
                   </span>
-                  <span className={`status ${call.status >= 400 || call.status === 0 ? "fail" : "pass"}`}>{call.status || "ERR"}</span>
+                  {/* A failed assert fails the request, whatever its status. */}
+                  <span
+                    className={`status ${call.failed || call.status >= 400 || call.status === 0 ? "fail" : "pass"}`}
+                    title={call.failed ? "An assert failed" : undefined}
+                  >
+                    {call.status || "ERR"}
+                    {call.failed && " ✕"}
+                  </span>
                   <span />
                   <span className="src">{call.file}</span>
                   <span className="when" data-volatile>

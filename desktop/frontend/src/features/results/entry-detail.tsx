@@ -197,7 +197,10 @@ export function EntryDetail({ file, run, entry, lines }: EntryDetailProps) {
       content = e && <HeadersTab entry={e} />;
       break;
     case "asserts":
-      content = e && <AssertsTab entry={e} lines={lines} onShowResponse={() => useResults.getState().setTab(run.runId, "body")} />;
+      // Show response only when there is a response (a Body tab).
+      content = e && (
+        <AssertsTab entry={e} lines={lines} onShowResponse={tabs.includes("body") ? () => useResults.getState().setTab(run.runId, "body") : undefined} />
+      );
       break;
     case "captures":
       content = e && <CapturesTab entry={e} />;

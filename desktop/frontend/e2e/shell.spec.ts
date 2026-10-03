@@ -82,7 +82,9 @@ test("the palette opens files, and > lists commands only", async ({ page }) => {
   await page.keyboard.press("ControlOrMeta+KeyK");
   const palette = page.getByRole("dialog");
   await page.keyboard.type("users");
-  await expect(palette.getByRole("option", { name: /users\.hurl/ })).toBeVisible();
+  // The file first, then its requests (GET /users/… · users.hurl:3).
+  await expect(palette.getByRole("option", { name: /^users\.hurl/ })).toBeVisible();
+  await expect(palette.getByRole("option", { name: /^GET \/users/ }).first()).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("tab", { name: /users\.hurl/ })).toHaveAttribute("aria-selected", "true");
 

@@ -9,8 +9,10 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { appError, Mocks } from "../../../lib/api";
 import { on } from "../../../lib/events";
+import { useEnv } from "../../../state/env";
 import { useRuns } from "../../../state/run";
 import { useSettings } from "../../../state/settings";
+import { useTabs } from "../../../state/tabs";
 import { useUI } from "../../../state/ui";
 
 interface Status {
@@ -55,8 +57,12 @@ export function ContractPanel() {
   // A run that ends may cover more operations.
   const runsDone = useRuns((s) => Object.values(s.runs).filter((r) => !r.running).length);
 
+  // The project's config, reloaded when sonde.yaml changes: the spec too.
+  const project = useEnv((s) => s.project);
   useEffect(() => {
     Mocks.Spec().then((s) => setSpec({ file: s?.file ?? "", operations: s?.operations ?? [] }), fail);
+  }, [project]);
+  useEffect(() => {
     Mocks.Status().then((s) => s && setStatus(s), fail);
     const offStatus = on("mock:status", (d) => setStatus(d as Status));
     return offStatus;
@@ -70,8 +76,15 @@ export function ContractPanel() {
       <div className="panel-body">
         <div className="panel-head">
           <h2>Contract &amp; mock</h2>
+          {project?.config && (
+            <button className="btn-ghost accent" onClick={() => void useTabs.getState().open(project.config)}>
+              Edit {project.config}
+            </button>
+          )}
         </div>
-        <p className="form-note">sonde.yaml names no OpenAPI spec. Add an openapi: spec: entry to check responses against it and serve it as a mock.</p>
+        <p className="form-note">
+          sonde.yaml names no OpenAPI spec. Add an <code className="mono">openapi: spec:</code> entry to check responses against it and serve it as a mock.
+        </p>
       </div>
     );
   }

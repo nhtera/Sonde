@@ -32,6 +32,7 @@
 .panel-body .opt-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; }
 .panel-body .cli-command p { overflow-wrap: anywhere; }
 .panel-body .cli-command code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.panel-body .cli-command code .arg { display: inline-block; max-width: 100%; }
 /* The report, and beside it the picked file's results. */
 .testrun-split { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
 .testrun-split > .testrun-main { min-width: 0; overflow: auto; }
@@ -64,7 +65,7 @@
 .file-table .row-pills { padding: 4px 0 0; }
 .export-row { display: flex; align-items: center; gap: 6px; }
 .export-row .muted { margin-right: 4px; }
-.testrun-main.empty { max-width: 520px; }
+.testrun-main.idle { max-width: 520px; }
 
 /* Environments */
 .panel-body .env-list, .panel-body .var-summary, .panel-body .precedence, .panel-body .op-list, .panel-body .history-list, .panel-body .tool-list { list-style: none; margin: 0; padding: 0; }
@@ -158,7 +159,7 @@
 .panel-body .history-list .method.m-patch { color: var(--m-patch); }
 .panel-body .history-list .method.m-delete { color: var(--m-delete); }
 .panel-body .history-list .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.panel-body .history-list .status { font-size: 11px; font-weight: 600; }
+.panel-body .history-list .status { justify-self: end; font-size: 11px; font-weight: 600; }
 .panel-body .history-list .status.pass { color: var(--pass); }
 .panel-body .history-list .status.fail { color: var(--fail); }
 .panel-body .history-list .src { color: var(--faint); font: 11px var(--font-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

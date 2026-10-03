@@ -1,7 +1,8 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// ⌘K: files and commands; a query starting with ">" lists commands only.
+// ⌘K: files, the requests in them (once something is typed) and
+// commands; a query starting with ">" lists commands only.
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
@@ -10,6 +11,7 @@ import { label } from "../../app/keymap/keymap-manager";
 import { useKeys } from "../../app/keymap/use-keys";
 import { registry, useRegistry } from "../../app/registry";
 import { SearchIcon } from "../../components/icons";
+import { displayPath } from "../../components/run/model";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
@@ -21,6 +23,7 @@ export function Palette() {
   const open = useUI((s) => s.paletteOpen);
   const query = useUI((s) => s.paletteQuery);
   const tree = useWorkspace((s) => s.tree);
+  const index = useWorkspace((s) => s.index);
   const runs = useRuns((s) => s.runs);
   const keys = useKeys();
   const files = useMemo(() => openable(tree), [tree]);
@@ -73,6 +76,32 @@ export function Palette() {
                   })}
                 </Command.Group>
               )}
+              {!commandsOnly && query.trim() && index.length > 0 && (
+                <Command.Group heading="Requests">
+                  {index.map((r) => {
+                    const path = displayPath(r.url);
+                    return (
+                      <Command.Item
+                        key={`${r.file}#${r.entry}`}
+                        // What is matched, then (after a tab) what keeps it unique.
+                        value={`${r.method} ${path} ${r.title ?? ""}\t${r.file}#${r.entry}`}
+                        onSelect={() => {
+                          close();
+                          void registry.getCommand("editor.revealLine")?.run({ path: r.file, line: r.line });
+                        }}
+                      >
+                        <span className={`mth m-${r.method}`}>{r.method}</span>
+                        <span className="title mono">
+                          <Match text={path} query={query} />
+                        </span>
+                        <span className="hint mono">
+                          {r.file}:{r.line}
+                        </span>
+                      </Command.Item>
+                    );
+                  })}
+                </Command.Group>
+              )}
               <Command.Group heading="Commands">
                 {commands.map((c) => (
                   <Command.Item
@@ -108,12 +137,13 @@ export function Palette() {
   );
 }
 
-/** A file or command matches when its text holds what is typed (">"
- * for commands aside); the earlier the match, the higher. */
+/** A file, request or command matches when its text holds what is typed
+ * (">" for commands aside; a request's file after a tab is not matched);
+ * the earlier the match, the higher. */
 export function paletteFilter(value: string, search: string): number {
   const q = search.replace(/^>/, "").trim().toLowerCase();
   if (!q) return 1;
-  const at = value.replace(/^>/, "").toLowerCase().indexOf(q);
+  const at = value.split("\t")[0].replace(/^>/, "").toLowerCase().indexOf(q);
   return at < 0 ? 0 : 1 / (1 + at / 100);
 }
 

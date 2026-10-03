@@ -135,8 +135,15 @@ export function TestRunSide() {
               Copy
             </button>
           </div>
+          {/* A word per box: a line breaks between files, not at a hyphen
+              inside one. */}
           <code className="mono" aria-label="Test run command">
-            {command.text}
+            {command.text.split(" ").map((w, i) => (
+              <span key={i}>
+                {i > 0 && " "}
+                <span className="arg">{w}</span>
+              </span>
+            ))}
           </code>
           {command.note && <p className="muted small">{command.note}</p>}
         </div>

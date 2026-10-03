@@ -19,6 +19,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/engine"
+	"github.com/nhtera/sonde/internal/report"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -141,5 +142,17 @@ func TestPolicy(t *testing.T) {
 	}
 	if items, _ := h.List(); len(items) != 0 {
 		t.Errorf("after clear %+v", items)
+	}
+}
+
+// A request whose assert failed is marked, whatever its status.
+func TestCallsFailedAssert(t *testing.T) {
+	rec := &Record{Summary: &runsvc.Summary{}, Results: []report.Result{{Filename: "a.hurl", Entries: []report.Entry{
+		{Index: 1, Calls: []report.Call{{Response: report.Response{Status: 200}}}, Asserts: []report.Assert{{Success: true}}},
+		{Index: 2, Calls: []report.Call{{Response: report.Response{Status: 200}}}, Asserts: []report.Assert{{Success: true}, {Success: false}}},
+	}}}}
+	got := calls(rec)
+	if len(got) != 2 || got[0].Entry != 2 || !got[0].Failed || got[1].Failed {
+		t.Fatalf("calls %+v", got)
 	}
 }

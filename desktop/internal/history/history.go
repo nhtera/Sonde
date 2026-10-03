@@ -78,6 +78,9 @@ type Call struct {
 	URL      string `json:"url"`
 	Status   int    `json:"status"`
 	Duration int64  `json:"durationMs"`
+	// Failed is set when an assert of the entry failed (its status may
+	// still be a 2xx).
+	Failed bool `json:"failed,omitempty"`
 }
 
 // History is the run history of the open project.
@@ -351,7 +354,8 @@ func calls(rec *Record) []Call {
 				continue
 			}
 			c := e.Calls[len(e.Calls)-1]
-			out = append(out, Call{Result: i, File: file, Entry: e.Index, Method: c.Request.Method, URL: c.Request.URL, Status: c.Response.Status, Duration: e.Time})
+			failed := slices.ContainsFunc(e.Asserts, func(a report.Assert) bool { return !a.Success })
+			out = append(out, Call{Result: i, File: file, Entry: e.Index, Method: c.Request.Method, URL: c.Request.URL, Status: c.Response.Status, Duration: e.Time, Failed: failed})
 		}
 	}
 	slices.Reverse(out)

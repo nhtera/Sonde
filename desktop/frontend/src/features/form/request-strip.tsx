@@ -1,17 +1,22 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { useEffect, useRef } from "react";
 import { displayPath } from "../../components/run/model";
 import { useRuns } from "../../state/run";
 import { formEdit } from "./edit";
 import { useForm, type EntryModel } from "./model";
 
 /** The file's requests, one chip each with its last result; + Request
- * adds one at the end. */
+ * adds one at the end. The current request's chip scrolls into view. */
 export function RequestStrip({ file, entries, current }: { file: string; entries: EntryModel[]; current: number }) {
   const run = useRuns((s) => s.runs[file]);
+  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    strip.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [file, current]);
   return (
-    <div className="request-strip" role="tablist" aria-label="Requests">
+    <div className="request-strip" role="tablist" aria-label="Requests" ref={strip}>
       {entries.map((e) => {
         const r = run?.entries[e.Index];
         return (

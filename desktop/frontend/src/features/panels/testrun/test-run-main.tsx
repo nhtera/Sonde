@@ -95,7 +95,7 @@ export function TestRunMain() {
   const rows = [...new Set([...(summary?.units ?? []).map((u) => u.file), ...Object.keys(files)])].sort((a, b) => order.indexOf(a) - order.indexOf(b));
   if (!summary && !running) {
     return (
-      <div className="testrun-main empty">
+      <div className="testrun-main idle">
         <h1>Test run</h1>
         <p className="muted">Pick files on the left and run them as `sonde --test` does: every file, a line each, then the totals.</p>
       </div>
@@ -178,7 +178,8 @@ export function TestRunMain() {
                     {first && (
                       <div className="first-fail mono">
                         line {first.line} · {first.code ?? first.title}
-                        {first.actual !== undefined ? ` · got ${first.actual}` : ""}
+                        {/* What went wrong: the value got, else the error's message. */}
+                        {first.actual !== undefined ? ` · got ${first.actual}` : first.code && first.message ? ` · ${first.message}` : ""}
                       </div>
                     )}
                     {unit?.parseError && <div className="first-fail mono">line {unit.parseError.line} · {unit.parseError.description}</div>}
