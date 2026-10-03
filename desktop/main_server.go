@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/browser"
 
+	"github.com/nhtera/sonde/desktop/internal/host"
 	"github.com/nhtera/sonde/desktop/internal/serverauth"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
@@ -65,7 +66,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	link := &launchLink{dir: dirs.Cache(), guard: guard, port: port}
 	defer link.remove()
-	app, err := newServerApp(&Host{Mode: ModeServer, Root: root, Dirs: dirs}, port, guard)
+	app, err := newServerApp(&host.Host{Mode: host.ModeServer, Version: version, Root: root, Dirs: dirs}, port, guard)
 	if err != nil {
 		return err
 	}

@@ -45,11 +45,11 @@ test("check-no-harness detects e2eharness marker", async (t) => {
   assert(result.output.includes("harness build"), "error should explain it's a harness build");
 });
 
-test("check-no-harness detects harness_service.go marker", async (t) => {
-  const filePath = createBinaryFile("Binary with harness_service.go in it");
+test("check-no-harness detects the harness service's file marker", async (t) => {
+  const filePath = createBinaryFile("Binary with internal/host/harness.go in it");
   const result = runCheckNoHarness(filePath);
-  assert.notStrictEqual(result.code, 0, "should fail when harness_service.go marker found");
-  assert(result.output.includes("harness_service.go"), "error should mention harness_service.go");
+  assert.notStrictEqual(result.code, 0, "should fail when the harness service's file is found");
+  assert(result.output.includes("internal/host/harness.go"), "error should mention internal/host/harness.go");
 });
 
 test("check-no-harness detects main_harness.go marker", async (t) => {

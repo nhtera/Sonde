@@ -1,7 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package host
 
 import (
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -12,7 +12,7 @@ import (
 
 func init() {
 	register("lspbridge", nil, func(h *Host) application.Service {
-		return application.NewServiceWithOptions(lspbridge.NewBridge(h.Emit, config.FromOSEnviron(), version),
+		return application.NewServiceWithOptions(lspbridge.NewBridge(h.Emit, config.FromOSEnviron(), h.Version),
 			application.ServiceOptions{Name: "lspbridge"})
 	})
 }

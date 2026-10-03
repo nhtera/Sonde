@@ -9,7 +9,7 @@
 
 import { readFileSync } from "node:fs";
 
-const markers = ["e2eharness", "harness_service.go", "main_harness.go"];
+const markers = ["e2eharness", "internal/host/harness.go", "main_harness.go"];
 let bad = false;
 for (const file of process.argv.slice(2)) {
   const data = readFileSync(file);

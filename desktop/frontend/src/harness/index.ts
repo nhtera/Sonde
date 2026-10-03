@@ -7,7 +7,7 @@
 import { Call, Events } from "@wailsio/runtime";
 import { runSpike } from "./spikes";
 
-const svc = "main.HarnessService";
+const svc = "github.com/nhtera/sonde/desktop/internal/host.HarnessService";
 
 export const harness = {
   call: (method: string, ...args: unknown[]) => Call.ByName(`${svc}.${method}`, ...args),

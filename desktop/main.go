@@ -18,6 +18,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/nhtera/sonde/desktop/internal/emit"
+	"github.com/nhtera/sonde/desktop/internal/host"
 	"github.com/nhtera/sonde/desktop/internal/perftrace"
 	"github.com/nhtera/sonde/desktop/internal/settings"
 )
@@ -56,10 +57,10 @@ func run() error {
 			return err
 		}
 	}
-	h := &Host{Mode: ModeDesktop, Root: *root, Dirs: dirs, Emit: emit.Wails{}}
+	h := &host.Host{Mode: host.ModeDesktop, Version: version, Root: *root, Dirs: dirs, Emit: emit.Wails{}}
 	var app *application.App
 	h.Perf = perftrace.New(*trace, *tour, start, func() { app.Quit() })
-	if err := h.setup(); err != nil {
+	if err := h.Setup(); err != nil {
 		return err
 	}
 	app = application.New(appOptions(h))

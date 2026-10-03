@@ -14,6 +14,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/nhtera/sonde/desktop/internal/host"
 	"github.com/nhtera/sonde/desktop/internal/serverauth"
 )
 
@@ -58,7 +59,7 @@ func run(args []string) error {
 	}
 	defer dirs.Close()
 	guard := serverauth.NewFixed(port, HarnessToken)
-	app, err := newServerApp(&Host{Mode: ModeHarness, Root: root, Dirs: dirs}, port, guard)
+	app, err := newServerApp(&host.Host{Mode: host.ModeHarness, Version: version, Root: root, Dirs: dirs}, port, guard)
 	if err != nil {
 		return err
 	}

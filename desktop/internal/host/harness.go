@@ -3,7 +3,7 @@
 
 //go:build e2eharness
 
-package main
+package host
 
 import (
 	"context"

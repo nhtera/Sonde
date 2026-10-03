@@ -1,7 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package host
 
 import (
 	"reflect"
@@ -54,11 +54,11 @@ func TestBindingsPerMode(t *testing.T) {
 	}
 	for _, m := range []Mode{ModeDesktop, ModeServer, ModeHarness} {
 		h := &Host{Mode: m, Dirs: testDirs(t), Emit: &emit.Recorder{}}
-		if err := h.setup(); err != nil {
+		if err := h.Setup(); err != nil {
 			t.Fatal(err)
 		}
 		var bound []string
-		for _, s := range services(h) {
+		for _, s := range Services(h) {
 			v := reflect.ValueOf(s.Instance())
 			typ := v.Type().Elem()
 			if strings.HasSuffix(typ.PkgPath(), "internal/bodies") && typ.Name() == "Store" ||

@@ -27,6 +27,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/fixture"
 	"github.com/nhtera/sonde/desktop/internal/handles"
+	"github.com/nhtera/sonde/desktop/internal/host"
 	"github.com/nhtera/sonde/desktop/internal/lspbridge"
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
@@ -36,7 +37,7 @@ import (
 
 // shop is the shop-api project and its fixture server, wired as the app.
 type shop struct {
-	h    *Host
+	h    *host.Host
 	rec  *emit.Recorder
 	api  *fixture.Server
 	url  string
@@ -80,8 +81,8 @@ func newShop(t *testing.T) *shop {
 	t.Setenv("HOME", t.TempDir()) // no user CLI config file
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	rec := &emit.Recorder{}
-	h := &Host{Mode: ModeServer, Root: dir, Dirs: dirs, Emit: rec}
-	if err := h.setup(); err != nil {
+	h := &host.Host{Mode: host.ModeServer, Version: version, Root: dir, Dirs: dirs, Emit: rec}
+	if err := h.Setup(); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(h.Workspace.Close)

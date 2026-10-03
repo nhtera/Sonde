@@ -5,7 +5,7 @@
 
 import { Call, type CancellablePromise } from "@wailsio/runtime";
 
-const svc = "main.HarnessService";
+const svc = "github.com/nhtera/sonde/desktop/internal/host.HarnessService";
 const call = <T>(method: string, ...args: unknown[]) => Call.ByName(`${svc}.${method}`, ...args) as CancellablePromise<T>;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

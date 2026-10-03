@@ -39,9 +39,11 @@ webview; `make desktop-vuln` scans the module. `desktop/go.mod` ignores
 desktop-record` re-records the shop-api run events that the run component
 tests replay.
 
-Services register themselves from `services_*.go` files (see `app.go`).
-Each service not built yet has a `services_stub_<name>.go` placeholder that
-its phase replaces, so `app.go` does not change.
+The services live in `internal/host`: `host.go` builds what they share
+(the `Host`) and keeps the registry, and every other file there registers
+one service from `init`, for the modes that get it. Adding a service adds
+a file; `host.go` does not change. The root package holds only the entry
+points (`main.go`, `main_server.go`, `main_harness.go`, `serve.go`).
 
 ## Server mode
 
@@ -128,10 +130,10 @@ budget is re-measured end to end there.
   `Route` on the asset server. Its handler sees the path with `Route`
   removed.
 - **Bindings:** `wails3 generate bindings -f '<build flags>' -ts -i`. Services
-  registered through `app.go`'s registry are found; `Call.ByName("main.T.M")`
-  and the generated `Call.ByID` both work. Runtime calls are `POST /wails/runtime`
-  with a JSON body, sent through `window.fetch` (server mode adds the token
-  there).
+  registered through `internal/host`'s registry are found; `Call.ByName` (the
+  type's package-qualified name) and the generated `Call.ByID` both work.
+  Runtime calls are `POST /wails/runtime` with a JSON body, sent through
+  `window.fetch` (server mode adds the token there).
 - **Events:** `application.RegisterEvent[T](name)`, `app.Event.Emit(name, data)`;
   JS `Events.On(name, cb)`. An emitted event reaches every window, and in
   server mode every client of the unguarded event socket. Only

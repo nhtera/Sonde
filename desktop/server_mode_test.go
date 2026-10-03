@@ -23,6 +23,7 @@ import (
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
 	"github.com/nhtera/sonde/desktop/internal/emit"
+	"github.com/nhtera/sonde/desktop/internal/host"
 	"github.com/nhtera/sonde/desktop/internal/serverauth"
 )
 
@@ -54,8 +55,8 @@ func TestServerMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	host := &Host{Mode: ModeServer, Root: t.TempDir(), Dirs: dirs}
-	app, err := newServerApp(host, port, guard)
+	hst := &host.Host{Mode: host.ModeServer, Version: version, Root: t.TempDir(), Dirs: dirs}
+	app, err := newServerApp(hst, port, guard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,14 +240,14 @@ func TestServerMode(t *testing.T) {
 		if res.StatusCode != 200 {
 			t.Fatalf("event stream: %d", res.StatusCode)
 		}
-		stream := host.Emit.(*emit.Stream)
+		stream := hst.Emit.(*emit.Stream)
 		for deadline := time.Now().Add(5 * time.Second); stream.Clients() == 0; {
 			if time.Now().After(deadline) {
 				t.Fatal("event stream client not registered")
 			}
 			time.Sleep(5 * time.Millisecond)
 		}
-		host.Emit.Emit("run:1", map[string]int{"seq": 1})
+		hst.Emit.Emit("run:1", map[string]int{"seq": 1})
 		line, err := bufio.NewReader(res.Body).ReadString('\n')
 		if err != nil || !strings.Contains(line, `"topic":"run:1"`) {
 			t.Errorf("event line %q (%v)", line, err)

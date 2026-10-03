@@ -16,6 +16,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/nhtera/sonde/desktop/internal/emit"
+	"github.com/nhtera/sonde/desktop/internal/host"
 	"github.com/nhtera/sonde/desktop/internal/serverauth"
 )
 
@@ -26,13 +27,13 @@ const loopback = "127.0.0.1"
 // request passing guard. Wails' own event socket (/wails/events) is
 // outside the guard, so app events go through the guarded event stream
 // (emit.StreamPath) instead: h.Emit is set to it.
-func newServerApp(h *Host, port int, guard *serverauth.Guard) (*application.App, error) {
+func newServerApp(h *host.Host, port int, guard *serverauth.Guard) (*application.App, error) {
 	// Wails lets these override the address; server mode's address is fixed.
 	_ = os.Unsetenv("WAILS_SERVER_HOST")
 	_ = os.Unsetenv("WAILS_SERVER_PORT")
 	stream := emit.NewStream()
 	h.Emit = stream
-	if err := h.setup(); err != nil {
+	if err := h.Setup(); err != nil {
 		return nil, err
 	}
 	opts := appOptions(h)

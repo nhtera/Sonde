@@ -345,7 +345,7 @@ User guide: [desktop.md](desktop.md). Decision: [decisions/0007](decisions/0007-
 
 ### Services
 
-Each service has a Go-side core and a separate bound type, because Wails binds every exported method; registrations live in `desktop/services_*.go`, and a test (`TestBindingsPerMode`) lists the bound methods of each mode. The window-only services are those with native effects: dialogs, `workspaceDesktop` (open folder, reveal, trash, copy into project), `bodiesDesktop` (save, open externally), `copyasReveal`, `reports` (export).
+Each service has a Go-side core and a separate bound type, because Wails binds every exported method; registrations live in `desktop/internal/host` (one file per service), and a test (`TestBindingsPerMode`) lists the bound methods of each mode. The window-only services are those with native effects: dialogs, `workspaceDesktop` (open folder, reveal, trash, copy into project), `bodiesDesktop` (save, open externally), `copyasReveal`, `reports` (export).
 
 | Package (`desktop/internal/…`) | Role |
 |---|---|

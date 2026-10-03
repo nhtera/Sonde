@@ -1,7 +1,10 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+// Package host builds what the app's services share (the Host) and the
+// services themselves: each file of the package registers one service
+// for the modes that get it (the window, server mode, the e2e harness).
+package host
 
 import (
 	"cmp"
@@ -11,7 +14,6 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
-	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/bodies"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/envsvc"
@@ -45,7 +47,10 @@ type Host struct {
 	// Root is the project folder given with --root; empty until the user
 	// opens one.
 	Root string
-	Dirs *appdirs.Dirs
+	// Version is the app's version: it names the default User-Agent of
+	// runs, as the CLI's does.
+	Version string
+	Dirs    *appdirs.Dirs
 	// Emit sends app events to the frontend (Wails events in the window,
 	// the guarded event stream over HTTP).
 	Emit emit.Emitter
@@ -66,13 +71,9 @@ type Host struct {
 	Perf *perftrace.Trace
 }
 
-// version is the app's version (set at build time); it names the default
-// User-Agent of runs, as the CLI's does.
-var version = "dev"
-
-// setup builds the parts services share, once Emit is set, and opens Root
+// Setup builds the parts services share, once Emit is set, and opens Root
 // when given.
-func (h *Host) setup() error {
+func (h *Host) Setup() error {
 	h.Handles = handles.New()
 	h.Workspace = workspace.New(h.Emit)
 	h.Bodies = bodies.New(h.Dirs.Cache())
@@ -80,10 +81,10 @@ func (h *Host) setup() error {
 	h.Jars = jar.New(h.Dirs.Config(), h.Workspace.Root, func() bool { return h.Settings.Get().Cookies.Keep })
 	h.History = history.New(h.Dirs.Config(), h.Workspace.Root, h.historyPolicy, h.Emit.Emit)
 	env := config.FromOSEnviron()
-	h.Envs = envsvc.New(h.Emit, h.Dirs.Config(), h.Workspace.Root, env, version, h.Settings.Apply)
+	h.Envs = envsvc.New(h.Emit, h.Dirs.Config(), h.Workspace.Root, env, h.Version, h.Settings.Apply)
 	h.Envs.KeepCookies = func() bool { return h.Settings.Get().Cookies.Keep }
 	h.Mocks = mocksvc.New(h.Emit.Emit, h.Workspace.Root, h.Envs.SetMock)
-	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, env, version, h.Bodies, h.Handles)
+	h.Runs = runsvc.New(h.Emit, h.Workspace.Root, env, h.Version, h.Bodies, h.Handles)
 	h.Runs.Hooks = runsvc.Hooks{
 		Extend:      h.Envs.Extend,
 		Overrides:   h.Envs.Digest,
@@ -126,7 +127,7 @@ func (h *Host) historyPolicy() history.Policy {
 	return p
 }
 
-// registration is one service. Each services_*.go file registers its
+// registration is one service. Each file of this package registers its
 // service from init, so adding or replacing a service never edits this
 // file.
 type registration struct {
@@ -142,8 +143,8 @@ func register(name string, modes []Mode, fn func(h *Host) application.Service) {
 	registry = append(registry, registration{name: name, modes: modes, new: fn})
 }
 
-// services builds the services of h's mode, ordered by name.
-func services(h *Host) []application.Service {
+// Services builds the services of h's mode, ordered by name.
+func Services(h *Host) []application.Service {
 	regs := slices.SortedFunc(slices.Values(registry), func(a, b registration) int { return cmp.Compare(a.name, b.name) })
 	var out []application.Service
 	for _, r := range regs {
@@ -152,21 +153,4 @@ func services(h *Host) []application.Service {
 		}
 	}
 	return out
-}
-
-// appOptions are the options every mode shares.
-func appOptions(h *Host) application.Options {
-	return application.Options{
-		Name:        "Sonde",
-		Description: "Reads and runs .hurl files",
-		Services:    services(h),
-		// Coded errors reach the page as {code, message}.
-		MarshalError: apperr.Marshal,
-		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
-		},
-		Mac: application.MacOptions{
-			ApplicationShouldTerminateAfterLastWindowClosed: true,
-		},
-	}
 }

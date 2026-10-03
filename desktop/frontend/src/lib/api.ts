@@ -26,7 +26,7 @@ export { Service as Mocks } from "@bindings/desktop/internal/mocksvc";
 export { Desktop as BodiesDesktop } from "@bindings/desktop/internal/bodies";
 export { Service as WSession } from "@bindings/desktop/internal/wsession";
 export type { Var as ScopeVar } from "@bindings/desktop/internal/vars";
-export { Dialogs, Reports } from "@bindings/desktop";
+export { Dialogs, Reports } from "@bindings/desktop/internal/host";
 export { Service as Agents } from "@bindings/desktop/internal/agents";
 export type { Snippet as AgentSnippet, Tool as AgentTool } from "@bindings/desktop/internal/agents";
 export { Service as History } from "@bindings/desktop/internal/history";
