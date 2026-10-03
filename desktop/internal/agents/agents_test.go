@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -21,10 +22,7 @@ func service(t *testing.T) (*Agents, string) {
 	if err := os.Mkdir(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, dir)
 	return New(func() *sandbox.Root { return root }), root.Dir()
 }
 

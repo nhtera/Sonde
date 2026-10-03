@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/nhtera/sonde/desktop/internal/mocksvc"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
@@ -66,10 +67,7 @@ func TestExampleRunsAgainstItsMock(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := filepath.Join(base, rel)
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, dir)
 	m := mocksvc.New(func(string, any) {}, func() *sandbox.Root { return root }, func(string) {})
 	t.Cleanup(m.Stop)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -100,9 +98,6 @@ func TestExampleRunsAgainstItsMock(t *testing.T) {
 
 func open(t *testing.T, dir string) *sandbox.Root {
 	t.Helper()
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, dir)
 	return root
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -16,7 +17,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
-	"github.com/nhtera/sonde/internal/sandbox"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 )
 
 func write(t *testing.T, dir, rel, text string) {
@@ -156,7 +157,7 @@ func TestSaveKeepsMode(t *testing.T) {
 	if _, err := s.Save("b.hurl", "GET https://x\n", f.Hash); err != nil {
 		t.Fatal(err)
 	}
-	if fi, _ := os.Stat(p); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(p); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Errorf("mode %v", fi.Mode().Perm())
 	}
 }
@@ -241,10 +242,7 @@ func TestFileOperations(t *testing.T) {
 
 func TestDesktopRecentAndCopy(t *testing.T) {
 	s, _, dir := open(t)
-	cfg, err := sandbox.Open(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := sandboxtest.Open(t, t.TempDir())
 	h := handles.New()
 	d := NewDesktop(s, cfg, h, func() (string, error) { return dir, nil })
 	if _, err := d.OpenFolder(); err != nil {
@@ -312,10 +310,7 @@ func TestDesktopRecentAndCopy(t *testing.T) {
 // as outside with a handle for CopyIntoProject.
 func TestPickedFileSymlink(t *testing.T) {
 	s, _, _ := open(t)
-	cfg, err := sandbox.Open(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := sandboxtest.Open(t, t.TempDir())
 	h := handles.New()
 	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
 
@@ -341,10 +336,7 @@ func TestPickedFileSymlink(t *testing.T) {
 // with ".." is outside it, even when it starts inside.
 func TestPickedFileWithPathTraversal(t *testing.T) {
 	s, _, _ := open(t)
-	cfg, err := sandbox.Open(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := sandboxtest.Open(t, t.TempDir())
 	h := handles.New()
 	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
 	projectDir := s.Root().Dir()
@@ -365,10 +357,7 @@ func TestPickedFileWithPathTraversal(t *testing.T) {
 // project's own folder included).
 func TestPickedFileProjectDirItself(t *testing.T) {
 	s, _, _ := open(t)
-	cfg, err := sandbox.Open(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := sandboxtest.Open(t, t.TempDir())
 	h := handles.New()
 	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
 

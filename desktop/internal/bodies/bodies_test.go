@@ -14,16 +14,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
 func spillRoot(t *testing.T) (*sandbox.Root, string) {
 	t.Helper()
 	dir := t.TempDir()
-	r, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := sandboxtest.Open(t, dir)
 	return r, dir
 }
 

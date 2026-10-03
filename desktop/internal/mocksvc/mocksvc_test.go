@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/sandbox"
@@ -74,7 +75,7 @@ func setup(t *testing.T) (*Mocks, *recorder, *string) {
 			t.Fatal(err)
 		}
 	}
-	root, _ := sandbox.Open(dir)
+	root := sandboxtest.Open(t, dir)
 	rec := &recorder{}
 	var base string
 	m := New(rec.emit, func() *sandbox.Root { return root }, func(u string) { base = u })

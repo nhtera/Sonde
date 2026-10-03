@@ -18,6 +18,7 @@ import (
 
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/report"
 	"github.com/nhtera/sonde/internal/sandbox"
@@ -65,8 +66,8 @@ HTTP 200
 func newHistory(t *testing.T, p Policy) (*History, string) {
 	t.Helper()
 	cfgDir := t.TempDir()
-	cfg, _ := sandbox.Open(cfgDir)
-	proj, _ := sandbox.Open(t.TempDir())
+	cfg := sandboxtest.Open(t, cfgDir)
+	proj := sandboxtest.Open(t, t.TempDir())
 	return New(cfg, func() *sandbox.Root { return proj }, func() Policy { return p }, nil), cfgDir
 }
 

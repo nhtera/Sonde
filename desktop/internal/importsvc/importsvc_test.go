@@ -18,6 +18,7 @@ import (
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/handles"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/internal/sandbox"
 	"github.com/nhtera/sonde/internal/syntax"
 )
@@ -45,16 +46,10 @@ func (f *fakeSecrets) Names(string) map[string]bool { return map[string]bool{"to
 func service(t *testing.T) (*Service, string, *handles.Table, *fakeSecrets) {
 	t.Helper()
 	dir := t.TempDir()
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, dir)
 	h := handles.New()
 	sec := &fakeSecrets{set: map[string]string{}}
-	cache, err := sandbox.Open(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	cache := sandboxtest.Open(t, t.TempDir())
 	s := New(func() *sandbox.Root { return root }, h, sec, cache)
 	t.Cleanup(s.Reset)
 	return s, root.Dir(), h, sec

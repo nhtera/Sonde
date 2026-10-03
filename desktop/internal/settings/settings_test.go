@@ -14,17 +14,14 @@ import (
 
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/internal/runplan"
-	"github.com/nhtera/sonde/internal/sandbox"
 )
 
 func store(t *testing.T) (*Store, string, *emit.Recorder, *handles.Table) {
 	t.Helper()
 	dir := t.TempDir()
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, dir)
 	rec, h := &emit.Recorder{}, handles.New()
 	return Open(root, rec, h), dir, rec, h
 }
@@ -47,7 +44,7 @@ func TestDefaultsAndRoundTrip(t *testing.T) {
 	if len(rec.Events()) != 1 || rec.Events()[0].Topic != TopicChanged {
 		t.Errorf("events %+v", rec.Events())
 	}
-	root, _ := sandbox.Open(dir)
+	root := sandboxtest.Open(t, dir)
 	again := Open(root, &emit.Recorder{}, handles.New()).Get()
 	if again.Appearance.Theme != "dark" || again.Network.Retry != 2 || !again.Cookies.Keep || again.TLS.CACert != "" {
 		t.Errorf("reloaded %+v", again)
@@ -77,7 +74,7 @@ func TestInvalidAndFuture(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, File), []byte(`{"version": 99, "appearance": {"theme": "dark"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	root, _ := sandbox.Open(dir)
+	root := sandboxtest.Open(t, dir)
 	if got := Open(root, &emit.Recorder{}, handles.New()).Get(); got.Appearance.Theme != "system" {
 		t.Errorf("a newer file's settings were read: %+v", got)
 	}
@@ -157,7 +154,7 @@ func TestThemes(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, File), []byte(file), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		root, _ := sandbox.Open(dir)
+		root := sandboxtest.Open(t, dir)
 		return Open(root, &emit.Recorder{}, handles.New()).Get().Appearance
 	}
 	// A file from before the Day and Night themes.
@@ -169,7 +166,7 @@ func TestThemes(t *testing.T) {
 	if a.Theme != "system" || a.DayTheme != "light" || a.NightTheme != "dracula" {
 		t.Errorf("unknown themes: %+v", a)
 	}
-	root, _ := sandbox.Open(dir)
+	root := sandboxtest.Open(t, dir)
 	later := Open(root, &emit.Recorder{}, handles.New())
 	if _, err := later.Set(later.Get()); err != nil {
 		t.Errorf("set after unknown themes: %v", err)
@@ -180,7 +177,7 @@ func TestThemes(t *testing.T) {
 	if _, err := st.Set(s); err != nil {
 		t.Fatal(err)
 	}
-	root, _ = sandbox.Open(dir)
+	root = sandboxtest.Open(t, dir)
 	if a := Open(root, &emit.Recorder{}, handles.New()).Get().Appearance; a.Theme != "monokai" || a.DayTheme != "solarized-light" || a.NightTheme != "dracula" {
 		t.Errorf("round trip: %+v", a)
 	}

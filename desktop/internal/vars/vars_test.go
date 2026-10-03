@@ -10,6 +10,7 @@ import (
 
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -33,7 +34,7 @@ func TestFor(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	root, _ := sandbox.Open(dir)
+	root := sandboxtest.Open(t, dir)
 	v := New(func() *sandbox.Root { return root },
 		func(string) []runsvc.Capture {
 			return []runsvc.Capture{{Name: "user", Value: "u7"}, {Name: "tok", Secret: true}}

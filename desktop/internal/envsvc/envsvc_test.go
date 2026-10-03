@@ -19,6 +19,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/runplan"
 	"github.com/nhtera/sonde/internal/sandbox"
@@ -53,14 +54,8 @@ func project(t *testing.T, dirs ...string) (*Envs, string, string) {
 		write(t, proj, "sonde.yaml", yaml, 0o644)
 		write(t, proj, "secrets/local.secrets", "api_key="+secretValue+"\n", 0o600)
 	}
-	root, err := sandbox.Open(proj)
-	if err != nil {
-		t.Fatal(err)
-	}
-	appCfg, err := sandbox.Open(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, proj)
+	appCfg := sandboxtest.Open(t, cfg)
 	home := t.TempDir()
 	return New(&emit.Recorder{}, appCfg, func() *sandbox.Root { return root }, config.Env{"HOME": home, "XDG_CONFIG_HOME": home}, "test", nil), proj, cfg
 }
@@ -394,7 +389,7 @@ func TestSetSecretNeverInYAML(t *testing.T) {
 		t.Error("sonde.yaml: the value or name leaked, or the secrets file is not referenced")
 	}
 	info, err := os.Stat(filepath.Join(proj, "secrets", "staging.secrets"))
-	if err != nil || info.Mode().Perm() != 0o600 {
+	if err != nil || runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Fatalf("secrets file %v %v", info, err)
 	}
 	if !strings.Contains(read(t, proj, "secrets/staging.secrets"), "hook=") {

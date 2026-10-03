@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -69,6 +70,7 @@ func TestServerMode(t *testing.T) {
 		case <-time.After(10 * time.Second):
 			t.Error("server did not stop")
 		}
+		hst.Workspace.Close() // the process exit does it in the app
 	}()
 	base := "http://127.0.0.1:" + strconv.Itoa(port)
 	awaitStart(t, port, done)
@@ -171,7 +173,7 @@ func TestServerMode(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if fi, err := os.Stat(launch); err != nil || fi.Mode().Perm() != 0o600 {
+		if fi, err := os.Stat(launch); err != nil || runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 			t.Fatalf("launch file mode: %v %v", fi.Mode(), err)
 		}
 		m := regexp.MustCompile(`url=([^"]+)"`).FindSubmatch(page)

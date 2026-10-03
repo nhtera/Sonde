@@ -25,6 +25,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/desktop/internal/view"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
@@ -99,10 +100,7 @@ func setup(t *testing.T) *fixture {
 			t.Fatal(err)
 		}
 	}
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, dir)
 	home := t.TempDir()
 	env := config.Env{"HOME": home, "XDG_CONFIG_HOME": home}
 	rec := &emit.Recorder{}
@@ -617,10 +615,7 @@ func TestDataColumns(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, dir)
 	for file, want := range map[string][]string{"a.csv": {"user", "pass"}, "b.json": {"name", "token"}, "c.json": nil, "missing.csv": nil} {
 		if got := dataColumns(root, file); !slices.Equal(got, want) {
 			t.Errorf("%s: %v, want %v", file, got, want)

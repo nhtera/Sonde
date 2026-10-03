@@ -9,13 +9,14 @@ import (
 	"testing"
 
 	"github.com/nhtera/sonde/desktop/internal/redactcheck"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
 func TestKeepListDeleteClear(t *testing.T) {
-	cfg, _ := sandbox.Open(t.TempDir())
-	proj, _ := sandbox.Open(t.TempDir())
+	cfg := sandboxtest.Open(t, t.TempDir())
+	proj := sandboxtest.Open(t, t.TempDir())
 	keep := false
 	j := New(cfg, func() *sandbox.Root { return proj }, func() bool { return keep })
 	cookies := []engine.Cookie{
@@ -65,8 +66,8 @@ func TestKeepListDeleteClear(t *testing.T) {
 // Set adds a cookie (making the jar), then changes it in place; its
 // value reaches the jar file only, never the list.
 func TestSet(t *testing.T) {
-	cfg, _ := sandbox.Open(t.TempDir())
-	proj, _ := sandbox.Open(t.TempDir())
+	cfg := sandboxtest.Open(t, t.TempDir())
+	proj := sandboxtest.Open(t, t.TempDir())
 	j := New(cfg, func() *sandbox.Root { return proj }, func() bool { return true })
 	if err := j.Set("a.hurl", SetCookie{Domain: "api.example", Name: "cart", Value: "c-first", HTTPOnly: true}); err != nil {
 		t.Fatal(err)

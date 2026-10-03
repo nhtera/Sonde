@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -55,14 +56,8 @@ func repo(t *testing.T) (dir, markers string) {
 
 func service(t *testing.T, dir string) *Service {
 	t.Helper()
-	root, err := sandbox.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := sandbox.Open(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := sandboxtest.Open(t, dir)
+	cfg := sandboxtest.Open(t, t.TempDir())
 	s := New(func() *sandbox.Root { return root }, cfg)
 	t.Setenv("HOME", dir) // no user git config in the test
 	t.Setenv("GIT_AUTHOR_NAME", "t")
