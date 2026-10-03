@@ -9,6 +9,7 @@ import { useRuns } from "../../state/run";
 import { isDirty, useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
 import { envColor } from "../../lib/env-color";
+import { isRequestPath } from "../../lib/files";
 
 declare const __APP_VERSION__: string;
 
@@ -30,7 +31,7 @@ export function StatusBar() {
         </span>
       )}
       {base && <span className="mono">{base}</span>}
-      {active && <span>{active.endsWith(".sonde") ? ".sonde extensions" : "Hurl 8 syntax"}</span>}
+      {isRequestPath(active) && <span>{active!.endsWith(".sonde") ? ".sonde extensions" : "Hurl 8 syntax"}</span>}
       {tab && isDirty(tab) && <span style={{ color: "var(--warn)" }}>Unsaved</span>}
       <div className="grow" />
       {summary && (

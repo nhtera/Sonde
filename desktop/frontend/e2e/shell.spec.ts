@@ -30,6 +30,13 @@ test("opens the project and a file", async ({ page }) => {
   await expect(page.locator(".tree-row.req")).toHaveCount(5);
 });
 
+test("a request in the tree opens its file at the request", async ({ page }) => {
+  await open(page);
+  // POST /carts/{{cart_id}}/items, on line 22 of checkout.hurl.
+  await page.locator(".tree-row.req").nth(3).click();
+  await expect(page.locator(".statusbar")).toContainText("Ln 22, Col 1");
+});
+
 test("filters requests across files", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("tree", { name: "Project files" })).toContainText("checkout.hurl");

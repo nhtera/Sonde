@@ -10,9 +10,10 @@ import { closeBrackets } from "@codemirror/autocomplete";
 import { history, undo } from "@codemirror/commands";
 import { bracketMatching, foldGutter, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches } from "@codemirror/search";
-import { EditorState } from "@codemirror/state";
+import { EditorState, EditorSelection } from "@codemirror/state";
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
 import { sondeLanguage } from "../../lang";
+import { isRequestPath } from "../../lib/files";
 import { registerEditTarget } from "../../state/edits";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
@@ -40,6 +41,23 @@ export function viewOf(path: string): EditorView | undefined {
 }
 
 /** The editor of the active tab, if it is open. */
+/** Opens path and puts the cursor on line (1-based), scrolled into
+ * view; the tab's editor mounts after the open, so it is waited for. */
+export async function revealLine(path: string, line: number): Promise<void> {
+  await useTabs.getState().open(path);
+  for (let i = 0; i < 60; i++) {
+    const view = views.get(path);
+    if (view && useTabs.getState().active === path) {
+      const doc = view.state.doc;
+      const target = doc.line(Math.min(Math.max(1, line), doc.lines));
+      view.dispatch({ selection: EditorSelection.cursor(target.from), scrollIntoView: true });
+      view.focus();
+      return;
+    }
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+}
+
 export function activeView(): { path: string; view: EditorView } | null {
   const path = useTabs.getState().active;
   const view = path ? views.get(path) : undefined;
@@ -66,7 +84,27 @@ function replaceText(view: EditorView, next: string, userEvent?: string) {
   view.dispatch({ changes: { from, to: cur.length - end, insert: next.slice(from, next.length - end) }, userEvent, scrollIntoView: !!userEvent });
 }
 
+/** A file that is not a request (data, secrets, YAML): plain text, with
+ * no request language, server, run marks or curl paste. */
+function textExtensions(path: string) {
+  return [
+    lineNumbers(),
+    highlightActiveLine(),
+    highlightActiveLineGutter(),
+    history(),
+    drawSelection(),
+    bracketMatching(),
+    closeBrackets(),
+    highlightSelectionMatches(),
+    editorTheme,
+    ownKeys,
+    keymap.of(editorKeymap),
+    EditorView.contentAttributes.of({ "aria-label": `${path} text` }),
+  ];
+}
+
 function extensions(path: string) {
+  if (!isRequestPath(path)) return textExtensions(path);
   return [
     runGutter((entry) => void useRuns.getState().run(path, entry)),
     lineNumbers(),
@@ -145,6 +183,7 @@ export function openView(path: string): EditorView {
 const pending = new Map<string, ReturnType<typeof setTimeout>>();
 
 function scheduleRequestMarks(path: string, delay = 300) {
+  if (!isRequestPath(path)) return;
   clearTimeout(pending.get(path));
   pending.set(
     path,

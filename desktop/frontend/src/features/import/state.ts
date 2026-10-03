@@ -7,6 +7,7 @@
 // holds a lifted secret's value.
 
 import { create } from "zustand";
+import { isRequestPath } from "../../lib/files";
 import {
   appError,
   EditSvc,
@@ -126,7 +127,7 @@ export function fileState(s: ImportSuggestion, decisions: Record<string, Decisio
 }
 
 /** Whether a file can take pasted requests (a request file). */
-export const requestFile = (path: string | null | undefined) => !!path && /\.(hurl|sonde)$/.test(path);
+export const requestFile = isRequestPath;
 
 const fail = (err: unknown) => useUI.getState().toast({ kind: "error", text: appError(err).message });
 

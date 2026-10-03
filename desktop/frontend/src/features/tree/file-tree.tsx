@@ -74,9 +74,10 @@ export function FileTree() {
     if (index !== undefined) setCursor(index);
     if (row.kind === "dir") toggle(closed, row.path, setClosed);
     else if (row.kind === "file") {
-      if (row.fileKind !== "secrets") void useTabs.getState().open(row.path);
+      if (row.fileKind === "secrets") openSecrets();
+      else void useTabs.getState().open(row.path);
       if (active === row.path) toggle(expanded, row.path, setExpanded);
-    } else void useTabs.getState().open(row.path);
+    } else void registry.getCommand("editor.revealLine")?.run({ path: row.path, line: row.req.line });
   };
 
   return (
@@ -386,6 +387,13 @@ function report(err: unknown) {
 /** Files that hold requests: .hurl and .sonde. */
 export function isRequestFile(path: string, kind: string): boolean {
   return kind === "request" || path.endsWith(".sonde");
+}
+
+/** A secrets file is never opened (its values never reach the page): its
+ * variables are set in Environments, write-only. */
+function openSecrets() {
+  useUI.getState().setPanel("env");
+  useUI.getState().toast({ kind: "info", text: "Secrets files are not opened here: their values never reach the app's page. Set a secret in Environments." });
 }
 
 /** Copies file's absolute path, synchronously: WebKit drops the user

@@ -12,6 +12,7 @@ import { useUI } from "../../state/ui";
 import { useWorkspace } from "../../state/workspace";
 import { envColor } from "../../lib/env-color";
 import { useKeyLabel } from "../../app/keymap/use-keys";
+import { isRequestPath } from "../../lib/files";
 
 export function TitleBar() {
   const project = useWorkspace((s) => s.project);
@@ -57,7 +58,7 @@ export function TitleBar() {
           <EnvPicker />
           <button
             className="btn-primary"
-            disabled={!active || running}
+            disabled={!isRequestPath(active) || running}
             onClick={() => active && void useRuns.getState().run(active)}
             title="Run every request of the file"
           >

@@ -7,6 +7,7 @@
 import { registry, useRegistry } from "../../app/registry";
 import { useUI } from "../../state/ui";
 import { useKeyLabel } from "../../app/keymap/use-keys";
+import { isRequestPath } from "../../lib/files";
 
 export function Toolbar({ file }: { file: string }) {
   useRegistry();
@@ -19,7 +20,10 @@ export function Toolbar({ file }: { file: string }) {
   const parts = file.split("/");
   const name = parts.pop();
   const sonde = file.endsWith(".sonde");
-  const items = registry.toolbarItems();
+  // Another file (data, secrets, YAML) is text: no request tools.
+  const request = isRequestPath(file);
+  const ext = name?.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
+  const items = request ? registry.toolbarItems() : [];
   return (
     <div className="toolbar">
       <nav className="crumbs" aria-label="Path">
@@ -34,15 +38,21 @@ export function Toolbar({ file }: { file: string }) {
         )}
         <b>{name}</b>
       </nav>
-      <span className={`syntax-chip${sonde ? " sonde" : ""}`} title={sonde ? "Sonde extensions allowed" : "Plain Hurl 8 syntax"}>
-        {sonde ? ".sonde · extensions" : ".hurl · Hurl 8"}
-      </span>
+      {request ? (
+        <span className={`syntax-chip${sonde ? " sonde" : ""}`} title={sonde ? "Sonde extensions allowed" : "Plain Hurl 8 syntax"}>
+          {sonde ? ".sonde · extensions" : ".hurl · Hurl 8"}
+        </span>
+      ) : (
+        <span className="syntax-chip" title="Not a request file: plain text">
+          {ext ? `${ext} · text` : "text"}
+        </span>
+      )}
       <span style={{ flex: 1 }} />
       {/* The data file, then the view switch, then the rest. */}
       {items.filter((t) => t.order < 20).map((t) => (
         <t.render key={t.id} file={file} />
       ))}
-      {editors.length > 1 && (
+      {request && editors.length > 1 && (
         <div className="segmented" role="group" aria-label="Editor view" title={toggleKeys && `Switch view (${toggleKeys})`}>
           {editors.map((e) => (
             <button key={e.id} aria-pressed={current === e.id} onClick={() => useUI.getState().setEditorView(e.id)}>

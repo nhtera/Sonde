@@ -20,6 +20,7 @@ import { useTabs } from "../state/tabs";
 import { useUI } from "../state/ui";
 import { useWorkspace } from "../state/workspace";
 import { registry, useRegistry } from "./registry";
+import { isRequestPath } from "../lib/files";
 
 const NARROW = "(max-width: 1024px)";
 
@@ -75,7 +76,8 @@ export function Layout() {
   // A panel with a main view shows it in place of the tabs and editor.
   const PanelMain = project ? panel?.main : undefined;
   const welcome = loaded && !project;
-  const showResults = !!project && !!active && (!narrow || resultsOpen) && !(PanelMain && panel?.wide);
+  // Results are a request file's: a data or YAML file has none.
+  const showResults = !!project && isRequestPath(active) && (!narrow || resultsOpen) && !(PanelMain && panel?.wide);
   // Narrow: the side panel is an overlay (no column); results are docked
   // at 400px and toggled from the toolbar.
   const sideCol = project && panel && !narrow ? side : 0;
@@ -128,7 +130,7 @@ export function Layout() {
           {showResults && (
             <section className="results" aria-label="Results">
               <Resizer label="Resize the results" edge="left" cssVar="--results-w" width={results} min={320} max={900} onDone={(w) => saveWidth("resultsWidth", w)} />
-              <ResultsHost file={active} />
+              <ResultsHost file={active!} />
             </section>
           )}
         </>

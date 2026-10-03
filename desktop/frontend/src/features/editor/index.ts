@@ -18,7 +18,7 @@ import { entryAt } from "./entry-at";
 import { FormatButton, RunToCursorButton } from "./toolbar";
 import { DataPicker } from "./data-picker";
 import { lspReady } from "./lsp/client";
-import { activeView } from "./views";
+import { activeView, revealLine } from "./views";
 import "./editor.css";
 
 registry.editor({ id: "text", title: "Text", order: 0, render: TextEditor });
@@ -138,6 +138,17 @@ registry.command({
     const target = doc.line(Math.min(line, doc.lines));
     a.view.dispatch({ selection: EditorSelection.cursor(target.from), scrollIntoView: true });
     a.view.focus();
+  },
+});
+
+// From the tree's request rows: the file opened at its request's line.
+registry.command({
+  id: "editor.revealLine",
+  title: "Reveal a request",
+  hidden: true,
+  run: (arg) => {
+    const { path, line } = (arg ?? {}) as { path?: string; line?: number };
+    if (path && line) return revealLine(path, line);
   },
 });
 

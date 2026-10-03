@@ -13,6 +13,7 @@ import { isDirty, useTabs } from "../state/tabs";
 import { useUI } from "../state/ui";
 import { useWorkspace } from "../state/workspace";
 import { registry } from "./registry";
+import { isRequestPath } from "../lib/files";
 
 const active = () => useTabs.getState().active;
 
@@ -24,7 +25,7 @@ registry.command({
   hint: "every request, in order",
   when: () => {
     const f = active();
-    return !!f && !useRuns.getState().runs[f]?.running;
+    return isRequestPath(f) && !useRuns.getState().runs[f!]?.running;
   },
   run: () => {
     const f = active();
