@@ -38,6 +38,7 @@ func TestDefaultsAndRoundTrip(t *testing.T) {
 	s.Network = Network{Proxy: "http://p:3128", ConnectTimeout: "5s", Retry: 2}
 	s.Cookies.Keep = true
 	s.Appearance.SideWidth, s.Appearance.ResultsWidth = 300, 5000 // results clamped
+	s.Appearance.ResultsTop = 20                                  // the request list's height, clamped
 	s.TLS.CACert = "/etc/evil"                                    // ignored: TLS files come from dialogs
 	if _, err := st.Set(s); err != nil {
 		t.Fatal(err)
@@ -50,8 +51,8 @@ func TestDefaultsAndRoundTrip(t *testing.T) {
 	if again.Appearance.Theme != "dark" || again.Network.Retry != 2 || !again.Cookies.Keep || again.TLS.CACert != "" {
 		t.Errorf("reloaded %+v", again)
 	}
-	if a := again.Appearance; a.SideWidth != 300 || a.ResultsWidth != 900 {
-		t.Errorf("pane widths %d %d, want 300 and 900", a.SideWidth, a.ResultsWidth)
+	if a := again.Appearance; a.SideWidth != 300 || a.ResultsWidth != 900 || a.ResultsTop != 80 {
+		t.Errorf("pane sizes %d %d %d, want 300, 900 and 80", a.SideWidth, a.ResultsWidth, a.ResultsTop)
 	}
 	if fi, err := os.Stat(filepath.Join(dir, File)); err != nil || runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Errorf("settings file %v %v", fi, err)

@@ -50,6 +50,10 @@ type Appearance struct {
 	// SideWidth and ResultsWidth are the split panes' widths in CSS pixels.
 	SideWidth    int `json:"sideWidth"`
 	ResultsWidth int `json:"resultsWidth"`
+	// ResultsTop is the height of the results' request list in CSS
+	// pixels, dragged from its lower edge; 0 sizes it to its rows (at
+	// most about half the panel).
+	ResultsTop int `json:"resultsTop"`
 	// UIFontSize scales the window app's page from 13 (the webview's own
 	// zoom); Ligatures draws the code font's ligatures (off: "==" stays
 	// "==").
@@ -283,6 +287,7 @@ func normalize(s Settings) Settings {
 	}
 	s.Appearance.SideWidth = paneWidth(s.Appearance.SideWidth, d.Appearance.SideWidth, 180, 480)
 	s.Appearance.ResultsWidth = paneWidth(s.Appearance.ResultsWidth, d.Appearance.ResultsWidth, 320, 900)
+	s.Appearance.ResultsTop = paneWidth(s.Appearance.ResultsTop, 0, 80, 1200)
 	if s.History.Retention == "" {
 		s.History.Retention = d.History.Retention
 	}

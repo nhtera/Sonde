@@ -5,7 +5,7 @@
 // components), then what the picked request sent and got back. The first
 // failure is picked when a run ends; a Send dims the requests it reused.
 
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { counts } from "../../components/run/counts";
 import { DataRowPills, type DataRow } from "../../components/run/data-row-pills";
 import { requestRows } from "../../components/run/model";
@@ -15,6 +15,7 @@ import { outcomeOf } from "../../components/run/run-summary";
 import { firstChangedLine, StaleBanner } from "../../components/run/stale-banner";
 import { useEnv } from "../../state/env";
 import { useHistoryView } from "../../state/history-view";
+import { useSettings } from "../../state/settings";
 import { useRuns } from "../../state/run";
 import { rowFailed, type FileRun } from "../../state/run-model";
 import { useTabs } from "../../state/tabs";
@@ -23,6 +24,7 @@ import { EntryDetail } from "./entry-detail";
 import { ago, stopText } from "./model";
 import { shownEntry, useResults } from "./state";
 import { SessionPanel } from "./ws-session/session-panel";
+import { SplitHandle } from "./split-handle";
 
 /** The time now, every few seconds (for "12s ago"). */
 function useNow(ms = 5000) {
@@ -89,6 +91,9 @@ export function ResultsPanel({ file, run: given }: { file: string; run?: FileRun
     return run && !run.running && !given && text !== undefined ? firstChangedLine(run.source, text) : 0;
   });
   const lines = useMemo(() => run?.source.split("\n") ?? [], [run?.source]);
+  // The request list's height, dragged from its lower edge (0: its rows).
+  const topRef = useRef<HTMLDivElement>(null);
+  const topHeight = useSettings((s) => s.value?.appearance.resultsTop ?? 0);
 
   if (session?.file === file && !given) return <SessionPanel file={file} entry={session.entry} />;
   if (!run) return null;
@@ -123,7 +128,7 @@ export function ResultsPanel({ file, run: given }: { file: string; run?: FileRun
 
   return (
     <div className="results-panel" onKeyDown={onKey}>
-      <div className="results-top">
+      <div className="results-top" ref={topRef} style={topHeight ? { height: topHeight, maxHeight: "none" } : undefined}>
         <ResultsHeader
           title={file.split("/").at(-1)!}
           outcome={outcomeOf(run)}
@@ -189,6 +194,7 @@ export function ResultsPanel({ file, run: given }: { file: string; run?: FileRun
         {run.error && <p className="run-error">{run.error}</p>}
         <RequestList rows={rows} selected={entry} onSelect={(n) => useResults.getState().pick(file, run.runId, n)} />
       </div>
+      {entry > 0 && <SplitHandle top={topRef} />}
       {entry > 0 && <EntryDetail file={file} run={run} entry={entry} lines={lines} />}
     </div>
   );

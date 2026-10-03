@@ -33,7 +33,7 @@ const checkout = (await import("../../components/run/testdata/checkout.json")).d
 
 const settings = {
   version: 1,
-  appearance: { theme: "dark", uiFontSize: 13, codeFontSize: 13, sideWidth: 248, resultsWidth: 440, ligatures: false },
+  appearance: { theme: "dark", uiFontSize: 13, codeFontSize: 13, sideWidth: 248, resultsWidth: 440, resultsTop: 0, ligatures: false },
   shortcuts: {},
   network: { proxy: "", connectTimeout: "", retry: 0 },
   tls: { cacert: "", cert: "", key: "", skipVerify: false },
