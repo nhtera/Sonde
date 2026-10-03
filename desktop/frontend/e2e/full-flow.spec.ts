@@ -86,7 +86,7 @@ test("the whole journey", async ({ page, context }) => {
     await page.getByRole("button", { name: "+ Add variable" }).click();
     await page.getByLabel("New variable name").fill("signing_key");
     await page.getByLabel("New variable value").fill("full-flow-signing-value");
-    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     const row = page.getByRole("table", { name: "Variables in local" }).getByRole("row", { name: /signing_key/ });
     await row.getByRole("button", { name: "signing_key actions" }).click();
     await page.getByRole("menuitem", { name: /Mark as secret/ }).click();

@@ -8,7 +8,7 @@
 
 import { LockIcon } from "../../../components/icons";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useState } from "react";
 import { create } from "zustand";
 import { appError, Envs, type Var } from "../../../lib/api";
 import { useEnv } from "../../../state/env";
@@ -16,6 +16,7 @@ import { useTabs } from "../../../state/tabs";
 import { useUI } from "../../../state/ui";
 import { ask, confirm } from "../../../components/ask";
 import { SuggestInput } from "../../form/suggest-input";
+import { label } from "../../../app/keymap/keymap-manager";
 
 /** The environment the panel shows (not the one runs use). */
 const useShown = create<{ env: string; set(env: string): void }>((set) => ({ env: "", set: (env) => set({ env }) }));
@@ -113,21 +114,58 @@ export function EnvMain() {
   useShown((s) => s.env);
   const name = shownEnv();
   const env = project?.envs?.find((e) => e.name === name);
-  const [adding, setAdding] = useState(false);
+  // The variable being added: a change to save (Save ⌘S) or discard.
+  const [draft, setDraft] = useState<Draft | null>(null);
   if (!env) return <div className="env-main empty"><p className="muted">No environment to show.</p></div>;
   const sources = [...new Set((env.variables ?? []).map((v) => v.source))];
   const override = (v: Var) => overrides.items?.find((o) => o.name === v.name && o.source === "session");
   const set = (v: Var, text: string) => void Envs.SetVariable(env.name, v.name, rawValue(text, v.type) as never).catch(fail);
+  const save = async () => {
+    if (!draft) return;
+    const n = draft.name.trim();
+    if (!n) return setDraft(null);
+    try {
+      // A secret goes to the secrets file at once, never to sonde.yaml.
+      if (draft.secret) await Envs.SetSecret(env.name, n, draft.value);
+      else await Envs.SetVariable(env.name, n, draft.value as never);
+      setDraft(null);
+    } catch (err) {
+      fail(err);
+    }
+  };
   return (
-    <div className="env-main">
+    <div
+      className="env-main"
+      onKeyDown={(e) => {
+        if (!draft || e.nativeEvent.isComposing) return;
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+          // ⌘S saves the variable here, not an editor tab.
+          e.preventDefault();
+          e.stopPropagation();
+          void save();
+        } else if (e.key === "Escape") setDraft(null);
+      }}
+    >
       <header className="env-head">
-        <h1>
-          <i className="dot" style={{ background: "var(--pass)" }} /> {env.name}
-        </h1>
-        <p className="muted">
-          {sources.join(" · ")} · {env.variables?.length ?? 0} variables
-        </p>
-        {env.error && <p className="fail">{env.error}</p>}
+        <div className="env-title">
+          <h1>
+            <i className="dot" style={{ background: "var(--pass)" }} /> {env.name}
+          </h1>
+          <p className="muted">
+            {sources.join(" · ")} · {env.variables?.length ?? 0} variables
+          </p>
+          {env.error && <p className="fail">{env.error}</p>}
+        </div>
+        {draft && (
+          <div className="env-save">
+            <button className="btn" onClick={() => setDraft(null)}>
+              Discard
+            </button>
+            <button className="btn-primary" onClick={() => void save()}>
+              Save<kbd aria-hidden>{label("$mod+KeyS")}</kbd>
+            </button>
+          </div>
+        )}
       </header>
       <div className="env-box">
         <table className="env-table" aria-label={`Variables in ${env.name}`}>
@@ -172,12 +210,12 @@ export function EnvMain() {
                 </tr>
               );
             })}
-            {adding && <NewVariable env={env.name} secretsFile={env.secretsFile} onDone={() => setAdding(false)} />}
+            {draft && <NewVariable draft={draft} secretsFile={env.secretsFile} onChange={setDraft} onSave={() => void save()} />}
           </tbody>
         </table>
       </div>
-      {!adding && (
-        <button className="add-row" onClick={() => setAdding(true)}>
+      {!draft && (
+        <button className="add-row" onClick={() => setDraft({ name: "", value: "", secret: false })}>
           + Add variable
         </button>
       )}
@@ -236,65 +274,63 @@ function VarMenu({ env, v }: { env: string; v: Var }) {
   );
 }
 
+/** A variable being added, not saved yet. */
+interface Draft {
+  name: string;
+  value: string;
+  secret: boolean;
+}
+
 /** The variable being added: a row of the table, each field in its own
- * column, then the secret note and Add. ↵ adds it, Esc cancels. */
-function NewVariable({ env, secretsFile, onDone }: { env: string; secretsFile: string; onDone(): void }) {
-  const [secret, setSecret] = useState(false);
-  const name = useRef<HTMLInputElement>(null);
-  const value = useRef<HTMLInputElement>(null);
-  const add = async () => {
-    const n = name.current!.value.trim();
-    if (!n) return onDone();
-    try {
-      // A secret goes to the secrets file at once, never to sonde.yaml.
-      if (secret) await Envs.SetSecret(env, n, value.current!.value);
-      else await Envs.SetVariable(env, n, value.current!.value as never);
-      onDone();
-    } catch (err) {
-      fail(err);
-    }
-  };
-  const keys = (e: KeyboardEvent) => {
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) void add();
-    else if (e.key === "Escape") onDone();
-  };
+ * column, then the secret note. ↵ or Save adds it; Esc or Discard drops
+ * it. */
+function NewVariable({ draft, secretsFile, onChange, onSave }: { draft: Draft; secretsFile: string; onChange(d: Draft): void; onSave(): void }) {
+  const { secret } = draft;
   return (
     <>
-      <tr className="new-variable" onKeyDown={keys}>
+      <tr className="new-variable" onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && onSave()}>
         <td>
-          <input ref={name} className="mono" name="name" aria-label="New variable name" placeholder="name" autoFocus spellCheck={false} />
+          <input
+            className="mono"
+            name="name"
+            aria-label="New variable name"
+            placeholder="name"
+            autoFocus
+            spellCheck={false}
+            value={draft.name}
+            onChange={(e) => onChange({ ...draft, name: e.target.value })}
+          />
         </td>
         <td>
-          <input ref={value} className={`mono ${secret ? "secret" : ""}`} name="value" aria-label="New variable value" placeholder="value" type={secret ? "password" : "text"} spellCheck={false} />
+          <input
+            className={`mono ${secret ? "secret" : ""}`}
+            name="value"
+            aria-label="New variable value"
+            placeholder="value"
+            type={secret ? "password" : "text"}
+            spellCheck={false}
+            value={draft.value}
+            onChange={(e) => onChange({ ...draft, value: e.target.value })}
+          />
         </td>
         <td>
           <label className="secret-check">
-            <input type="checkbox" role="switch" className="switch" aria-label="Secret" checked={secret} onChange={(e) => setSecret(e.target.checked)} /> Secret
+            <input type="checkbox" role="switch" className="switch" aria-label="Secret" checked={secret} onChange={(e) => onChange({ ...draft, secret: e.target.checked })} /> Secret
           </label>
         </td>
         <td>{secret && secretsFile && <span className="secret-to">→ {secretsFile}</span>}</td>
         <td />
       </tr>
-      <tr className="new-variable-foot">
-        <td colSpan={5}>
-          <div>
-            {secret ? (
-              <p className="secret-note">
-                <LockIcon />
-                <span>Secret values are written to {secretsFile || "the environment's secrets file"} and never shown again or kept in history. Keep that file in .gitignore.</span>
-              </p>
-            ) : (
-              <span style={{ flex: 1 }} />
-            )}
-            <button className="btn" onClick={() => void add()}>
-              Add
-            </button>
-            <button className="btn-ghost" onClick={onDone}>
-              Cancel
-            </button>
-          </div>
-        </td>
-      </tr>
+      {secret && (
+        <tr className="new-variable-foot">
+          <td colSpan={5}>
+            <p className="secret-note">
+              <LockIcon />
+              <span>Secret values are written to {secretsFile || "the environment's secrets file"} and never shown again or kept in history. Keep that file in .gitignore.</span>
+            </p>
+          </td>
+        </tr>
+      )}
     </>
   );
 }

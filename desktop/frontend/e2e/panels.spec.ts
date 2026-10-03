@@ -107,7 +107,9 @@ test("Mark secret moves a variable out of sonde.yaml, comments kept", async ({ p
   await page.getByRole("button", { name: "+ Add variable" }).click();
   await page.getByLabel("New variable name").fill("webhook");
   await page.getByLabel("New variable value").fill("whsec-e2e-value");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  // ⌘S saves it, as the header's Save says.
+  await page.keyboard.press("ControlOrMeta+KeyS");
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeHidden();
   const row = page.getByRole("table", { name: "Variables in local" }).getByRole("row", { name: /webhook/ });
   await expect(row).toContainText("sonde.yaml");
   await row.getByRole("button", { name: "webhook actions" }).click();

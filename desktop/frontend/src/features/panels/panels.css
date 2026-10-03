@@ -78,7 +78,12 @@
 .panel-body .precedence li { counter-increment: p; padding: 3px 0 3px 18px; position: relative; }
 .panel-body .precedence li::before { content: counter(p); position: absolute; left: 0; color: var(--faint); font-size: 11px; }
 .env-main { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; font-size: 12.5px; }
-.env-head h1 { margin: 0; display: flex; align-items: center; gap: 8px; font: 600 16px var(--font-ui); }
+/* The environment's name, then Discard and Save while a change waits. */
+.env-head { display: flex; align-items: flex-end; gap: 12px; }
+.env-head .env-title { flex: 1; min-width: 0; }
+.env-save { display: flex; align-items: center; gap: 10px; }
+.env-save .btn-primary { height: 28px; padding: 0 6px 0 11px; gap: 8px; }
+.env-head h1 { margin: 0; display: flex; align-items: center; gap: 8px; font: 600 18px var(--font-ui); }
 .env-head p { margin: 4px 0 0; }
 /* The table, and the variable being added under it, in one box. */
 .env-box { border-radius: 10px; overflow: hidden; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
@@ -101,9 +106,6 @@
 .env-table .new-variable input.secret { color: var(--warn); }
 .new-variable .secret-to { color: var(--warn); font-size: 11.5px; white-space: nowrap; }
 .env-table .new-variable-foot td { padding: 8px 12px 12px; box-shadow: none; }
-.new-variable-foot > td > div { display: flex; align-items: center; gap: 8px; }
-.new-variable-foot .secret-note { flex: 1; }
-.new-variable-foot .btn, .new-variable-foot .btn-ghost { height: 28px; }
 .env-main .form-note { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .menu-item.danger { color: var(--fail); }
 
