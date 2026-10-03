@@ -8,6 +8,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./app/theme/fonts";
 import "./app/theme/tokens.css";
+// The other themes' tokens, after tokens.css: :root (Dark) must not win.
+import "./app/theme/themes/index.css";
 import "./app/shell.css";
 import "./components/run/run.css";
 import "./features/palette/palette.css";

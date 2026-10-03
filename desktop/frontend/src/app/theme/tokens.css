@@ -3,7 +3,8 @@
 
 /* Design tokens (Sonde Design System v0.2). Calm surfaces, loud results:
    chrome recedes into navy; color is reserved for what the run tells you.
-   Dark is the default; light has equal quality. */
+   Dark is the default; light has equal quality. The other themes are in
+   themes/, one file each. */
 
 :root,
 [data-theme="dark"] {
@@ -65,7 +66,7 @@
   --line2: #e3e8ef;
   --text: #121a2b;
   --muted: #56657c;
-  --faint: #8b97aa;
+  --faint: #8794a7;
   --accent: #1f7f72;
   --accent-ink: #ffffff;
   --accent-kbd: rgba(255, 255, 255, 0.18);

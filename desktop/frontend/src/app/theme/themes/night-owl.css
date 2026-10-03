@@ -1,0 +1,50 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+[data-theme="night-owl"] {
+  color-scheme: dark;
+  --backdrop: #010e1a;
+  --bg: #011627;
+  --panel: #01111d;
+  --raised: #0b2942;
+  --hover: #122d42;
+  --line: #1d3b53;
+  --line2: #0b2942;
+  --text: #d6deeb;
+  --muted: #708284;
+  --faint: #4c657a;
+  --accent: #82aaff;
+  --accent-ink: #000000;
+  --accent-kbd: rgba(0, 0, 0, 0.16);
+  --accent-soft: rgba(130, 170, 255, 0.12);
+  --accent-line: rgba(130, 170, 255, 0.4);
+  --pass: #22da6e;
+  --fail: #ef5350;
+  --warn: #ecc48d;
+  --info: #82aaff;
+  --pass-soft: rgba(34, 218, 110, 0.12);
+  --fail-soft: rgba(239, 83, 80, 0.1);
+  --fail-line: rgba(239, 83, 80, 0.32);
+  --fail-row: rgba(239, 83, 80, 0.07);
+  --warn-soft: rgba(236, 196, 141, 0.11);
+  --warn-line: rgba(236, 196, 141, 0.6);
+  --curline: rgba(255, 255, 255, 0.03);
+  --scrim: rgba(1, 14, 26, 0.55);
+  --m-get: #22da6e;
+  --m-post: #ecc48d;
+  --m-put: #82aaff;
+  --m-patch: #c792ea;
+  --m-delete: #ef5350;
+  --t-sec: #c792ea;
+  --t-key: #80cbc4;
+  --t-str: #ecc48d;
+  --t-num: #f78c6c;
+  --t-var: #c5e478;
+  --t-q: #5ca7e4;
+  --t-op: #7fdbca;
+  --t-f: #82aaff;
+  --t-http: #c792ea;
+  --t-com: #637777;
+  --shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.8);
+  --pop: 0 18px 44px -12px rgba(0, 0, 0, 0.7);
+}

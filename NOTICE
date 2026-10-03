@@ -19,3 +19,31 @@ This product includes software derived from chrono
 the Apache License 2.0:
 - internal/datefmt reproduces chrono's strftime formatting and parsing
   (0.4.44).
+
+Sonde Desktop's color themes (desktop/frontend/src/app/theme/themes)
+adapt the colors of these themes, contrast adjusted:
+- Ayu: MIT License, Copyright (c) Konstantin Pschera
+  (https://github.com/ayu-theme/ayu-colors).
+- Catppuccin: MIT License, Copyright (c) 2021 Catppuccin
+  (https://github.com/catppuccin/catppuccin).
+- Dracula: MIT License, Copyright (c) 2023 Dracula Theme
+  (https://github.com/dracula/dracula-theme).
+- GitHub Light and Dark: MIT License, Copyright (c) 2018 GitHub Inc.
+  (https://github.com/primer/primitives).
+- Gruvbox: MIT/X11 License (per its README), by morhetz
+  (https://github.com/morhetz/gruvbox).
+- Monokai: the classic palette by Wimer Hazenberg.
+- Night Owl: MIT License, Copyright (c) 2018 Sarah Drasner
+  (https://github.com/sdras/night-owl-vscode-theme).
+- Nord: MIT License, Copyright (c) 2016-present Sven Greb
+  (https://github.com/nordtheme/nord).
+- One Dark Pro: MIT License, Copyright (c) 2013-2022 Binaryify
+  (https://github.com/Binaryify/OneDark-Pro).
+- Rosé Pine: MIT License, Copyright (c) 2021 Rosé Pine
+  (https://github.com/rose-pine/vscode).
+- Solarized: MIT License, Copyright (c) 2011 Ethan Schoonover
+  (https://github.com/altercation/solarized).
+- Tokyo Night: MIT License, Copyright (c) 2018-present Enkia
+  (https://github.com/tokyo-night/tokyo-night-vscode-theme).
+- VS Code Light and Dark: MIT License, Copyright (c) 2015 - present
+  Microsoft Corporation (https://github.com/microsoft/vscode).
