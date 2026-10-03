@@ -58,7 +58,7 @@ func TestOpsStayInRoot(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(dir, "link")); err != nil {
 		t.Skip("symlinks unavailable:", err)
 	}
-	for name, op := range map[string]func() error{
+	ops := map[string]func() error{
 		"write ..":     func() error { return r.WriteFileAtomic("../x", nil, 0o600) },
 		"write link":   func() error { return r.WriteFileAtomic("link/x", nil, 0o600) },
 		"rename from":  func() error { return r.Rename("../x", "y") },
@@ -68,10 +68,18 @@ func TestOpsStayInRoot(t *testing.T) {
 		"mkdir link":   func() error { return r.MkdirAll("link/d", 0o755) },
 		"stat abs":     func() error { _, err := r.Stat(outside); return err },
 		"chmod link":   func() error { return r.Chmod("link", 0o600) },
-	} {
-		if _, err := os.Create(filepath.Join(dir, "y")); err != nil { //nolint:gosec // G304: test file
+	}
+	if runtime.GOOS == "windows" {
+		// Chmod acts on the link itself there, which is inside the root
+		// (https://go.dev/issue/71492).
+		delete(ops, "chmod link")
+	}
+	for name, op := range ops {
+		f, err := os.Create(filepath.Join(dir, "y")) //nolint:gosec // G304: test file
+		if err != nil {
 			t.Fatal(err)
 		}
+		_ = f.Close()
 		if err := op(); !errors.Is(err, ErrDenied) {
 			t.Errorf("%s: %v, want ErrDenied", name, err)
 		}
