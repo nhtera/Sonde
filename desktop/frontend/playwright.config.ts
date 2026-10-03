@@ -60,7 +60,7 @@ const fullURL = `http://127.0.0.1:${fullPort}`;
 // e2e/visual-*.spec.ts: the design screens in WebKit, each on its own
 // harness, only with E2E_VISUAL=1 (their baselines are approved screens).
 const visual = !!process.env.E2E_VISUAL;
-const visualPorts = { shop: 34140, results: 34141, form: 34142 };
+const visualPorts = { shop: 34140, results: 34141, form: 34142, themes: 34143 };
 const visualURL = (k: keyof typeof visualPorts) => `http://127.0.0.1:${visualPorts[k]}`;
 // The preview's sandbox and framing in WebKit (the macOS app's engine).
 const resultsWebkitPort = Number(process.env.E2E_RESULTS_WEBKIT_PORT) || 34123;
@@ -104,7 +104,7 @@ export default defineConfig({
     // The panels' tests share one harness (they change its files and settings).
     { name: "panels", testMatch: /panels/, fullyParallel: false, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: panelsURL } },
     ...(visual
-      ? (["shop", "results", "form"] as const).map((k) => ({
+      ? (["shop", "results", "form", "themes"] as const).map((k) => ({
           name: `visual-${k}`,
           testMatch: new RegExp(`visual-${k}\\.spec`),
           fullyParallel: false,
@@ -130,6 +130,7 @@ export default defineConfig({
               { command: visualHarness(visualPorts.shop, "shop-api", "shop-api"), url: `${visualURL("shop")}/health` },
               { command: visualHarness(visualPorts.results, "results-api", "shop-api", true), url: `${visualURL("results")}/health` },
               { command: visualHarness(visualPorts.form, "form-api", "shop-api"), url: `${visualURL("form")}/health` },
+              { command: visualHarness(visualPorts.themes, "results-api", "shop-api"), url: `${visualURL("themes")}/health` },
             ].map((w) => ({ ...w, reuseExistingServer: false, gracefulShutdown: { signal: "SIGTERM" as const, timeout: 3000 }, timeout: 30_000 }))
           : []),
         {

@@ -5,6 +5,7 @@
 // playwright.config.ts), against the fixture API. Candidate screenshots
 // for the design approval go to E2E_CANDIDATES (default e2e-candidates/).
 
+import { readdirSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
 const candidates = process.env.E2E_CANDIDATES ?? "e2e-candidates";
@@ -64,16 +65,143 @@ test("runs a file and shows every result as it arrives", async ({ page }) => {
   await expect(page.locator(".statusbar")).toContainText("✗ 1");
 });
 
-test("switches the theme and keeps it", async ({ page }) => {
-  await page.goto("/");
-  const html = page.locator("html");
-  await expect(html).toHaveAttribute("data-theme", /light|dark/);
-  const before = await html.getAttribute("data-theme");
-  await page.getByRole("button", { name: "Toggle theme" }).click();
-  const after = before === "dark" ? "light" : "dark";
-  await expect(html).toHaveAttribute("data-theme", after);
-  await page.reload();
-  await expect(html).toHaveAttribute("data-theme", after);
+test.describe("themes", () => {
+  type Prefs = { theme: string; dayTheme: string; nightTheme: string };
+  const defaults: Prefs = { theme: "system", dayTheme: "light", nightTheme: "dark" };
+  // The harness's hooks load after the page: waited for after a reload.
+  const harness = (page: Page) => page.waitForFunction(() => !!window.sondeHarness);
+  const setTheme = async (page: Page, prefs: Partial<Prefs> = {}) => {
+    await harness(page);
+    await page.evaluate((p) => window.sondeHarness!.setTheme(p), { ...defaults, ...prefs });
+  };
+  const prefs = async (page: Page) => {
+    await harness(page);
+    return page.evaluate(() => window.sondeHarness!.theme());
+  };
+  const html = (page: Page) => page.locator("html");
+
+  // Each test starts from the default settings and a dark OS, and leaves
+  // the defaults: the shell's tests share the harness's settings.
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/");
+    await setTheme(page);
+    await expect(html(page)).toHaveAttribute("data-theme", "dark");
+  });
+  test.afterEach(async ({ page }) => {
+    await setTheme(page);
+  });
+
+  test("switches the theme and keeps it", async ({ page }) => {
+    await page.getByRole("button", { name: "Toggle theme" }).click();
+    await expect(html(page)).toHaveAttribute("data-theme", "light");
+    await expect.poll(() => prefs(page)).toEqual({ ...defaults, theme: "light" });
+    await page.reload();
+    await expect(html(page)).toHaveAttribute("data-theme", "light");
+  });
+
+  test("picks Day and Night themes", async ({ page }) => {
+    await page.getByRole("navigation", { name: "Panels" }).getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("combobox", { name: "Night theme" }).selectOption("dracula");
+    await expect(html(page)).toHaveAttribute("data-theme", "dracula");
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(html(page)).toHaveAttribute("data-theme", "light");
+    await page.getByRole("combobox", { name: "Day theme" }).selectOption("solarized-light");
+    await expect(html(page)).toHaveAttribute("data-theme", "solarized-light");
+    await expect.poll(() => prefs(page)).toEqual({ theme: "system", dayTheme: "solarized-light", nightTheme: "dracula" });
+    await page.reload();
+    await expect(html(page)).toHaveAttribute("data-theme", "solarized-light");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect(html(page)).toHaveAttribute("data-theme", "dracula");
+    expect(await prefs(page)).toEqual({ theme: "system", dayTheme: "solarized-light", nightTheme: "dracula" });
+  });
+
+  test("Manual keeps one theme", async ({ page }) => {
+    await page.getByRole("navigation", { name: "Panels" }).getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("radio", { name: "Manual" }).click();
+    await page.getByRole("combobox", { name: "Theme", exact: true }).selectOption("monokai");
+    await expect(html(page)).toHaveAttribute("data-theme", "monokai");
+    await expect.poll(() => prefs(page)).toEqual({ ...defaults, theme: "monokai" });
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.reload();
+    await expect(html(page)).toHaveAttribute("data-theme", "monokai");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect(html(page)).toHaveAttribute("data-theme", "monokai");
+  });
+
+  for (const mode of ["Sync", "Manual"] as const) {
+    test(`Select theme previews, reverts and keeps the pick (${mode})`, async ({ page }) => {
+      if (mode === "Manual") {
+        await setTheme(page, { theme: "dark" });
+        await page.reload();
+      }
+      const select = async () => {
+        await page.keyboard.press("ControlOrMeta+KeyK");
+        await page.keyboard.type(">Select theme");
+        await page.keyboard.press("Enter");
+        await expect(page.getByRole("dialog", { name: "Select theme" })).toBeVisible();
+      };
+      await select();
+      await page.keyboard.press("ArrowDown");
+      await expect(html(page)).toHaveAttribute("data-theme", "hc-dark");
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog", { name: "Select theme" })).toHaveCount(0);
+      await expect(html(page)).toHaveAttribute("data-theme", "dark");
+      expect(await prefs(page)).toEqual(mode === "Sync" ? defaults : { ...defaults, theme: "dark" });
+
+      await select();
+      await page.keyboard.type("nord");
+      await page.keyboard.press("Enter");
+      await expect(html(page)).toHaveAttribute("data-theme", "nord");
+      // With Sync on a dark OS, the night theme; with Manual, the theme.
+      const want = mode === "Sync" ? { ...defaults, nightTheme: "nord" } : { ...defaults, theme: "nord" };
+      await expect.poll(() => prefs(page)).toEqual(want);
+      await page.reload();
+      await expect(html(page)).toHaveAttribute("data-theme", "nord");
+    });
+  }
+
+  test("paints in the theme from the start, within the CSP", async ({ page }) => {
+    await setTheme(page, { nightTheme: "dracula" });
+    // The page as served carries the settings.
+    const served = await (await page.request.get("/")).text();
+    expect(served).toContain('data-theme-pref="system" data-theme-day="light" data-theme-night="dracula"');
+    // The boot script alone (the app's code blocked) sets the theme.
+    await page.route("**/assets/*.js", (r) => r.abort());
+    await page.reload();
+    await expect(html(page)).toHaveAttribute("data-theme", "dracula");
+    await page.unroute("**/assets/*.js");
+    // No script refused.
+    const refused: string[] = [];
+    page.on("console", (m) => {
+      if (/Refused to|Content Security Policy/i.test(m.text())) refused.push(m.text());
+    });
+    await page.addInitScript(() => {
+      document.addEventListener("securitypolicyviolation", (e) => console.error(`Content Security Policy: ${e.violatedDirective} ${e.blockedURI}`));
+    });
+    await page.reload();
+    await expect(page.locator(".titlebar")).toContainText("shop-api");
+    await expect(html(page)).toHaveAttribute("data-theme", "dracula");
+    expect(refused).toEqual([]);
+  });
+
+  test("every theme reaches the page", async ({ page }) => {
+    // Each theme's --panel from its CSS, as the Go catalog has it (the
+    // token tests check that).
+    const dir = new URL("../src/app/theme/", import.meta.url);
+    const files = [readFileSync(new URL("tokens.css", dir), "utf8"), ...readdirSync(new URL("themes/", dir)).map((f) => readFileSync(new URL(`themes/${f}`, dir), "utf8"))];
+    const panels = new Map<string, string>();
+    for (const css of files) for (const m of css.matchAll(/\[data-theme="([\w-]+)"\]\s*\{[^}]*?--panel:\s*(#\w+);/g)) panels.set(m[1], m[2]);
+    expect(panels.size).toBe(24);
+    const got = await page.evaluate((ids) => {
+      const root = document.documentElement;
+      return ids.map((id) => {
+        root.dataset.theme = id;
+        return getComputedStyle(root).getPropertyValue("--panel").trim();
+      });
+    }, [...panels.keys()]);
+    expect(got).toEqual([...panels.values()]);
+  });
 });
 
 test("the palette opens files, and > lists commands only", async ({ page }) => {

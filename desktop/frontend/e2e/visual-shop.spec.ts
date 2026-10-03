@@ -119,10 +119,11 @@ test("12a: Settings", async ({ page }) => {
   await nav.getByRole("button", { name: "General" }).click();
   await expect(page.getByRole("region", { name: "Appearance" })).toBeVisible();
   // The theme picked, as the design shows it (then back to the system's).
-  const theme = page.getByRole("group", { name: "Theme" });
-  await theme.getByRole("button", { name: "Dark" }).click();
+  await page.getByRole("radio", { name: "Manual" }).click();
+  await page.getByRole("combobox", { name: "Theme", exact: true }).selectOption("dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await snap(page, "12a");
-  await theme.getByRole("button", { name: "System" }).click();
+  await page.getByRole("radio", { name: "Sync with system" }).click();
 });
 
 test("12c: the cookie jar", async ({ page }) => {
