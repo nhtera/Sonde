@@ -6,9 +6,10 @@
 
 import { FilesIcon } from "../components/icons";
 import { FileTree } from "../features/tree/file-tree";
+import { appError } from "../lib/api";
 import { windowLook } from "../lib/mode";
 import { useRuns } from "../state/run";
-import { resolvedTheme, useSettings, type Theme } from "../state/settings";
+import { useSettings } from "../state/settings";
 import { isDirty, useTabs } from "../state/tabs";
 import { useUI } from "../state/ui";
 import { useWorkspace } from "../state/workspace";
@@ -88,12 +89,14 @@ if (windowLook) {
   registry.command({ id: "project.openExample", title: "Try the example project", run: () => useWorkspace.getState().openExample() });
 }
 
+registry.command({ id: "theme.select", title: "Select theme…", run: () => useUI.getState().setThemePickerOpen(true) });
+
 registry.command({
   id: "theme.toggle",
-  title: "Toggle light / dark theme",
-  run: () => {
-    const s = useSettings.getState();
-    const theme = (s.value?.appearance.theme ?? "system") as Theme;
-    return s.setTheme(resolvedTheme(theme) === "dark" ? "light" : "dark");
-  },
+  title: "Toggle day / night theme",
+  run: () =>
+    useSettings
+      .getState()
+      .toggleTheme()
+      .catch((err) => useUI.getState().toast({ kind: "error", text: appError(err).message })),
 });

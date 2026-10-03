@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { AskHost } from "../components/ask";
 import { registry, useRegistry } from "./registry";
 import { Palette } from "../features/palette/palette";
+import { ThemePicker } from "../features/palette/theme-picker";
 import { Toasts } from "../features/shell/toasts";
 import { appError } from "../lib/api";
 import { startLspSession } from "../lib/lsp-session";
@@ -45,6 +46,7 @@ export function App() {
     <>
       <Layout />
       <Palette />
+      <ThemePicker />
       <ShortcutsSheet />
       <AskHost />
       {registry.getSlots("app.overlays").map((o) => (

@@ -5,6 +5,8 @@
 // harness build (vite --mode harness).
 
 import { Call, Events } from "@wailsio/runtime";
+import { Settings } from "../lib/api";
+import { useSettings, type ThemePrefs } from "../state/settings";
 import { runSpike } from "./spikes";
 
 const svc = "github.com/nhtera/sonde/desktop/internal/host.HarnessService";
@@ -20,6 +22,17 @@ export const harness = {
       });
     }),
   spike: runSpike,
+  /** The theme settings as stored (the page shows a change first). */
+  theme: async (): Promise<ThemePrefs> => {
+    const { theme, dayTheme, nightTheme } = (await Settings.Get()).appearance;
+    return { theme, dayTheme, nightTheme };
+  },
+  /** Sets the theme settings (a test's starting point). */
+  setTheme: async (prefs: ThemePrefs) => {
+    if (!useSettings.getState().value) await useSettings.getState().load();
+    const v = useSettings.getState().value!;
+    await useSettings.getState().save({ ...v, appearance: { ...v.appearance, ...prefs } });
+  },
 };
 
 declare global {

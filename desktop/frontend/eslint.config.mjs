@@ -20,6 +20,14 @@ export default tseslint.config(
     },
   },
   {
+    // Classic scripts the page loads as they are.
+    files: ["public/**/*.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: { ...globals.browser },
+    },
+  },
+  {
     files: ["*.mjs", "*.config.ts", "e2e/**/*.ts"],
     languageOptions: {
       globals: { ...globals.node },

@@ -27,6 +27,24 @@ export const editorTheme = EditorView.theme({
   ".cm-lintRange-warning": { backgroundImage: "none", textDecoration: "underline wavy var(--warn-line)", textUnderlineOffset: "3px" },
   ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy var(--fail-line)", textUnderlineOffset: "3px" },
   ".cm-foldPlaceholder": { backgroundColor: "var(--raised)", border: "none", color: "var(--muted)" },
+  // CodeMirror's own parts have light colors of their own: the tokens'
+  // instead, in every theme.
+  ".cm-tooltip-section:not(:first-child)": { borderTopColor: "var(--line)" },
+  ".cm-tooltip .cm-tooltip-arrow:before": { borderTopColor: "var(--line)", borderBottomColor: "var(--line)" },
+  ".cm-tooltip .cm-tooltip-arrow:after": { borderTopColor: "var(--raised)", borderBottomColor: "var(--raised)" },
+  ".cm-panels": { backgroundColor: "var(--panel)", color: "var(--text)" },
+  ".cm-panels-top": { borderBottom: "1px solid var(--line)" },
+  ".cm-panels-bottom": { borderTop: "1px solid var(--line)" },
+  ".cm-panel.cm-search label": { color: "var(--muted)" },
+  ".cm-button": { backgroundImage: "none", backgroundColor: "var(--raised)", border: "1px solid var(--line)", borderRadius: "var(--r-chip)", color: "var(--text)" },
+  ".cm-textfield": { backgroundColor: "var(--bg)", border: "1px solid var(--line)", borderRadius: "var(--r-chip)", color: "var(--text)" },
+  ".cm-searchMatch": { backgroundColor: "var(--warn-soft)", outline: "1px solid var(--warn-line)" },
+  ".cm-searchMatch-selected": { backgroundColor: "var(--accent-soft)", outline: "1px solid var(--accent-line)" },
+  ".cm-panel.cm-lint": { backgroundColor: "var(--panel)", color: "var(--text)" },
+  ".cm-panel.cm-lint ul [aria-selected]": { backgroundColor: "var(--accent-soft)" },
+  ".cm-diagnostic": { color: "var(--text)" },
+  ".cm-snippetField": { backgroundColor: "var(--accent-soft)" },
+  ".cm-specialChar": { color: "var(--fail)" },
 });
 
 /** Syntax colors: {{variables}} stand out, the rest stays calm. */

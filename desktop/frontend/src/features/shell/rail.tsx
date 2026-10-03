@@ -4,7 +4,8 @@
 import { registry, useRegistry } from "../../app/registry";
 import { MoonIcon, SunIcon } from "../../components/icons";
 import { serverMode } from "../../lib/mode";
-import { resolvedTheme, useSettings, type Theme } from "../../state/settings";
+import { themeById } from "../../app/theme/themes";
+import { resolvedTheme, toggled, useOsLight, useSettings } from "../../state/settings";
 import { useUI } from "../../state/ui";
 
 export function Rail() {
@@ -12,8 +13,11 @@ export function Rail() {
   const panel = useUI((s) => s.panel);
   // With the side closed, the panel it would open stays marked.
   const marked = useUI((s) => s.panel ?? s.lastPanel);
-  const theme = useSettings((s) => (s.value?.appearance.theme ?? "system") as Theme);
-  const dark = resolvedTheme(theme) === "dark";
+  const appearance = useSettings((s) => s.value?.appearance);
+  const osLight = useOsLight();
+  const prefs = appearance ?? { theme: "system", dayTheme: "light", nightTheme: "dark" };
+  const dark = resolvedTheme(prefs, osLight).kind === "dark";
+  const next = themeById(toggled(prefs, osLight).theme);
   const panels = registry.panels().filter((p) => !(serverMode && p.windowOnly));
   const top = panels.filter((p) => p.id !== "settings");
   const settings = panels.find((p) => p.id === "settings");
@@ -30,7 +34,7 @@ export function Rail() {
           <settings.icon />
         </button>
       )}
-      <button title={dark ? "Light theme" : "Dark theme"} aria-label="Toggle theme" onClick={() => void useSettings.getState().setTheme(dark ? "light" : "dark")}>
+      <button title={next ? `Switch to ${next.label}` : "Toggle theme"} aria-label="Toggle theme" onClick={() => void registry.getCommand("theme.toggle")?.run()}>
         {dark ? <MoonIcon /> : <SunIcon />}
       </button>
     </nav>

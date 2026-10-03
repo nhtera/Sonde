@@ -19,6 +19,8 @@ interface UIState {
   /** Text to prefill the palette with (">" for commands only). */
   paletteQuery: string;
   shortcutsOpen: boolean;
+  /** Select theme…: the theme list, previewing the highlighted one. */
+  themePickerOpen: boolean;
   /** Narrow window (1024px and below): the results pane is toggled. */
   narrow: boolean;
   resultsOpen: boolean;
@@ -33,6 +35,7 @@ interface UIState {
   openPalette(query?: string): void;
   closePalette(): void;
   setShortcutsOpen(open: boolean): void;
+  setThemePickerOpen(open: boolean): void;
   setNarrow(narrow: boolean): void;
   setResultsOpen(open: boolean): void;
   setTreeFilter(q: string): void;
@@ -49,6 +52,7 @@ export const useUI = create<UIState>((set, get) => ({
   paletteOpen: false,
   paletteQuery: "",
   shortcutsOpen: false,
+  themePickerOpen: false,
   narrow: false,
   resultsOpen: true,
   treeFilter: "",
@@ -60,6 +64,7 @@ export const useUI = create<UIState>((set, get) => ({
   openPalette: (query = "") => set({ paletteOpen: true, paletteQuery: query }),
   closePalette: () => set({ paletteOpen: false }),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+  setThemePickerOpen: (themePickerOpen) => set({ themePickerOpen }),
   setNarrow: (narrow) => set({ narrow }),
   setResultsOpen: (resultsOpen) => set({ resultsOpen }),
   setTreeFilter: (treeFilter) => set({ treeFilter }),

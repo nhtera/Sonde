@@ -13,9 +13,10 @@ import { confirm } from "../../../components/ask";
 import { appError, Dialogs, History, Settings as SettingsSvc, type SettingsValue } from "../../../lib/api";
 import { windowLook } from "../../../lib/mode";
 import { useEnv } from "../../../state/env";
-import { useSettings, type Theme } from "../../../state/settings";
+import { useSettings } from "../../../state/settings";
 import { useUI } from "../../../state/ui";
 import { SuggestInput } from "../../form/suggest-input";
+import { ThemeSettings } from "./theme-settings";
 import { useCookieJar } from "../cookies/cookie-jar";
 
 const sections = [
@@ -165,15 +166,7 @@ export function SettingsMain() {
       <div className="set-grid">
         {all && (
           <Card id="general" title="Appearance">
-            <Row name="Theme">
-              <div className="segmented" role="group" aria-label="Theme">
-                {(["system", "dark", "light"] as Theme[]).map((t) => (
-                  <button key={t} aria-pressed={v.appearance.theme === t} onClick={() => void useSettings.getState().setTheme(t)}>
-                    {t[0].toUpperCase() + t.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </Row>
+            <ThemeSettings prefs={v.appearance} />
             <Row name="UI font size">
               <div className="segmented" role="group" aria-label="UI font size">
                 {[12, 13, 14].map((n) => (

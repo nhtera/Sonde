@@ -1,0 +1,20 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.theme-preview { display: flex; height: 92px; border-radius: 8px; overflow: hidden; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.theme-preview b { display: block; height: 6px; border-radius: 3px; }
+.tp-side { width: 26%; padding: 10px 7px; display: flex; flex-direction: column; gap: 6px; background: var(--panel); box-shadow: inset -1px 0 0 var(--line2); }
+.tp-side b { background: var(--faint); opacity: 0.6; }
+.tp-side b.on { background: var(--accent); opacity: 1; }
+.tp-main { flex: 1; min-width: 0; padding: 8px 9px; display: flex; flex-direction: column; gap: 8px; }
+.tp-url { display: flex; align-items: center; gap: 6px; height: 18px; padding: 0 3px 0 5px; border-radius: 5px; background: var(--raised); }
+.tp-url b { flex: 1; background: var(--muted); opacity: 0.6; }
+.tp-method { font: 700 8px/1 var(--font-code); color: var(--m-post); }
+.tp-send { width: 22px; height: 12px; border-radius: 3px; background: var(--accent); }
+.tp-line { display: flex; gap: 5px; }
+.tp-line .key { width: 30%; background: var(--t-key); }
+.tp-line .key.short { width: 18%; }
+.tp-line .str { width: 44%; background: var(--t-str); }
+.tp-line .num { width: 14%; background: var(--t-num); }
+.tp-line .var { width: 24%; background: var(--t-var); }
+.tp-line .fail { width: 52%; height: 2px; margin-top: 2px; background: var(--fail); }
