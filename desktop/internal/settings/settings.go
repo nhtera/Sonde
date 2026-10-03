@@ -44,7 +44,11 @@ type Settings struct {
 
 // Appearance is the look of the app.
 type Appearance struct {
-	Theme        string `json:"theme"` // "system", "light" or "dark"
+	// Theme is "system" (DayTheme while the OS is light, NightTheme
+	// while it is dark) or a theme id (Themes), always used.
+	Theme        string `json:"theme"`
+	DayTheme     string `json:"dayTheme"`
+	NightTheme   string `json:"nightTheme"`
 	UIFontSize   int    `json:"uiFontSize"`
 	CodeFontSize int    `json:"codeFontSize"`
 	// SideWidth and ResultsWidth are the split panes' widths in CSS pixels.
@@ -97,7 +101,7 @@ type Contract struct {
 func Defaults() Settings {
 	return Settings{
 		Version:    Version,
-		Appearance: Appearance{Theme: "system", UIFontSize: 13, CodeFontSize: 13, SideWidth: 248, ResultsWidth: 440},
+		Appearance: Appearance{Theme: "system", DayTheme: "light", NightTheme: "dark", UIFontSize: 13, CodeFontSize: 13, SideWidth: 248, ResultsWidth: 440},
 		Shortcuts:  map[string]string{},
 		History:    History{Enabled: true, Retention: "30d"},
 	}
@@ -109,8 +113,11 @@ type Store struct {
 	emit    emit.Emitter
 	handles *handles.Table
 
-	mu sync.Mutex
-	s  Settings
+	// order serializes changes, so their events and Changed calls come
+	// in the order the changes were saved; mu guards s.
+	order sync.Mutex
+	mu    sync.Mutex
+	s     Settings
 
 	// Changed, when set, is called with the settings after each change
 	// (the window app sets its zoom from the UI font size).
@@ -142,6 +149,8 @@ func (st *Store) Set(s Settings) (Settings, error) {
 	if err := validate(s); err != nil {
 		return Settings{}, err
 	}
+	st.order.Lock()
+	defer st.order.Unlock()
 	st.mu.Lock()
 	// The files only through SetTLSFile; verification here.
 	skip := s.TLS.SkipVerify
@@ -149,8 +158,12 @@ func (st *Store) Set(s Settings) (Settings, error) {
 	s.TLS.SkipVerify = skip
 	s.Version = Version
 	s = normalize(s)
+	prev := st.s
 	st.s = s
 	err := st.save()
+	if err != nil {
+		st.s = prev // not saved: the stored settings stay
+	}
 	st.mu.Unlock()
 	if err != nil {
 		return Settings{}, err
@@ -180,7 +193,10 @@ func (st *Store) SetTLSFile(kind, handle string) (Settings, error) {
 		}
 		path = p
 	}
+	st.order.Lock()
+	defer st.order.Unlock()
 	st.mu.Lock()
+	prev := st.s
 	switch kind {
 	case CACert:
 		st.s.TLS.CACert = path
@@ -194,6 +210,9 @@ func (st *Store) SetTLSFile(kind, handle string) (Settings, error) {
 	}
 	s := clone(st.s)
 	err := st.save()
+	if err != nil {
+		st.s = prev
+	}
 	st.mu.Unlock()
 	if err != nil {
 		return Settings{}, err
@@ -251,10 +270,15 @@ func (st *Store) Apply(inv *runplan.Invocation) {
 }
 
 func validate(s Settings) error {
-	switch s.Appearance.Theme {
-	case "", "system", "light", "dark":
-	default:
-		return apperr.New(apperr.Invalid, "unknown theme "+s.Appearance.Theme)
+	// The theme may also be "system"; empty ones are the defaults.
+	known := func(id string) bool { _, ok := ThemeByID(id); return ok || id == "" }
+	if a := s.Appearance; !known(a.Theme) && a.Theme != "system" {
+		return apperr.New(apperr.Invalid, "unknown theme "+a.Theme)
+	}
+	for _, id := range []string{s.Appearance.DayTheme, s.Appearance.NightTheme} {
+		if !known(id) {
+			return apperr.New(apperr.Invalid, "unknown theme "+id)
+		}
 	}
 	if s.Network.ConnectTimeout != "" {
 		if _, err := time.ParseDuration(s.Network.ConnectTimeout); err != nil {
@@ -276,8 +300,15 @@ func validate(s Settings) error {
 
 func normalize(s Settings) Settings {
 	d := Defaults()
-	if s.Appearance.Theme == "" {
+	// Unknown themes (a later version's) are the defaults.
+	if _, ok := ThemeByID(s.Appearance.Theme); !ok && s.Appearance.Theme != "system" {
 		s.Appearance.Theme = d.Appearance.Theme
+	}
+	if _, ok := ThemeByID(s.Appearance.DayTheme); !ok {
+		s.Appearance.DayTheme = d.Appearance.DayTheme
+	}
+	if _, ok := ThemeByID(s.Appearance.NightTheme); !ok {
+		s.Appearance.NightTheme = d.Appearance.NightTheme
 	}
 	if s.Appearance.UIFontSize <= 0 {
 		s.Appearance.UIFontSize = d.Appearance.UIFontSize

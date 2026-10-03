@@ -23,7 +23,8 @@ func appOptions(h *host.Host) application.Options {
 		// Coded errors reach the page as {code, message}.
 		MarshalError: apperr.Marshal,
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
+			// The page carries the theme settings (no wrong-theme flash).
+			Handler: themedIndex(application.AssetFileServerFS(assets), h.Settings.Get),
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,

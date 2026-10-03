@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/nhtera/sonde/desktop/internal/emit"
@@ -146,5 +147,106 @@ func TestProxyPasswordNeverSent(t *testing.T) {
 	}
 	if st.Get().Network.Proxy != "http://u:proxy-pw-sentinel@p.example:3128" { //nolint:gosec // G101: test sentinel
 		t.Errorf("stored proxy %q", st.Get().Network.Proxy)
+	}
+}
+
+func TestThemes(t *testing.T) {
+	st, dir, _, _ := store(t)
+	load := func(file string) Appearance {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, File), []byte(file), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		root, _ := sandbox.Open(dir)
+		return Open(root, &emit.Recorder{}, handles.New()).Get().Appearance
+	}
+	// A file from before the Day and Night themes.
+	if a := load(`{"version": 1, "appearance": {"theme": "dark"}}`); a.Theme != "dark" || a.DayTheme != "light" || a.NightTheme != "dark" {
+		t.Errorf("old file: %+v", a)
+	}
+	// A later version's themes are the defaults, and the next change saves.
+	a := load(`{"version": 1, "appearance": {"theme": "future-theme", "dayTheme": "future-day", "nightTheme": "dracula"}}`)
+	if a.Theme != "system" || a.DayTheme != "light" || a.NightTheme != "dracula" {
+		t.Errorf("unknown themes: %+v", a)
+	}
+	root, _ := sandbox.Open(dir)
+	later := Open(root, &emit.Recorder{}, handles.New())
+	if _, err := later.Set(later.Get()); err != nil {
+		t.Errorf("set after unknown themes: %v", err)
+	}
+
+	s := st.Get()
+	s.Appearance.Theme, s.Appearance.DayTheme, s.Appearance.NightTheme = "monokai", "solarized-light", "dracula"
+	if _, err := st.Set(s); err != nil {
+		t.Fatal(err)
+	}
+	root, _ = sandbox.Open(dir)
+	if a := Open(root, &emit.Recorder{}, handles.New()).Get().Appearance; a.Theme != "monokai" || a.DayTheme != "solarized-light" || a.NightTheme != "dracula" {
+		t.Errorf("round trip: %+v", a)
+	}
+	for _, bad := range []func(*Appearance){
+		func(a *Appearance) { a.DayTheme = "neon" },
+		func(a *Appearance) { a.NightTheme = "system" },
+	} {
+		s := st.Get()
+		bad(&s.Appearance)
+		if _, err := st.Set(s); err == nil {
+			t.Errorf("accepted %+v", s.Appearance)
+		}
+	}
+}
+
+// Concurrent changes reach the page and Changed in the order they were
+// saved: the last of each is the stored settings.
+func TestSetOrder(t *testing.T) {
+	st, _, rec, _ := store(t)
+	var mu sync.Mutex
+	var last Settings
+	st.Changed = func(s Settings) {
+		mu.Lock()
+		last = s
+		mu.Unlock()
+	}
+	var wg sync.WaitGroup
+	for i := range 40 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s := st.Get()
+			s.Appearance.NightTheme = Themes[i%len(Themes)].ID
+			s.Network.Retry = i
+			if _, err := st.Set(s); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	want := st.Get()
+	events := rec.Events()
+	if got := events[len(events)-1].Data.(Settings); got.Network.Retry != want.Network.Retry || got.Appearance.NightTheme != want.Appearance.NightTheme {
+		t.Errorf("last event %+v, stored %+v", got.Appearance, want.Appearance)
+	}
+	if last.Network.Retry != want.Network.Retry {
+		t.Errorf("last Changed retry %d, stored %d", last.Network.Retry, want.Network.Retry)
+	}
+}
+
+// A change that is not saved is not kept either.
+func TestFailedSave(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Getuid() == 0 {
+		t.Skip("needs a read-only folder")
+	}
+	st, dir, rec, _ := store(t)
+	if err := os.Chmod(dir, 0o500); err != nil { //nolint:gosec // a folder, read-only
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) //nolint:gosec // a folder, writable again
+	s := st.Get()
+	s.Appearance.Theme = "dracula"
+	if _, err := st.Set(s); err == nil {
+		t.Fatal("saved in a read-only folder")
+	}
+	if got := st.Get().Appearance.Theme; got != "system" || len(rec.Events()) != 0 {
+		t.Errorf("theme %q, events %d after a failed save", got, len(rec.Events()))
 	}
 }

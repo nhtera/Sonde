@@ -49,6 +49,7 @@ linters:
             - "!$test"
             - "!**/desktop/main_server.go"
             - "!**/desktop/serve.go"
+            - "!**/desktop/theme_html.go"
             - "!**/desktop/main_harness.go"
             - "!**/desktop/internal/host/harness.go"
             - "!**/desktop/cmd/fixture-server/**"
@@ -59,7 +60,7 @@ linters:
             - "!**/desktop/internal/mocksvc/**"
           deny:
             - pkg: net/http
-              desc: "net/http is allowed only in serve.go, the server and harness mains, the harness service (internal/host/harness.go), cmd/fixture-server, internal/fixture, internal/serverauth, internal/emit, internal/bodies and internal/mocksvc"
+              desc: "net/http is allowed only in serve.go, theme_html.go (the page's asset handler), the server and harness mains, the harness service (internal/host/harness.go), cmd/fixture-server, internal/fixture, internal/serverauth, internal/emit, internal/bodies and internal/mocksvc"
     forbidigo:
       analyze-types: true
       forbid:

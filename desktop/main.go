@@ -65,7 +65,7 @@ func run() error {
 	}
 	app = application.New(appOptions(h))
 	app.Menu.SetApplicationMenu(appMenu())
-	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+	opts := application.WebviewWindowOptions{
 		Title:     "Sonde",
 		Width:     1280,
 		Height:    800,
@@ -76,7 +76,13 @@ func run() error {
 			TitleBar:                application.MacTitleBarHiddenInset,
 		},
 		URL: "/",
-	})
+	}
+	// A Manual theme's panel color shows until the page paints. With Sync
+	// the OS's look is unknown before Run: the default stays.
+	if c, ok := background(h.Settings.Get()); ok {
+		opts.BackgroundColour = c
+	}
+	win := app.Window.NewWithOptions(opts)
 	// The UI font size is the webview's zoom: every measure scales alike
 	// (menus, resizers, the editor), unlike a page's CSS zoom.
 	zoom := func(s settings.Settings) {
@@ -85,6 +91,22 @@ func run() error {
 		}
 	}
 	zoom(h.Settings.Get())
-	h.Settings.Changed = zoom
+	// Changes come one at a time, in the order they were saved.
+	h.Settings.Changed = func(s settings.Settings) {
+		zoom(s)
+		if c, ok := background(s); ok {
+			win.SetBackgroundColour(c)
+		}
+	}
 	return app.Run()
+}
+
+// background is the window color of a Manual theme; false with Sync.
+func background(s settings.Settings) (application.RGBA, bool) {
+	t, ok := settings.ThemeByID(s.Appearance.Theme)
+	if !ok {
+		return application.RGBA{}, false
+	}
+	c := t.Background
+	return application.NewRGB(uint8(c>>16&0xff), uint8(c>>8&0xff), uint8(c&0xff)), true
 }
