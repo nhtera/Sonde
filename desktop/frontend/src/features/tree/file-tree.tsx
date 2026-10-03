@@ -8,7 +8,7 @@ import { fromEvent, label, normalize } from "../../app/keymap/keymap-manager";
 import { useKeyLabel } from "../../app/keymap/use-keys";
 import { registry } from "../../app/registry";
 import { ask, confirm } from "../../components/ask";
-import { ImportIcon, LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
+import { ChevronDown, ImportIcon, LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
 import { Clipboard } from "@wailsio/runtime";
 import { Workspace, WorkspaceDesktop, appError } from "../../lib/api";
 import { isMac, serverMode, windowLook } from "../../lib/mode";
@@ -223,7 +223,8 @@ export function FileTree() {
                     onClick={() => click(row, item.index)}
                     onContextMenu={() => setCursor(item.index)}
                   >
-                    <span className="chev">{row.kind === "dir" ? (row.open ? "▾" : "▸") : ""}</span>
+                    {/* Folders, and files that hold requests, open and close. */}
+                    <span className="chev">{(row.kind === "dir" || !!requests.get(row.path)?.length) && <ChevronDown size={10} className={row.open ? undefined : "shut"} />}</span>
                     <i className="ic" style={{ background: row.kind === "dir" ? "var(--faint)" : kindColor[row.fileKind] ?? "var(--faint)" }} />
                     <span className="name">{row.kind === "file" ? <Highlight text={row.name} hl={row.hl} /> : row.name}</span>
                     {git && <span className="git" style={{ color: git === "A" ? "var(--pass)" : "var(--warn)" }}>{git}</span>}

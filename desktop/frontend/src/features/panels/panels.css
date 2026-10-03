@@ -19,7 +19,9 @@
 .panel-body .mock-log { padding-top: 6px; box-shadow: inset 0 1px 0 var(--line2); line-height: 17.6px; }
 .panel-body .toggle-card, .panel-body .toggle-line { display: flex; flex-direction: row; justify-content: space-between; gap: 10px; align-items: flex-start; }
 .panel-body .toggle-card span, .panel-body .toggle-line span { display: flex; flex-direction: column; gap: 2px; }
-.panel-body .btn-primary.wide { justify-content: center; width: 100%; }
+/* The panel scrolls rather than squeezing its buttons. */
+.panel-body .btn-primary.wide, .panel-body .btn.wide { flex: none; justify-content: center; width: 100%; height: 30px; }
+.panel-body .btn.wide { height: 28px; }
 .panel-body input.panel-filter { height: 28px; padding: 0 9px; border: 0; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); color: var(--text); font: 12.5px var(--font-ui); }
 .panel-body .segmented.full { display: flex; }
 .panel-body .segmented.full button { flex: 1; }
@@ -30,6 +32,7 @@
 .panel-body .check-row .dot { margin-left: auto; }
 .panel-body .file-checks { list-style: none; margin: 0; padding: 0 0 0 4px; }
 .panel-body .opt-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; }
+.panel-body .cli-command { flex: none; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .panel-body .cli-command p { overflow-wrap: anywhere; }
 .panel-body .cli-command code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .panel-body .cli-command code .arg { display: inline-block; max-width: 100%; }

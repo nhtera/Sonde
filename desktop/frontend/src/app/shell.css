@@ -134,7 +134,8 @@ kbd, .kbd {
 .tree-row:hover { background: var(--hover); }
 .tree-row[aria-selected="true"] { background: var(--accent-soft); }
 .tree-row.req { height: 24px; font-family: var(--font-code); font-size: 11.5px; color: var(--muted); }
-.tree-row .chev { width: 10px; flex: none; color: var(--faint); font-size: 9px; text-align: center; }
+.tree-row .chev { width: 12px; flex: none; display: flex; justify-content: center; color: var(--muted); }
+.tree-row .chev .shut { rotate: -90deg; }
 .tree-row .ic { width: 6px; height: 6px; border-radius: 2px; flex: none; }
 .tree-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .tree-row .mth { width: 36px; flex: none; font: 600 9.5px var(--font-code); }
