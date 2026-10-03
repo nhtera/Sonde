@@ -3,9 +3,12 @@
 
 // The tree on a project of 1000 request files (playwright.config.ts
 // generates it): scrolling runs no task over 50 ms, and the filter answers
-// in under 100 ms.
+// in under 100 ms. The editor's diagnostics, on the shell's harness, come
+// under 150 ms after the idle that follows typing.
 
 import { expect, test } from "@playwright/test";
+
+import { shellURL } from "../playwright.config";
 
 test("scrolls 1000 files without long tasks", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -89,4 +92,27 @@ test("types in a 5,000-line file: each keystroke's work well under a frame (p95)
   const overFrame = keys.filter((k) => k.paint > 16).length;
   console.log(`keystrokes: ${typed.length}; work p95 ${p95.toFixed(1)} ms; painted after more than a frame: ${overFrame}`);
   expect(p95).toBeLessThan(16);
+});
+
+test("reports diagnostics soon after typing stops", async ({ page }) => {
+  await page.goto(`${shellURL}/`);
+  await page.locator(".tree-row", { hasText: "users.hurl" }).first().click();
+  // The language server has the file once ▸ marks show.
+  await expect(page.locator(".cm-run-run").first()).toBeVisible();
+  const times: number[] = [];
+  for (let i = 0; i < 10; i++) {
+    await page.locator(".cm-line", { hasText: "POST {{base_url}}/users" }).first().click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type(`X-${i}: {{missing${i}}}`);
+    const start = Date.now();
+    await expect(page.locator(".cm-ghost-warn", { hasText: `missing${i}` })).toBeVisible();
+    times.push(Date.now() - start);
+  }
+  times.sort((a, b) => a - b);
+  // Typing stops, then 200 ms of idle before the edit is sent; the rest is
+  // the server's answer (and the polling of this test).
+  const p95 = times[Math.ceil(times.length * 0.95) - 1] - 200;
+  console.log(`diagnostics after the last keystroke: ${times.join(", ")} ms; after idle p95 ${p95} ms`);
+  expect(p95).toBeLessThan(150);
 });

@@ -15,7 +15,7 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${port}`;
 const harness = process.env.E2E_HARNESS_BIN ?? "../bin/sonde-desktop-harness";
 const fixtureServer = process.env.E2E_FIXTURE_BIN ?? "../bin/fixture-server";
 export const shellPort = Number(process.env.E2E_SHELL_PORT) || 34116;
-const shellURL = process.env.E2E_SHELL_URL ?? `http://127.0.0.1:${shellPort}`;
+export const shellURL = process.env.E2E_SHELL_URL ?? `http://127.0.0.1:${shellPort}`;
 // e2e/editor.spec.ts in WebKit (the macOS app's engine), on its own harness.
 const webkitEditorPort = Number(process.env.E2E_EDITOR_WEBKIT_PORT) || 34119;
 const webkitEditorURL = `http://127.0.0.1:${webkitEditorPort}`;

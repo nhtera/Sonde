@@ -85,25 +85,6 @@ test("flags undefined variables, a capture of another file's run too", async ({ 
   await expect(page.locator(".cm-ghost-warn", { hasText: '"user"' })).toHaveCount(0);
 });
 
-test("reports diagnostics soon after typing stops", async ({ page }) => {
-  await open(page, "users.hurl");
-  const times: number[] = [];
-  for (let i = 0; i < 10; i++) {
-    await endOf(page, "POST {{base_url}}/users");
-    await page.keyboard.press("Enter");
-    await page.keyboard.type(`X-${i}: {{missing${i}}}`);
-    const start = Date.now();
-    await expect(page.locator(".cm-ghost-warn", { hasText: `missing${i}` })).toBeVisible();
-    times.push(Date.now() - start);
-  }
-  times.sort((a, b) => a - b);
-  // Typing stops, then 200 ms of idle before the edit is sent; the rest is
-  // the server's answer (and the polling of this test).
-  const p95 = times[Math.ceil(times.length * 0.95) - 1] - 200;
-  console.log(`diagnostics after the last keystroke: ${times.join(", ")} ms; after idle p95 ${p95} ms`);
-  expect(p95).toBeLessThan(150);
-});
-
 test("one hover for a variable, with its redacted value", async ({ page }) => {
   await open(page, "checkout.hurl");
   await runFile(page);
