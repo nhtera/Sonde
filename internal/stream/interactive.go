@@ -137,6 +137,11 @@ func (s *Interactive) fail(err error) {
 func (s *Interactive) record(m exchange.Message) {
 	s.obsMu.Lock()
 	defer s.obsMu.Unlock()
+	s.recordLocked(m)
+}
+
+// recordLocked is record for a caller that holds obsMu.
+func (s *Interactive) recordLocked(m exchange.Message) {
 	s.mu.Lock()
 	s.Response.Stream.Messages = append(s.Response.Stream.Messages, m)
 	s.mu.Unlock()
@@ -210,6 +215,10 @@ func (s *Interactive) send(ctx context.Context, st Step) error {
 	if st.Binary {
 		typ = websocket.MessageBinary
 	}
+	// obsMu is held across the write: a reply the read loop gets
+	// meanwhile is recorded after the message that caused it.
+	s.obsMu.Lock()
+	defer s.obsMu.Unlock()
 	at := time.Since(s.start)
 	if err := s.conn.Write(ctx, typ, st.Data); err != nil {
 		if ctx.Err() != nil {
@@ -217,7 +226,7 @@ func (s *Interactive) send(ctx context.Context, st Step) error {
 		}
 		return fmt.Errorf("send: %w", err)
 	}
-	s.record(exchange.Message{Direction: exchange.Sent, Binary: st.Binary, Data: st.Data, At: at})
+	s.recordLocked(exchange.Message{Direction: exchange.Sent, Binary: st.Binary, Data: st.Data, At: at})
 	return nil
 }
 
