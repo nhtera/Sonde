@@ -445,6 +445,40 @@ Imports work in server mode: the page uploads the file instead (up to 64
 MiB). The server also does not use Wails' own event socket, which accepts
 rebinding pages; app events go through a guarded stream.
 
+## Appearance and themes
+
+Settings › General › Theme has two modes:
+
+- **Sync with system** (the default): the **Day theme** is used while the
+  system is light, the **Night theme** while it is dark. Each has a preview
+  card; the one in use is marked Active, and it switches as soon as the
+  system does.
+- **Manual**: one theme, always. Choosing Manual keeps the theme in effect.
+
+The built-in themes are Light, Solarized Light, Ayu Light, GitHub Light,
+Catppuccin Latte, Tokyo Night Light, VS Code Light, Gruvbox Light and Rosé
+Pine Dawn; Dark, High Contrast Dark, Ayu Dark, Dracula, Monokai, Night Owl,
+Solarized Dark, GitHub Dark, Catppuccin Mocha, Tokyo Night, VS Code Dark,
+One Dark Pro, Nord, Gruvbox Dark and Rosé Pine. Their colors are adjusted
+where needed so text and run results stay readable (WCAG contrast); syntax
+colors keep each theme's own.
+
+**Select theme…** in the palette lists them all: the highlighted theme
+shows at once, typing filters the list, Enter keeps it and Esc puts the
+theme back. With Manual, Enter sets the theme; with Sync, it sets the slot
+the system uses now (the Night theme on a dark system) and Sync stays on.
+
+The rail's theme button and **Toggle day / night theme** switch between
+the Day and Night themes: with Sync they switch to Manual with the other
+slot's theme; with Manual they go from a dark theme to the Day theme and
+from a light one to the Night theme.
+
+The keys in `settings.json` are `appearance.theme` (`"system"` or a theme
+id), `appearance.dayTheme` and `appearance.nightTheme`; an unknown id (from
+a later version) is read as the default. The page opens in the theme
+already, with no flash of another one, in the window and in server mode.
+Native menus and dialogs follow the system's look, not the app's theme.
+
 ## Shortcuts
 
 `⌘` is Ctrl on Windows and Linux. The shortcuts sheet (`?`) lists them and

@@ -106,11 +106,24 @@ Tick each item, and write down the OS version and the build (version, commit).
 
 ## 7. Appearance
 
-- [ ] System Settings › Appearance: switch Light and Dark while the app runs.
-      With Settings › General › Theme at System, the app follows at once,
-      editor, results and dialogs included. Choosing Light or Dark in the
-      app overrides the system, and "Toggle light / dark theme" in the
-      palette flips it.
+- [ ] Settings › General › Theme at Sync with system, Day theme Solarized
+      Light and Night theme Dracula. System Settings › Appearance: switch
+      Light and Dark while the app runs. The app follows at once (editor,
+      results, dialogs, the search panel ⌘F included) and the Active badge
+      moves to the slot in use.
+- [ ] Launch with Manual, switch to Sync in Settings, then flip the system
+      appearance: the app follows (the window's look is never pinned).
+- [ ] Manual with Monokai: flipping the system changes nothing in the page;
+      native menus follow the system.
+- [ ] The rail's theme button and "Toggle day / night theme" switch between
+      the Day and Night themes (from Sync: to Manual with the other slot's).
+- [ ] Select theme… (⌘K): arrows preview each theme, Esc puts the theme
+      back, Enter keeps it; with Sync on a dark system it becomes the Night
+      theme.
+- [ ] Quit and launch with Manual Dracula on a light system, then with Sync
+      and Night Dracula on a dark system: no frame in another theme. Note
+      any plain white frame before the page paints (a known webview limit).
+- [ ] `task dev`: the app loads from Vite with hot reload, in the theme set.
 - [ ] Resize to the minimum (900 × 560) and below 1024 px wide: the side panel
       becomes an overlay and the results stay docked.
 
