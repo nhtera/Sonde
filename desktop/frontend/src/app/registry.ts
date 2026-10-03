@@ -34,7 +34,8 @@ export interface Panel {
   /** Shown in the main area, in place of the tabs and editor, while the
    * panel is open (the Test run report, the environment editor). */
   main?: ComponentType;
-  /** The main view takes the results' column too (Settings). */
+  /** The main view takes the results' column too (Settings; the Test run,
+   * which shows the picked file's results itself). */
   wide?: boolean;
   /** Hidden in server mode. */
   windowOnly?: boolean;

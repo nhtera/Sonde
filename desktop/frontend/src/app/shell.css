@@ -225,7 +225,7 @@ kbd, .kbd {
 
 /* Bars and toasts */
 .trust-bar {
-  display: flex; align-items: center; gap: 10px; padding: 7px 12px; margin: 0 10px 8px; border-radius: 8px;
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px; margin: 8px 10px; border-radius: 8px;
   background: var(--accent-soft); font-size: 12px;
 }
 .trust-bar span { flex: 1; }

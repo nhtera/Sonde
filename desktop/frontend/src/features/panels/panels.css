@@ -92,8 +92,8 @@
 .env-table td { padding: 6px 12px; box-shadow: inset 0 -1px 0 var(--line2); }
 .env-box:not(:has(.new-variable)) tbody tr:last-child td { box-shadow: none; }
 .env-table .name { color: var(--t-key); }
-.env-table input:not([type="checkbox"]) { width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: 12px var(--font-code); }
-.env-table input:not([type="checkbox"]):focus { background: var(--bg); box-shadow: inset 0 0 0 1px var(--accent-line); outline: 0; }
+.env-table input:where(:not([type="checkbox"])) { width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: 12px var(--font-code); }
+.env-table input:where(:not([type="checkbox"])):focus { background: var(--bg); box-shadow: inset 0 0 0 1px var(--accent-line); outline: 0; }
 .override-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-size: 11px; }
 .override-chip button { border: 0; background: none; color: inherit; padding: 0; }
 .env-main .add-row { align-self: flex-start; }

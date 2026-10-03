@@ -390,7 +390,8 @@ function PasteBox({ placeholder, rows }: { placeholder: string; rows: number }) 
     const t = setTimeout(() => useImport.getState().update({ text, input: "" }), 150);
     return () => clearTimeout(t);
   }, [text]);
-  return <textarea className="mono" aria-label="Pasted input" placeholder={placeholder} value={text} onChange={(e) => setText(e.target.value)} rows={rows} />;
+  // Focused on open: the next thing is a paste.
+  return <textarea className="mono" aria-label="Pasted input" placeholder={placeholder} value={text} onChange={(e) => setText(e.target.value)} rows={rows} autoFocus />;
 }
 
 /** A curl command's file: its folder, name and format in one path,

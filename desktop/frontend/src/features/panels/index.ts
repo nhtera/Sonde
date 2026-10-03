@@ -22,7 +22,7 @@ import { TestRunSide } from "./testrun/test-run-side";
 import "./panels.css";
 
 registry.panel({ id: "history", title: "History", icon: HistoryIcon, order: 1, render: HistoryPanel });
-registry.panel({ id: "testrun", title: "Test run", icon: TestRunIcon, order: 2, render: TestRunSide, main: TestRunMain });
+registry.panel({ id: "testrun", title: "Test run", icon: TestRunIcon, order: 2, render: TestRunSide, main: TestRunMain, wide: true });
 registry.panel({ id: "env", title: "Environments", icon: EnvIcon, order: 3, render: EnvSide, main: EnvMain });
 registry.panel({ id: "contract", title: "Contract & mock", icon: ContractIcon, order: 4, render: ContractPanel });
 registry.panel({ id: "agents", title: "AI agents", icon: AgentsIcon, order: 5, render: AgentsPanel });
