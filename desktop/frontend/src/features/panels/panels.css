@@ -83,23 +83,28 @@
 /* The table, and the variable being added under it, in one box. */
 .env-box { border-radius: 10px; overflow: hidden; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
 .env-table { width: 100%; border-collapse: collapse; }
-.env-table th { text-align: left; padding: 9px 12px; color: var(--muted); font: 500 11.5px var(--font-ui); box-shadow: inset 0 -1px 0 var(--line2); }
+.env-table th { text-align: left; white-space: nowrap; padding: 9px 12px; color: var(--muted); font: 500 11.5px var(--font-ui); box-shadow: inset 0 -1px 0 var(--line2); }
 .env-table td { padding: 6px 12px; box-shadow: inset 0 -1px 0 var(--line2); }
 .env-box:not(:has(.new-variable)) tbody tr:last-child td { box-shadow: none; }
 .env-table .name { color: var(--t-key); }
-.env-table input { width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: 12px var(--font-code); }
-.env-table input:focus { background: var(--bg); box-shadow: inset 0 0 0 1px var(--accent-line); outline: 0; }
+.env-table input:not([type="checkbox"]) { width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: 12px var(--font-code); }
+.env-table input:not([type="checkbox"]):focus { background: var(--bg); box-shadow: inset 0 0 0 1px var(--accent-line); outline: 0; }
 .override-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-size: 11px; }
 .override-chip button { border: 0; background: none; color: inherit; padding: 0; }
 .env-main .add-row { align-self: flex-start; }
 .env-main .add-row { border: 0; background: none; color: var(--accent); font: 500 12.5px var(--font-ui); padding: 4px 0; }
-.new-variable { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 14px 14px; }
-.new-variable input:not([type="checkbox"]) { width: 140px; height: 28px; padding: 0 9px; border: 0; border-radius: 6px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); font: 12px var(--font-code); }
-.new-variable input:not([type="checkbox"]):focus { outline: 0; box-shadow: inset 0 0 0 1px var(--accent); }
-.new-variable input.secret { width: 126px; color: var(--warn); }
-.new-variable .secret-to { color: var(--warn); font-size: 11.5px; }
-.new-variable .btn, .new-variable .btn-ghost { height: 28px; }
-.new-variable .form-note, .env-main .form-note { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+/* The variable being added: its fields in the table's columns. */
+.env-table .new-variable td { padding: 8px 12px 0; box-shadow: none; }
+.env-table .new-variable input:not([type="checkbox"]) { width: 100%; min-width: 126px; height: 28px; padding: 0 9px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.env-table .new-variable input[name="name"] { width: 140px; }
+.env-table .new-variable input:not([type="checkbox"]):focus { box-shadow: inset 0 0 0 1px var(--accent); }
+.env-table .new-variable input.secret { color: var(--warn); }
+.new-variable .secret-to { color: var(--warn); font-size: 11.5px; white-space: nowrap; }
+.env-table .new-variable-foot td { padding: 8px 12px 12px; box-shadow: none; }
+.new-variable-foot > td > div { display: flex; align-items: center; gap: 8px; }
+.new-variable-foot .secret-note { flex: 1; }
+.new-variable-foot .btn, .new-variable-foot .btn-ghost { height: 28px; }
+.env-main .form-note { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .menu-item.danger { color: var(--fail); }
 
 /* Contract & mock */
@@ -244,7 +249,7 @@
 .env-table tr:has([data-state="open"]) { background: var(--hover); }
 .env-menu { width: 280px; }
 .env-main .secret-check { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 12px; }
-.env-main .secret-note { flex-basis: 100%; display: flex; gap: 8px; margin: 0; padding: 8px 10px; border-radius: 7px; background: var(--warn-soft); color: var(--text); font-size: 12px; line-height: 1.45; }
+.env-main .secret-note { display: flex; gap: 8px; margin: 0; padding: 8px 10px; border-radius: 7px; background: var(--warn-soft); color: var(--text); font-size: 12px; line-height: 1.45; }
 .env-main .secret-note svg { flex: none; margin-top: 3px; color: var(--warn); }
 .panel-body .mock-log .faint { color: var(--faint); }
 .panel-body .mock-log .pass { color: var(--pass); }

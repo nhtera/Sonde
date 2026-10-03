@@ -8,7 +8,7 @@
 
 import { LockIcon } from "../../../components/icons";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { create } from "zustand";
 import { appError, Envs, type Var } from "../../../lib/api";
 import { useEnv } from "../../../state/env";
@@ -172,9 +172,9 @@ export function EnvMain() {
                 </tr>
               );
             })}
+            {adding && <NewVariable env={env.name} secretsFile={env.secretsFile} onDone={() => setAdding(false)} />}
           </tbody>
         </table>
-        {adding && <NewVariable env={env.name} secretsFile={env.secretsFile} onDone={() => setAdding(false)} />}
       </div>
       {!adding && (
         <button className="add-row" onClick={() => setAdding(true)}>
@@ -236,45 +236,65 @@ function VarMenu({ env, v }: { env: string; v: Var }) {
   );
 }
 
+/** The variable being added: a row of the table, each field in its own
+ * column, then the secret note and Add. ↵ adds it, Esc cancels. */
 function NewVariable({ env, secretsFile, onDone }: { env: string; secretsFile: string; onDone(): void }) {
   const [secret, setSecret] = useState(false);
+  const name = useRef<HTMLInputElement>(null);
+  const value = useRef<HTMLInputElement>(null);
+  const add = async () => {
+    const n = name.current!.value.trim();
+    if (!n) return onDone();
+    try {
+      // A secret goes to the secrets file at once, never to sonde.yaml.
+      if (secret) await Envs.SetSecret(env, n, value.current!.value);
+      else await Envs.SetVariable(env, n, value.current!.value as never);
+      onDone();
+    } catch (err) {
+      fail(err);
+    }
+  };
+  const keys = (e: KeyboardEvent) => {
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) void add();
+    else if (e.key === "Escape") onDone();
+  };
   return (
-    <form
-      className="new-variable"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const f = e.currentTarget.elements;
-        const name = (f.namedItem("name") as HTMLInputElement).value.trim();
-        const value = (f.namedItem("value") as HTMLInputElement).value;
-        if (!name) return onDone();
-        try {
-          // A secret goes to the secrets file at once, never to sonde.yaml.
-          if (secret) await Envs.SetSecret(env, name, value);
-          else await Envs.SetVariable(env, name, value as never);
-          onDone();
-        } catch (err) {
-          fail(err);
-        }
-      }}
-    >
-      <input className="mono" name="name" aria-label="New variable name" placeholder="name" autoFocus />
-      <input className={`mono ${secret ? "secret" : ""}`} name="value" aria-label="New variable value" placeholder="value" type={secret ? "password" : "text"} />
-      <label className="secret-check">
-        <input type="checkbox" role="switch" className="switch" aria-label="Secret" checked={secret} onChange={(e) => setSecret(e.target.checked)} /> Secret
-      </label>
-      {secret && secretsFile && <span className="secret-to">→ {secretsFile}</span>}
-      <button className="btn" type="submit">
-        Add
-      </button>
-      <button className="btn-ghost" type="button" onClick={onDone}>
-        Cancel
-      </button>
-      {secret && (
-        <p className="secret-note">
-          <LockIcon />
-          <span>Secret values are written to {secretsFile || "the environment's secrets file"} and never shown again or kept in history. Keep that file in .gitignore.</span>
-        </p>
-      )}
-    </form>
+    <>
+      <tr className="new-variable" onKeyDown={keys}>
+        <td>
+          <input ref={name} className="mono" name="name" aria-label="New variable name" placeholder="name" autoFocus spellCheck={false} />
+        </td>
+        <td>
+          <input ref={value} className={`mono ${secret ? "secret" : ""}`} name="value" aria-label="New variable value" placeholder="value" type={secret ? "password" : "text"} spellCheck={false} />
+        </td>
+        <td>
+          <label className="secret-check">
+            <input type="checkbox" role="switch" className="switch" aria-label="Secret" checked={secret} onChange={(e) => setSecret(e.target.checked)} /> Secret
+          </label>
+        </td>
+        <td>{secret && secretsFile && <span className="secret-to">→ {secretsFile}</span>}</td>
+        <td />
+      </tr>
+      <tr className="new-variable-foot">
+        <td colSpan={5}>
+          <div>
+            {secret ? (
+              <p className="secret-note">
+                <LockIcon />
+                <span>Secret values are written to {secretsFile || "the environment's secrets file"} and never shown again or kept in history. Keep that file in .gitignore.</span>
+              </p>
+            ) : (
+              <span style={{ flex: 1 }} />
+            )}
+            <button className="btn" onClick={() => void add()}>
+              Add
+            </button>
+            <button className="btn-ghost" onClick={onDone}>
+              Cancel
+            </button>
+          </div>
+        </td>
+      </tr>
+    </>
   );
 }

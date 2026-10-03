@@ -218,7 +218,7 @@ kbd, .kbd {
 .actions button:first-child { background: var(--accent-soft); }
 .actions button:hover { background: var(--hover); }
 .actions button span { flex: 1; }
-.actions button kbd, .actions button .hint { background: none; color: var(--faint); }
+.actions button kbd, .actions button .hint { flex: none; background: none; color: var(--faint); }
 .facts { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
 .facts span { display: inline-flex; align-items: center; gap: 6px; }
 .facts i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
