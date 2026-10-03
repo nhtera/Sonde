@@ -12,7 +12,7 @@ import { bracketMatching, foldGutter, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches } from "@codemirror/search";
 import { EditorState, EditorSelection } from "@codemirror/state";
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
-import { sondeLanguage } from "../../lang";
+import { sondeLanguage, yamlLanguage } from "../../lang";
 import { isRequestPath } from "../../lib/files";
 import { registerEditTarget } from "../../state/edits";
 import { useRuns } from "../../state/run";
@@ -97,6 +97,8 @@ function textExtensions(path: string) {
     closeBrackets(),
     highlightSelectionMatches(),
     editorTheme,
+    // YAML (sonde.yaml) is highlighted; other text stays plain.
+    /\.ya?ml$/.test(path) ? [yamlLanguage, editorHighlight] : [],
     ownKeys,
     keymap.of(editorKeymap),
     EditorView.contentAttributes.of({ "aria-label": `${path} text` }),

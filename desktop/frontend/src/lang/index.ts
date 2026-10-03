@@ -6,3 +6,4 @@
 
 export { jsonBodyLanguage, sondeFileLanguage, sondeLanguage, xmlBodyLanguage } from "./language";
 export { graphqlLanguage } from "./graphql";
+export { yamlLanguage } from "./yaml";
