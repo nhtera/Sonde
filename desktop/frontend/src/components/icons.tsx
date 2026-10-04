@@ -38,6 +38,11 @@ export const PlayIcon = ({ size = 10, ...p }: P) => (
     <path d="M2.5 1.5l6 3.5-6 3.5z" fill="currentColor" />
   </svg>
 );
+export const StopIcon = ({ size = 10, ...p }: P) => (
+  <svg width={size} height={size} viewBox="0 0 10 10" aria-hidden {...p}>
+    <rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" />
+  </svg>
+);
 export const LockIcon = ({ size = 12, ...p }: P) => svg(size, 16, p, <><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></>);
 export const SondeMark = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" aria-hidden>

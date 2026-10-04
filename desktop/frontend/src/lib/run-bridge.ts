@@ -142,9 +142,11 @@ export function startRun<S>(
   return {
     runId,
     result,
+    // The binding stops the run, which ends as canceled with its Done.
+    // Canceling the call would reject it at once, before that summary.
     cancel: () => {
-      call.cancel?.();
-      cancelBinding?.(runId);
+      if (cancelBinding) void cancelBinding(runId);
+      else call.cancel?.();
     },
   };
 }

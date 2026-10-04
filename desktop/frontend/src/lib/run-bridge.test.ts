@@ -47,6 +47,19 @@ describe("run bridge", () => {
     expect(bus.get(`run:${h.runId}`)?.size ?? 0).toBe(0); // unsubscribed
   });
 
+  it("a cancel stops the run through the binding: it ends with its own summary", async () => {
+    const callCancel = vi.fn();
+    const binding = vi.fn();
+    const onDone = vi.fn();
+    const h = startRun<string>(() => Object.assign(new Promise<string>(() => {}), { cancel: callCancel }), { onItems: () => {}, onDone }, binding);
+    h.cancel();
+    expect(binding).toHaveBeenCalledWith(h.runId);
+    expect(callCancel).not.toHaveBeenCalled();
+    emit(`run:${h.runId}:done`, { runId: h.runId, lastSeq: 0, summary: "canceled" });
+    await expect(h.result).resolves.toBe("canceled");
+    expect(onDone).toHaveBeenCalledWith("canceled");
+  });
+
   it("a run whose events arrive before the call returns still finishes", async () => {
     const onDone = vi.fn();
     const h = startRun<string>(

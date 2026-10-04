@@ -157,6 +157,7 @@ Tabs and pins last for the session.
 | Action | Keys | What it runs |
 |---|---|---|
 | Run file | ⌘R | every request in order |
+| Stop | ⌘. | the run: **Run file** turns into **Stop** while the file runs (the Test run panel has its own). It stops between requests, or mid-body, and the run ends as Canceled |
 | Run to cursor | ⇧⌘↵ | requests 1 to N, N being the request at the cursor |
 | Send | ⌘↵ | request N alone, reusing the earlier requests' results |
 | Test run | Test run panel | the chosen files in test mode, like `sonde --test`; Parallel jobs is `--jobs`, "Continue after a failed request" is `--continue-on-error` |
@@ -526,6 +527,7 @@ lets you rebind them; changes are saved in `settings.json`.
 | ⌘↵ | Send request at cursor |
 | ⇧⌘↵ | Run requests up to the cursor |
 | ⌘R | Run file |
+| ⌘. | Stop the run |
 | ⌘S | Save file |
 | ⌘W | Close tab (window app; a browser keeps ⌘W, ⇧⌘T and ⌃Tab for itself) |
 | ⌥⌘W | Close tab without saving (window app) |

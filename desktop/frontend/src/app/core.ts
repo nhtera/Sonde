@@ -35,6 +35,17 @@ registry.command({
   },
 });
 
+// A run stops between requests, or mid-body: what came stays, as Canceled.
+registry.command({
+  id: "file.stop",
+  title: "Stop the run",
+  when: () => !!useRuns.getState().runs[active() ?? ""]?.running,
+  run: () => {
+    const f = active();
+    if (f) useRuns.getState().cancel(f);
+  },
+});
+
 registry.command({
   id: "file.save",
   title: "Save file",

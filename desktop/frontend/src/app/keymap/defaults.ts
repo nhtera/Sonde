@@ -7,6 +7,7 @@ export const defaultKeys: Record<string, string> = {
   "request.send": "$mod+Enter",
   "request.runTo": "$mod+Shift+Enter",
   "file.run": "$mod+KeyR",
+  "file.stop": "$mod+Period",
   "response.save": "$mod+Alt+KeyS",
   "palette.open": "$mod+KeyK",
   "editor.toggleView": "$mod+KeyE",

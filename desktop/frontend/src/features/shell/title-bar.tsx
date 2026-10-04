@@ -3,7 +3,7 @@
 
 import { registry } from "../../app/registry";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { BranchIcon, ChevronDown, PlayIcon, SearchIcon, SondeMark } from "../../components/icons";
+import { BranchIcon, ChevronDown, PlayIcon, SearchIcon, SondeMark, StopIcon } from "../../components/icons";
 import { isMac, serverMode, windowLook } from "../../lib/mode";
 import { useEnv } from "../../state/env";
 import { useRuns } from "../../state/run";
@@ -21,6 +21,7 @@ export function TitleBar() {
   const running = useRuns((s) => (active ? s.runs[active]?.running : false));
   const paletteKeys = useKeyLabel("palette.open");
   const runKeys = useKeyLabel("file.run");
+  const stopKeys = useKeyLabel("file.stop");
   return (
     <header className="titlebar">
       {isMac && windowLook && (
@@ -56,15 +57,17 @@ export function TitleBar() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <OverridesChip />
           <EnvPicker />
-          <button
-            className="btn-primary"
-            disabled={!isRequestPath(active) || running}
-            onClick={() => active && void useRuns.getState().run(active)}
-            title="Run every request of the file"
-          >
-            <PlayIcon />
-            Run file{runKeys && <kbd>{runKeys}</kbd>}
-          </button>
+          {running ? (
+            <button className="btn" onClick={() => active && useRuns.getState().cancel(active)} title="Stop the run">
+              <StopIcon />
+              Stop{stopKeys && <kbd>{stopKeys}</kbd>}
+            </button>
+          ) : (
+            <button className="btn-primary" disabled={!isRequestPath(active)} onClick={() => active && void useRuns.getState().run(active)} title="Run every request of the file">
+              <PlayIcon />
+              Run file{runKeys && <kbd>{runKeys}</kbd>}
+            </button>
+          )}
         </div>
       )}
     </header>

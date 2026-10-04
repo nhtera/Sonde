@@ -119,9 +119,15 @@ export function TestRunSide() {
           <span className="mono">{env || "none"}</span>
         </div>
       </div>
-      <button className="btn-primary wide" disabled={running || picked.length === 0} onClick={() => void useTestRun.getState().start(picked)}>
-        {running ? "Running…" : `Run ${picked.length} file${picked.length === 1 ? "" : "s"}`}
-      </button>
+      {running ? (
+        <button className="btn wide" onClick={() => useTestRun.getState().cancel()}>
+          Stop the run
+        </button>
+      ) : (
+        <button className="btn-primary wide" disabled={picked.length === 0} onClick={() => void useTestRun.getState().start(picked)}>
+          {`Run ${picked.length} file${picked.length === 1 ? "" : "s"}`}
+        </button>
+      )}
       {!serverMode && (
         <button className="btn wide" disabled={running || picked.length !== 1} title="Runs the one picked file once per CSV or JSON row (--data)" onClick={() => void runWithData(picked)}>
           Run with a data file…

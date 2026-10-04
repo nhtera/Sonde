@@ -3,7 +3,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { registry } from "../registry";
-import { bindKeys, conflicts, effectiveKeys, isBindable, normalize } from "./keymap-manager";
+import { bindKeys, conflicts, effectiveKeys, isBindable, label, normalize } from "./keymap-manager";
 
 describe("keymap", () => {
   registry.command({ id: "file.run", title: "Run file", run: () => {} });
@@ -12,6 +12,11 @@ describe("keymap", () => {
   it("uses defaults, then the user's keys", () => {
     expect(effectiveKeys(undefined)["file.run"]).toBe("$mod+KeyR");
     expect(effectiveKeys({ "file.run": "$mod+Shift+KeyR" })["file.run"]).toBe("$mod+Shift+KeyR");
+  });
+
+  it("names punctuation keys by their character", () => {
+    expect(label("$mod+Period")).toMatch(/\.$/);
+    expect(label("$mod+Comma")).toMatch(/,$/);
   });
 
   it("reports conflicts whatever the modifier order", () => {

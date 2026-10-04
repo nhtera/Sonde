@@ -84,7 +84,7 @@ export function label(keys: string): string {
   const names: Record<string, string> = isMac
     ? { $mod: "⌘", Meta: "⌘", Control: "⌃", Alt: "⌥", Shift: "⇧" }
     : { $mod: "Ctrl", Meta: "Win", Control: "Ctrl", Alt: "Alt", Shift: "Shift" };
-  const keyNames: Record<string, string> = { Enter: "↵", Slash: "/", Escape: "Esc", ArrowUp: "↑", ArrowDown: "↓", ...(isMac ? { Backspace: "⌫" } : {}) };
+  const keyNames: Record<string, string> = { Enter: "↵", Slash: "/", Period: ".", Comma: ",", Escape: "Esc", ArrowUp: "↑", ArrowDown: "↓", ...(isMac ? { Backspace: "⌫" } : {}) };
   const k = keyNames[key] ?? key;
   // macOS lists modifiers as ⌃⌥⇧⌘.
   const order = ["Control", "Alt", "Shift", "$mod", "Meta"];

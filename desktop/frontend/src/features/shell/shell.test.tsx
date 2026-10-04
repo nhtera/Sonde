@@ -28,7 +28,7 @@ const { useUI } = await import("../../state/ui");
 const { useWorkspace } = await import("../../state/workspace");
 const { ResultsHost } = await import("./hosts");
 const { TabsBar, closeTab, closeTabs } = await import("./tabs-bar");
-const { OverridesChip } = await import("./title-bar");
+const { OverridesChip, TitleBar } = await import("./title-bar");
 const checkout = (await import("../../components/run/testdata/checkout.json")).default;
 
 const settings = {
@@ -82,6 +82,21 @@ describe("overrides chip", () => {
     expect(container).toBeEmptyDOMElement();
     act(() => useEnv.setState({ overrides: { count: 1, items: [{ name: "base_url", source: "session", flag: "--variable base_url=…" }] } }));
     expect(screen.getByRole("button", { name: "1 override" })).toBeInTheDocument();
+  });
+});
+
+describe("title bar", () => {
+  it("stops the file's run while it runs", async () => {
+    const cancel = vi.fn();
+    useWorkspace.setState({ project: { name: "shop", dir: "/shop" } as never });
+    useTabs.setState({ tabs: [{ path: "a.hurl", text: "GET x", savedText: "GET x", hash: "h", version: 1, conflict: false }], active: "a.hurl" });
+    useRuns.setState({ cancel, runs: { "a.hurl": { running: true } as never } });
+    render(<TitleBar />);
+    expect(screen.queryByRole("button", { name: /Run file/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /^Stop/ }));
+    expect(cancel).toHaveBeenCalledWith("a.hurl");
+    act(() => useRuns.setState({ runs: {} }));
+    expect(screen.getByRole("button", { name: /Run file/ })).toBeEnabled();
   });
 });
 
