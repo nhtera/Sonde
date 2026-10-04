@@ -251,9 +251,62 @@ If any macOS secret is missing, the macOS job fails: macOS is not released
 unsigned. Windows has no certificate yet, so the release notes carry the
 SmartScreen note ([desktop.md](desktop.md#windows)).
 
+The update signing key has its own environment, **`desktop-update-signing`**,
+and is never in `release`:
+
+- **Deployment branches and tags:** selected tags only, `desktop/v*`.
+- **Required reviewers:** the maintainer. Every desktop release waits for
+  that approval before its update manifest is signed: the click is the
+  publishing decision for every installed app.
+- **Secret `DESKTOP_UPDATE_KEY`:** the active key, base64, as
+  `update-manifest genkey` writes it (`k1.key`).
+- **Variable `DESKTOP_UPDATE_KEY_ID`** (optional): the id of the key the
+  secret holds. Unset means `k1`.
+
+Create the environment **before** the first tag that needs it: GitHub
+creates a missing environment on first use without any protection. (The
+job then fails, because the secret is empty.)
+
+A **tag ruleset** (Settings › Rules) limits creating `v*` and `desktop/v*`
+tags to the maintainer, with repository admins as the only bypass. Without
+it, anyone with write access could push a tag that asks for a signature.
+
+### Update signing keys
+
+The app pins a key set, `desktop/internal/update/keys/*.pub`, from 0.2.0
+on. It verifies a release's `Sonde-Desktop-<v>.update.json` against that set
+before downloading anything.
+
+- **`k1`** is the active key. Its private half is the
+  `DESKTOP_UPDATE_KEY` secret.
+- **`k2`** is the standby key. Its private half never enters CI.
+- Both private keys are kept in the maintainer's password manager **and**
+  as an encrypted copy on an offline USB drive. Losing both ends in-app
+  updates for every install: users would have to download by hand once.
+
+To make them (once, offline), from `desktop/`:
+
+```sh
+go run ./cmd/update-manifest genkey -id k1 -out /path/offline
+go run ./cmd/update-manifest genkey -id k2 -out /path/offline
+cp /path/offline/k1.pub /path/offline/k2.pub internal/update/keys/
+```
+
+`genkey` refuses a folder inside a git worktree, and `.gitignore` covers
+`internal/update/keys/*.key`. Commit the two `.pub` files, store `k1.key` as the secret, back up both
+`.key` files as above, and delete the local copies.
+
+**Rotation:** sign with `k2` from the next release: set the secret to
+`k2.key` and `DESKTOP_UPDATE_KEY_ID` to `k2`. Every app since 0.2.0 already
+pins `k2`. The release that switches also pins a new standby key, `k3`, and
+`k1` is removed from the key set one release later.
+
+**Compromise:** rotate at once, as above. Then publish a notice asking users
+on the affected versions to reinstall by hand.
+
 ### What the workflow does
 
-`release-desktop.yml` (`on.push.tags: ["desktop/v*"]`) has four jobs, with
+`release-desktop.yml` (`on.push.tags: ["desktop/v*"]`) has five jobs, with
 every action pinned by SHA and no Actions cache:
 
 1. **`build-test`**, a matrix of macOS (`macos-14`), Windows
@@ -268,7 +321,14 @@ every action pinned by SHA and no Actions cache:
    carries the `e2eharness` tag or harness files
    (`scripts/check-no-harness.mjs`), writes a SHA-256 digests file, and makes
    a **build provenance attestation** (`actions/attest-build-provenance`) of
-   each artifact, with an OIDC token and nothing else.
+   each artifact, with an OIDC token and nothing else. On Linux it first,
+   before `npm ci` or any project code runs in the job, builds the
+   `update-manifest` tool and writes the release notes
+   (`scripts/release-notes.mjs`), with the `Engine:` line from
+   `scripts/engine.mjs`: the nearest CLI tag and the commit. Both are
+   attested and uploaded as `update-tool`. The checkout fetches the full
+   history, so the nearest CLI tag is found. Every build sets
+   `-X main.engine` to the same value.
 2. **`sign-macos`** and
 3. **`sign-windows`**, in the `release` environment. Each downloads its
    own OS's build artifacts and first runs `desktop/scripts/verify-artifacts.sh`,
@@ -282,28 +342,49 @@ every action pinned by SHA and no Actions cache:
    other, written by `dmgbuild`, pinned by hash in
    `desktop/build/darwin/dmg-requirements.txt`) and signs it, notarizes it (`notarytool submit
    --wait`), staples and validates the ticket, checks it with `spctl`, and
-   attests the disk image it made. Windows signs with `signtool` only when
+   attests the disk image it made. It then staples the app itself, checks
+   it with `spctl -t exec`, and zips it for in-app updates
+   (`Sonde-Desktop-<v>-macos-universal.zip`, `ditto` without resource
+   forks or extended attributes). `scripts/check-app-zip.sh` checks that the
+   zip holds `Sonde.app` alone, and the zip is attested too. Windows signs
+   with `signtool` only when
    `WINDOWS_CERT_PFX_BASE64` is set, and attests a signed installer (an
-   unsigned one keeps the build job's attestation).
-4. **`publish`**, in the `release` environment with `contents: write`. It
-   verifies the Linux artifact the same way (the signed ones were checked
-   before signing), writes an SBOM (`syft`, SPDX JSON, of `desktop/`),
+   unsigned one keeps the build job's attestation). Both write a digests
+   file of what they upload.
+4. **`sign-update`**, in the `desktop-update-signing` environment, after
+   the maintainer approves. It checks out only `verify-artifacts.sh` and
+   the committed key set, and runs no toolchain. It first verifies the
+   update tool, the notes and the four update files: the macOS zip, the two
+   Windows installers and the AppImage. It then writes the key to a 0600
+   temp file that is deleted on exit, signs
+   `Sonde-Desktop-<v>.update.json`, and verifies it against the
+   **committed** key set. A wrong secret therefore fails the release. A
+   missing secret fails it as well.
+5. **`publish`**, in the `release` environment with `contents: write`. It
+   verifies the Linux artifact and the notes the same way (the signed ones
+   were checked before signing), checks the update manifest again against
+   the committed key set, adds it, writes an SBOM (`syft`, SPDX JSON, of `desktop/`),
    `checksums.txt` over every file, a keyless **cosign** signature of it
    (`checksums.txt.sigstore.json`), and creates the GitHub release with
-   `gh release create --latest=false` and notes "Sonde Desktop X.Y.Z" (the
-   Windows SmartScreen note, supported Linux systems, the privacy facts and
-   how to verify). `--latest=false` keeps the repository's "Latest" on the
+   `gh release create --latest=false`. The notes are build-test's, the text
+   the manifest signed: "Sonde Desktop X.Y.Z", the engine, the Windows
+   SmartScreen note, supported Linux systems, the update check, the privacy
+   facts and how to verify. `--latest=false` keeps the repository's "Latest" on the
    most recent CLI tag.
 
-Every published file except `checksums.txt`, the SBOM and the cosign bundle
-has a provenance attestation, including the server binaries
-(`Sonde-Desktop-Server-*`, unsigned). The disk image is also covered by the
+Every published file except `checksums.txt`, the SBOM, the cosign bundle
+and the update manifest has a provenance attestation, including the server
+binaries (`Sonde-Desktop-Server-*`, unsigned). The update manifest carries
+its own ed25519 signature, and `checksums.txt` covers it. The disk image is also covered by the
 notarization ticket and Gatekeeper. How a user verifies a download: [desktop.md](desktop.md#verifying-downloads).
 
 `desktop/scripts/verify-artifacts_test.sh` (part of `make desktop-check`)
 checks the digest refusals: a changed file, an unlisted file and no file at
 all each fail. The attestation check runs only in the workflow, where `REPO`
-is set.
+is set. `scripts/check-app-zip_test.sh` checks that the zip check refuses
+`__MACOSX/`, AppleDouble files and a second top-level entry. The
+`update-manifest` tests refuse a changed byte, version, notes, size or
+signature, an unsigned field and another key set.
 
 ### Before tagging
 

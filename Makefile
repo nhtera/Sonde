@@ -101,7 +101,7 @@ desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses desktop-bindings ## Deskt
 	done
 	npm --prefix desktop/frontend ci --ignore-scripts --no-audit --no-fund
 	node desktop/scripts/check-install-scripts.mjs
-	cd desktop && node scripts/check-npm-licenses.mjs && node scripts/version.mjs && scripts/verify-artifacts_test.sh && node --test scripts/*.test.mjs
+	cd desktop && node scripts/check-npm-licenses.mjs && node scripts/version.mjs && scripts/verify-artifacts_test.sh && scripts/check-app-zip_test.sh && node --test scripts/*.test.mjs
 	npm --prefix desktop/frontend run lint
 	npm --prefix desktop/frontend run typecheck
 	npm --prefix desktop/frontend test
