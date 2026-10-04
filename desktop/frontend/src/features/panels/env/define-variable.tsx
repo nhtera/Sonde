@@ -5,7 +5,8 @@
 // {{name}}): its value, and where it goes, a secret of an environment
 // (its secrets file, never sonde.yaml), a variable of an environment
 // (sonde.yaml), or this session only (--variable). Opened from a run's
-// "Undefined variable", the editor's hover and an import's result.
+// "Undefined variable", the editor's hover and an import's result, or
+// from the palette with a name to enter.
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
@@ -19,11 +20,20 @@ import { useUI } from "../../../state/ui";
 
 export type Where = "secret" | "variable" | "session";
 
+/** The name being defined; "" to enter one, null when closed. */
 const useDefine = create<{ name: string | null }>(() => ({ name: null }));
 
-/** Opens the dialog to define name. */
-export function defineVariable(name: string) {
+/** Opens the dialog to define name ("": the dialog asks for it). */
+export function defineVariable(name = "") {
   useDefine.setState({ name });
+}
+
+/** Why name can not name a variable; "" when it can. */
+export function nameError(name: string): string {
+  if (!name) return "";
+  if (!/^[A-Za-z0-9_-]+$/.test(name)) return "Letters, digits, _ and - only";
+  if (["newDate", "newUuid", "getEnv"].includes(name)) return `${name} is a function`;
+  return "";
 }
 
 /** Where a variable named so goes by default: a credential is a secret. */
@@ -34,15 +44,20 @@ export function defaultWhere(name: string, hasEnv: boolean): Where {
 
 export function DefineVariableDialog() {
   const name = useDefine((s) => s.name);
-  if (!name) return null;
-  return <DefineForm key={name} name={name} />;
+  if (name === null) return null;
+  return <DefineForm key={name} given={name} />;
 }
 
-function DefineForm({ name }: { name: string }) {
+function DefineForm({ given }: { given: string }) {
+  const [typed, setName] = useState(given);
+  const name = typed.trim();
   const envs = useEnv((s) => s.project?.envs ?? []);
   const current = useEnv((s) => s.current);
   const [env, setEnv] = useState(current || envs[0]?.name || "");
-  const [where, setWhere] = useState<Where>(() => defaultWhere(name, envs.length > 0));
+  // Picked by hand, or the default for the name typed so far.
+  const [picked, setWhere] = useState<Where | null>(null);
+  const where = picked ?? defaultWhere(name, envs.length > 0);
+  const invalid = nameError(name);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const close = () => useDefine.setState({ name: null });
@@ -77,24 +92,37 @@ function DefineForm({ name }: { name: string }) {
         <Dialog.Overlay className="scrim" />
         <Dialog.Content className="dialog dialog-pad define-var" aria-describedby="define-var-note">
           <Dialog.Title className="dialog-title">
-            Define <code className="mono">{`{{${name}}}`}</code>
+            {given ? (
+              <>
+                Define <code className="mono">{`{{${given}}}`}</code>
+              </>
+            ) : (
+              "Define a variable"
+            )}
           </Dialog.Title>
           <p id="define-var-note" className="dialog-note">
-            A request uses it, and no environment or earlier capture sets it.
+            {given ? "A request uses it, and no environment or earlier capture sets it." : "A value for {{name}} in the requests, before you run them."}
           </p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!busy) void save();
+              if (!busy && name && !invalid) void save();
             }}
           >
+            {!given && (
+              <label className="define-field">
+                <span>Name</span>
+                <input className="mono" aria-label="Name" autoFocus spellCheck={false} autoComplete="off" value={typed} onChange={(e) => setName(e.target.value)} />
+                {invalid && <span className="define-error">{invalid}</span>}
+              </label>
+            )}
             <label className="define-field">
               <span>Value</span>
               <input
                 className="mono"
                 type={where === "secret" ? "password" : "text"}
                 aria-label="Value"
-                autoFocus
+                autoFocus={!!given}
                 spellCheck={false}
                 autoComplete="off"
                 value={value}
@@ -129,7 +157,7 @@ function DefineForm({ name }: { name: string }) {
               <button type="button" className="btn-ghost" onClick={close}>
                 Cancel
               </button>
-              <button type="submit" className="btn-primary" disabled={busy}>
+              <button type="submit" className="btn-primary" disabled={busy || !name || !!invalid}>
                 Save
               </button>
             </div>

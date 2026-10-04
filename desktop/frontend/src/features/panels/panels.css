@@ -289,3 +289,4 @@
 .define-option > span { display: flex; flex-direction: column; gap: 2px; }
 .define-var .muted { color: var(--muted); }
 .define-var .small { font-size: 11px; }
+.define-error { color: var(--fail); font-size: 11px; }

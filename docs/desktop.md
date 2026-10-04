@@ -208,7 +208,8 @@ unfinished edit at the next start.
 
 **Define a variable** a request uses and nothing sets: from a run's
 "Undefined variable" (**Define name…**), the editor's hover on the
-variable, or an import's result. Enter its value and where it goes: a
+variable, an import's result, or the palette ("Define a variable…", which
+asks for the name too). Enter its value and where it goes: a
 **secret** of the environment (its secrets file, never `sonde.yaml`; the
 default for a name like a cookie, token, key or password), a **variable**
 of the environment (`sonde.yaml`), or **this session only** (a session

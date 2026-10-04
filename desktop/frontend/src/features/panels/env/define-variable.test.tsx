@@ -12,7 +12,7 @@ vi.mock("../../../lib/api", () => ({
 
 import { Envs } from "../../../lib/api";
 import { useEnv } from "../../../state/env";
-import { defaultWhere, defineVariable, DefineVariableDialog } from "./define-variable";
+import { defaultWhere, defineVariable, DefineVariableDialog, nameError } from "./define-variable";
 
 describe("defaultWhere", () => {
   it("makes a credential a secret, anything else a variable", () => {
@@ -67,5 +67,30 @@ describe("DefineVariableDialog", () => {
     act(() => defineVariable("nmk-cookie"));
     expect(screen.getByRole("radio", { name: /This session only/ })).toBeChecked();
     expect(screen.getByRole("radio", { name: /^Secret/ })).toBeDisabled();
+  });
+
+  it("asks for the name from the palette, the default following it", async () => {
+    render(<DefineVariableDialog />);
+    act(() => defineVariable());
+    expect(screen.getByRole("heading", { name: "Define a variable" })).toBeInTheDocument();
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Name"), "a b");
+    expect(screen.getByText("Letters, digits, _ and - only")).toBeInTheDocument();
+    expect(save).toBeDisabled();
+    await userEvent.clear(screen.getByLabelText("Name"));
+    await userEvent.type(screen.getByLabelText("Name"), "authToken");
+    expect(screen.getByRole("radio", { name: /Secret of collection/ })).toBeChecked();
+    await userEvent.type(screen.getByLabelText("Value"), "t");
+    await userEvent.click(save);
+    expect(Envs.SetSecret).toHaveBeenCalledWith("collection", "authToken", "t");
+  });
+});
+
+describe("nameError", () => {
+  it("accepts a variable name, not a function's or one with spaces", () => {
+    expect(nameError("nmk-cookie")).toBe("");
+    expect(nameError("a.b")).not.toBe("");
+    expect(nameError("newUuid")).toBe("newUuid is a function");
   });
 });

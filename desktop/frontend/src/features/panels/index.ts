@@ -12,7 +12,7 @@ import { useUI } from "../../state/ui";
 import { AgentsPanel } from "./agents/agents-panel";
 import { ContractPanel } from "./contract/contract-panel";
 import { CookieJarDialog, useCookieJar } from "./cookies/cookie-jar";
-import { DefineVariableDialog } from "./env/define-variable";
+import { defineVariable, DefineVariableDialog } from "./env/define-variable";
 import { EnvMain, EnvSide } from "./env/env-panel";
 import { ChangesCard } from "./git/changes-card";
 import { HistoryPanel } from "./history/history-panel";
@@ -34,6 +34,12 @@ registry.slot("app.overlays", { id: "cookies.jar", order: 0, render: CookieJarDi
 registry.slot("app.overlays", { id: "env.define", order: 2, render: DefineVariableDialog });
 
 registry.command({ id: "env.open", title: "Open the environments", group: "Panels", run: () => useUI.getState().setPanel("env") });
+registry.command({
+  id: "env.define",
+  title: "Define a variable…",
+  group: "Panels",
+  run: (name) => defineVariable(typeof name === "string" ? name : ""),
+});
 registry.command({ id: "testrun.open", title: "Open the test run", group: "Panels", run: () => useUI.getState().setPanel("testrun") });
 registry.command({
   id: "settings.open",
