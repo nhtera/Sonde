@@ -190,6 +190,10 @@ the fixture API serving a ~50 MB response, then prints the budget table
 (native rows measured in the shipped app, harness rows, the initial JS and
 the download size). It exits 1 if a measured budget is missed.
 
-- [ ] Every budget is met, or each miss is explained and accepted.
-- [ ] **Paste the table into the release pull request**, with the machine
-      (for example "MacBook Air M1, macOS 15.x").
+- [x] Every budget is met, or each miss is explained and accepted.
+      Keystroke to paint: 18.0 ms p95 against 16 ms, accepted for 0.1.0. The
+      tour times to the next frame, 16.7 ms at 60 Hz, so 18 ms is the first
+      frame.
+- [x] **Paste the table into the release pull request**, with the machine
+      (for example "MacBook Air M1, macOS 15.x"). MacBook Pro M4 Pro, macOS
+      15.7.3, in #3.
