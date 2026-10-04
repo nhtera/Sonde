@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -267,4 +268,112 @@ func TestTLSFilesByName(t *testing.T) {
 	if got, err := svc.SetTLSFile(CACert, ""); err != nil || got.TLS.CACert != "" {
 		t.Errorf("clear: %q %v", got.TLS.CACert, err)
 	}
+}
+
+func TestUpdates(t *testing.T) {
+	writeFile := func(t *testing.T, dir string, v any) {
+		t.Helper()
+		data, err := json.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, File), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	open := func(t *testing.T, dir string) Settings {
+		return Open(sandboxtest.Open(t, dir), &emit.Recorder{}, handles.New()).Get()
+	}
+
+	t.Run("a 0.1.0 file keeps every value and checks for updates", func(t *testing.T) {
+		old := Defaults()
+		old.Appearance.Theme, old.Network.Retry, old.History.Enabled, old.Contract.Check = "dark", 3, false, true
+		old.Shortcuts = map[string]string{"file.run": "Alt+KeyR"}
+		data, err := json.Marshal(old)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(data, &m); err != nil {
+			t.Fatal(err)
+		}
+		delete(m, "updates") // 0.1.0 had no such group
+		dir := t.TempDir()
+		writeFile(t, dir, m)
+		got := open(t, dir)
+		want := old
+		want.Updates = Updates{Check: true, Channel: ChannelStable}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("loaded\n%+v\nwant\n%+v", got, want)
+		}
+	})
+	t.Run("a file without a version is not read", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, dir, map[string]any{"appearance": map[string]any{"theme": "dark"}})
+		if got := open(t, dir); got.Appearance.Theme != "system" {
+			t.Fatalf("a versionless file was read: %+v", got.Appearance)
+		}
+	})
+	t.Run("the switch off stays off", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, dir, map[string]any{"version": 1, "updates": map[string]any{"check": false}})
+		if got := open(t, dir); got.Updates.Check || got.Updates.Channel != ChannelStable {
+			t.Fatalf("updates %+v, want off on the stable channel", got.Updates)
+		}
+	})
+	t.Run("a page's Set changes the switch only", func(t *testing.T) {
+		st, dir, rec, _ := store(t)
+		stale := st.Get() // the page's copy, before the service writes
+		if err := st.SetUpdateState(func(u *Updates) {
+			u.Skipped, u.Channel, u.LastCheck = "0.2.1", ChannelPrerelease, "2026-10-05T01:00:00Z"
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if n := len(rec.Events()); n != 1 {
+			t.Errorf("%d events after SetUpdateState, want 1", n)
+		}
+		stale.Updates = Updates{Check: false, Skipped: "", Channel: ChannelStable, LastCheck: ""}
+		if _, err := st.Set(stale); err != nil {
+			t.Fatal(err)
+		}
+		want := Updates{Check: false, Skipped: "0.2.1", Channel: ChannelPrerelease, LastCheck: "2026-10-05T01:00:00Z"}
+		if got := st.Get().Updates; got != want {
+			t.Fatalf("updates %+v, want %+v", got, want)
+		}
+		if got := open(t, dir).Updates; got != want {
+			t.Fatalf("saved updates %+v, want %+v", got, want)
+		}
+	})
+	t.Run("a refused file is replaced by a user's change only", func(t *testing.T) {
+		dir := t.TempDir()
+		newer := []byte(`{"version": 99, "network": {"proxy": "http://p:3128"}}`)
+		if err := os.WriteFile(filepath.Join(dir, File), newer, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		st := Open(sandboxtest.Open(t, dir), &emit.Recorder{}, handles.New())
+		if err := st.SetUpdateState(func(u *Updates) { u.LastCheck = "2026-10-05T01:00:00Z" }); err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := os.ReadFile(filepath.Join(dir, File)); string(got) != string(newer) {
+			t.Fatalf("an unattended update check replaced a refused file: %s", got)
+		}
+		if st.Get().Updates.LastCheck == "" {
+			t.Fatal("the update state was not kept in memory")
+		}
+		if _, err := st.Set(st.Get()); err != nil {
+			t.Fatal(err)
+		}
+		if got := open(t, dir); got.Updates.LastCheck != "2026-10-05T01:00:00Z" {
+			t.Fatalf("after the user's change: %+v", got.Updates)
+		}
+	})
+	t.Run("an unknown channel is stable", func(t *testing.T) {
+		st, _, _, _ := store(t)
+		if err := st.SetUpdateState(func(u *Updates) { u.Channel = "nightly" }); err != nil {
+			t.Fatal(err)
+		}
+		if got := st.Get().Updates.Channel; got != ChannelStable {
+			t.Fatalf("channel %q", got)
+		}
+	})
 }
