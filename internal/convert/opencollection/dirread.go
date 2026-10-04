@@ -125,12 +125,25 @@ func readCapped(fsys fs.FS, p string, b *budget) ([]byte, error) {
 }
 
 func sortedEntries(fsys fs.FS, dir string) ([]fs.DirEntry, error) {
-	entries, err := fs.ReadDir(fsys, dir)
+	all, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		return nil, fmt.Errorf("opencollection: %w", err)
 	}
+	entries := all[:0]
+	for _, ent := range all {
+		if !ignored(ent.Name()) {
+			entries = append(entries, ent)
+		}
+	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 	return entries, nil
+}
+
+// ignored reports whether a directory entry is no part of the collection:
+// a dotfile or dot folder (.git, a macOS ._ resource fork), the
+// __MACOSX folder a Finder zip adds, or node_modules.
+func ignored(name string) bool {
+	return strings.HasPrefix(name, ".") || name == "__MACOSX" || name == "node_modules"
 }
 
 func isYAMLFile(name string) bool {

@@ -4,6 +4,8 @@
 package opencollection
 
 import (
+	"archive/zip"
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -431,5 +433,139 @@ items:
 		if w.Kind == convert.WarnUnsupportedAuth {
 			t.Errorf("unexpected auth warning for \"none\": %s", w.Message)
 		}
+	}
+}
+
+// TestExportedCollection checks a collection as an app exports it: a slash in a
+// name is no folder, a query in both the URL and params is sent once, and
+// the settings and proxy written everywhere by default warn nothing.
+func TestExportedCollection(t *testing.T) {
+	data := []byte(`config:
+  proxy:
+    inherit: true
+    config: {protocol: http, hostname: "", port: ""}
+items:
+  - info: {name: Fields, type: folder}
+    items:
+      - info: {name: Enable / disable field, type: http}
+        http:
+          method: GET
+          url: "http://x/fields?q=&page=1"
+          params:
+            - {name: q, value: "", type: query}
+            - {name: page, value: "1", type: query}
+        settings: {encodeUrl: true, timeout: 0, followRedirects: true, maxRedirects: 5}
+      - info: {name: Slow, type: http}
+        http:
+          method: GET
+          url: "http://x/slow"
+          params:
+            - {name: page, value: "1", type: query}
+        settings: {encodeUrl: true, timeout: 3000, followRedirects: false, maxRedirects: 5}
+`)
+	out, err := ImportFile(data, syntax.DialectHurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Files) != 2 {
+		t.Fatalf("files = %d", len(out.Files))
+	}
+	if got := out.Files[0].Path; got != "Fields/Enable   disable field" {
+		t.Errorf("path %q: a slash made a folder", got)
+	}
+	if src := string(syntax.Format(out.Files[0].File)); strings.Contains(src, "[Query]") || !strings.Contains(src, "?q=&page=1") {
+		t.Errorf("the URL's query must be sent once:\n%s", src)
+	}
+	if src := string(syntax.Format(out.Files[1].File)); !strings.Contains(src, "[Query]\npage: 1") {
+		t.Errorf("params of a URL without a query go to [Query]:\n%s", src)
+	}
+	var msgs []string
+	for _, w := range out.Warnings {
+		msgs = append(msgs, w.Message)
+	}
+	if want := []string{"Fields/Slow: settings (timeout, followRedirects) have no Sonde equivalent"}; fmt.Sprint(msgs) != fmt.Sprint(want) {
+		t.Errorf("warnings %q, want %q", msgs, want)
+	}
+}
+
+func TestProxyWithAHostWarns(t *testing.T) {
+	data := []byte(`config:
+  proxy:
+    config: {protocol: http, hostname: proxy.local, port: "3128"}
+items:
+  - info: {name: Get, type: http}
+    http: {method: GET, url: "http://x"}
+`)
+	out, err := ImportFile(data, syntax.DialectHurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Warnings) != 1 || out.Warnings[0].Message != "config.proxy has no Sonde equivalent" {
+		t.Errorf("warnings %v", out.Warnings)
+	}
+}
+
+// zipOf zips files (name -> content) in name order.
+func zipOf(t *testing.T, files map[string]string) []byte {
+	t.Helper()
+	names := make([]string, 0, len(files))
+	for n := range files {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, n := range names {
+		w, err := zw.Create(n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = w.Write([]byte(files[n]))
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// TestImportZip checks an OpenCollection ZIP export, read in place: at the zip's
+// root, or in its one folder (a Finder zip, with __MACOSX and .DS_Store
+// left out), and through ImportPath, which knows a zip by its bytes.
+func TestImportZip(t *testing.T) {
+	collection := map[string]string{
+		"opencollection.yml":    "opencollection: 1.0.0\ninfo: {name: NMK}\n",
+		"Auth/folder.yml":       "info: {name: Auth, type: folder, seq: 1}\n",
+		"Auth/Who am I.yml":     "info: {name: Who am I, type: http, seq: 1}\nhttp: {method: GET, url: \"http://x/me\"}\n",
+		".DS_Store":             "\x00\x01binary",
+		"Auth/._Who am I.yml":   "\x00\x05\x16\x07binary",
+		"__MACOSX/Auth/._x.yml": "\x00binary",
+		"node_modules/x/a.yml":  "info: {name: Dep, type: http}\nhttp: {method: GET, url: \"http://dep\"}\n",
+	}
+	wrapped := map[string]string{}
+	for n, c := range collection {
+		if strings.HasPrefix(n, "__MACOSX/") {
+			wrapped[n] = c
+		} else {
+			wrapped["NMK/"+n] = c
+		}
+	}
+	for name, files := range map[string]map[string]string{"root": collection, "wrapped": wrapped} {
+		t.Run(name, func(t *testing.T) {
+			input := filepath.Join(t.TempDir(), "collection.zip")
+			if err := os.WriteFile(input, zipOf(t, files), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			out, err := ImportPath(input, syntax.DialectHurl)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var paths []string
+			for _, f := range out.Files {
+				paths = append(paths, f.Path)
+			}
+			if fmt.Sprint(paths) != "[Auth/Who am I]" || len(out.Warnings) != 0 || len(out.Skipped) != 0 {
+				t.Errorf("files %q, warnings %v, skipped %v", paths, out.Warnings, out.Skipped)
+			}
+		})
 	}
 }

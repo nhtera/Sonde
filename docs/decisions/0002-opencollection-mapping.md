@@ -78,6 +78,15 @@ A directory containing:
   this layout: `opencollection.yml` at the root, `folder.yml` in each
   folder directory, one `.yml` file per request, and environments under
   `environments/`.
+- Dotfiles and dot folders (`.git`, `._` resource forks), `__MACOSX` and
+  `node_modules` are no part of the collection and are skipped.
+
+### Zip
+
+A zip of a directory (the ZIP export), known by its bytes whatever its
+name, is read in place and never extracted. The collection is the zip's
+root or, when the root holds only a folder with an `opencollection.yml`,
+that folder. The directory limits apply to the sizes the zip declares.
 - Environments: either inline in the root file's `config.environments`
   (as in the single-file case), or, if present, one `<name>.yml`/`.yaml`
   file per environment under an `environments/` subdirectory, each holding
@@ -141,9 +150,9 @@ so `seq` is not baked into a file name verbatim.
 
 | OpenCollection | Sonde |
 |---|---|
-| `method`, `url` | request line; `url` through `convert.ParseText` for `{{var}}` |
+| `method`, `url` | request line (a `/` in an item or folder name is part of the file name, never a folder); `url` through `convert.ParseText` for `{{var}}` |
 | `headers[]` (`disabled: true` dropped) | header lines, value through `ParseText` |
-| `params[]` with `type: query` (`disabled` dropped) | `[Query]` field |
+| `params[]` with `type: query` (`disabled` dropped) | `[Query]` field, unless `url` has its own query string: an export writes the query in both places, so the URL keeps it and the request sends each param once |
 | `params[]` with `type: path` | not written as its own section (Sonde has none); the OpenCollection convention of a `:name` URL segment is rewritten to `{{name}}` in the URL and the param's `value` becomes an `[Options] variable: name="value"` default, so the request still runs standalone |
 | `body.type: json` | `convert.JSONBody` (shared with the other importers): one JSON value rebuilt keeping member order, duplicate keys and every `{{variable}}` inside a string value live; malformed JSON, deep nesting, or a placeholder used where JSON syntax does not allow one (a bare `{{amount}}` in a numeric position, or one inside an object *key*) falls back to `convert.ParseText` + `syntax.TextBody(t, "json")` — the original text verbatim, but `{{variable}}` anywhere in it, including those positions, still expands live; no warning either way, since both paths keep every placeholder working |
 | `body.type: xml/text/sparql` | `convert.ParseText` + `syntax.TextBody(t, lang)` (`lang` "xml" for xml, "" for text/sparql — OpenCollection gives text/sparql no templating story of their own and Sonde has no distinct lang tag for them): the text verbatim with every `{{variable}}` live, same as the JSON fallback above |
@@ -151,7 +160,7 @@ so `seq` is not baked into a file name verbatim.
 | `body.type: multipart-form` (`disabled` dropped) | `[Multipart]`: `type: text` → text field, `type: file` → `file,PATH;TYPE` |
 | `body.type: file` | `file,PATH;TYPE` from the entry marked `selected: true`, else the first entry; more than one entry is a `WarnUnsupportedBody` ("only the selected file is imported") |
 | `body` variants array (`variants: [{title, selected, body}]`) | only the `selected: true` variant is imported (or the first, none marked); a `WarnUnsupportedBody` names the ones dropped |
-| `settings.*` (`encodeUrl`, `timeout`, `followRedirects`, `maxRedirects`, `omitHeaders`) | `WarnUnsupportedOption` per set field — no Sonde `[Options]` equivalent maps 1:1 without changing request semantics, so these are surfaced rather than guessed at |
+| `settings.*` (`encodeUrl`, `timeout`, `followRedirects`, `maxRedirects`, `omitHeaders`) | `WarnUnsupportedOption` per field set to other than the export default (`encodeUrl: true`, `timeout: 0`, `followRedirects: true`, `maxRedirects: 5`, `omitHeaders: false`) — no Sonde `[Options]` equivalent maps 1:1 without changing request semantics, so these are surfaced rather than guessed at; the defaults, written into every exported request, import silently |
 | `docs` | a `#` comment line above the request (`Description` may be a plain string or `{content, type}`; the `content` is used, `type` is ignored) |
 
 ### Auth (`http.auth`/`graphql.auth`, inherited through folders)
@@ -218,7 +227,7 @@ inherit *from* at read time).
   schema's own per-provider shape is not parsed any further than
   detecting the key exists), and contributes no line to any secrets stub.
 - `dotEnvFilePath`, `extends`, `clientCertificates` on an environment, or
-  `config.proxy`/`config.protobuf` on the collection: `WarnUnsupported`,
+  `config.proxy` naming a host or `config.protobuf` on the collection (an empty proxy block, with no host, is no proxy): `WarnUnsupported`,
   no Sonde equivalent.
 
 ### Scripts, tests and assertions — never executed

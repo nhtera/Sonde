@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 
+	yaml "go.yaml.in/yaml/v3"
+
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/convert"
 )
@@ -232,13 +234,29 @@ func environmentFieldWarnings(env environment) []convert.Warning {
 // Sonde equivalent (mapping doc, "Unsupported entirely").
 func configFieldWarnings(c collConfig) []convert.Warning {
 	var warns []convert.Warning
-	if c.Proxy.Kind != 0 {
+	if setsHost(&c.Proxy) {
 		warns = append(warns, convert.Warning{Kind: convert.WarnUnsupported, Message: "config.proxy has no Sonde equivalent"})
 	}
 	if c.Protobuf.Kind != 0 {
 		warns = append(warns, convert.Warning{Kind: convert.WarnUnsupported, Message: "config.protobuf has no Sonde equivalent"})
 	}
 	return warns
+}
+
+// setsHost reports whether a proxy block names a host anywhere: an
+// export writes an empty one (inherit, no hostname) into every collection.
+func setsHost(n *yaml.Node) bool {
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		if n.Kind == yaml.MappingNode && n.Content[i].Value == "hostname" && n.Content[i+1].Value != "" {
+			return true
+		}
+	}
+	for _, c := range n.Content {
+		if setsHost(c) {
+			return true
+		}
+	}
+	return false
 }
 
 func secretsStub(path string, names []string) convert.RawFile {

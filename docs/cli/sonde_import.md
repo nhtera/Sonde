@@ -25,7 +25,7 @@ Available kinds: curl, http, openapi, opencollection, postman.
 - [sonde import curl](sonde_import_curl.md) — Convert curl command lines to a request file, one entry per command
 - [sonde import http](sonde_import_http.md) — Convert a .http file (JetBrains HTTP Client or VS Code REST Client) to Sonde request files
 - [sonde import openapi](sonde_import_openapi.md) — Generate request files from an OpenAPI spec, one per operation
-- [sonde import opencollection](sonde_import_opencollection.md) — Import a Bruno OpenCollection YAML collection (a file or a directory)
+- [sonde import opencollection](sonde_import_opencollection.md) — Import a Bruno OpenCollection YAML collection (a file, a directory or a zip)
 - [sonde import postman](sonde_import_postman.md) — Convert a Postman v2.1 collection to request files
 
 Parent command: [sonde](sonde.md)

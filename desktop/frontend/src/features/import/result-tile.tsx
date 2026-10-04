@@ -186,7 +186,7 @@ export function ImportResult() {
         {c.scripts > 0 && (
           <WarnCard
             title={`${c.scripts} script${c.scripts === 1 ? "" : "s"} kept as # comments`}
-            sub="Above each request. Sonde does not run scripts; asserts and captures can be suggested."
+            sub={`Above each request. Sonde does not run scripts${review ? "; asserts and captures can be suggested" : ": write asserts and captures for what they checked"}.`}
             action={review}
           />
         )}

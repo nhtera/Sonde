@@ -23,7 +23,7 @@ An input file, or an environment file an importer reads, is limited to
 | `openapi` | An OpenAPI 3 document, or Swagger 2.0 | `tag` (default), `path`, `flat` — see [openapi.md](openapi.md) | Available |
 | `curl` | curl command lines, or a shell script holding them; `-` reads stdin | — (one file) | Available |
 | `postman` | A Postman Collection v2.1 or v2.0 JSON file | `request` (default: one file per request, folders become directories), `folder` (one file per folder, its requests chained) | Available |
-| `opencollection` | An OpenCollection 1.0 YAML file, or a collection directory | — (one file per request, folders become directories) | Available |
+| `opencollection` | An OpenCollection 1.0 YAML file, a collection directory, or a zip of one | — (one file per request, folders become directories) | Available |
 | `http` | A `.http` file (JetBrains HTTP Client or VS Code REST Client); `-` reads stdin | — (one file) | Available |
 
 `sonde import` with no kind, or an unrecognized one, is a usage error
@@ -195,7 +195,8 @@ reads a Collection v2.1 (or v2.0). See
 `sonde import opencollection INPUT -o DIR` reads an OpenCollection 1.0
 YAML collection: a single file, or a directory with `opencollection.yml`,
 one `.yml` file per request, a `folder.yml` per folder and environments
-under `environments/`. Directory reads stay inside INPUT, symbolic links
+under `environments/`, or a zip of that directory (read in place, never
+extracted). Directory reads stay inside INPUT, symbolic links
 included. A YAML file is limited to 16 MiB, and a directory to 256 MiB
 and 10,000 files and directories. [decisions/0002-opencollection-mapping.md](../decisions/0002-opencollection-mapping.md)
 pins the mapping. In short:

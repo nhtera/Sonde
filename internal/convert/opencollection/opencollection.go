@@ -9,9 +9,12 @@
 package opencollection
 
 import (
+	"archive/zip"
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
+	"slices"
 	"strings"
 
 	yaml "go.yaml.in/yaml/v3"
@@ -49,8 +52,40 @@ func ImportDir(dir string, dialect syntax.Dialect) (convert.Output, error) {
 	}
 	defer func() { _ = root.Close() }()
 
+	return importFS(root.FS(), dialect)
+}
+
+// ImportZip converts a zip of a collection directory (an OpenCollection
+// ZIP export), read in place, never extracted: the
+// collection is the zip's root or, when the root holds only a folder
+// with an opencollection.yml, that folder. Nothing is written to disk
+// (the zip's names are read as paths inside it), the directory budget caps
+// the sizes the zip declares, and reading past a declared size fails.
+func ImportZip(data []byte, dialect syntax.Dialect) (convert.Output, error) {
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return convert.Output{}, fmt.Errorf("opencollection: %w", err)
+	}
+	var fsys fs.FS = zr
+	if entries, err := sortedEntries(zr, "."); err == nil && len(entries) == 1 && entries[0].IsDir() {
+		sub, err := fs.Sub(zr, entries[0].Name())
+		if err != nil {
+			return convert.Output{}, fmt.Errorf("opencollection: %w", err)
+		}
+		if inner, err := sortedEntries(sub, "."); err == nil && slices.ContainsFunc(inner, func(e fs.DirEntry) bool { return isNamed(e.Name(), "opencollection") }) {
+			fsys = sub
+		}
+	}
+	return importFS(fsys, dialect)
+}
+
+// zipMagic starts every zip file.
+var zipMagic = []byte("PK\x03\x04")
+
+// importFS converts the collection directory fsys.
+func importFS(fsys fs.FS, dialect syntax.Dialect) (convert.Output, error) {
 	d := &dirLoad{budget: newBudget()}
-	doc, err := loadDirectory(root.FS(), d)
+	doc, err := loadDirectory(fsys, d)
 	if err != nil {
 		return convert.Output{}, err
 	}
@@ -106,8 +141,9 @@ func assemble(doc *document, dialect syntax.Dialect, warns []convert.Warning) co
 	}
 }
 
-// ImportPath converts input: a single OpenCollection YAML file, or a
-// collection directory (docs/decisions/0002-opencollection-mapping.md).
+// ImportPath converts input: a single OpenCollection YAML file, a
+// collection directory, or a zip of one (docs/decisions/0002-
+// opencollection-mapping.md).
 func ImportPath(input string, dialect syntax.Dialect) (convert.Output, error) {
 	st, err := os.Stat(input)
 	if err != nil {
@@ -122,6 +158,9 @@ func ImportPath(input string, dialect syntax.Dialect) (convert.Output, error) {
 	data, err := convert.ReadInput(input, convert.MaxInput)
 	if err != nil {
 		return convert.Output{}, err
+	}
+	if bytes.HasPrefix(data, zipMagic) {
+		return ImportZip(data, dialect)
 	}
 	return ImportFile(data, dialect)
 }

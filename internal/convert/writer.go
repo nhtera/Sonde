@@ -304,6 +304,19 @@ var reservedNames = map[string]bool{
 	"lpt6": true, "lpt7": true, "lpt8": true, "lpt9": true,
 }
 
+// FilePath joins the names of the folders and the request to a
+// GeneratedFile Path: a slash in a name is part of the name ("Enable /
+// disable"), never a folder of its own.
+func FilePath(names []string) string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = separators.Replace(n)
+	}
+	return strings.Join(out, "/")
+}
+
+var separators = strings.NewReplacer("/", " ", "\\", " ")
+
 // sanitizePath splits p on '/' and sanitizes every segment, dropping empty
 // ones (from a leading '/', "//" or a trailing '/') and "." and ".."
 // segments outright, so the result can never escape upward or reference the

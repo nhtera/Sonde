@@ -2,7 +2,7 @@
 
 # sonde import opencollection
 
-Import a Bruno OpenCollection YAML collection (a file or a directory).
+Import a Bruno OpenCollection YAML collection (a file, a directory or a zip).
 
 ```
 sonde import opencollection INPUT [flags]

@@ -312,18 +312,6 @@ func (w *walker) mergeVariables(vars []variable) {
 
 func joinPath(segs []string) string { return strings.Join(segs, "/") }
 
-// filePath is the file path of a folder or request: a slash in a name
-// is part of the name ("Enable / disable"), never a folder of its own.
-func filePath(segs []string) string {
-	out := make([]string, len(segs))
-	for i, s := range segs {
-		out[i] = separators.Replace(s)
-	}
-	return joinPath(out)
-}
-
-var separators = strings.NewReplacer("/", " ", "\\", " ")
-
 func appended(segs []string, s string) []string {
 	out := make([]string, len(segs), len(segs)+1)
 	copy(out, segs)
@@ -378,7 +366,7 @@ func walk(data []byte, opts Options) (*walker, error) {
 			name = "collection"
 		}
 		w.warnEvents("collection", col.Event)
-		w.importFolder(col.Item, nil, root, filePath([]string{name}), scriptComments(col.Event))
+		w.importFolder(col.Item, nil, root, convert.FilePath([]string{name}), scriptComments(col.Event))
 	}
 
 	if err := w.finish(opts.Environments); err != nil {
@@ -446,7 +434,7 @@ func (w *walker) importRequests(items []item, prefix []string, parent authState)
 			continue
 		}
 		w.pending = nil // attached to the file just written; don't repeat it
-		w.out.Files = append(w.out.Files, convert.GeneratedFile{Path: filePath(path), File: f})
+		w.out.Files = append(w.out.Files, convert.GeneratedFile{Path: convert.FilePath(path), File: f})
 		w.fileSuggestions(len(w.out.Files)-1, []entryOps{w.entryOps(it, reqAuth)})
 	}
 }
@@ -471,7 +459,7 @@ func (w *walker) importFolder(items []item, prefix []string, parent authState, f
 				w.skip(name, "empty folder")
 				continue
 			}
-			w.importFolder(it.Item, path, folderAuth, filePath(path), scriptComments(it.Event))
+			w.importFolder(it.Item, path, folderAuth, convert.FilePath(path), scriptComments(it.Event))
 			continue
 		}
 		if it.Disabled {

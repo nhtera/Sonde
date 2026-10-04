@@ -12,7 +12,7 @@ import { serverMode } from "../../lib/mode";
 const accept: Record<string, string> = {
   curl: ".curl,.sh,.txt",
   postman: ".json",
-  opencollection: ".yml,.yaml,.json",
+  opencollection: ".yml,.yaml,.json,.zip",
   http: ".http,.rest,.json,.env",
   openapi: ".yaml,.yml,.json",
 };

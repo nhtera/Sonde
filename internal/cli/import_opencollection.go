@@ -13,13 +13,13 @@ import (
 func init() {
 	registerImportKind(importKind{
 		Name:  "opencollection",
-		Short: "Import a Bruno OpenCollection YAML collection (a file or a directory)",
+		Short: "Import a Bruno OpenCollection YAML collection (a file, a directory or a zip)",
 		Run:   importOpenCollection,
 	})
 }
 
-// importOpenCollection converts INPUT, a single OpenCollection YAML file
-// or a collection directory (opencollection.ImportPath).
+// importOpenCollection converts INPUT, a single OpenCollection YAML file,
+// a collection directory or a zip of one (opencollection.ImportPath).
 func importOpenCollection(_ *cobra.Command, input string, opts convert.Options) (convert.Output, error) {
 	return opencollection.ImportPath(input, opts.Dialect())
 }

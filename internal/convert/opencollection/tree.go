@@ -70,7 +70,7 @@ func (wr *walkResult) buildHTTP(it item, anc ancestorState, pathPrefix []string,
 	}
 	var warns []convert.Warning
 	e.URL, warns = convert.ParseText(rewritePathParams(h.URL, h.Params))
-	warns = append(warns, applyHeadersParams(&e, anc, h.Headers, h.Params)...)
+	warns = append(warns, applyHeadersParams(&e, anc, h.Headers, h.Params, h.URL)...)
 	resolved := resolveAuth(anc.auth, h.Auth)
 	warns = append(warns, applyAuth(fullName, resolved, &e)...)
 
@@ -99,7 +99,7 @@ func (wr *walkResult) buildGraphQL(it item, anc ancestorState, pathPrefix []stri
 	e.Method = "POST"
 	var warns []convert.Warning
 	e.URL, warns = convert.ParseText(rewritePathParams(g.URL, g.Params))
-	warns = append(warns, applyHeadersParams(&e, anc, g.Headers, g.Params)...)
+	warns = append(warns, applyHeadersParams(&e, anc, g.Headers, g.Params, g.URL)...)
 	resolved := resolveAuth(anc.auth, g.Auth)
 	warns = append(warns, applyAuth(fullName, resolved, &e)...)
 
@@ -131,15 +131,18 @@ func (wr *walkResult) emit(e syntax.EntrySpec, pathPrefix []string, name, fullNa
 		wr.skipped = append(wr.skipped, convert.Skipped{Name: fullName, Reason: "opencollection: " + err.Error()})
 		return
 	}
-	path := strings.Join(append(append([]string{}, pathPrefix...), name), "/")
+	path := convert.FilePath(append(append([]string{}, pathPrefix...), name))
 	wr.files = append(wr.files, convert.GeneratedFile{Path: path, File: f})
 	wr.warnings = append(wr.warnings, warns...)
 }
 
 // applyHeadersParams resolves headers (merged with the inherited anc.headers)
 // and params (query -> [Query], path -> an [Options] variable default,
-// mapping doc "Request fields") onto e.
-func applyHeadersParams(e *syntax.EntrySpec, anc ancestorState, headers []header, params []param) []convert.Warning {
+// mapping doc "Request fields") onto e. Query params mirror a URL's own
+// query string (an export writes both), so a URL with one keeps it and gets
+// no [Query]: the request sends each param once.
+func applyHeadersParams(e *syntax.EntrySpec, anc ancestorState, headers []header, params []param, url string) []convert.Warning {
+	inURL := strings.ContainsRune(url, '?')
 	var warns []convert.Warning
 	for _, h := range mergeHeaders(anc.headers, headers) {
 		key, kw := convert.ParseText(h.Name)
@@ -155,6 +158,9 @@ func applyHeadersParams(e *syntax.EntrySpec, anc ancestorState, headers []header
 		warns = append(warns, w...)
 		switch p.Type {
 		case "query":
+			if inURL {
+				continue
+			}
 			key, kw := convert.ParseText(p.Name)
 			warns = append(warns, kw...)
 			e.Query = append(e.Query, syntax.Field{Key: key, Value: val})
@@ -215,21 +221,23 @@ func withDocs(d description, comments []string) []string {
 	return append([]string{string(d)}, comments...)
 }
 
-// settingsWarnings names every settings.* field it.Settings sets: none of
-// them has a Sonde equivalent (mapping doc, "Request fields"). Every field
-// of settings is a bare yaml.Node, so presence is Kind != 0 regardless of
-// the value's own shape.
+// settingsWarnings names every settings.* field it.Settings sets to
+// other than the export default (none of them has a Sonde equivalent,
+// mapping doc, "Request fields"): an export writes the defaults into
+// every request, and they import silently. Every field of settings is a bare
+// yaml.Node, so a producer's value shape never fails the item.
 func settingsWarnings(name string, s settings) []convert.Warning {
 	var fields []string
 	for _, f := range []struct {
 		name string
 		node yaml.Node
+		def  string
 	}{
-		{"encodeUrl", s.EncodeURL}, {"timeout", s.Timeout},
-		{"followRedirects", s.FollowRedirects}, {"maxRedirects", s.MaxRedirects},
-		{"omitHeaders", s.OmitHeaders},
+		{"encodeUrl", s.EncodeURL, "true"}, {"timeout", s.Timeout, "0"},
+		{"followRedirects", s.FollowRedirects, "true"}, {"maxRedirects", s.MaxRedirects, "5"},
+		{"omitHeaders", s.OmitHeaders, "false"},
 	} {
-		if f.node.Kind != 0 {
+		if f.node.Kind != 0 && (f.node.Kind != yaml.ScalarNode || f.node.Value != f.def) {
 			fields = append(fields, f.name)
 		}
 	}
