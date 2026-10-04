@@ -60,7 +60,8 @@ func run() error {
 	}
 	h := &host.Host{Mode: host.ModeDesktop, Version: version, Root: *root, Dirs: dirs, Emit: emit.Wails{}}
 	var app *application.App
-	h.Perf = perftrace.New(*trace, *tour, start, func() { app.Quit() })
+	// The tour types into a file: its quit leaves the edits unsaved, unasked.
+	h.Perf = perftrace.New(*trace, *tour, start, func() { h.Guard.Leave() })
 	if err := h.Setup(); err != nil {
 		return err
 	}

@@ -44,7 +44,9 @@ function project() {
     big += `# Order ${i}\nPOST {{base_url}}/orders?page=${i}\nAuthorization: Bearer {{token}}\n{\n  "sku": "TEA-${i}",\n  "quantity": {{quantity}}\n}\nHTTP 201\n[Captures]\norder_id: jsonpath "$.id"\n[Asserts]\njsonpath "$.status" == "created"\n\n`;
   }
   writeFileSync(join(dir, "big.hurl"), big);
-  writeFileSync(join(dir, "json.hurl"), `GET http://127.0.0.1:${fixturePort}/big?mb=50\nHTTP 200\n`);
+  // 48, as the browser tests: ?mb=50 ends just past the 50 MB a body may
+  // have to be shown at all, so no tree would come.
+  writeFileSync(join(dir, "json.hurl"), `GET http://127.0.0.1:${fixturePort}/big?mb=48\nHTTP 200\n`);
   return dir;
 }
 
