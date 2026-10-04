@@ -63,6 +63,8 @@ Tick each item, and write down the OS version and the build (version, commit).
 
 - [x] The menu bar has the app, File, Edit, View, Window and Help menus,
       **no Reload and no Force Reload**. *(macOS 15.7.3, local build of `93c8a03`)*
+- [x] Help › Sonde Desktop Help opens the desktop guide in the default
+      browser; the app's window keeps its tabs and unsaved edits. *(macOS 15.7.3, local build of `fix/desktop-help-menu`)*
 - [x] Edit › Copy, Paste, Select All, Undo and Redo work in the editor and in
       the form's fields. *(macOS 15.7.3, local build of `93c8a03`)*
 - [x] View: Zoom In, Zoom Out and Actual Size work; Full Screen toggles. *(macOS 15.7.3, local build of `93c8a03`)* (Zoom Out stops at actual size)

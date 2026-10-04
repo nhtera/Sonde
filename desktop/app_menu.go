@@ -13,11 +13,15 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/emit"
 )
 
+// helpURL is the desktop guide, opened in the default browser.
+const helpURL = "https://github.com/nhtera/Sonde/blob/main/docs/desktop.md"
+
 // appMenu is the default application menu without Reload and Force
 // Reload: ⌘R runs the file, and a reload would drop unsaved edits. On
 // macOS, File › Close Window is ⇧⌘W, so ⌘W reaches the page, where it
 // closes the tab (rebindable there, like every app shortcut). Edit ›
-// Undo and Redo ask the page (editMenu).
+// Undo and Redo ask the page (editMenu). Help is Sonde's own: the stock
+// one loads its page into the app's window, dropping unsaved edits.
 func appMenu() *application.Menu {
 	m := application.NewMenu()
 	m.AddRole(application.AppMenu)
@@ -38,7 +42,9 @@ func appMenu() *application.Menu {
 	view.AddSeparator()
 	view.AddRole(application.ToggleFullscreen)
 	m.AddRole(application.WindowMenu)
-	m.AddRole(application.HelpMenu)
+	m.AddSubmenu("Help").Add("Sonde Desktop Help").OnClick(func(*application.Context) {
+		_ = application.Get().Browser.OpenURL(helpURL)
+	})
 	return m
 }
 
