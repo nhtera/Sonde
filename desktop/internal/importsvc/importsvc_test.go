@@ -958,3 +958,38 @@ func TestCurlName(t *testing.T) {
 		}
 	}
 }
+
+// TestOpenCollectionSuggestions offers what an OpenCollection's scripts
+// translate to (pasted here), and applies it on Accept.
+func TestOpenCollectionSuggestions(t *testing.T) {
+	s, dir, _, _ := service(t)
+	req := Request{Kind: OpenCollection, Text: `items:
+  - info: {name: Create policy, type: http}
+    http: {method: POST, url: "http://x/policies"}
+    runtime:
+      scripts:
+        - type: after-response
+          code: |-
+            test("201", () => expect(res.getStatus()).to.equal(201));
+            if (res.getStatus() < 300) {
+              bru.setCollectionVar("policyId", res.getBody().id);
+            }
+`}
+	if _, err := s.Write(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	sg, err := s.Suggestions(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sg) != 1 || sg[0].Path != "create-policy.hurl" || len(sg[0].Changes) != 2 || sg[0].Error != "" ||
+		!strings.Contains(sg[0].After, "status == 201") || !strings.Contains(sg[0].After, `policyId: jsonpath "$.id"`) {
+		t.Fatalf("suggestions %+v", sg)
+	}
+	if err := s.Accept(context.Background(), req, sg[0].Path, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(mustRead(t, filepath.Join(dir, "create-policy.hurl"))); got != sg[0].After {
+		t.Errorf("accepted:\n%s", got)
+	}
+}

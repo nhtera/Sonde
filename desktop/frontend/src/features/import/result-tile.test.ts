@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { EnvProject } from "../../lib/api";
-import { toDefine } from "./result-tile";
+import { suggestedKinds, toDefine } from "./result-tile";
 
 describe("toDefine", () => {
   const used = [
@@ -23,5 +23,15 @@ describe("toDefine", () => {
 
   it("is every variable with no environment", () => {
     expect(toDefine(used, null, "", { count: 0, items: [] }).map((v) => v.name)).toEqual(["fieldId", "nmk-cookie", "tmp"]);
+  });
+});
+
+describe("suggestedKinds", () => {
+  it("lists what the suggestions add", () => {
+    expect(suggestedKinds(["Translate test script assertions"])).toBe("asserts");
+    expect(suggestedKinds(["Translate test script assertions", "Capture variables set by test scripts"])).toBe("asserts and captures");
+    expect(suggestedKinds(["Capture variables set by test scripts", "Log in with OAuth2 and send the token", "Translate test script assertions"])).toBe(
+      "asserts, captures and a login request",
+    );
   });
 });

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The Import dialog: a kind (curl, Postman, Bruno, .http, OpenAPI), its
-// input and options with a live preview, then the result, then (Postman)
+// input and options with a live preview, then the result, then (a collection)
 // the optional suggestions. Nothing is sent: importing only writes files.
 
 import * as Dialog from "@radix-ui/react-dialog";

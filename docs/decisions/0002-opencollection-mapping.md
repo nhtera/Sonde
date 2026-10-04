@@ -239,6 +239,18 @@ prefixed with its stage (`# opencollection before-request script:`, one
 comment block per script, in document order), plus one `WarnScript` per
 script naming its stage.
 
+The app then offers, as suggestions to accept one by one (package
+`internal/convert/suggest`, shared with the other collection importer), what the
+`after-response` and `tests` scripts translate to: `expect(X).to.equal(V)`
+(also `eql`, `deep.equal`) on `res.getStatus()`/`res.status`,
+`res.getHeader(name)` or the body (`res.getBody()`/`res.body`, or a
+`const` alias of it, with property and index accessors) becomes an assert;
+`bru.setVar`/`setEnvVar`/`setGlobalEnvVar`/`setCollectionVar` of the body
+becomes a capture. A statement counts when it always runs (top level, or
+in a `test` callback); a capture also counts in an `if` that holds for a
+2xx status only (`< 201..300`, `<= 200..299`, `== 200..299`). Anything
+else stays a comment.
+
 `runtime.assertions` (declarative `{expression, operator, value}`, no code
 to run) are translated only for the one trivially safe pattern this phase
 scopes for status checks: an assertion whose `expression` is `res.status`,

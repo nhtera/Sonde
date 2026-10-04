@@ -569,3 +569,69 @@ func TestImportZip(t *testing.T) {
 		})
 	}
 }
+
+// TestSuggest checks the asserts and captures read from test and
+// after-response scripts, as an export writes them: arrow tests, a body
+// alias, captures in a block that runs on success, and none of what runs
+// otherwise (another branch, a before-request script).
+func TestSuggest(t *testing.T) {
+	data := []byte(`items:
+  - info: {name: Create, type: http}
+    http: {method: POST, url: "http://x/policies"}
+    runtime:
+      scripts:
+        - type: before-request
+          code: bru.setVar("early", res.getBody().id);
+        - type: after-response
+          code: |-
+            test("201", () => expect(res.getStatus()).to.equal(201));
+            const p = res.getBody();
+            test("enabled", function () {
+              expect(p.enabled).to.eql(true);
+              expect(res.getHeader("content-type")).to.equal("application/json");
+            });
+            bru.setCollectionVar("policyId", p.id);
+            if (res.getStatus() < 300) {
+              bru.setVar("fieldId", res.body.items[0].id);
+              expect(res.status).to.equal(201);
+            } else {
+              bru.setVar("failed", res.getBody().error);
+            }
+        - type: tests
+          code: expect(res.status).to.eql(201)
+  - info: {name: Plain, type: http}
+    http: {method: GET, url: "http://x"}
+`)
+	dir := t.TempDir()
+	input := filepath.Join(dir, "c.yml")
+	if err := os.WriteFile(input, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sugg, err := Suggest(input, syntax.DialectHurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, s := range sugg {
+		for _, op := range s.Ops {
+			got = append(got, fmt.Sprintf("%d %s %s %s", s.File, op.Section, op.Key, op.Value))
+		}
+	}
+	want := []string{
+		`0 asserts  status == 201`,
+		`0 asserts  jsonpath "$.enabled" == true`,
+		`0 asserts  header "content-type" == "application/json"`,
+		`0 asserts  status == 201`,
+		`0 captures policyId jsonpath "$.id"`,
+		`0 captures fieldId jsonpath "$.items[0].id"`,
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("suggestions\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	out, _ := ImportPath(input, syntax.DialectHurl)
+	for _, s := range sugg {
+		if _, err := s.Apply("c.hurl", syntax.Format(out.Files[s.File].File)); err != nil {
+			t.Errorf("%s: %v", s.Label, err)
+		}
+	}
+}

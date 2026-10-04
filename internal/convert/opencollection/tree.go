@@ -11,6 +11,7 @@ import (
 	yaml "go.yaml.in/yaml/v3"
 
 	"github.com/nhtera/sonde/internal/convert"
+	"github.com/nhtera/sonde/internal/convert/suggest"
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
@@ -22,7 +23,10 @@ type walkResult struct {
 	skipped   []convert.Skipped
 	warnings  []convert.Warning
 	varLayers [][]variable // root-first, folded into the "default" environment
-	dialect   syntax.Dialect
+	// suggestions are the asserts and captures read from the scripts of
+	// the files (Suggest).
+	suggestions []suggest.FileSuggestion
+	dialect     syntax.Dialect
 }
 
 // walkItems visits items (already the direct children of the collection
@@ -84,7 +88,7 @@ func (wr *walkResult) buildHTTP(it item, anc ancestorState, pathPrefix []string,
 	e.Comments = withDocs(it.Docs, comments)
 	e.Response = resp
 
-	wr.emit(e, pathPrefix, name, fullName, warns)
+	wr.emit(e, pathPrefix, name, fullName, warns, readScripts(it.Runtime))
 }
 
 func (wr *walkResult) buildGraphQL(it item, anc ancestorState, pathPrefix []string, name, fullName string) {
@@ -119,13 +123,13 @@ func (wr *walkResult) buildGraphQL(it item, anc ancestorState, pathPrefix []stri
 	e.Comments = withDocs(it.Docs, comments)
 	e.Response = resp
 
-	wr.emit(e, pathPrefix, name, fullName, warns)
+	wr.emit(e, pathPrefix, name, fullName, warns, readScripts(it.Runtime))
 }
 
 // emit finishes e (BuildFile, which also validates it) and records the
 // generated file, or a Skipped entry if e turned out not to render to
 // valid source (a name or value no escaping rule can make safe).
-func (wr *walkResult) emit(e syntax.EntrySpec, pathPrefix []string, name, fullName string, warns []convert.Warning) {
+func (wr *walkResult) emit(e syntax.EntrySpec, pathPrefix []string, name, fullName string, warns []convert.Warning, read suggest.Entry) {
 	f, err := syntax.BuildFile([]syntax.EntrySpec{e}, wr.dialect)
 	if err != nil {
 		wr.skipped = append(wr.skipped, convert.Skipped{Name: fullName, Reason: "opencollection: " + err.Error()})
@@ -133,6 +137,7 @@ func (wr *walkResult) emit(e syntax.EntrySpec, pathPrefix []string, name, fullNa
 	}
 	path := convert.FilePath(append(append([]string{}, pathPrefix...), name))
 	wr.files = append(wr.files, convert.GeneratedFile{Path: path, File: f})
+	wr.suggestions = append(wr.suggestions, suggest.Suggestions(len(wr.files)-1, []suggest.Entry{read})...)
 	wr.warnings = append(wr.warnings, warns...)
 }
 

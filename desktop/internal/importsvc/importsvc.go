@@ -182,6 +182,10 @@ type plan struct {
 	unlifted []string // credentials that can not be lifted (escaped)
 	data     []byte   // the main input, for counts and suggestions
 	postOpts postman.Options
+	// input and dialect are a collection's path and dialect, for its
+	// suggestions.
+	input   string
+	dialect syntax.Dialect
 }
 
 // Preview computes an import without writing anything.
@@ -514,6 +518,7 @@ func (s *Service) convert(ctx context.Context, req Request, opts convert.Options
 		p.postOpts = postman.Options{Group: or(req.Group, postman.GroupRequest), Environments: envs, Dialect: d}
 		p.out, err = postman.Import(data, p.postOpts)
 	case OpenCollection:
+		p.input, p.dialect = path, d
 		p.out, err = opencollection.ImportPath(path, d)
 	case HTTP:
 		p.out, err = httpfile.Import(httpfile.StemFor(name), data, d, httpfile.Options{EnvFiles: envPaths})

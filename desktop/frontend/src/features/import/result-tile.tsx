@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // What an import wrote, in honest counts, and what it could not carry over
-// (grouped by kind). A Postman import offers its suggestions next.
+// (grouped by kind). A collection import offers its suggestions next.
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { useEnv } from "../../state/env";
@@ -23,6 +23,19 @@ const notes: Record<string, string> = {
   unsupported: "Other items not converted",
   environments: "Environments not in the app's sonde.yaml",
 };
+
+/** What suggestions with these labels add: "asserts", "asserts and
+ * captures", "asserts, captures and a login request". */
+export function suggestedKinds(labels: string[]): string {
+  const kinds = [
+    ["assertions", "asserts"],
+    ["Capture", "captures"],
+    ["Log in", "a login request"],
+  ]
+    .filter(([k]) => labels.some((l) => l.includes(k)))
+    .map(([, kind]) => kind);
+  return kinds.length > 1 ? `${kinds.slice(0, -1).join(", ")} and ${kinds.at(-1)}` : (kinds[0] ?? "changes");
+}
 
 /** The warnings of an import by kind: [kind, count, first message]. */
 export function grouped(warnings: { kind: string; message: string }[]): [string, number, string][] {
@@ -114,6 +127,7 @@ export function ImportResult() {
   };
   const changes = suggestions.reduce((n, s) => n + (s.changes?.filter((x) => !x.error).length ?? 0), 0);
   const review = changes > 0 ? { label: "Review suggestions", run: () => useImport.getState().review() } : undefined;
+  const kinds = suggestedKinds(suggestions.flatMap((s) => s.labels ?? []));
   const tiles: [number, string][] = [
     [c.requests, `request${c.requests === 1 ? "" : "s"} → ${c.files} file${c.files === 1 ? "" : "s"}`],
     [c.environments, `environment${c.environments === 1 ? "" : "s"}`],
@@ -217,7 +231,7 @@ export function ImportResult() {
         </section>
       )}
       <div className="dialog-actions">
-        <span className="foot-note">{changes > 0 && "Suggestions for asserts, captures and a login request are optional, shown change by change."}</span>
+        <span className="foot-note">{changes > 0 && `Suggestions for ${kinds} are optional, shown change by change.`}</span>
         {changes > 0 && (
           <button className="btn" onClick={() => useImport.getState().review()}>
             Review {changes} suggestion{changes === 1 ? "" : "s"}

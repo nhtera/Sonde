@@ -356,9 +356,10 @@ linters:
           files: ["**/internal/convert/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/convert and its importer subpackages may import only: internal/convert, internal/syntax, exchange, internal/config, internal/sandbox, internal/syntaxedit (architecture §2)"
+              desc: "internal/convert and its importer subpackages may import only: internal/convert, internal/convert/suggest, internal/syntax, exchange, internal/config, internal/sandbox, internal/syntaxedit (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/convert$
+            - github.com/nhtera/sonde/internal/convert/suggest$
             - github.com/nhtera/sonde/internal/syntax$
             - github.com/nhtera/sonde/exchange$
             - github.com/nhtera/sonde/internal/config$

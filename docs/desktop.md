@@ -302,9 +302,11 @@ them.
   secrets file (mode 0600). Names avoid ones the environment already uses.
   Lifting needs an environment; without one the credential stays in the file
   and the result says so. The preview shows the references, not the values.
-- **Postman suggestions.** After a Postman import the app can suggest asserts
-  and a login request, derived from the collection's test scripts and OAuth 2
-  settings by text patterns. Scripts are never run. Each suggestion is a
+- **Suggestions.** After a Postman or OpenCollection import the app can
+  suggest asserts, captures and (Postman OAuth 2) a login request, derived
+  from the collection's test and after-response scripts by text patterns. A
+  capture set only when the response is a success (`if (status < 300)`) is
+  suggested too. Scripts are never run. Each suggestion is a
   change of its own (an assert, a capture, a login request) that you accept,
   reject or undo; Apply writes only the accepted ones, and the result is
   parsed before it is written. Suggestions are optional and apply only to

@@ -1,7 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// The optional suggestions of a Postman import: per file, each change its
+// The optional suggestions of a collection import: per file, each change its
 // scripts and settings translate to (an assert, a capture, a login
 // request), accepted or rejected on its own. Nothing changes until Apply:
 // then only the accepted changes are written.

@@ -55,7 +55,7 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/testsummary` | run outcome classification, `--test` status lines and summary | engine |
 | `internal/cookiejar` | merged end-of-run cookies written as a Netscape file (`--cookie-jar`) | engine, sandbox |
 | `internal/openapi` | spec load (owns remote fetch), route match, `engine.ResponseValidator` impl, spec → AST generator and import, mock response selection and request validation | exchange, syntax, engine (interface only), convert, config |
-| `internal/convert` | shared import writer + flags; importers in subpackages `curl`, `postman`, `opencollection`, `httpfile` (curl export uses the engine's renderer, `engine/curl.go`) | syntax, exchange, config, sandbox, syntaxedit (subpackages: + convert) |
+| `internal/convert` | shared import writer + flags; importers in subpackages `curl`, `postman`, `opencollection`, `httpfile` (curl export uses the engine's renderer, `engine/curl.go`); `suggest` reads collection test scripts as asserts and captures to suggest | syntax, exchange, config, sandbox, syntaxedit (subpackages: + convert, convert/suggest) |
 | `internal/docs` | single doc-data source (`table.yaml`) for compat.md, LSP hover | — |
 | `internal/lsp` | language server (`sonde lsp`, stdio): diagnostics, completion, hover, formatting | syntax, config, docs |
 | `internal/cli` | cobra commands, Hurl-compatible root, flag → `engine.Options` mapping, output wiring | everything above |

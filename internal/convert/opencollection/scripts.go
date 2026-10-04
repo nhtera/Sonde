@@ -9,8 +9,34 @@ import (
 	"strings"
 
 	"github.com/nhtera/sonde/internal/convert"
+	"github.com/nhtera/sonde/internal/convert/suggest"
 	"github.com/nhtera/sonde/internal/syntax"
 )
+
+// scripts reads the test and after-response scripts of a collection.
+var scripts = suggest.NewReader(suggest.API{
+	Test:      `test`,
+	Expect:    `expect`,
+	Body:      `res\.getBody\(\)|res\.body`,
+	Status:    `res\.getStatus\(\)|res\.status`,
+	HeaderGet: `res\.getHeader`,
+	Set:       `bru\.set(?:Var|EnvVar|GlobalEnvVar|CollectionVar)`,
+})
+
+// readScripts reads the asserts and captures of an item's scripts that
+// run once its response is in: "after-response" and "tests".
+func readScripts(rt runtimeBlock) suggest.Entry {
+	var e suggest.Entry
+	for _, s := range rt.Scripts {
+		if s.Type != "after-response" && s.Type != "tests" {
+			continue
+		}
+		asserts, captures := scripts.Read(s.Code)
+		e.Asserts = append(e.Asserts, asserts...)
+		e.Captures = append(e.Captures, captures...)
+	}
+	return e
+}
 
 // statusExpressions are the "expression" spellings this importer
 // recognizes as referring to the response status, across the sources

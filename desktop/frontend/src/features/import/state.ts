@@ -188,7 +188,7 @@ export const useImport = create<ImportState>((set, get) => ({
     set({ busy: true });
     try {
       const written = await Imports.Write(req, overwrite);
-      const suggestions = req.kind === "postman" ? ((await Imports.Suggestions(req)) ?? []) : [];
+      const suggestions = req.kind === "postman" || req.kind === "opencollection" ? ((await Imports.Suggestions(req)) ?? []) : [];
       // The environments the import wrote, to tell what is left to define.
       await useEnv.getState().load();
       set({ written, suggestions, step: "result" });

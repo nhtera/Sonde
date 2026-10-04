@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nhtera/sonde/internal/convert/suggest"
 	"github.com/nhtera/sonde/internal/syntax"
 	"github.com/nhtera/sonde/internal/syntaxedit"
 )
@@ -56,7 +57,7 @@ func TestSuggest(t *testing.T) {
 	if len(sugg) != 3 {
 		t.Fatalf("suggestions %+v", sugg)
 	}
-	asserts := []Op{
+	asserts := []suggest.Op{
 		{Entry: 1, Section: syntaxedit.Asserts, Value: `jsonpath "$.user.id" == 42`},
 		{Entry: 1, Section: syntaxedit.Asserts, Value: `jsonpath "$['items'][0].name" == "a . b"`},
 		{Entry: 1, Section: syntaxedit.Asserts, Value: `header "Content-Type" == "application/json"`},
@@ -66,7 +67,7 @@ func TestSuggest(t *testing.T) {
 	if s := sugg[0]; s.File != 0 || !reflect.DeepEqual(s.Ops, asserts) {
 		t.Errorf("asserts %+v", s.Ops)
 	}
-	captures := []Op{
+	captures := []suggest.Op{
 		{Entry: 1, Section: syntaxedit.Captures, Key: "token", Value: `jsonpath "$.access_token"`},
 		{Entry: 1, Section: syntaxedit.Captures, Key: "user-id", Value: `jsonpath "$.user.id"`},
 	}
@@ -116,19 +117,6 @@ func TestSuggestFolderEntries(t *testing.T) {
 	}
 }
 
-func TestNormalize(t *testing.T) {
-	for in, want := range map[string]string{
-		`  pm.expect( a . b ) .to .eql( "x . y" ) `: `pm.expect(a.b).to.eql("x . y")`,
-		`var  d=pm.response.json( )`:                `var d = pm.response.json()`,
-		`a === b`:                                   `a===b`,
-		`f(a ,b)`:                                   `f(a, b)`,
-	} {
-		if got := normalize(in); got != want {
-			t.Errorf("normalize(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 // TestReadScriptContexts translates only statements that always run, and
 // leaves the others (comments, branches, skipped tests) alone.
 func TestReadScriptContexts(t *testing.T) {
@@ -149,10 +137,9 @@ func TestReadScriptContexts(t *testing.T) {
 		"control char":          {"pm.expect(pm.response.json().a).to.eql('a\tb');", []string{`jsonpath "$.a" == "a\tb"`}},
 		"string with semicolon": {"pm.expect(pm.response.json().a).to.eql('x; y');", []string{`jsonpath "$.a" == "x; y"`}},
 	} {
-		var ops entryOps
-		readScript(tc.code, &ops)
+		asserts, _ := scripts.Read(tc.code)
 		var got []string
-		for _, op := range ops.asserts {
+		for _, op := range asserts {
 			got = append(got, op.Value)
 		}
 		if !reflect.DeepEqual(got, tc.want) {
@@ -162,6 +149,35 @@ func TestReadScriptContexts(t *testing.T) {
 			if _, err := syntax.Parse("t.hurl", []byte("GET http://x\nHTTP 200\n[Asserts]\n"+v+"\n"), syntax.DialectHurl); err != nil {
 				t.Errorf("%s: %s does not parse: %v", name, v, err)
 			}
+		}
+	}
+}
+
+// TestReadSuccessCaptures captures what a script sets in an if on a 2xx
+// status, and asserts nothing there; any other condition is skipped.
+func TestReadSuccessCaptures(t *testing.T) {
+	for name, tc := range map[string]struct {
+		code     string
+		captures []string
+	}{
+		"below 300":    {"if (pm.response.code < 300) {\n  pm.environment.set('id', pm.response.json().id);\n  pm.expect(pm.response.code).to.eql(201);\n}", []string{`id jsonpath "$.id"`}},
+		"equal 201":    {"if (pm.response.code === 201) { pm.environment.set('id', pm.response.json().id) }", []string{`id jsonpath "$.id"`}},
+		"at most 299":  {"if (pm.response.code <= 299) { pm.environment.set('id', pm.response.json().id) }", []string{`id jsonpath "$.id"`}},
+		"in a test":    {"pm.test('t', function () { if (pm.response.code < 300) { pm.environment.set('id', pm.response.json().id) } })", []string{`id jsonpath "$.id"`}},
+		"below 400":    {"if (pm.response.code < 400) { pm.environment.set('id', pm.response.json().id) }", nil},
+		"equal 404":    {"if (pm.response.code == 404) { pm.environment.set('id', pm.response.json().id) }", nil},
+		"else branch":  {"if (pm.response.code < 300) { } else { pm.environment.set('id', pm.response.json().id) }", nil},
+		"other if":     {"if (x) { pm.environment.set('id', pm.response.json().id) }", nil},
+		"nested in if": {"if (x) { if (pm.response.code < 300) { pm.environment.set('id', pm.response.json().id) } }", nil},
+		"skipped test": {"pm.test.skip('t', function () { if (pm.response.code < 300) { pm.environment.set('id', pm.response.json().id) } })", nil},
+	} {
+		asserts, captures := scripts.Read(tc.code)
+		var got []string
+		for _, op := range captures {
+			got = append(got, op.Key+" "+op.Value)
+		}
+		if !reflect.DeepEqual(got, tc.captures) || len(asserts) != 0 {
+			t.Errorf("%s: captures %q, asserts %v; want %q", name, got, asserts, tc.captures)
 		}
 	}
 }

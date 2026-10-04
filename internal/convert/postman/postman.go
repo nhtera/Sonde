@@ -16,6 +16,7 @@ import (
 
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/convert"
+	"github.com/nhtera/sonde/internal/convert/suggest"
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
@@ -223,7 +224,7 @@ type walker struct {
 	taken    map[string]bool
 	pathVars map[string]string
 	// suggestions are the edits proposed on top of the files (Suggest).
-	suggestions []FileSuggestion
+	suggestions []suggest.FileSuggestion
 }
 
 func newWalker(dialect syntax.Dialect) *walker {

@@ -10,13 +10,15 @@ import (
 	"strings"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/internal/convert/opencollection"
 	"github.com/nhtera/sonde/internal/convert/postman"
+	"github.com/nhtera/sonde/internal/convert/suggest"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
-// Suggestions: after a Postman import, what its test scripts and OAuth2
-// settings translate to (asserts, captures, a login request), offered per
-// file as a diff. Nothing is run; a script that is not one of the known
+// Suggestions: after a collection import, what its test scripts and
+// OAuth2 settings translate to (asserts, captures, a login request),
+// offered per file as a diff. Nothing is run; a script that is not one of the known
 // forms stays a comment. Each edit goes through the syntax edit layer,
 // which refuses one that would add anything but its own row or entry.
 
@@ -50,10 +52,10 @@ type Change struct {
 // fileSuggestions are a file's suggestions in the order they apply.
 type fileSuggestions struct {
 	rel string // the path in the import
-	all []postman.FileSuggestion
+	all []suggest.FileSuggestion
 }
 
-// Suggestions returns the suggestions of a Postman import, against the
+// Suggestions returns the suggestions of a collection import, against the
 // files as they are now.
 func (s *Service) Suggestions(ctx context.Context, req Request) ([]Suggestion, error) {
 	out, _, err := s.suggestions(ctx, req)
@@ -61,14 +63,19 @@ func (s *Service) Suggestions(ctx context.Context, req Request) ([]Suggestion, e
 }
 
 func (s *Service) suggestions(ctx context.Context, req Request) ([]Suggestion, []fileSuggestions, error) {
-	if req.Kind != Postman {
+	if req.Kind != Postman && req.Kind != OpenCollection {
 		return []Suggestion{}, nil, nil
 	}
 	p, err := s.plan(ctx, req)
 	if err != nil {
 		return nil, nil, err
 	}
-	all, err := postman.Suggest(p.data, p.postOpts)
+	var all []suggest.FileSuggestion
+	if req.Kind == Postman {
+		all, err = postman.Suggest(p.data, p.postOpts)
+	} else {
+		all, err = opencollection.Suggest(p.input, p.dialect)
+	}
 	if err != nil {
 		return nil, nil, apperr.Wrap(apperr.Invalid, err)
 	}

@@ -20,6 +20,7 @@ import (
 	yaml "go.yaml.in/yaml/v3"
 
 	"github.com/nhtera/sonde/internal/convert"
+	"github.com/nhtera/sonde/internal/convert/suggest"
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
@@ -31,6 +32,13 @@ import (
 // even though the CLI itself may have read up to convert.MaxInput (64
 // MiB) getting it here.
 func ImportFile(data []byte, dialect syntax.Dialect) (convert.Output, error) {
+	return importFile(data, dialect, nil)
+}
+
+// A sink, when not nil, receives an import's suggestions (Suggest).
+type sink = *[]suggest.FileSuggestion
+
+func importFile(data []byte, dialect syntax.Dialect, sugg sink) (convert.Output, error) {
 	if len(data) > maxFileSize {
 		return convert.Output{}, fmt.Errorf("opencollection: input larger than %d MiB", maxFileSize>>20)
 	}
@@ -38,7 +46,7 @@ func ImportFile(data []byte, dialect syntax.Dialect) (convert.Output, error) {
 	if err != nil {
 		return convert.Output{}, err
 	}
-	return assemble(doc, dialect, warns), nil
+	return assemble(doc, dialect, warns, sugg), nil
 }
 
 // ImportDir converts the OpenCollection directory at dir (the directory
@@ -46,13 +54,17 @@ func ImportFile(data []byte, dialect syntax.Dialect) (convert.Output, error) {
 // convert.Output. Every read is confined inside dir through os.Root, so a
 // symlink placed in the collection cannot make the import read outside it.
 func ImportDir(dir string, dialect syntax.Dialect) (convert.Output, error) {
+	return importDir(dir, dialect, nil)
+}
+
+func importDir(dir string, dialect syntax.Dialect, sugg sink) (convert.Output, error) {
 	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return convert.Output{}, fmt.Errorf("opencollection: %w", err)
 	}
 	defer func() { _ = root.Close() }()
 
-	return importFS(root.FS(), dialect)
+	return importFS(root.FS(), dialect, sugg)
 }
 
 // ImportZip converts a zip of a collection directory (an OpenCollection
@@ -62,6 +74,10 @@ func ImportDir(dir string, dialect syntax.Dialect) (convert.Output, error) {
 // (the zip's names are read as paths inside it), the directory budget caps
 // the sizes the zip declares, and reading past a declared size fails.
 func ImportZip(data []byte, dialect syntax.Dialect) (convert.Output, error) {
+	return importZip(data, dialect, nil)
+}
+
+func importZip(data []byte, dialect syntax.Dialect, sugg sink) (convert.Output, error) {
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return convert.Output{}, fmt.Errorf("opencollection: %w", err)
@@ -76,20 +92,20 @@ func ImportZip(data []byte, dialect syntax.Dialect) (convert.Output, error) {
 			fsys = sub
 		}
 	}
-	return importFS(fsys, dialect)
+	return importFS(fsys, dialect, sugg)
 }
 
 // zipMagic starts every zip file.
 var zipMagic = []byte("PK\x03\x04")
 
 // importFS converts the collection directory fsys.
-func importFS(fsys fs.FS, dialect syntax.Dialect) (convert.Output, error) {
+func importFS(fsys fs.FS, dialect syntax.Dialect, sugg sink) (convert.Output, error) {
 	d := &dirLoad{budget: newBudget()}
 	doc, err := loadDirectory(fsys, d)
 	if err != nil {
 		return convert.Output{}, err
 	}
-	out := assemble(doc, dialect, d.warnings)
+	out := assemble(doc, dialect, d.warnings, sugg)
 	out.Skipped = append(out.Skipped, d.skipped...)
 	return out, nil
 }
@@ -123,7 +139,7 @@ func parseDocument(data []byte) (*document, []convert.Warning, error) {
 
 // assemble walks doc's item tree into request files and folds every scope's
 // variables into the sonde.yaml skeleton and its secrets stubs.
-func assemble(doc *document, dialect syntax.Dialect, warns []convert.Warning) convert.Output {
+func assemble(doc *document, dialect syntax.Dialect, warns []convert.Warning, sugg sink) convert.Output {
 	warns = append(warns, decodeWarnings(doc.decodeErrors)...)
 	wr := &walkResult{dialect: dialect}
 	wr.varLayers = append(wr.varLayers, doc.Request.Variables)
@@ -131,6 +147,9 @@ func assemble(doc *document, dialect syntax.Dialect, warns []convert.Warning) co
 	wr.walkItems(doc.Items, root, nil)
 
 	project, extra, pwarns := buildProject(doc, wr.varLayers)
+	if sugg != nil {
+		*sugg = wr.suggestions
+	}
 
 	return convert.Output{
 		Files:       wr.files,
@@ -145,12 +164,27 @@ func assemble(doc *document, dialect syntax.Dialect, warns []convert.Warning) co
 // collection directory, or a zip of one (docs/decisions/0002-
 // opencollection-mapping.md).
 func ImportPath(input string, dialect syntax.Dialect) (convert.Output, error) {
+	return importPath(input, dialect, nil)
+}
+
+// Suggest returns the suggestions of the import of input: asserts and
+// captures read from its test and after-response scripts (never
+// executed), addressing the Output.Files of ImportPath(input, dialect).
+func Suggest(input string, dialect syntax.Dialect) ([]suggest.FileSuggestion, error) {
+	var sugg []suggest.FileSuggestion
+	if _, err := importPath(input, dialect, &sugg); err != nil {
+		return nil, err
+	}
+	return sugg, nil
+}
+
+func importPath(input string, dialect syntax.Dialect, sugg sink) (convert.Output, error) {
 	st, err := os.Stat(input)
 	if err != nil {
 		return convert.Output{}, err
 	}
 	if st.IsDir() {
-		return ImportDir(input, dialect)
+		return importDir(input, dialect, sugg)
 	}
 	if !st.Mode().IsRegular() {
 		return convert.Output{}, fmt.Errorf("%s: not a regular file or directory", input)
@@ -160,7 +194,7 @@ func ImportPath(input string, dialect syntax.Dialect) (convert.Output, error) {
 		return convert.Output{}, err
 	}
 	if bytes.HasPrefix(data, zipMagic) {
-		return ImportZip(data, dialect)
+		return importZip(data, dialect, sugg)
 	}
-	return ImportFile(data, dialect)
+	return importFile(data, dialect, sugg)
 }
