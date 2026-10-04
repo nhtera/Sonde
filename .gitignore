@@ -5,6 +5,9 @@
 /desktop/.task/
 /desktop/build/linux/appimage/build/
 /desktop/build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+# Update signing private keys (update-manifest genkey) are made offline;
+# never commit one here.
+/desktop/internal/update/keys/*.key
 *.test
 coverage.*
 
