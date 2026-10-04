@@ -1,7 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,6 +34,8 @@ describe("ThemePicker", () => {
   beforeAll(() => {
     // cmdk measures and scrolls its list.
     Element.prototype.scrollIntoView = () => {};
+    // jsdom has no PointerEvent: a mouse event carries the position.
+    window.PointerEvent ??= class extends MouseEvent {} as never;
     globalThis.ResizeObserver ??= class {
       observe() {}
       unobserve() {}
@@ -63,6 +65,17 @@ describe("ThemePicker", () => {
     expect(useUI.getState().themePickerOpen).toBe(false);
     expect(html.dataset.theme).toBe("dark");
     expect(sent()).toBeUndefined();
+  });
+
+  it("previews under the pointer only once it moves", () => {
+    open();
+    const item = screen.getByRole("option", { name: /Monokai/ });
+    // Opening scrolls the list: the webview reports a move where the pointer is.
+    fireEvent.pointerMove(item, { screenX: 300, screenY: 200 });
+    expect(html.dataset.theme).toBe("dark");
+    fireEvent.pointerMove(item, { screenX: 302, screenY: 201 });
+    fireEvent.pointerMove(item, { screenX: 304, screenY: 202 });
+    expect(html.dataset.theme).toBe("monokai");
   });
 
   it("filters by name", async () => {

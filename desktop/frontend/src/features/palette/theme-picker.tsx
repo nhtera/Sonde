@@ -6,7 +6,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { themes } from "../../app/theme/themes";
 import { SearchIcon } from "../../components/icons";
 import { appError } from "../../lib/api";
@@ -51,6 +51,21 @@ function ThemeList() {
     },
     [],
   );
+  // The pointer picks once it moves: opening scrolls the current theme
+  // into view, and the webview then reports a move under a still pointer,
+  // which would preview the theme under it. Until then, its moves stop
+  // before they reach the items.
+  const still = useRef<string | null>("");
+  const moved = (e: PointerEvent) => {
+    if (still.current === null) return;
+    const p = `${e.screenX},${e.screenY}`;
+    if (still.current && still.current !== p) {
+      still.current = null;
+      return;
+    }
+    still.current = p;
+    e.stopPropagation();
+  };
   const preview = (id: string) => {
     setValue(id);
     if (themes.some((t) => t.id === id)) document.documentElement.dataset.theme = id;
@@ -64,7 +79,14 @@ function ThemeList() {
       .catch((err) => useUI.getState().toast({ kind: "error", text: appError(err).message }));
   };
   return (
-    <Command label="Select theme" loop filter={themeFilter} value={value} onValueChange={preview}>
+    <Command
+      label="Select theme"
+      loop
+      filter={themeFilter}
+      value={value}
+      onValueChange={preview}
+      onPointerMoveCapture={moved}
+    >
       <div className="palette-input">
         <SearchIcon size={14} />
         <Command.Input autoFocus placeholder="Select theme" />
