@@ -17,6 +17,10 @@ vars:
   # name it (scripts/version.mjs checks every place it is written).
   VERSION:
     sh: node -p "require('./frontend/package.json').version"
+  # The CLI engine it is built on, "v1.3.1+a7404ac" ("dev" without a CLI
+  # tag): main.engine, shown in the app and the release notes.
+  ENGINE:
+    sh: node scripts/engine.mjs
 
 includes:
   common: ./build/Taskfile.yml
@@ -52,7 +56,7 @@ tasks:
         vars:
           BUILD_FLAGS: "-tags server,production"
     cmds:
-      - go build -tags server,production -trimpath -buildvcs=false -ldflags="-w -s -X main.version={{.VERSION}}" -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"
+      - go build -tags server,production -trimpath -buildvcs=false -ldflags="-w -s -X main.version={{.VERSION}} -X main.engine={{.ENGINE}}" -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"
     env:
       CGO_ENABLED: 0
 
