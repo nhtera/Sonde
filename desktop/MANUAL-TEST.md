@@ -97,8 +97,8 @@ Tick each item, and write down the OS version and the build (version, commit).
 - [x] Reveal again, then copy other text within 60 seconds: after the
       minute, **the other text is still on the clipboard** (it was not
       cleared). *(macOS 15.7.3, local build of `93c8a03`)*
-- [ ] Copy as › sonde with ⌥: the command holds real values, and again is
-      cleared after 60 s.
+- [x] Copy as › sonde with ⌥: the command holds real values, and again is
+      cleared after 60 s. *(macOS 15.7.3, local build of `93c8a03`)*
 - [ ] Windows: the revealed text does not appear in the clipboard history
       (Win+V).
 
@@ -118,51 +118,51 @@ Tick each item, and write down the OS version and the build (version, commit).
 
 ## 7. Appearance
 
-- [ ] Settings › General › Theme at Sync with system, Day theme Solarized
+- [x] Settings › General › Theme at Sync with system, Day theme Solarized
       Light and Night theme Dracula. System Settings › Appearance: switch
       Light and Dark while the app runs. The app follows at once (editor,
       results, dialogs, the search panel ⌘F included) and the Active badge
-      moves to the slot in use.
-- [ ] Launch with Manual, switch to Sync in Settings, then flip the system
-      appearance: the app follows (the window's look is never pinned).
-- [ ] Manual with Monokai: flipping the system changes nothing in the page;
-      native menus follow the system.
-- [ ] The rail's theme button and "Toggle day / night theme" switch between
-      the Day and Night themes (from Sync: to Manual with the other slot's).
-- [ ] Select theme… (⌘K): arrows preview each theme, Esc puts the theme
+      moves to the slot in use. *(macOS 15.7.3, local build of `93c8a03`)*
+- [x] Launch with Manual, switch to Sync in Settings, then flip the system
+      appearance: the app follows (the window's look is never pinned). *(macOS 15.7.3, local build of `93c8a03`)*
+- [x] Manual with Monokai: flipping the system changes nothing in the page;
+      native menus follow the system. *(macOS 15.7.3, local build of `93c8a03`)*
+- [x] The rail's theme button and "Toggle day / night theme" switch between
+      the Day and Night themes (from Sync: to Manual with the other slot's). *(macOS 15.7.3, local build of `93c8a03`)*
+- [x] Select theme… (⌘K): arrows preview each theme, Esc puts the theme
       back, Enter keeps it; with Sync on a dark system it becomes the Night
-      theme.
-- [ ] Quit and launch with Manual Dracula on a light system, then with Sync
+      theme. *(macOS 15.7.3, local build of `93c8a03`)*
+- [x] Quit and launch with Manual Dracula on a light system, then with Sync
       and Night Dracula on a dark system: no frame in another theme. Note
-      any plain white frame before the page paints (a known webview limit).
-- [ ] `task dev`: the app loads from Vite with hot reload, in the theme set.
-- [ ] Resize to the minimum (900 × 560) and below 1024 px wide: the side panel
-      becomes an overlay and the results stay docked.
+      any plain white frame before the page paints (a known webview limit). *(macOS 15.7.3, local build of `93c8a03`)* One plain white frame with Manual Dracula on a light system; none on a dark one.
+- [x] `task dev`: the app loads from Vite with hot reload, in the theme set. *(macOS 15.7.3, local build of `a0e3cf7`)*
+- [x] Resize to the minimum (900 × 560) and below 1024 px wide: the side panel
+      becomes an overlay and the results stay docked. *(macOS 15.7.3, local build of `93c8a03`)*
 
 ## 8. The launch environment
 
-- [ ] Put `export HURL_VARIABLE_origin=terminal` in `~/.zshrc` (or set it in
-      the terminal), and a `{{origin}}` in a request.
-- [ ] Open the app **from the terminal** by running
+- [x] Put `export HURL_VARIABLE_origin=terminal` in `~/.zshrc` (or set it in
+      the terminal), and a `{{origin}}` in a request. *(macOS 15.7.3, local build of `93c8a03`)* Set in the terminal.
+- [x] Open the app **from the terminal** by running
       `.../Contents/MacOS/sonde-desktop` directly (it inherits the shell's
-      environment): the overrides chip shows the variable and the request sends `terminal`.
-- [ ] Open the app **from the Finder, the Dock and Spotlight**: the chip does
+      environment): the overrides chip shows the variable and the request sends `terminal`. *(macOS 15.7.3, local build of `93c8a03`)*
+- [x] Open the app **from the Finder, the Dock and Spotlight**: the chip does
       not show it and `{{origin}}` is undefined. The request fails with the
-      undefined-variable error, as expected.
-- [ ] A config file at `$HOME/config/hurl/config` (the path used when
+      undefined-variable error, as expected. *(macOS 15.7.3, local build of `93c8a03`)* The Finder, and `open` with a clean environment (the Dock and Spotlight launch the same way).
+- [x] A config file at `$HOME/config/hurl/config` (the path used when
       `XDG_CONFIG_HOME` is not set, as in a Finder launch) with
       `--header "X-From: config"` applies from every launch method, and the
-      chip shows it.
+      chip shows it. *(macOS 15.7.3, local build of `93c8a03`)*
 
 ## 9. Responses in the native webview
 
-- [ ] Run `json.hurl` from the perf project (a ~50 MB JSON response): the
+- [x] Run `json.hurl` from the perf project (a ~50 MB JSON response): the
       body arrives, the tree appears, the window stays responsive, and
-      cancelling the request mid-body stops the download.
-- [ ] An HTML response previews in the sandboxed frame; a script in it does
-      not run. A PDF previews, or offers Open in default app.
-- [ ] A 5 MB JSON body shows the tree and Raw views, and the panel's search
-      finds a value in it.
+      cancelling the request mid-body stops the download. *(macOS 15.7.3, local build of `a0e3cf7`)* 48 MB: a body over 50 MB shows no tree. Cancelled with Stop (⌘.) on a throttled server.
+- [x] An HTML response previews in the sandboxed frame; a script in it does
+      not run. A PDF previews, or offers Open in default app. *(macOS 15.7.3, local build of `a0e3cf7`)*
+- [x] A 5 MB JSON body shows the tree and Raw views, and the panel's search
+      finds a value in it. *(macOS 15.7.3, local build of `a0e3cf7`)*
 
 ## 10. Linux (AppImage)
 
