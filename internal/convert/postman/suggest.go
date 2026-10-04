@@ -147,6 +147,10 @@ var (
 func readScript(code string, ops *entryOps) {
 	aliases := map[string]bool{}
 	for _, stmt := range statements(code) {
+		// pm.test("…", () => expr): expr runs, as in a callback's block.
+		if m := testExprRE.FindStringSubmatch(stmt); m != nil {
+			stmt = m[1]
+		}
 		if m := aliasRE.FindStringSubmatch(stmt); m != nil {
 			aliases[m[1]] = true
 			continue
@@ -285,6 +289,10 @@ func statements(code string) []string {
 
 // testCallbackRE is the start of a pm.test callback, before its `{`.
 var testCallbackRE = regexp.MustCompile(`^pm\.test\(("[^"]*"|'[^']*'), (?:async )?(?:function\(\)|\(\) =>)$`)
+
+// testExprRE is a pm.test whose callback is an arrow function's
+// expression; it captures the expression.
+var testExprRE = regexp.MustCompile(`^pm\.test\((?:"[^"]*"|'[^']*'), (?:async )?\(\) => (.+)\)$`)
 
 // normalize writes a statement with no space around `(`, `)`, `.`, `[`,
 // `]`, one after `,` and around `=`, and none at its ends; the text of

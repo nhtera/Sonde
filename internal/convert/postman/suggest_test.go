@@ -142,6 +142,8 @@ func TestReadScriptContexts(t *testing.T) {
 		"skipped test":          {"pm.test.skip('s', function () { pm.expect(pm.response.code).to.eql(500); });", nil},
 		"nested fn":             {"pm.test('t', function () { [1].forEach(function (x) { pm.expect(pm.response.code).to.eql(1); }); });", nil},
 		"arrow test":            {"pm.test('t', () => {\n  pm.expect(pm.response.json().a)\n    .to.eql(\"<b&c>\");\n});", []string{`jsonpath "$.a" == "<b&c>"`}},
+		"arrow expression":      {"const p = pm.response.json();\npm.test('t', () => pm.expect(p.enabled).to.eql(true));", []string{`jsonpath "$.enabled" == true`}},
+		"arrow expression skip": {"pm.test.skip('t', () => pm.expect(pm.response.code).to.eql(500));", nil},
 		"alias reassigned":      {"var d = pm.response.json();\nd = d.data;\npm.expect(d.id).to.eql(1);", nil},
 		"placeholder text":      {"pm.expect(pm.response.json().a).to.eql('{{x}}');", nil},
 		"control char":          {"pm.expect(pm.response.json().a).to.eql('a\tb');", []string{`jsonpath "$.a" == "a\tb"`}},
