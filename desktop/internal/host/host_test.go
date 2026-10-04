@@ -16,7 +16,7 @@ import (
 // windowOnly are the services only the window app registers: they open
 // folders, reveal and trash files, export reports and reveal secrets, and
 // measure the shipped app.
-var windowOnly = []string{"workspaceDesktop", "bodiesDesktop", "copyasReveal", "dialogs", "reports", "perf"}
+var windowOnly = []string{"workspaceDesktop", "bodiesDesktop", "copyasReveal", "dialogs", "reports", "perf", "update"}
 
 func TestServicesPerMode(t *testing.T) {
 	names := func(m Mode) []string {
@@ -51,6 +51,8 @@ func TestBindingsPerMode(t *testing.T) {
 		"WorkspaceDesktop.OpenFolder", "WorkspaceDesktop.OpenRecent", "WorkspaceDesktop.Reveal", "WorkspaceDesktop.Trash",
 		"WorkspaceDesktop.CopyIntoProject", "BodiesDesktop.SaveResponse", "BodiesDesktop.OpenExternally",
 		"CopyasReveal.Curl", "CopyasReveal.Sonde", "Dialogs.OpenFile",
+		"Update.State", "Update.Check", "Update.Install", "Update.Skip", "Update.ClearSkip",
+		"Update.Restart", "Update.OpenReleasePage", "Update.Info",
 	}
 	for _, m := range []Mode{ModeDesktop, ModeServer, ModeHarness} {
 		h := &Host{Mode: m, Dirs: testDirs(t), Emit: &emit.Recorder{}}
@@ -84,6 +86,21 @@ func TestBindingsPerMode(t *testing.T) {
 			if strings.HasSuffix(b, ".Raw") || strings.HasSuffix(b, ".Put") || strings.HasSuffix(b, ".Root") {
 				t.Errorf("mode %d binds %s", m, b)
 			}
+			// The update core and the guard's exit switch are Go's only.
+			if strings.HasPrefix(b, "Manager.") || strings.HasSuffix(b, ".Attach") || strings.HasSuffix(b, "Exit") {
+				t.Errorf("mode %d binds %s", m, b)
+			}
+		}
+		if m == ModeDesktop {
+			var guard []string
+			for _, b := range bound {
+				if strings.HasPrefix(b, "Guard.") {
+					guard = append(guard, b)
+				}
+			}
+			if want := []string{"Guard.Hold", "Guard.Leave", "Guard.SetUnsaved"}; !slices.Equal(guard, want) {
+				t.Errorf("close guard bindings %v, want %v", guard, want)
+			}
 		}
 	}
 }
@@ -99,6 +116,8 @@ func serviceLabel(inst any) string {
 		return "BodiesDesktop"
 	case "github.com/nhtera/sonde/desktop/internal/copyas.Reveal":
 		return "CopyasReveal"
+	case "github.com/nhtera/sonde/desktop/internal/update.Service":
+		return "Update"
 	}
 	return typ.Name()
 }

@@ -571,6 +571,7 @@ Only what the code enforces:
 
 ```sh
 sonde-desktop [--root DIR] [--data DIR] [--perf-trace FILE [--perf-tour JSON]]
+              [--update-channel stable|prerelease] [--update-api URL]
 ```
 
 | Flag | Meaning |
@@ -579,10 +580,13 @@ sonde-desktop [--root DIR] [--data DIR] [--perf-trace FILE [--perf-tour JSON]]
 | `--data DIR` | app data in `DIR/config` and `DIR/cache` instead of the user folders |
 | `--perf-trace FILE` | run the performance tour, write the measures to FILE as JSON, then quit |
 | `--perf-tour JSON` | the tour's parameters; `scripts/perf.mjs` passes them |
+| `--update-channel stable\|prerelease` | save the update channel: `prerelease` also offers release candidates. It is saved in the settings, so the app relaunched by an update keeps it |
+| `--update-api URL` | for this run only, look for releases on a test release server instead of GitHub: `https://`, or `http://` on `127.0.0.1` or `localhost`. It serves both the tag list and the release files |
 
 `--perf-trace` and `--perf-tour` are for measuring a build, not for
 everyday use. `node scripts/perf.mjs`, run in `desktop/` after packaging,
 launches the app on a generated 1000-file project and prints the budget
 table; see [desktop/MANUAL-TEST.md](../desktop/MANUAL-TEST.md). They are
 flags and not `SONDE_*` variables because that namespace is read by the
-run planner.
+run planner. The `--update-*` flags are for rehearsing a release; the
+app's update check works without them.
