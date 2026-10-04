@@ -41,6 +41,7 @@ type Settings struct {
 	Cookies    Cookies           `json:"cookies"`
 	History    History           `json:"history"`
 	Contract   Contract          `json:"contract"`
+	Updates    Updates           `json:"updates"`
 }
 
 // Appearance is the look of the app.
@@ -98,6 +99,25 @@ type Contract struct {
 	Check bool `json:"check"`
 }
 
+// Update channels: stable takes releases without a prerelease part;
+// prerelease takes them all.
+const (
+	ChannelStable     = "stable"
+	ChannelPrerelease = "prerelease"
+)
+
+// Updates: Check looks for a new release once a day. The rest is the
+// update service's, set with SetUpdateState: a page's Set never changes it.
+type Updates struct {
+	Check bool `json:"check"`
+	// Skipped is the version the user skipped; background checks do not
+	// offer it.
+	Skipped string `json:"skipped"`
+	Channel string `json:"channel"`
+	// LastCheck is when the last check completed (RFC 3339), wall clock.
+	LastCheck string `json:"lastCheck"`
+}
+
 // Defaults are the settings of a new install.
 func Defaults() Settings {
 	return Settings{
@@ -105,6 +125,7 @@ func Defaults() Settings {
 		Appearance: Appearance{Theme: "system", DayTheme: "light", NightTheme: "dark", UIFontSize: 13, CodeFontSize: 13, SideWidth: 248, ResultsWidth: 440},
 		Shortcuts:  map[string]string{},
 		History:    History{Enabled: true, Retention: "30d"},
+		Updates:    Updates{Check: true, Channel: ChannelStable},
 	}
 }
 
@@ -119,6 +140,9 @@ type Store struct {
 	order sync.Mutex
 	mu    sync.Mutex
 	s     Settings
+	// refused: a settings file is there but was not read (a later
+	// version's, or damaged). Only a user's change replaces it.
+	refused bool
 
 	// Changed, when set, is called with the settings after each change
 	// (the window app sets its zoom from the UI font size).
@@ -126,13 +150,22 @@ type Store struct {
 }
 
 // Open loads the settings from config (the defaults when there are none,
-// or the file is unreadable: it is then replaced on the next change).
+// or the file is unreadable: it is then replaced on the next change). A
+// group the file lacks (an older version's) keeps its defaults; a file
+// without a known "version" is not read at all.
 func Open(config *sandbox.Root, e emit.Emitter, h *handles.Table) *Store {
 	st := &Store{config: config, emit: e, handles: h, s: Defaults()}
 	if data, err := config.ReadFile(File); err == nil {
-		var s Settings
-		if json.Unmarshal(data, &s) == nil && s.Version >= 1 && s.Version <= Version {
+		// The version from the file itself: the defaults carry one.
+		var probe struct {
+			Version *int `json:"version"`
+		}
+		s := Defaults()
+		if json.Unmarshal(data, &probe) == nil && probe.Version != nil && *probe.Version >= 1 && *probe.Version <= Version &&
+			json.Unmarshal(data, &s) == nil {
 			st.s = normalize(s)
+		} else {
+			st.refused = true
 		}
 	}
 	return st
@@ -157,6 +190,10 @@ func (st *Store) Set(s Settings) (Settings, error) {
 	skip := s.TLS.SkipVerify
 	s.TLS = st.s.TLS
 	s.TLS.SkipVerify = skip
+	// The update state only through SetUpdateState; the switch here.
+	check := s.Updates.Check
+	s.Updates = st.s.Updates
+	s.Updates.Check = check
 	s.Version = Version
 	s = normalize(s)
 	prev := st.s
@@ -164,6 +201,8 @@ func (st *Store) Set(s Settings) (Settings, error) {
 	err := st.save()
 	if err != nil {
 		st.s = prev // not saved: the stored settings stay
+	} else {
+		st.refused = false
 	}
 	st.mu.Unlock()
 	if err != nil {
@@ -213,6 +252,8 @@ func (st *Store) SetTLSFile(kind, handle string) (Settings, error) {
 	err := st.save()
 	if err != nil {
 		st.s = prev
+	} else {
+		st.refused = false
 	}
 	st.mu.Unlock()
 	if err != nil {
@@ -220,6 +261,36 @@ func (st *Store) SetTLSFile(kind, handle string) (Settings, error) {
 	}
 	st.emit.Emit(TopicChanged, forPage(s))
 	return s, nil
+}
+
+// SetUpdateState changes the update service's settings (the skipped
+// version, the channel, the last check) with f: the update service's only
+// way to write them. While the settings file is one Open refused, the
+// change stays in memory: an unattended check never replaces that file.
+func (st *Store) SetUpdateState(f func(u *Updates)) error {
+	st.order.Lock()
+	defer st.order.Unlock()
+	st.mu.Lock()
+	prev := st.s
+	f(&st.s.Updates)
+	st.s = normalize(st.s)
+	s := clone(st.s)
+	var err error
+	if !st.refused {
+		err = st.save()
+	}
+	if err != nil {
+		st.s = prev
+	}
+	st.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	st.emit.Emit(TopicChanged, forPage(s))
+	if st.Changed != nil {
+		st.Changed(clone(s))
+	}
+	return nil
 }
 
 func (st *Store) save() error {
@@ -325,6 +396,9 @@ func normalize(s Settings) Settings {
 	}
 	if s.Shortcuts == nil {
 		s.Shortcuts = map[string]string{}
+	}
+	if s.Updates.Channel != ChannelPrerelease {
+		s.Updates.Channel = ChannelStable
 	}
 	s.Version = Version
 	return s

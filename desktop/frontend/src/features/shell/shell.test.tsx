@@ -40,6 +40,7 @@ const settings = {
   cookies: { keep: false },
   history: { enabled: true, retention: "30d" },
   contract: { check: false },
+  updates: { check: true, skipped: "", channel: "stable", lastCheck: "" },
 };
 
 registry.command({ id: "file.run", title: "Run file", run: () => {} });
