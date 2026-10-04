@@ -41,15 +41,15 @@ Tick each item, and write down the OS version and the build (version, commit).
       name, not its path. Remove it.
 - [ ] Import: pick a Postman collection and a folder through the dialogs;
       the preview lists the files.
-- [ ] Import a Postman collection whose requests use a variable it never
+- [x] Import a Postman collection whose requests use a variable it never
       defines (a cookie from a Postman environment) into an empty folder.
       **Expect:** the collection's variables show in Environments at once;
       the result lists the variable to define; **Define…** saves it as a
-      secret (`secrets/<env>.secrets`, mode 0600) and the row goes.
-- [ ] Run a file with an undefined `{{name}}`: **Define name…** on the
+      secret (`secrets/<env>.secrets`, mode 0600) and the row goes. *(macOS 15.7.3, local ad-hoc build, not the notarized RC)*
+- [x] Run a file with an undefined `{{name}}`: **Define name…** on the
       error, and **Define…** on the editor's hover (the card shows whole
       on line 1 too), open the same dialog; after Save, **Run again**
-      sends the request.
+      sends the request. *(macOS 15.7.3, local ad-hoc build, not the notarized RC)*
 - [ ] Form › Body › file: pick a file outside the project. The app offers
       to copy it into `assets/`; it never overwrites an existing file.
 - [ ] A selection is single use: pick a data file, wait over 5 minutes, then
@@ -72,7 +72,7 @@ Tick each item, and write down the OS version and the build (version, commit).
 - [ ] Closing the window or quitting with an unsaved tab asks first.
 - [ ] ⌘W closes the active tab (asking first when it is unsaved) and leaves the window open; ⇧⌘W closes the window.
 - [ ] Right-clicking a tab shows its menu; Close other tabs with an unsaved tab among them asks once, and Cancel keeps every tab.
-- [ ] In the window, ⌃Tab / ⌃⇧Tab switch tabs (also from the editor), ⇧⌘T reopens the last closed tab, and a pinned tab survives Close all tabs.
+- [x] In the window, ⌃Tab / ⌃⇧Tab switch tabs (also from the editor), ⇧⌘T reopens the last closed tab, and a pinned tab survives Close all tabs. *(macOS 15.7.3, local ad-hoc build, not the notarized RC)*
 
 ## 4. Trash and Reveal
 
