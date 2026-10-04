@@ -10,6 +10,7 @@ package settings
 import (
 	"encoding/json"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -341,6 +342,13 @@ func paneWidth(w, def, lo, hi int) int {
 func forPage(s Settings) Settings {
 	c := clone(s)
 	c.Network.Proxy = maskProxy(c.Network.Proxy)
+	// The TLS files by name: their folders stay in Go, as every picked
+	// file's do.
+	for _, f := range []*string{&c.TLS.CACert, &c.TLS.Cert, &c.TLS.Key} {
+		if *f != "" {
+			*f = filepath.Base(*f)
+		}
+	}
 	return c
 }
 

@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { Agents, appError, type AgentSnippet } from "../../../lib/api";
 import { useUI } from "../../../state/ui";
+import { copyText } from "../../../lib/clipboard";
 
 const clients = [
   { id: "claude", label: "Claude Code" },
@@ -106,7 +107,7 @@ export function AgentsPanel() {
               <span>
                 Add to {label} · {snippet.where}
               </span>
-              <button className="btn-ghost accent" onClick={() => void navigator.clipboard.writeText(snippet.text).then(() => useUI.getState().toast({ kind: "success", text: "Copied" }))}>
+              <button className="btn-ghost accent" onClick={() => void copyText(snippet.text).then(() => useUI.getState().toast({ kind: "success", text: "Copied" }))}>
                 Copy
               </button>
             </div>

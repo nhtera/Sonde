@@ -23,6 +23,7 @@ import { useUI } from "../../state/ui";
 import { entryAt } from "../editor/entry-at";
 import { activeView } from "../editor/views";
 import { copyItems, shellOf, type CopyItem } from "./model";
+import { copyText } from "../../lib/clipboard";
 
 const toast = (kind: "success" | "error" | "info", text: string) => useUI.getState().toast({ kind, text });
 
@@ -60,7 +61,7 @@ export async function copyItem(item: CopyItem, reveal = false) {
     }
     const t = await (item.tool === "curl" ? CopyAs.Curl(item.req) : CopyAs.Sonde(item.req));
     if (!t) return;
-    await navigator.clipboard.writeText(t.text);
+    await copyText(t.text);
     toast("success", `Copied. ${t.note ?? ""}`.trim());
   } catch (err) {
     toast("error", appError(err).message);

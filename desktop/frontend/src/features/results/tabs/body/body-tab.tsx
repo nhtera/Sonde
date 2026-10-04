@@ -24,6 +24,7 @@ import { fetchBody, hexDump, type BodyText } from "./body-fetch";
 import { Preview } from "./preview";
 import { PrettyJsonTree } from "./pretty-json-tree";
 import { RawView } from "./raw-view";
+import { copyText } from "../../../../lib/clipboard";
 
 /** The modes a body kind offers. */
 function modesOf(kind: BodyKind): BodyMode[] {
@@ -115,7 +116,7 @@ export function BodyTab({ file, entry, body }: { file: string; entry: number; bo
   const copy = async () => {
     try {
       const t = await fetchBody(body.id, FORMAT_LIMIT);
-      await navigator.clipboard.writeText(kind === "binary" ? hexDump(t.bytes, t.bytes.length) : t.text);
+      await copyText(kind === "binary" ? hexDump(t.bytes, t.bytes.length) : t.text);
       useUI.getState().toast({ kind: "success", text: "Body copied" });
     } catch (err) {
       useUI.getState().toast({ kind: "error", text: appError(err).message });

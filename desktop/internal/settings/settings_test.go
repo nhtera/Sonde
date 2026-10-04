@@ -247,3 +247,24 @@ func TestFailedSave(t *testing.T) {
 		t.Errorf("theme %q, events %d after a failed save", got, len(rec.Events()))
 	}
 }
+
+// TestTLSFilesByName: the page sees a picked TLS file's name, never its
+// folder, and a settings save it sends back keeps the stored path.
+func TestTLSFilesByName(t *testing.T) {
+	st, _, _, h := store(t)
+	svc := NewService(st)
+	id, _ := h.Put("/Users/me/certs/ca.pem", handles.OpenFile)
+	got, err := svc.SetTLSFile(CACert, id)
+	if err != nil || got.TLS.CACert != "ca.pem" || svc.Get().TLS.CACert != "ca.pem" {
+		t.Fatalf("page sees %q (%v)", got.TLS.CACert, err)
+	}
+	if _, err := svc.Set(svc.Get()); err != nil {
+		t.Fatal(err)
+	}
+	if st.Get().TLS.CACert != "/Users/me/certs/ca.pem" {
+		t.Errorf("a save from the page changed the path: %q", st.Get().TLS.CACert)
+	}
+	if got, err := svc.SetTLSFile(CACert, ""); err != nil || got.TLS.CACert != "" {
+		t.Errorf("clear: %q %v", got.TLS.CACert, err)
+	}
+}

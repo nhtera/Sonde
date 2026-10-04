@@ -17,6 +17,7 @@ import { useUI } from "../../../state/ui";
 import { ask, confirm } from "../../../components/ask";
 import { SuggestInput } from "../../form/suggest-input";
 import { label } from "../../../app/keymap/keymap-manager";
+import { copyText } from "../../../lib/clipboard";
 
 /** The environment the panel shows (not the one runs use). */
 const useShown = create<{ env: string; set(env: string): void }>((set) => ({ env: "", set: (env) => set({ env }) }));
@@ -261,7 +262,7 @@ function VarMenu({ env, v }: { env: string; v: Var }) {
               <span className="sub">Moves it to the environment's secrets file (keep that file in .gitignore). Shown as *** from then on.</span>
             </Menu.Item>
           )}
-          <Menu.Item className="menu-item" onSelect={() => void navigator.clipboard.writeText(v.name)}>
+          <Menu.Item className="menu-item" onSelect={() => void copyText(v.name)}>
             Copy name
           </Menu.Item>
           <Menu.Separator className="menu-sep" />

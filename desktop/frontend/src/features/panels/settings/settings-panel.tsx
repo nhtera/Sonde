@@ -116,6 +116,14 @@ export function SettingsMain() {
       fail(err);
     }
   };
+  // Set keeps the TLS files: only SetTLSFile changes them ("" clears).
+  const clearTLS = async (kind: "cacert" | "cert" | "key") => {
+    try {
+      useSettings.setState({ value: await SettingsSvc.SetTLSFile(kind, "") });
+    } catch (err) {
+      fail(err);
+    }
+  };
   const tlsRow = (kind: "cacert" | "cert" | "key", name: string, flag: string) => (
     <Row name={name} flag={flag}>
       <span className="mono path">{v.tls[kind] || "none"}</span>
@@ -125,7 +133,7 @@ export function SettingsMain() {
         </button>
       )}
       {v.tls[kind] && (
-        <button className="btn-ghost" onClick={() => save({ ...v, tls: { ...v.tls, [kind]: "" } })}>
+        <button className="btn-ghost" onClick={() => void clearTLS(kind)}>
           Clear
         </button>
       )}

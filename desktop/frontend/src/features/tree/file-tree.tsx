@@ -9,14 +9,14 @@ import { useKeyLabel } from "../../app/keymap/use-keys";
 import { registry } from "../../app/registry";
 import { ask, confirm } from "../../components/ask";
 import { ChevronDown, ImportIcon, LockIcon, PlusIcon, SearchIcon } from "../../components/icons";
-import { Clipboard } from "@wailsio/runtime";
 import { Workspace, WorkspaceDesktop, appError } from "../../lib/api";
-import { isMac, serverMode, windowLook } from "../../lib/mode";
+import { isMac, windowLook } from "../../lib/mode";
 import { useRuns } from "../../state/run";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
 import { useWorkspace } from "../../state/workspace";
 import { byFile, reqLabel, rows as flatten, type Row } from "./rows";
+import { copyText } from "../../lib/clipboard";
 
 const kindColor: Record<string, string> = {
   request: "var(--info)",
@@ -403,7 +403,7 @@ export function copyPath(file: string) {
   const dir = useWorkspace.getState().project?.dir ?? "";
   const sep = dir.includes("\\") ? "\\" : "/";
   const text = dir ? dir.replace(/[\\/]$/, "") + sep + file.split("/").join(sep) : file;
-  return serverMode ? navigator.clipboard.writeText(text) : Clipboard.SetText(text);
+  return copyText(text);
 }
 
 async function runPath(path: string) {

@@ -4,6 +4,7 @@
 import type { Entry, ReportRequest } from "../../../lib/view";
 import { useUI } from "../../../state/ui";
 import { NameValues } from "./headers";
+import { copyText } from "../../../lib/clipboard";
 
 /** The request as sent (redacted): line, query, headers, cookies, curl. */
 export function RequestTab({ entry, sending }: { entry?: Entry; sending?: ReportRequest }) {
@@ -25,7 +26,7 @@ export function RequestTab({ entry, sending }: { entry?: Entry; sending?: Report
             <button
               className="btn-ghost"
               onClick={() =>
-                void navigator.clipboard.writeText(curl).then(() => useUI.getState().toast({ kind: "success", text: "curl command copied" }))
+                void copyText(curl).then(() => useUI.getState().toast({ kind: "success", text: "curl command copied" }))
               }
             >
               Copy

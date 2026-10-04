@@ -28,8 +28,9 @@ const (
 	SaveFile                 // a file to write
 )
 
-// ErrInvalid is returned for an unknown, used, expired or mismatched handle.
-var ErrInvalid = errors.New("handles: the selection expired; choose the file again")
+// ErrInvalid is returned for an unknown, used, expired or mismatched
+// handle. The page shows its text as is, so it names no package.
+var ErrInvalid = errors.New("the selection expired; choose the file again")
 
 // Table holds the pending handles.
 type Table struct {
