@@ -204,6 +204,38 @@ test.describe("themes", () => {
   });
 });
 
+test("tabs: ⌘W closes, ⇧⌘T reopens, ⌃Tab switches, the menu pins", async ({ page }) => {
+  // The window's keys (a browser keeps ⌘W, ⇧⌘T and ⌃Tab for itself).
+  await page.addInitScript(() => sessionStorage.setItem("sonde.windowLook", "1"));
+  const tab = (name: string) => page.getByRole("tab", { name: new RegExp(name) });
+  await open(page, "checkout.hurl");
+  for (const name of ["users.hurl", "echoes.hurl"]) {
+    // By name: the open file's requests expand under it and move the rows.
+    await page.getByRole("treeitem", { name, exact: true }).click();
+    await expect(tab(name)).toHaveAttribute("aria-selected", "true");
+  }
+  // From the editor, where the keys matter most.
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+Tab");
+  await expect(tab("checkout.hurl")).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Control+Shift+Tab");
+  await expect(tab("echoes.hurl")).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ControlOrMeta+KeyW");
+  await expect(tab("echoes.hurl")).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+Shift+KeyT");
+  await expect(tab("echoes.hurl")).toHaveAttribute("aria-selected", "true");
+  // Pinned from the menu: first, kept by Close all tabs.
+  await tab("users.hurl").click({ button: "right" });
+  await page.getByRole("menuitem", { name: /^Pin tab/ }).click();
+  await expect(page.getByRole("tab").first()).toHaveAccessibleName(/users\.hurl/);
+  await tab("checkout.hurl").click({ button: "right" });
+  await page.getByRole("menuitem", { name: /^Close all tabs/ }).click();
+  await expect(page.getByRole("tab")).toHaveCount(1);
+  await page.getByRole("button", { name: "Unpin users.hurl" }).click();
+  await page.getByRole("button", { name: "Close users.hurl" }).click();
+  await expect(page.getByRole("tab")).toHaveCount(0);
+});
+
 test("the palette opens files, and > lists commands only", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("tree", { name: "Project files" })).toContainText("users.hurl");

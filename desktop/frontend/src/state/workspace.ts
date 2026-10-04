@@ -108,7 +108,7 @@ async function discardEdits(): Promise<boolean> {
 /** Forgets what belonged to the previous project: its tabs (their paths
  * are relative to it), runs, filter and editor view. */
 function forgetProject() {
-  useTabs.setState({ tabs: [], active: null });
+  useTabs.setState({ tabs: [], active: null, closed: [] });
   useRuns.getState().reset();
   useUI.setState({ treeFilter: "", editorView: null });
 }

@@ -169,6 +169,34 @@ describe("closing several tabs", () => {
   });
 });
 
+describe("pinned tabs", () => {
+  const tab = (path: string, pinned = false) => ({ path, text: "GET x", savedText: "GET x", hash: "h", version: 1, conflict: false, pinned });
+  const paths = () => useTabs.getState().tabs.map((t) => t.path);
+
+  it("stay open through the bulk closes, and unpin from their button", async () => {
+    await import("../../app/core");
+    render(<TabsBar />);
+    useTabs.setState({ tabs: [tab("p.hurl", true), tab("a.hurl"), tab("b.hurl")], active: "a.hurl" });
+    await registry.getCommand("tab.closeAll")?.run();
+    expect(paths()).toEqual(["p.hurl"]);
+    await userEvent.click(await screen.findByRole("button", { name: "Unpin p.hurl" }));
+    expect(useTabs.getState().tabs[0].pinned).toBe(false);
+    expect(screen.getByRole("button", { name: "Close p.hurl" })).toBeTruthy();
+  });
+
+  it("are pinned and unpinned from the tab menu, which offers Reopen closed tab", async () => {
+    await import("../../app/core");
+    render(<TabsBar />);
+    useTabs.setState({ tabs: [tab("a.hurl"), tab("b.hurl")], active: "a.hurl", closed: ["gone.hurl"] });
+    await userEvent.pointer({ keys: "[MouseRight]", target: await screen.findByRole("tab", { name: /b\.hurl/ }) });
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: /^Reopen closed tab/ }).getAttribute("aria-disabled")).toBeNull();
+    await userEvent.click(within(menu).getByRole("menuitem", { name: /^Pin tab/ }));
+    expect(paths()).toEqual(["b.hurl", "a.hurl"]);
+    expect(useTabs.getState().tabs[0].pinned).toBe(true);
+  });
+});
+
 describe("run store", () => {
   it("starts one run of a file at a time and keeps the last run when the file is busy elsewhere", async () => {
     const prev = { ...useRuns.getState().runs["checkout.hurl"] };

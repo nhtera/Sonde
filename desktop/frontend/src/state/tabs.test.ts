@@ -12,7 +12,7 @@ const { useTabs, isDirty } = await import("./tabs");
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useTabs.setState({ tabs: [], active: null });
+  useTabs.setState({ tabs: [], active: null, closed: [] });
 });
 
 describe("tabs and line breaks", () => {
@@ -58,5 +58,43 @@ describe("closing several tabs", () => {
     useTabs.getState().closeMany(["a", "c"]);
     expect(paths()).toEqual(["b"]);
     expect(useTabs.getState().active).toBe("b");
+  });
+});
+
+describe("reopening, switching and pinning tabs", () => {
+  const tab = (path: string, pinned = false) => ({ path, text: "", savedText: "", hash: "h", version: 1, conflict: false, pinned });
+  const paths = () => useTabs.getState().tabs.map((t) => t.path);
+
+  it("reopens the newest closed tab, from disk, skipping one deleted since", async () => {
+    useTabs.setState({ tabs: ["a", "b", "c"].map((p) => tab(p)), active: "a" });
+    useTabs.getState().closeMany(["b"]);
+    useTabs.getState().closeMany(["c"]);
+    expect(useTabs.getState().closed).toEqual(["b", "c"]);
+    api.Workspace.Read.mockImplementation(async (p: string) => {
+      if (p === "c") throw new Error("not found");
+      return { path: p, text: "GET x\n", hash: "h" };
+    });
+    expect(await useTabs.getState().reopenClosed()).toBe(true);
+    expect(paths()).toEqual(["a", "b"]);
+    expect(useTabs.getState().active).toBe("b");
+    expect(useTabs.getState().closed).toEqual([]);
+    expect(await useTabs.getState().reopenClosed()).toBe(false);
+  });
+
+  it("switches to the next and previous tab, wrapping", () => {
+    useTabs.setState({ tabs: ["a", "b", "c"].map((p) => tab(p)), active: "c" });
+    useTabs.getState().cycle(1);
+    expect(useTabs.getState().active).toBe("a");
+    useTabs.getState().cycle(-1);
+    expect(useTabs.getState().active).toBe("c");
+  });
+
+  it("keeps pinned tabs at the front", () => {
+    useTabs.setState({ tabs: ["a", "b", "c"].map((p) => tab(p)), active: "a" });
+    useTabs.getState().setPinned("c", true);
+    useTabs.getState().setPinned("b", true);
+    expect(paths()).toEqual(["c", "b", "a"]);
+    useTabs.getState().setPinned("c", false);
+    expect(paths()).toEqual(["b", "c", "a"]);
   });
 });

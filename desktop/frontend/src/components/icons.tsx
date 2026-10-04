@@ -46,6 +46,7 @@ export const SondeMark = ({ size = 16 }: { size?: number }) => (
     <path d="M6 7a11 11 0 0 1 11 11" />
   </svg>
 );
+export const PinIcon = ({ size = 10, ...p }: P) => svg(size, 16, p, <path d="M10 2.5l3.5 3.5M11.75 4.25L9 7l-3-.5-1.5 1.5 4.5 4.5L10.5 11 10 8l2.75-2.75M6.75 9.25L3 13" />);
 export const CloseIcon = ({ size = 10, ...p }: P) => svg(size, 16, p, <path d="M4 4l8 8M12 4l-8 8" />);
 export const CopyIcon = ({ size = 13, ...p }: P) =>
   svg(size, 16, { strokeWidth: 1.5, ...p }, <><rect x="5" y="5" width="8.5" height="8.5" rx="1.5" /><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" /></>);

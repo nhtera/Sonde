@@ -48,9 +48,11 @@ registry.command({
   },
 });
 
-// Closing tabs: the tab menu passes its tab, the palette and the keys
-// act on the active one. ⌘W is the window's (a browser keeps it).
+// Tabs: the tab menu passes its tab, the palette and the keys act on the
+// active one. Their keys are the window's (a browser keeps ⌘W, ⇧⌘T and
+// ⌃Tab). Closing several tabs leaves the pinned ones open.
 const tabPaths = () => useTabs.getState().tabs.map((t) => t.path);
+const unpinned = (paths: string[]) => paths.filter((p) => !useTabs.getState().tabs.find((t) => t.path === p)?.pinned);
 const target = (arg?: unknown) => (typeof arg === "string" ? arg : active());
 const closing = (id: string, title: string, pick: (paths: string[], at: number) => string[], opts: { force?: boolean; keys?: string; when?: () => boolean } = {}) =>
   registry.command({
@@ -68,11 +70,27 @@ const closing = (id: string, title: string, pick: (paths: string[], at: number) 
 const dirtyTab = () => useTabs.getState().tabs.some((t) => t.path === active() && isDirty(t));
 closing("tab.close", "Close tab", (p, at) => (at < 0 ? [] : [p[at]]), { keys: "$mod+KeyW", when: () => !!active() });
 closing("tab.closeWithoutSaving", "Close tab without saving", (p, at) => (at < 0 ? [] : [p[at]]), { force: true, keys: "$mod+Alt+KeyW", when: dirtyTab });
-closing("tab.closeOthers", "Close other tabs", (p, at) => p.filter((_, i) => i !== at), { when: () => tabPaths().length > 1 });
-closing("tab.closeRight", "Close tabs to the right", (p, at) => (at < 0 ? [] : p.slice(at + 1)));
-closing("tab.closeSaved", "Close saved tabs", () => useTabs.getState().tabs.filter((t) => !isDirty(t)).map((t) => t.path));
-closing("tab.closeAll", "Close all tabs", (p) => p);
-closing("tab.closeAllWithoutSaving", "Close all tabs without saving", (p) => p, { force: true });
+closing("tab.closeOthers", "Close other tabs", (p, at) => unpinned(p.filter((_, i) => i !== at)), { when: () => tabPaths().length > 1 });
+closing("tab.closeRight", "Close tabs to the right", (p, at) => (at < 0 ? [] : unpinned(p.slice(at + 1))));
+closing("tab.closeSaved", "Close saved tabs", () => unpinned(useTabs.getState().tabs.filter((t) => !isDirty(t)).map((t) => t.path)));
+closing("tab.closeAll", "Close all tabs", unpinned);
+closing("tab.closeAllWithoutSaving", "Close all tabs without saving", unpinned, { force: true });
+
+registry.command({
+  id: "tab.reopenClosed",
+  title: "Reopen closed tab",
+  group: "Tabs",
+  keys: windowLook ? "$mod+Shift+KeyT" : undefined,
+  when: () => useTabs.getState().closed.some((p) => !tabPaths().includes(p)),
+  run: async () => {
+    if (!(await useTabs.getState().reopenClosed())) useUI.getState().toast({ kind: "info", text: "No closed tab to reopen" });
+  },
+});
+registry.command({ id: "tab.next", title: "Next tab", group: "Tabs", keys: windowLook ? "Control+Tab" : undefined, when: () => tabPaths().length > 1, run: () => useTabs.getState().cycle(1) });
+registry.command({ id: "tab.previous", title: "Previous tab", group: "Tabs", keys: windowLook ? "Control+Shift+Tab" : undefined, when: () => tabPaths().length > 1, run: () => useTabs.getState().cycle(-1) });
+const pinnedTab = (arg?: unknown) => useTabs.getState().tabs.find((t) => t.path === target(arg))?.pinned;
+registry.command({ id: "tab.pin", title: "Pin tab", group: "Tabs", when: () => !!active() && !pinnedTab(), run: (arg) => useTabs.getState().setPinned(target(arg) ?? "", true) });
+registry.command({ id: "tab.unpin", title: "Unpin tab", group: "Tabs", when: () => !!pinnedTab(), run: (arg) => useTabs.getState().setPinned(target(arg) ?? "", false) });
 
 registry.command({
   id: "palette.open",

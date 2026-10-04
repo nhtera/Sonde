@@ -63,6 +63,7 @@ Tick each item, and write down the OS version and the build (version, commit).
 - [ ] Closing the window or quitting with an unsaved tab asks first.
 - [ ] ⌘W closes the active tab (asking first when it is unsaved) and leaves the window open; ⇧⌘W closes the window.
 - [ ] Right-clicking a tab shows its menu; Close other tabs with an unsaved tab among them asks once, and Cancel keeps every tab.
+- [ ] In the window, ⌃Tab / ⌃⇧Tab switch tabs (also from the editor), ⇧⌘T reopens the last closed tab, and a pinned tab survives Close all tabs.
 
 ## 4. Trash and Reveal
 

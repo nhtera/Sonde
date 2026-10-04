@@ -25,11 +25,15 @@ export interface Tab {
   conflict: boolean;
   /** The file's line break, restored on save. */
   eol?: "\r\n";
+  /** Kept at the front; bulk closes leave it open. */
+  pinned?: boolean;
 }
 
 interface TabsState {
   tabs: Tab[];
   active: string | null;
+  /** Paths of the tabs closed, newest last (Reopen closed tab). */
+  closed: string[];
   open(path: string): Promise<void>;
   activate(path: string): void;
   setText(path: string, text: string): void;
@@ -38,10 +42,21 @@ interface TabsState {
   /** Closes several tabs at once; the active one stays if it is kept,
    * else the nearest kept tab to its right, else to its left. */
   closeMany(paths: string[]): void;
+  /** Opens the newest closed tab that is not open and still exists, read
+   * from disk; false when there is none. */
+  reopenClosed(): Promise<boolean>;
+  /** The tab next to the active one, wrapping (step 1 or -1). */
+  cycle(step: 1 | -1): void;
+  /** Pins (to the end of the pinned tabs) or unpins (to the start of the
+   * others) a tab. */
+  setPinned(path: string, pinned: boolean): void;
   reload(path: string): Promise<void>;
 }
 
 export const isDirty = (t: Tab) => t.text !== t.savedText;
+
+/** How many closed tabs Reopen closed tab remembers. */
+const maxClosed = 20;
 
 /** A file's text with "\n" line breaks, and whether it had "\r\n". */
 function fromDisk(text: string): { text: string; eol?: "\r\n" } {
@@ -51,6 +66,7 @@ function fromDisk(text: string): { text: string; eol?: "\r\n" } {
 export const useTabs = create<TabsState>((set, get) => ({
   tabs: [],
   active: null,
+  closed: [],
   open: async (path) => {
     if (get().tabs.some((t) => t.path === path)) {
       set({ active: path });
@@ -99,7 +115,36 @@ export const useTabs = create<TabsState>((set, get) => ({
       const left = tabs.slice(0, at).reverse().find((t) => !gone.has(t.path));
       next = (right ?? left)?.path ?? null;
     }
-    set({ tabs: kept, active: next });
+    const closedNow = tabs.filter((t) => gone.has(t.path)).map((t) => t.path);
+    const closed = [...get().closed.filter((p) => !gone.has(p)), ...closedNow].slice(-maxClosed);
+    set({ tabs: kept, active: next, closed });
+  },
+  reopenClosed: async () => {
+    for (;;) {
+      const path = [...get().closed].reverse().find((p) => !get().tabs.some((t) => t.path === p));
+      if (path === undefined) return false;
+      set({ closed: get().closed.filter((p) => p !== path) });
+      try {
+        await get().open(path);
+        if (get().tabs.some((t) => t.path === path)) return true;
+      } catch {
+        // Moved or deleted since: try the one closed before it.
+      }
+    }
+  },
+  cycle: (step) => {
+    const { tabs, active } = get();
+    if (tabs.length < 2) return;
+    const at = tabs.findIndex((t) => t.path === active);
+    set({ active: tabs[(at + step + tabs.length) % tabs.length].path });
+  },
+  setPinned: (path, pinned) => {
+    const tab = get().tabs.find((t) => t.path === path);
+    if (!tab || !!tab.pinned === pinned) return;
+    const rest = get().tabs.filter((t) => t.path !== path);
+    const firstOther = rest.findIndex((t) => !t.pinned);
+    const at = firstOther < 0 ? rest.length : firstOther;
+    set({ tabs: [...rest.slice(0, at), { ...tab, pinned }, ...rest.slice(at)] });
   },
   reload: async (path) => {
     const before = get().tabs.find((t) => t.path === path)?.version;

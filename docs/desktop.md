@@ -133,12 +133,23 @@ prompt.
 
 ### Tabs
 
-Right-click a tab for its menu: Run file and Save, then Close tab, Close
+Right-click a tab for its menu: Run file and Save; Close tab, Close
 without saving, Close other tabs, Close tabs to the right, Close saved tabs,
-Close all tabs and Close all without saving, then Copy path and Reveal in
-Finder (the window app). A close that would drop unsaved edits asks once,
-naming the files; Cancel keeps every tab open. The "without saving" items
-do not ask. The closing actions are also in the palette (⌘K), under Tabs.
+Close all tabs, Close all without saving and Reopen closed tab; Pin tab (or
+Unpin tab); then Copy path and Reveal in Finder (the window app). A close
+that would drop unsaved edits asks once, naming the files; Cancel keeps
+every tab open. The "without saving" items do not ask. These actions are
+also in the palette (⌘K), under Tabs.
+
+- **Pinned tabs** sit at the front with a pin instead of the close button
+  (click it to unpin). Closing several tabs (others, to the right, saved,
+  all) leaves them open; Close tab still closes one.
+- **Reopen closed tab** (⇧⌘T) opens the last closed tab again, then the
+  one before, up to 20, read from disk: edits closed without saving stay
+  dropped. Opening another folder forgets them.
+- **⌃Tab** and **⌃⇧Tab** switch to the next and previous tab.
+
+Tabs and pins last for the session.
 
 ## Running and Send
 
@@ -499,8 +510,10 @@ lets you rebind them; changes are saved in `settings.json`.
 | ⇧⌘↵ | Run requests up to the cursor |
 | ⌘R | Run file |
 | ⌘S | Save file |
-| ⌘W | Close tab (window app; a browser keeps ⌘W for itself) |
+| ⌘W | Close tab (window app; a browser keeps ⌘W, ⇧⌘T and ⌃Tab for itself) |
 | ⌥⌘W | Close tab without saving (window app) |
+| ⇧⌘T | Reopen closed tab (window app) |
+| ⌃Tab / ⌃⇧Tab | Next / previous tab (window app) |
 | ⌥⌘S | Save response to file (window app) |
 | ⌘K | Search files and commands (the palette) |
 | ⌘E | Switch Text / Form |

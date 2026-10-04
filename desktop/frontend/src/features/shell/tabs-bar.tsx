@@ -5,15 +5,15 @@ import * as ContextMenu from "@radix-ui/react-context-menu";
 import { useKeyLabel } from "../../app/keymap/use-keys";
 import { registry } from "../../app/registry";
 import { confirm } from "../../components/ask";
-import { CloseIcon } from "../../components/icons";
+import { CloseIcon, PinIcon } from "../../components/icons";
 import { WorkspaceDesktop } from "../../lib/api";
 import { isRequestPath } from "../../lib/files";
 import { isMac, windowLook } from "../../lib/mode";
 import { isDirty, useTabs } from "../../state/tabs";
 import { copyPath, report } from "../tree/file-tree";
 
-/** The open files; a dot marks unsaved edits. Right-click for the tab
- * menu (close others, close all…). */
+/** The open files; a dot marks unsaved edits, a pin a pinned tab (kept
+ * at the front, left open by bulk closes). Right-click for the tab menu. */
 export function TabsBar() {
   const tabs = useTabs((s) => s.tabs);
   const active = useTabs((s) => s.active);
@@ -42,18 +42,34 @@ export function TabsBar() {
                 <i className="ic" style={{ background: t.path.endsWith(".sonde") ? "var(--m-patch)" : "var(--pass)" }} />
                 {name}
                 {dirty && <i className="dirty" aria-label="unsaved" />}
-                {/* Out of the tab order: Delete closes the focused tab. */}
-                <button
-                  className="icon-btn x"
-                  tabIndex={-1}
-                  aria-label={`Close ${name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void closeTab(t.path);
-                  }}
-                >
-                  <CloseIcon />
-                </button>
+                {/* Out of the tab order: Delete closes the focused tab. A
+                    pinned tab's button unpins it. */}
+                {t.pinned ? (
+                  <button
+                    className="icon-btn pin"
+                    tabIndex={-1}
+                    aria-label={`Unpin ${name}`}
+                    title="Unpin"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      useTabs.getState().setPinned(t.path, false);
+                    }}
+                  >
+                    <PinIcon />
+                  </button>
+                ) : (
+                  <button
+                    className="icon-btn x"
+                    tabIndex={-1}
+                    aria-label={`Close ${name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void closeTab(t.path);
+                    }}
+                  >
+                    <CloseIcon />
+                  </button>
+                )}
               </div>
             </ContextMenu.Trigger>
             <TabMenu path={t.path} />
@@ -73,10 +89,15 @@ function TabMenu({ path }: { path: string }) {
     save: useKeyLabel("file.save"),
     close: useKeyLabel("tab.close"),
     force: useKeyLabel("tab.closeWithoutSaving"),
+    reopen: useKeyLabel("tab.reopenClosed"),
   };
+  const closed = useTabs((s) => s.closed);
   const at = tabs.findIndex((t) => t.path === path);
   const tab = tabs[at];
   if (!tab) return null;
+  // What the bulk closes would close (never a pinned tab).
+  const loose = tabs.filter((t) => !t.pinned);
+  const reopenable = closed.some((p) => !tabs.some((t) => t.path === p));
   const item = (text: string, run: () => unknown, hint?: string, disabled = false) => (
     <ContextMenu.Item className="menu-item" disabled={disabled} onSelect={() => void Promise.resolve(run()).catch(report)}>
       {text}
@@ -93,11 +114,14 @@ function TabMenu({ path }: { path: string }) {
         <ContextMenu.Separator className="menu-sep" />
         {item("Close tab", cmd("tab.close"), keys.close)}
         {item("Close without saving", cmd("tab.closeWithoutSaving"), keys.force, !isDirty(tab))}
-        {item("Close other tabs", cmd("tab.closeOthers"), undefined, tabs.length < 2)}
-        {item("Close tabs to the right", cmd("tab.closeRight"), undefined, at === tabs.length - 1)}
-        {item("Close saved tabs", cmd("tab.closeSaved"), undefined, !tabs.some((t) => !isDirty(t)))}
-        {item("Close all tabs", cmd("tab.closeAll"))}
-        {item("Close all without saving", cmd("tab.closeAllWithoutSaving"), undefined, !tabs.some(isDirty))}
+        {item("Close other tabs", cmd("tab.closeOthers"), undefined, !loose.some((t) => t.path !== path))}
+        {item("Close tabs to the right", cmd("tab.closeRight"), undefined, !tabs.slice(at + 1).some((t) => !t.pinned))}
+        {item("Close saved tabs", cmd("tab.closeSaved"), undefined, !loose.some((t) => !isDirty(t)))}
+        {item("Close all tabs", cmd("tab.closeAll"), undefined, loose.length === 0)}
+        {item("Close all without saving", cmd("tab.closeAllWithoutSaving"), undefined, !loose.some(isDirty))}
+        {item("Reopen closed tab", () => registry.getCommand("tab.reopenClosed")?.run(), keys.reopen, !reopenable)}
+        <ContextMenu.Separator className="menu-sep" />
+        {tab.pinned ? item("Unpin tab", cmd("tab.unpin")) : item("Pin tab", cmd("tab.pin"))}
         <ContextMenu.Separator className="menu-sep" />
         {item("Copy path", () => copyPath(path))}
         {windowLook && item(isMac ? "Reveal in Finder" : "Reveal in file manager", () => WorkspaceDesktop.Reveal(path))}
