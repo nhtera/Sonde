@@ -381,7 +381,7 @@ function useFilterMatches(q: string, index: unknown): ReadonlyMap<string, Readon
   return state?.q === query ? state.m : undefined;
 }
 
-function report(err: unknown) {
+export function report(err: unknown) {
   useUI.getState().toast({ kind: "error", text: appError(err).message });
 }
 
@@ -399,7 +399,7 @@ function openSecrets() {
 
 /** Copies file's absolute path, synchronously: WebKit drops the user
  * gesture across an await. */
-function copyPath(file: string) {
+export function copyPath(file: string) {
   const dir = useWorkspace.getState().project?.dir ?? "";
   const sep = dir.includes("\\") ? "\\" : "/";
   const text = dir ? dir.replace(/[\\/]$/, "") + sep + file.split("/").join(sep) : file;

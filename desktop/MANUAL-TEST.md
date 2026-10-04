@@ -61,6 +61,8 @@ Tick each item, and write down the OS version and the build (version, commit).
       palette, ⌘/ toggles a comment in the editor, ⌘G asks for a line, `?`
       opens the shortcuts sheet.
 - [ ] Closing the window or quitting with an unsaved tab asks first.
+- [ ] ⌘W closes the active tab (asking first when it is unsaved) and leaves the window open; ⇧⌘W closes the window.
+- [ ] Right-clicking a tab shows its menu; Close other tabs with an unsaved tab among them asks once, and Cancel keeps every tab.
 
 ## 4. Trash and Reveal
 

@@ -5,6 +5,7 @@
 // from their index.ts the same way.
 
 import { FilesIcon } from "../components/icons";
+import { closeTabs } from "../features/shell/tabs-bar";
 import { FileTree } from "../features/tree/file-tree";
 import { appError } from "../lib/api";
 import { windowLook } from "../lib/mode";
@@ -46,6 +47,32 @@ registry.command({
     if (f) await useTabs.getState().save(f);
   },
 });
+
+// Closing tabs: the tab menu passes its tab, the palette and the keys
+// act on the active one. ⌘W is the window's (a browser keeps it).
+const tabPaths = () => useTabs.getState().tabs.map((t) => t.path);
+const target = (arg?: unknown) => (typeof arg === "string" ? arg : active());
+const closing = (id: string, title: string, pick: (paths: string[], at: number) => string[], opts: { force?: boolean; keys?: string; when?: () => boolean } = {}) =>
+  registry.command({
+    id,
+    title,
+    group: "Tabs",
+    keys: windowLook ? opts.keys : undefined,
+    when: opts.when ?? (() => tabPaths().length > 0),
+    run: (arg) => {
+      const paths = tabPaths();
+      const at = paths.indexOf(target(arg) ?? "");
+      return closeTabs(pick(paths, at), opts.force);
+    },
+  });
+const dirtyTab = () => useTabs.getState().tabs.some((t) => t.path === active() && isDirty(t));
+closing("tab.close", "Close tab", (p, at) => (at < 0 ? [] : [p[at]]), { keys: "$mod+KeyW", when: () => !!active() });
+closing("tab.closeWithoutSaving", "Close tab without saving", (p, at) => (at < 0 ? [] : [p[at]]), { force: true, keys: "$mod+Alt+KeyW", when: dirtyTab });
+closing("tab.closeOthers", "Close other tabs", (p, at) => p.filter((_, i) => i !== at), { when: () => tabPaths().length > 1 });
+closing("tab.closeRight", "Close tabs to the right", (p, at) => (at < 0 ? [] : p.slice(at + 1)));
+closing("tab.closeSaved", "Close saved tabs", () => useTabs.getState().tabs.filter((t) => !isDirty(t)).map((t) => t.path));
+closing("tab.closeAll", "Close all tabs", (p) => p);
+closing("tab.closeAllWithoutSaving", "Close all tabs without saving", (p) => p, { force: true });
 
 registry.command({
   id: "palette.open",

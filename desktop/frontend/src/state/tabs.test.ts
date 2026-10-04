@@ -37,3 +37,26 @@ describe("tabs and line breaks", () => {
     expect(api.Workspace.Save).toHaveBeenCalledWith("b.hurl", "GET x\nHTTP 200\n", "h1");
   });
 });
+
+describe("closing several tabs", () => {
+  const tab = (path: string) => ({ path, text: "", savedText: "", hash: "h", version: 1, conflict: false });
+  const paths = () => useTabs.getState().tabs.map((t) => t.path);
+
+  it("activates the nearest kept tab to the right, else to the left", () => {
+    useTabs.setState({ tabs: ["a", "b", "c", "d"].map(tab), active: "b" });
+    useTabs.getState().closeMany(["b", "c"]);
+    expect(paths()).toEqual(["a", "d"]);
+    expect(useTabs.getState().active).toBe("d");
+    useTabs.getState().closeMany(["d"]);
+    expect(useTabs.getState().active).toBe("a");
+    useTabs.getState().closeMany(["a"]);
+    expect(useTabs.getState().active).toBeNull();
+  });
+
+  it("keeps the active tab when it stays open", () => {
+    useTabs.setState({ tabs: ["a", "b", "c"].map(tab), active: "b" });
+    useTabs.getState().closeMany(["a", "c"]);
+    expect(paths()).toEqual(["b"]);
+    expect(useTabs.getState().active).toBe("b");
+  });
+});

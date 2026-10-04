@@ -27,7 +27,7 @@ const { useTabs } = await import("../../state/tabs");
 const { useUI } = await import("../../state/ui");
 const { useWorkspace } = await import("../../state/workspace");
 const { ResultsHost } = await import("./hosts");
-const { closeTab } = await import("./tabs-bar");
+const { TabsBar, closeTab, closeTabs } = await import("./tabs-bar");
 const { OverridesChip } = await import("./title-bar");
 const checkout = (await import("../../components/run/testdata/checkout.json")).default;
 
@@ -120,6 +120,52 @@ describe("closing a tab", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Close without saving" }));
     await closing;
     expect(useTabs.getState().tabs).toHaveLength(0);
+  });
+});
+
+describe("closing several tabs", () => {
+  const tab = (path: string, dirty = false) => ({ path, text: dirty ? "GET y" : "GET x", savedText: "GET x", hash: "h", version: 1, conflict: false });
+  const paths = () => useTabs.getState().tabs.map((t) => t.path);
+
+  it("asks once for every unsaved one, and closes none when canceled", async () => {
+    render(<AskHost />);
+    useTabs.setState({ tabs: [tab("a.hurl", true), tab("b.hurl"), tab("c.hurl", true)], active: "a.hurl" });
+    let closing = closeTabs(paths());
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("2 files have unsaved changes: a.hurl, c.hurl");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await closing;
+    expect(paths()).toEqual(["a.hurl", "b.hurl", "c.hurl"]);
+    closing = closeTabs(paths());
+    await userEvent.click(await screen.findByRole("button", { name: "Close without saving" }));
+    await closing;
+    expect(paths()).toEqual([]);
+  });
+
+  it("closes unsaved tabs without asking when forced", async () => {
+    useTabs.setState({ tabs: [tab("a.hurl", true), tab("b.hurl")], active: "a.hurl" });
+    await closeTabs(["a.hurl"], true);
+    expect(paths()).toEqual(["b.hurl"]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("offers the closing actions on a tab's menu", async () => {
+    await import("../../app/core");
+    render(<TabsBar />);
+    useTabs.setState({ tabs: [tab("a.hurl"), tab("b.hurl"), tab("c.hurl")], active: "a.hurl" });
+    const b = await screen.findByRole("tab", { name: /b\.hurl/ });
+    await userEvent.pointer({ keys: "[MouseRight]", target: b });
+    const menu = await screen.findByRole("menu");
+    for (const name of ["Close tab", "Close other tabs", "Close tabs to the right", "Close saved tabs", "Close all tabs"]) {
+      expect(within(menu).getByRole("menuitem", { name: new RegExp(`^${name}(?![a-z])`) })).toBeTruthy();
+    }
+    expect(within(menu).getByRole("menuitem", { name: /^Close without saving/ }).getAttribute("aria-disabled")).toBe("true");
+    await userEvent.click(within(menu).getByRole("menuitem", { name: /^Close tabs to the right/ }));
+    expect(paths()).toEqual(["a.hurl", "b.hurl"]);
+    await userEvent.pointer({ keys: "[MouseRight]", target: await screen.findByRole("tab", { name: /b\.hurl/ }) });
+    await userEvent.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: /^Close other tabs/ }));
+    expect(paths()).toEqual(["b.hurl"]);
+    expect(useTabs.getState().active).toBe("b.hurl");
   });
 });
 

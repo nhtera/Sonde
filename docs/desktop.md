@@ -131,6 +131,15 @@ on disk while you have unsaved edits, the tab offers Reload or Keep mine;
 the app does not merge silently. The app's own saves do not trigger that
 prompt.
 
+### Tabs
+
+Right-click a tab for its menu: Run file and Save, then Close tab, Close
+without saving, Close other tabs, Close tabs to the right, Close saved tabs,
+Close all tabs and Close all without saving, then Copy path and Reveal in
+Finder (the window app). A close that would drop unsaved edits asks once,
+naming the files; Cancel keeps every tab open. The "without saving" items
+do not ask. The closing actions are also in the palette (⌘K), under Tabs.
+
 ## Running and Send
 
 | Action | Keys | What it runs |
@@ -490,6 +499,8 @@ lets you rebind them; changes are saved in `settings.json`.
 | ⇧⌘↵ | Run requests up to the cursor |
 | ⌘R | Run file |
 | ⌘S | Save file |
+| ⌘W | Close tab (window app; a browser keeps ⌘W for itself) |
+| ⌥⌘W | Close tab without saving (window app) |
 | ⌥⌘S | Save response to file (window app) |
 | ⌘K | Search files and commands (the palette) |
 | ⌘E | Switch Text / Form |
@@ -503,6 +514,7 @@ lets you rebind them; changes are saved in `settings.json`.
 The app's shortcuts win over the editor's own in the text view. Only
 combinations with ⌘ or Ctrl, or with ⌥, or the F1 to F12 keys, or `?` can
 be bound. ⌘R does not reload the page: the window app's menu has no Reload.
+On macOS, File › Close Window is ⇧⌘W, so ⌘W closes the tab.
 
 ## Limits
 

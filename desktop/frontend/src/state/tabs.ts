@@ -35,6 +35,9 @@ interface TabsState {
   setText(path: string, text: string): void;
   save(path: string): Promise<boolean>;
   close(path: string): void;
+  /** Closes several tabs at once; the active one stays if it is kept,
+   * else the nearest kept tab to its right, else to its left. */
+  closeMany(paths: string[]): void;
   reload(path: string): Promise<void>;
 }
 
@@ -84,6 +87,19 @@ export const useTabs = create<TabsState>((set, get) => ({
     const tabs = get().tabs.filter((t) => t.path !== path);
     const active = get().active === path ? (tabs.at(-1)?.path ?? null) : get().active;
     set({ tabs, active });
+  },
+  closeMany: (paths) => {
+    const gone = new Set(paths);
+    const { tabs, active } = get();
+    const kept = tabs.filter((t) => !gone.has(t.path));
+    let next = active;
+    if (active === null || gone.has(active)) {
+      const at = Math.max(tabs.findIndex((t) => t.path === active), 0);
+      const right = tabs.slice(at + 1).find((t) => !gone.has(t.path));
+      const left = tabs.slice(0, at).reverse().find((t) => !gone.has(t.path));
+      next = (right ?? left)?.path ?? null;
+    }
+    set({ tabs: kept, active: next });
   },
   reload: async (path) => {
     const before = get().tabs.find((t) => t.path === path)?.version;
