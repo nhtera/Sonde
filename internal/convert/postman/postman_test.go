@@ -130,6 +130,31 @@ func TestFolderModeSkipsOnlyTheBadEntry(t *testing.T) {
 	}
 }
 
+// TestSlashInANameIsNoFolder checks that a slash in a folder or request
+// name stays in its file's name, in both layouts.
+func TestSlashInANameIsNoFolder(t *testing.T) {
+	col := `{"info":{"name":"a/b"},"item":[
+		{"name":"Fields / v2","item":[{"name":"Enable / disable field","request":{"method":"PATCH","url":"{{base_url}}/f"}}]},
+		{"name":"top","request":{"method":"GET","url":"{{base_url}}/t"}}
+	]}`
+	for group, want := range map[string][]string{
+		GroupRequest: {"Fields   v2/Enable   disable field", "top"},
+		GroupFolder:  {"Fields   v2", "a b"},
+	} {
+		out, err := Import([]byte(col), Options{Group: group, Dialect: syntax.DialectHurl})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, f := range out.Files {
+			got = append(got, f.Path)
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("%s: paths %q, want %q", group, got, want)
+		}
+	}
+}
+
 // TestVariableNameCollisionWarns checks that two different collection
 // variable names sanitizing to the same Sonde name (VariableName) produce a
 // warning naming both, rather than one silently overwriting the other with
