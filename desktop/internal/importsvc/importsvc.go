@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path"
 	"path/filepath"
 	"slices"
@@ -162,8 +163,9 @@ type plan struct {
 	rel      string // its project path ("" the project folder)
 	out      convert.Output
 	res      *convert.Result
-	files    []convert.PlannedFile
-	exists   map[string]bool
+	files    []convert.PlannedFile // by project path
+	exists   map[string]bool       // by project path
+	home     bool                  // sonde.yaml goes to the project folder
 	cands    []candidate
 	lifted   map[string]string
 	password bool     // a password was lifted
@@ -180,7 +182,7 @@ func (s *Service) Preview(ctx context.Context, req Request) (*Preview, error) {
 	}
 	pv := &Preview{Files: []File{}, Warnings: []Warning{}, Skipped: []Warning{}, Counts: p.counts(), Candidates: []Candidate{}}
 	for _, f := range p.files {
-		pv.Files = append(pv.Files, File{Path: p.project(f.Path), Text: string(f.Data), Exists: p.exists[f.Path], Secret: f.Perm == 0o600})
+		pv.Files = append(pv.Files, File{Path: f.Path, Text: string(f.Data), Exists: p.exists[f.Path], Secret: f.Perm == 0o600})
 	}
 	for _, w := range p.out.Warnings {
 		// "a password in plain text": not once the password is lifted.
@@ -198,7 +200,7 @@ func (s *Service) Preview(ctx context.Context, req Request) (*Preview, error) {
 	switch envs := p.environments(); {
 	case p.res.Project != "":
 		pv.Project = "created"
-		if p.rel != "" && len(envs) > 0 {
+		if p.rel != "" && !p.home && len(envs) > 0 {
 			pv.Warnings = append(pv.Warnings, Warning{Kind: "environments", Message: fmt.Sprintf("The environments (%s) go to %s/sonde.yaml: the app uses the project's own sonde.yaml, so add them there to run with them here", strings.Join(envs, ", "), p.rel)})
 		}
 	case p.res.ProjectSkipped:
@@ -247,7 +249,7 @@ func requestFiles(p *plan) []string {
 	files := []string{}
 	for _, f := range p.files {
 		if ext := path.Ext(f.Path); ext == ".hurl" || ext == ".sonde" {
-			files = append(files, p.project(f.Path))
+			files = append(files, f.Path)
 		}
 	}
 	return files
@@ -274,7 +276,7 @@ func (s *Service) Write(ctx context.Context, req Request, overwrite []string) (*
 		w.Wrote = p.wrote()
 	}
 	keep := func(f convert.PlannedFile) bool {
-		return p.exists[f.Path] && !slices.Contains(overwrite, p.project(f.Path))
+		return p.exists[f.Path] && !slices.Contains(overwrite, f.Path)
 	}
 	// The lifted values go only with the file that names them (a curl
 	// import has one).
@@ -288,7 +290,7 @@ func (s *Service) Write(ctx context.Context, req Request, overwrite []string) (*
 		slices.Sort(w.Secrets)
 	}
 	for _, f := range p.files {
-		rel := p.project(f.Path)
+		rel := f.Path
 		if keep(f) {
 			w.Kept = append(w.Kept, rel)
 			continue
@@ -415,21 +417,64 @@ func (s *Service) plan(ctx context.Context, req Request) (*plan, error) {
 			return nil, err
 		}
 	}
-	_, _, err := convert.Plan(dir, p.out, opts)
+	// The app reads the project's own sonde.yaml only: a project without
+	// one gets the environments (and their secrets stubs) there, not in
+	// the folder imported into. The command finds it there too.
+	reqs, home := p.out, convert.Output{}
+	if rel != "" && p.out.ProjectYAML != nil && !hasProject(root) {
+		home = convert.Output{Extra: p.out.Extra, ProjectYAML: p.out.ProjectYAML}
+		reqs.Extra, reqs.ProjectYAML = nil, nil
+		p.home = true
+	}
+	var err error
+	if p.res, err = p.add(dir, rel, reqs, opts); err != nil {
+		return nil, err
+	}
+	if p.home {
+		res, err := p.add(root.Dir(), "", home, opts)
+		if err != nil {
+			return nil, err
+		}
+		p.res.Project, p.res.ProjectSkipped = res.Project, res.ProjectSkipped
+		p.res.Extra, p.res.ExtraKept = res.Extra, res.ExtraKept
+	}
+	return p, nil
+}
+
+// add plans out in dir, the project folder rel: its files, by project
+// path, and which of them exist.
+func (p *plan) add(dir, rel string, out convert.Output, opts convert.Options) (*convert.Result, error) {
+	_, _, err := convert.Plan(dir, out, opts)
 	var conflicts *convert.ErrConflicts
 	switch {
 	case errors.As(err, &conflicts):
 		for _, f := range conflicts.Files {
-			p.exists[f] = true
+			p.exists[path.Join(rel, f)] = true
 		}
 	case err != nil:
 		return nil, apperr.Wrap(apperr.Invalid, err)
 	}
 	opts.Force = true
-	if p.res, p.files, err = convert.Plan(dir, p.out, opts); err != nil {
+	res, files, err := convert.Plan(dir, out, opts)
+	if err != nil {
 		return nil, apperr.Wrap(apperr.Invalid, err)
 	}
-	return p, nil
+	for _, f := range files {
+		f.Path = path.Join(rel, f.Path)
+		p.files = append(p.files, f)
+	}
+	return res, nil
+}
+
+// hasProject reports whether the project has a sonde.yaml (or one it
+// can not tell is missing).
+func hasProject(root *sandbox.Root) bool {
+	for _, name := range []string{"sonde.yaml", "sonde.yml"} {
+		if _, err := root.Stat(name); !errors.Is(err, fs.ErrNotExist) {
+			return true
+		}
+	}
+	return false
 }
 
 // convert runs req's converter with the command's options.
@@ -620,14 +665,6 @@ func captureNames(name, text string) []string {
 		}
 	}
 	return out
-}
-
-// project returns the project path of rel, a path in the import folder.
-func (p *plan) project(rel string) string {
-	if p.rel == "" {
-		return rel
-	}
-	return p.rel + "/" + rel
 }
 
 func or(s, def string) string {

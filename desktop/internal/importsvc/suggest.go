@@ -84,11 +84,11 @@ func (s *Service) suggestions(ctx context.Context, req Request) ([]Suggestion, [
 		if !ok {
 			// Only a file as this import wrote it: not one the user kept,
 			// edited, or already applied suggestions to.
-			src, err := p.root.ReadFile(p.project(rel))
+			src, err := p.root.ReadFile(rel)
 			if err != nil || string(src) != string(p.files[fs.File].Data) {
 				continue
 			}
-			out = append(out, Suggestion{Path: p.project(rel), Before: string(src), After: string(src), Changes: []Change{}})
+			out = append(out, Suggestion{Path: rel, Before: string(src), After: string(src), Changes: []Change{}})
 			files = append(files, fileSuggestions{rel: rel})
 			i = len(out) - 1
 			index[rel] = i

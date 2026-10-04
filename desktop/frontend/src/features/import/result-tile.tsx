@@ -101,7 +101,7 @@ export function ImportResult() {
   const tiles: [number, string][] = [
     [c.requests, `request${c.requests === 1 ? "" : "s"} → ${c.files} file${c.files === 1 ? "" : "s"}`],
     [c.environments, `environment${c.environments === 1 ? "" : "s"}`],
-    [c.statusChecks, `status checks → HTTP lines · ${c.pathVariables} path variable${c.pathVariables === 1 ? "" : "s"} → {{name}}`],
+    [c.statusChecks, `status checks → HTTP lines${c.pathVariables ? ` · ${c.pathVariables} path variable${c.pathVariables === 1 ? "" : "s"} → {{name}}` : ""}`],
     [c.secretStubs, "secret stubs to fill in"],
   ];
   const name = preview?.name;

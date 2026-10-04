@@ -127,7 +127,9 @@ func tree(t *testing.T, dir string) map[string]string {
 }
 
 // TestSameFilesAsTheCommand: for each kind, the files written are those
-// `sonde import` writes for the same input and options, byte for byte.
+// `sonde import` writes for the same input and options, byte for byte:
+// the request files in the folder, sonde.yaml and its secrets stubs in
+// the project folder (which has none yet).
 func TestSameFilesAsTheCommand(t *testing.T) {
 	bin := cli(t)
 	conv := filepath.Join(repo, "testdata", "convert")
@@ -173,7 +175,10 @@ func TestSameFilesAsTheCommand(t *testing.T) {
 			if _, err := s.Write(context.Background(), req, nil); err != nil {
 				t.Fatal(err)
 			}
-			got, exp := tree(t, filepath.Join(dir, c.folder)), tree(t, want)
+			got, exp := map[string]string{}, tree(t, want)
+			for p, v := range tree(t, dir) {
+				got[strings.TrimPrefix(p, c.folder+"/")] = v
+			}
 			if len(got) != len(exp) || len(got) == 0 {
 				t.Fatalf("files %d, the command's %d", len(got), len(exp))
 			}
@@ -598,6 +603,50 @@ func TestSondeYAMLKept(t *testing.T) {
 	}
 	if string(mustRead(t, filepath.Join(dir, "sonde.yaml"))) != mine {
 		t.Error("sonde.yaml replaced")
+	}
+}
+
+// TestEnvironmentsToTheProject: imported into a folder, the environments
+// go to the project's sonde.yaml (the one the app reads) when it has
+// none, with their secrets stubs; else to the folder's, with a note.
+func TestEnvironmentsToTheProject(t *testing.T) {
+	s, dir, h, _ := service(t)
+	req := Request{Kind: Postman, Input: stage(t, s, h, filepath.Join(testdata, "import", "shop.postman_collection.json"), false),
+		Environments: []string{stage(t, s, h, filepath.Join(testdata, "import", "dev.postman_environment.json"), false)}, Folder: "imported"}
+	paths := func(pv *Preview) (out []string, note bool) {
+		for _, f := range pv.Files {
+			if !strings.HasSuffix(f.Path, ".hurl") {
+				out = append(out, f.Path)
+			}
+		}
+		for _, w := range pv.Warnings {
+			note = note || w.Kind == "environments"
+		}
+		return out, note
+	}
+	pv, err := s.Preview(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, note := paths(pv); strings.Join(got, ",") != "secrets/dev.secrets,sonde.yaml" || note || pv.Project != "created" {
+		t.Errorf("files %q, note %v, project %q", got, note, pv.Project)
+	}
+	if _, err := s.Write(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mustRead(t, filepath.Join(dir, "sonde.yaml"))), "secrets/dev.secrets") {
+		t.Error("the project's sonde.yaml names no secrets stub")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "secrets", "dev.secrets")); err != nil {
+		t.Error(err)
+	}
+	// The project has a sonde.yaml now: a second folder gets its own.
+	req.Folder = "again"
+	if pv, err = s.Preview(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if got, note := paths(pv); strings.Join(got, ",") != "again/secrets/dev.secrets,again/sonde.yaml" || !note {
+		t.Errorf("files %q, note %v", got, note)
 	}
 }
 

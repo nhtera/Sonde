@@ -28,7 +28,22 @@ export const useEnv = create<EnvState>((set, get) => ({
   select: (current) => set({ current }),
 }));
 
+/** Whether a change to paths (project paths) changes the environments:
+ * sonde.yaml, or a file its environments read. */
+export function touchesEnvs(project: EnvProject | null, paths: string[]): boolean {
+  const files = new Set(["sonde.yaml", "sonde.yml"]);
+  for (const e of project?.envs ?? []) {
+    if (e.secretsFile) files.add(e.secretsFile);
+    for (const v of e.variables ?? []) files.add(v.source);
+  }
+  return paths.some((p) => files.has(p));
+}
+
 on("env:changed", () => void useEnv.getState().load());
+// Written outside the app, or by an import.
+on("ws:changed", (data) => {
+  if (touchesEnvs(useEnv.getState().project, (data as { paths: string[] }).paths)) void useEnv.getState().load();
+});
 // Settings that change a run count as overrides.
 on("settings:changed", () => void useEnv.getState().load());
 on("ws:opened", () => {
