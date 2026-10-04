@@ -203,6 +203,31 @@ jobs:
           node scripts/perf.mjs --no-native >> "$GITHUB_STEP_SUMMARY"
         working-directory: desktop
 
+  desktop-update:
+    # The updater's tests (internal/update: the release feed, the signed
+    # manifest, instance locks, the state machine) on macOS and Windows,
+    # for every run, unlabelled: Linux runs them in the desktop job.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-2022]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: desktop/go.sum
+      - run: go test -tags server ./internal/update/... ./cmd/update-manifest/...
+        working-directory: desktop
+
   desktop-macos:
     # The native window build needs cgo and the platform webview, so it runs
     # on macOS, for pull requests labelled "desktop".

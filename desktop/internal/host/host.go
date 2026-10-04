@@ -26,6 +26,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/perftrace"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/desktop/internal/settings"
+	"github.com/nhtera/sonde/desktop/internal/update"
 	"github.com/nhtera/sonde/desktop/internal/workspace"
 	"github.com/nhtera/sonde/desktop/internal/wsession"
 	"github.com/nhtera/sonde/engine"
@@ -72,6 +73,9 @@ type Host struct {
 	Perf *perftrace.Trace
 	// Guard holds the window's close and quit back over unsaved edits.
 	Guard *closeguard.Guard
+	// Update keeps the window app up to date (ModeDesktop only); the
+	// window app attaches the Wails updater to it.
+	Update *update.Manager
 }
 
 // Setup builds the parts services share, once Emit is set, and opens Root
@@ -82,6 +86,9 @@ func (h *Host) Setup() error {
 	h.Workspace = workspace.New(h.Emit)
 	h.Bodies = bodies.New(h.Dirs.Cache())
 	h.Settings = settings.Open(h.Dirs.Config(), h.Emit, h.Handles)
+	if h.Mode == ModeDesktop {
+		h.Update = update.New(h.Version, h.Settings, h.Emit, h.Guard)
+	}
 	h.Jars = jar.New(h.Dirs.Config(), h.Workspace.Root, func() bool { return h.Settings.Get().Cookies.Keep })
 	h.History = history.New(h.Dirs.Config(), h.Workspace.Root, h.historyPolicy, h.Emit.Emit)
 	env := config.FromOSEnviron()

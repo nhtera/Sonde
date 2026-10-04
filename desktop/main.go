@@ -17,14 +17,23 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+	"github.com/wailsapp/wails/v3/pkg/updater"
 
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/host"
 	"github.com/nhtera/sonde/desktop/internal/perftrace"
 	"github.com/nhtera/sonde/desktop/internal/settings"
+	"github.com/nhtera/sonde/desktop/internal/update"
 )
 
+// engine is the CLI engine the app is built on, "v1.3.1+a7404ac" (set at
+// build time with -X main.engine, from scripts/engine.mjs).
+var engine = "dev"
+
 func main() {
+	// First: started by an update to swap the app's files, this process is
+	// the updater's helper and exits here, before any of Sonde's startup.
+	updater.HandleHelperMode()
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "sonde-desktop:", err)
 		os.Exit(1)
@@ -38,6 +47,9 @@ func run() error {
 	trace := fs.String("perf-trace", "", "measure the performance budgets, write them to this JSON file, then quit")
 	tour := fs.String("perf-tour", "{}", "the measures' parameters (JSON, from scripts/perf.mjs)")
 	data := fs.String("data", "", "app data folder (default: Sonde in the user config and cache folders)")
+	// Hidden, for testing releases (docs/desktop.md › window flags).
+	channel := fs.String("update-channel", "", "save the update channel: stable or prerelease")
+	updateAPI := fs.String("update-api", "", "a test release server for this run (https, or http on loopback)")
 	// macOS may pass -psn_… to an app opened from the Finder.
 	var args []string
 	for _, a := range os.Args[1:] {
@@ -53,6 +65,18 @@ func run() error {
 		return err
 	}
 	defer dirs.Close()
+	// Restart refuses while another Sonde window runs this copy: the
+	// locks live in the user's own app data, whatever --data says.
+	others := func() int { return 0 }
+	if inst, err := update.LockInstance(); err != nil {
+		fmt.Fprintln(os.Stderr, "sonde-desktop: instance lock:", err)
+	} else {
+		defer inst.Close()
+		others = inst.Others
+	}
+	if *channel != "" && *channel != settings.ChannelStable && *channel != settings.ChannelPrerelease {
+		return fmt.Errorf("--update-channel %q: stable or prerelease", *channel)
+	}
 	if *root != "" {
 		if *root, err = projectRoot(*root); err != nil {
 			return err
@@ -65,12 +89,30 @@ func run() error {
 	if err := h.Setup(); err != nil {
 		return err
 	}
+	if *channel != "" {
+		// Saved, so the app relaunched by an update keeps it.
+		if err := h.Settings.SetUpdateState(func(u *settings.Updates) { u.Channel = *channel }); err != nil {
+			return err
+		}
+	}
 	appOpts := appOptions(h)
 	// ⌘Q and the menu's Quit wait for the page while edits are unsaved.
 	appOpts.ShouldQuit = func() bool { return !h.Guard.Hold() }
 	app = application.New(appOpts)
 	h.Guard.Quit = app.Quit
-	app.Menu.SetApplicationMenu(appMenu())
+	if err := h.Update.Attach(update.AttachOptions{
+		Updater: app.Updater, Engine: engine, API: *updateAPI,
+		OpenURL: app.Browser.OpenURL, Others: others,
+	}); err != nil {
+		return err
+	}
+	defer h.Update.Stop()
+	// A measured run (--perf-trace) checks nothing: its timings stay its own.
+	if *trace == "" {
+		app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) { h.Update.Start() })
+	}
+	app.Event.OnApplicationEvent(events.Common.SystemDidWake, func(*application.ApplicationEvent) { h.Update.Wake() })
+	app.Menu.SetApplicationMenu(appMenu(func() { go h.Update.Check(true) }))
 	opts := application.WebviewWindowOptions{
 		Title:     "Sonde",
 		Width:     1280,

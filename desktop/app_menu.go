@@ -22,9 +22,26 @@ const helpURL = "https://github.com/nhtera/Sonde/blob/main/docs/desktop.md"
 // closes the tab (rebindable there, like every app shortcut). Edit ›
 // Undo and Redo ask the page (editMenu). Help is Sonde's own: the stock
 // one loads its page into the app's window, dropping unsaved edits.
-func appMenu() *application.Menu {
+// "Check for Updates…" runs checkUpdates, in Help and, on macOS, in the
+// app menu.
+func appMenu(checkUpdates func()) *application.Menu {
 	m := application.NewMenu()
-	m.AddRole(application.AppMenu)
+	if runtime.GOOS == "darwin" {
+		// The stock app menu's roles, with the update item after About.
+		app := m.AddSubmenu("Sonde")
+		app.AddRole(application.About)
+		app.Add("Check for Updates…").OnClick(func(*application.Context) { checkUpdates() })
+		app.AddSeparator()
+		app.AddRole(application.ServicesMenu)
+		app.AddSeparator()
+		app.AddRole(application.Hide)
+		app.AddRole(application.HideOthers)
+		app.AddRole(application.UnHide)
+		app.AddSeparator()
+		app.AddRole(application.Quit)
+	} else {
+		m.AddRole(application.AppMenu)
+	}
 	if runtime.GOOS == "darwin" {
 		m.AddSubmenu("File").Add("Close Window").SetAccelerator("CmdOrCtrl+Shift+W").OnClick(func(*application.Context) {
 			if w := application.Get().Window.Current(); w != nil {
@@ -42,9 +59,11 @@ func appMenu() *application.Menu {
 	view.AddSeparator()
 	view.AddRole(application.ToggleFullscreen)
 	m.AddRole(application.WindowMenu)
-	m.AddSubmenu("Help").Add("Sonde Desktop Help").OnClick(func(*application.Context) {
+	help := m.AddSubmenu("Help")
+	help.Add("Sonde Desktop Help").OnClick(func(*application.Context) {
 		_ = application.Get().Browser.OpenURL(helpURL)
 	})
+	help.Add("Check for Updates…").OnClick(func(*application.Context) { checkUpdates() })
 	return m
 }
 
