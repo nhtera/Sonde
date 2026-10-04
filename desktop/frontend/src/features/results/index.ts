@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The Results panel: registered as the results host's view, with Save
-// response (⌥⌘S).
+// response (⌥⌘S) and, in the window, Open response in default app.
 
 import { registry } from "../../app/registry";
 import { on } from "../../lib/events";
 import { resetMockSpec } from "./actions";
-import { saveBody } from "./body-actions";
+import { openExternally, saveBody } from "./body-actions";
+import { windowLook } from "../../lib/mode";
 import { ResultsPanel } from "./results-panel";
 import { useTabs } from "../../state/tabs";
 import { useResults } from "./state";
@@ -22,6 +23,16 @@ registry.command({
   run: () => {
     const b = useResults.getState().activeBody;
     if (b) void saveBody(b);
+  },
+});
+
+registry.command({
+  id: "response.openExternally",
+  title: "Open response in default app",
+  when: () => windowLook && !!useResults.getState().activeBody,
+  run: () => {
+    const b = useResults.getState().activeBody;
+    if (b?.id) void openExternally(b.id);
   },
 });
 

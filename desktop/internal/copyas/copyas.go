@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/credential"
 	"github.com/nhtera/sonde/desktop/internal/runsvc"
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/enginex"
@@ -76,6 +77,7 @@ func (c *Copier) Curl(ctx context.Context, req Request, reveal bool) (*Text, err
 		return nil, err
 	}
 	opts.FromEntry, opts.ToEntry = req.Entry, req.Entry
+	secretOptions(&opts)
 	runner := engine.NewRunner(opts)
 	if reveal {
 		enginex.RevealCurl(runner)
@@ -128,6 +130,7 @@ func (c *Copier) Sonde(req Request, reveal bool) (*Text, error) {
 	if c.Command != nil {
 		held = c.Command(&inv)
 	}
+	secretVariables(&inv)
 	if req.Kind == "send" {
 		inv.ToEntry = req.Entry
 		inv.Set["to-entry"] = true
@@ -154,6 +157,46 @@ func (c *Copier) Sonde(req Request, reveal bool) (*Text, error) {
 		note += " " + where
 	}
 	return &Text{Text: text, Note: note}, nil
+}
+
+// secretOptions makes a variable whose name or value looks like a
+// credential a secret of the run, so that curl shows it redacted unless
+// revealed, as secretVariables does for the sonde command.
+func secretOptions(opts *engine.Options) {
+	for name, v := range opts.Variables {
+		val, ok := v.(string)
+		if !ok || !credential.Likely(name, val) {
+			continue
+		}
+		if opts.Secrets == nil {
+			opts.Secrets = map[string]string{}
+		}
+		opts.Secrets[name] = val
+		delete(opts.Variables, name)
+	}
+}
+
+// secretVariables makes a --variable whose name or value looks like a
+// credential (a session value such as api_token) a --secret: it sets the
+// same variable, and the command shows it as a reference unless revealed.
+func secretVariables(inv *runplan.Invocation) {
+	vars := inv.Variables[:0]
+	for _, v := range inv.Variables {
+		name, val, _ := strings.Cut(v, "=")
+		if credential.Likely(name, val) {
+			inv.Secrets = append(inv.Secrets, v)
+			continue
+		}
+		vars = append(vars, v)
+	}
+	inv.Variables = vars
+	if inv.Set == nil {
+		inv.Set = map[string]bool{}
+	}
+	inv.Set["variable"] = len(vars) > 0
+	if len(inv.Secrets) > 0 {
+		inv.Set["secret"] = true
+	}
 }
 
 func dialectOf(shell string) (runflags.Dialect, error) {

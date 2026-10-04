@@ -388,7 +388,8 @@ tree for JSON, a sandboxed preview for HTML and images).
   as raw text); over 50 MB they can only be saved or opened elsewhere. The
   asserts and captures always run on the full body.
 - **Save response to file** (⌥⌘S) writes the body as received, unredacted:
-  it is your data, to a file you pick. **Open in default app** writes the
+  it is your data, to a file you pick. **Open in default app** (the
+  palette's "Open response in default app", or a blank PDF preview's link) writes the
   redacted body to a private temp file with an allowlisted extension
   (`.pdf`, `.png`, `.jpg`, `.gif`, `.txt`, `.json`, `.xml`; anything else,
   HTML included, `.txt`), marks it as downloaded (quarantine on macOS, Mark

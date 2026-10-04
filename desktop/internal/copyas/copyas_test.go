@@ -176,3 +176,52 @@ func TestSondeClockEmptySend(t *testing.T) {
 		t.Errorf("normal send note should appear: %q", send.Note)
 	}
 }
+
+// TestSondeSessionCredential: a variable that looks like a credential (a
+// session value named api_token) is a --secret in the command: a
+// reference unless revealed.
+func TestSondeSessionCredential(t *testing.T) {
+	c := copier()
+	c.Command = func(inv *runplan.Invocation) []string {
+		inv.Variables = append(inv.Variables, "api_token="+token)
+		return nil
+	}
+	run, err := c.Sonde(Request{File: "a.hurl"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(run.Text, token) || !strings.Contains(run.Text, "--secret api_token=") || !strings.Contains(run.Text, "--variable user_id=7") {
+		t.Errorf("hidden: %s", run.Text)
+	}
+	shown, err := c.Sonde(Request{File: "a.hurl"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(shown.Text, "--secret api_token="+token) {
+		t.Errorf("revealed: %s", shown.Text)
+	}
+}
+
+// TestCurlSessionCredential: curl shows a credential-looking variable
+// redacted, unless revealed.
+func TestCurlSessionCredential(t *testing.T) {
+	c := New(credPlanner{}, func() string { return "/p" })
+	src := "GET https://api.example/me\nX-Api-Key: {{api_token}}\nHTTP 200\n"
+	hidden, err := c.Curl(context.Background(), Request{File: "a.hurl", Source: src}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(hidden.Text, token) {
+		t.Errorf("hidden: %s", hidden.Text)
+	}
+	shown, err := c.Curl(context.Background(), Request{File: "a.hurl", Source: src}, true)
+	if err != nil || !strings.Contains(shown.Text, token) {
+		t.Errorf("revealed: %v %+v", err, shown)
+	}
+}
+
+type credPlanner struct{ planner }
+
+func (credPlanner) Planned(context.Context, string, string, string, bool) (engine.Options, error) {
+	return engine.Options{Variables: map[string]any{"api_token": token}}, nil
+}
