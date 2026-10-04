@@ -5,10 +5,12 @@
 // (grouped by kind). A Postman import offers its suggestions next.
 
 import * as Dialog from "@radix-ui/react-dialog";
+import { useEnv } from "../../state/env";
 import { useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
 import { label } from "../../app/keymap/keymap-manager";
-import type { ImportWrote as Wrote } from "../../lib/api";
+import type { EnvProject, ImportWrote as Wrote, Overrides } from "../../lib/api";
+import { defineVariable } from "../panels/env/define-variable";
 import { useImport } from "./state";
 
 const notes: Record<string, string> = {
@@ -30,6 +32,16 @@ export function grouped(warnings: { kind: string; message: string }[]): [string,
     m.set(w.kind, g ? [g[0] + 1, g[1]] : [1, w.message]);
   }
   return [...m].map(([k, [n, first]]) => [k, n, first]);
+}
+
+/** The variables the import's requests use that neither the environment
+ * env nor a session override sets. */
+export function toDefine(used: { name: string; files: number }[], project: EnvProject | null, env: string, overrides: Overrides) {
+  const known = new Set([
+    ...(project?.envs?.find((e) => e.name === env)?.variables ?? []).map((v) => v.name),
+    ...(overrides.items ?? []).filter((o) => o.source === "session").map((o) => o.name),
+  ]);
+  return used.filter((v) => !known.has(v.name));
 }
 
 /** What a kind is called in a title. */
@@ -86,6 +98,10 @@ export function ImportResult() {
   const files = written.files ?? [];
   const kept = written.kept ?? [];
   const secrets = written.secrets ?? [];
+  const project = useEnv((s) => s.project);
+  const env = useEnv((s) => s.current);
+  const overrides = useEnv((s) => s.overrides);
+  const undefinedVars = toDefine(written.variables ?? [], project, env, overrides);
   const open = () => {
     const first = files.find((f) => /\.(hurl|sonde)$/.test(f));
     if (first) void useTabs.getState().open(first);
@@ -137,6 +153,36 @@ export function ImportResult() {
         ))}
       </div>
       <div className="warn-cards">
+        {undefinedVars.length > 0 && (
+          <section className="warn-card define-card" aria-label="Variables to define">
+            <span className="warn-icon" aria-hidden>
+              ⚠
+            </span>
+            <span className="warn-text">
+              <b>
+                {undefinedVars.length} variable{undefinedVars.length === 1 ? "" : "s"} to define
+              </b>
+              <span className="muted small">
+                The requests use {undefinedVars.length === 1 ? "it" : "them"}, and nothing sets {undefinedVars.length === 1 ? "it" : "them"}
+                {env ? ` in ${env}` : ""}
+                {req.kind === "postman" ? ": in Postman, likely from an environment. Define here, or import again with its environment file." : "."}
+              </span>
+              <ul className="define-list">
+                {undefinedVars.map((v) => (
+                  <li key={v.name}>
+                    <code className="mono">{`{{${v.name}}}`}</code>
+                    <span className="muted small">
+                      {v.files} file{v.files === 1 ? "" : "s"}
+                    </span>
+                    <button className="btn" onClick={() => defineVariable(v.name)}>
+                      Define…
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </span>
+          </section>
+        )}
         {c.scripts > 0 && (
           <WarnCard
             title={`${c.scripts} script${c.scripts === 1 ? "" : "s"} kept as # comments`}

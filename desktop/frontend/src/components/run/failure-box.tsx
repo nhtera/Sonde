@@ -7,12 +7,15 @@ export interface FailureBoxProps {
   failure: Failure;
   onGoto?(line: number): void;
   onShowResponse?(): void;
+  /** Defines an undefined variable. */
+  onDefine?(name: string): void;
   /** The keys of Go to line ("⌘G"), shown on its button. */
   gotoKeys?: string;
 }
 
 /** A failed check explained: the line, expected and actual values. */
-export function FailureBox({ failure: f, onGoto, onShowResponse, gotoKeys }: FailureBoxProps) {
+export function FailureBox({ failure: f, onGoto, onShowResponse, onDefine, gotoKeys }: FailureBoxProps) {
+  const define = f.variable && onDefine;
   return (
     <section className="failure-box" role="alert">
       <div className="failure-title">
@@ -38,8 +41,13 @@ export function FailureBox({ failure: f, onGoto, onShowResponse, gotoKeys }: Fai
       ) : (
         <p className="failure-message">{f.message}</p>
       )}
-      {(onGoto || onShowResponse) && (
+      {(onGoto || onShowResponse || define) && (
         <div className="failure-actions">
+          {define && (
+            <button className="btn primary" onClick={() => define(f.variable!)}>
+              Define {f.variable}…
+            </button>
+          )}
           {onGoto && (
             <button className="btn" onClick={() => onGoto(f.line)}>
               Go to line {f.line} {gotoKeys && <kbd>{gotoKeys}</kbd>}

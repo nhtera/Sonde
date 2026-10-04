@@ -12,6 +12,7 @@ import { useUI } from "../../state/ui";
 import { AgentsPanel } from "./agents/agents-panel";
 import { ContractPanel } from "./contract/contract-panel";
 import { CookieJarDialog, useCookieJar } from "./cookies/cookie-jar";
+import { DefineVariableDialog } from "./env/define-variable";
 import { EnvMain, EnvSide } from "./env/env-panel";
 import { ChangesCard } from "./git/changes-card";
 import { HistoryPanel } from "./history/history-panel";
@@ -30,6 +31,7 @@ registry.panel({ id: "settings", title: "Settings", icon: SettingsIcon, order: 9
 
 registry.slot("files.bottom", { id: "git.changes", order: 0, render: ChangesCard });
 registry.slot("app.overlays", { id: "cookies.jar", order: 0, render: CookieJarDialog });
+registry.slot("app.overlays", { id: "env.define", order: 2, render: DefineVariableDialog });
 
 registry.command({ id: "env.open", title: "Open the environments", group: "Panels", run: () => useUI.getState().setPanel("env") });
 registry.command({ id: "testrun.open", title: "Open the test run", group: "Panels", run: () => useUI.getState().setPanel("testrun") });

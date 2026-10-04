@@ -189,6 +189,8 @@ export const useImport = create<ImportState>((set, get) => ({
     try {
       const written = await Imports.Write(req, overwrite);
       const suggestions = req.kind === "postman" ? ((await Imports.Suggestions(req)) ?? []) : [];
+      // The environments the import wrote, to tell what is left to define.
+      await useEnv.getState().load();
       set({ written, suggestions, step: "result" });
       await useWorkspace.getState().refresh();
     } catch (err) {

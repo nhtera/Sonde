@@ -206,6 +206,14 @@ created and added to `secrets_files` if it has none). Edits go to the file that 
 every environment, and a journal in the app's config folder rolls back an
 unfinished edit at the next start.
 
+**Define a variable** a request uses and nothing sets: from a run's
+"Undefined variable" (**Define name…**), the editor's hover on the
+variable, or an import's result. Enter its value and where it goes: a
+**secret** of the environment (its secrets file, never `sonde.yaml`; the
+default for a name like a cookie, token, key or password), a **variable**
+of the environment (`sonde.yaml`), or **this session only** (a session
+override). The toast offers **Run again**.
+
 A **session override** sets a variable for one session (a `--variable`):
 it is gone when you open another folder or quit. A value overridden under a
 secret's name is shown as `***` after you enter it.
@@ -280,11 +288,11 @@ files first. Files that already exist are overwritten only if you tick
 them.
 
 - **Where it writes.** Collections default to a folder named `imported`.
-  Because that folder gets its own `sonde.yaml` (as `sonde import -o imported`
-  does), the result says that the app uses the project's own `sonde.yaml`
-  and where the environments went. Into the project folder itself, an
-  existing `sonde.yaml` is never replaced and the result says the
-  environments were not added. A curl command goes to the project folder, or
+  In a project without a `sonde.yaml`, the environments (and their secrets
+  stubs) go to the project's `sonde.yaml`, the one the app reads; the
+  command finds it there too. In a project with one, it is never replaced:
+  the folder gets its own `sonde.yaml` (as `sonde import -o imported` does)
+  and the result says so. A curl command goes to the project folder, or
   is inserted into the open file.
 - **curl secret lifting.** A credential typed into a pasted command (an
   `Authorization` header, the password of `-u`, an API key header or query
@@ -300,6 +308,10 @@ them.
   reject or undo; Apply writes only the accepted ones, and the result is
   parsed before it is written. Suggestions are optional and apply only to
   files as the import wrote them.
+- **Variables to define.** The result lists the `{{variables}}` the
+  requests use that the environment does not set and no request captures,
+  such as a cookie a Postman collection takes from a Postman environment.
+  **Define…** sets one (below); the list shrinks as you do.
 
 Imports take up to 64 MiB per input.
 

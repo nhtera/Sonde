@@ -11,7 +11,7 @@ import { history, undo } from "@codemirror/commands";
 import { bracketMatching, foldGutter, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches } from "@codemirror/search";
 import { EditorState, EditorSelection } from "@codemirror/state";
-import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
+import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, tooltips } from "@codemirror/view";
 import { sondeLanguage, yamlLanguage } from "../../lang";
 import { isRequestPath } from "../../lib/files";
 import { registerEditTarget } from "../../state/edits";
@@ -129,6 +129,9 @@ function extensions(path: string) {
     // Completion: the app's variables inside {{…}}, the server's elsewhere.
     sondeCompletion(path),
     sondeHover(path),
+    // A tooltip fits the editor's box, which clips it: one with no room
+    // above its line (near the top) shows below it.
+    tooltips({ tooltipSpace: (view) => (view.dom.closest(".editor-host") ?? view.dom).getBoundingClientRect() }),
     lspSync,
     EditorView.contentAttributes.of({ "aria-label": `${path} text` }),
     // A curl command pasted into an empty file goes through the import,

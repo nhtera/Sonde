@@ -81,6 +81,8 @@ export interface Failure {
   expected?: string;
   actual?: string;
   message: string;
+  /** For an undefined variable: its name, to define. */
+  variable?: string;
 }
 
 const value = (m: string, key: string) => {
@@ -109,6 +111,7 @@ export function failureOf(entry: Entry, lines?: string[]): Failure | null {
     code: lines?.[err.line - 1]?.trim(),
     message: err.message,
   };
+  f.variable = /you must set the variable (\S+)/.exec(err.message)?.[1];
   f.expected = value(err.message, "expected");
   f.actual = value(err.message, "actual");
   // A status check: the status the HTTP line expects, the one received.

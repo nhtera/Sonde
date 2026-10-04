@@ -9,10 +9,11 @@
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
 import { LSPPlugin } from "@codemirror/lsp-client";
-import { EditorView, hoverTooltip, type Tooltip } from "@codemirror/view";
+import { closeHoverTooltips, EditorView, hoverTooltip, type Tooltip } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { useEnv } from "../../../state/env";
-import { describeVariable, type VariableInfo } from "../variables";
+import { defineVariable } from "../../panels/env/define-variable";
+import { describeVariable, templateFunctions, type VariableInfo } from "../variables";
 import { lspReady } from "./client";
 
 /** The variable name under pos, when pos is inside a {{…}}. */
@@ -58,7 +59,9 @@ export function sondeHover(file: string) {
     }
     const name = variableAt(view, pos);
     const info = name ? await describeVariable(file, name, pos) : null;
-    if (!html && !info) return null;
+    // Known to nothing: a card to define it.
+    const undef = name && !info && !templateFunctions.includes(name) ? name : null;
+    if (!html && !info && !undef) return null;
     return {
       pos: range?.from ?? pos,
       end: range?.to ?? pos,
@@ -67,6 +70,7 @@ export function sondeHover(file: string) {
         const dom = document.createElement("div");
         dom.className = "cm-sonde-hover";
         if (info) dom.append(variableCard(view, info));
+        else if (undef) dom.append(undefinedCard(view, undef));
         else {
           const doc = document.createElement("div");
           doc.className = "cm-sonde-hover-doc";
@@ -87,6 +91,26 @@ function origin(info: VariableInfo): string {
   if (info.kind === "override") return "Session override, used as --variable";
   const env = useEnv.getState().current;
   return `${env ? `Environment ${env} · ` : ""}${info.source}`;
+}
+
+/** The card of a variable nothing sets, with a way to define it. */
+export function undefinedCard(view: EditorView, name: string): HTMLElement {
+  const card = el("div", "cm-var-card");
+  const head = el("div", "cm-var-head");
+  head.append(el("code", "cm-var-name", `{{${name}}}`), el("span", "cm-var-kind k-undefined", "undefined"));
+  const env = useEnv.getState().current;
+  const foot = el("div", "cm-var-foot");
+  foot.append(el("span", "", env ? `Not in environment ${env}, not captured earlier` : "No environment, not captured earlier"));
+  const define = el("button", "cm-var-link", "Define…") as HTMLButtonElement;
+  define.type = "button";
+  define.onmousedown = (e) => e.preventDefault();
+  define.onclick = () => {
+    view.dispatch({ effects: closeHoverTooltips });
+    defineVariable(name);
+  };
+  foot.append(define);
+  card.append(head, el("code", "cm-var-value unset", "not set"), foot);
+  return card;
 }
 
 /** The card of a variable: name and kind, value, origin and a link. */

@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Request, Summary } from "../../lib/api";
 import type { RunItem } from "../../lib/run-bridge";
+import type { Entry } from "../../lib/view";
 import { apply, type FileRun } from "../../state/run-model";
 import checkout from "./testdata/checkout.json";
 import dataLogin from "./testdata/data-login.json";
@@ -111,5 +112,17 @@ describe("data row pills on a recorded data run", () => {
     expect(f.expected).toBeUndefined();
     render(<FailureBox failure={f} />);
     expect(screen.getByText("query didn't return any result")).toBeInTheDocument();
+  });
+});
+
+describe("an undefined variable", () => {
+  it("offers to define it", async () => {
+    const entry = { errors: [{ line: 4, kind: "", assert: false, description: "Undefined variable", message: "you must set the variable nmk-cookie" }] } as unknown as Entry;
+    const f = failureOf(entry, ["", "", "", "Cookie: {{nmk-cookie}}"])!;
+    expect(f.variable).toBe("nmk-cookie");
+    const onDefine = vi.fn();
+    render(<FailureBox failure={f} onDefine={onDefine} />);
+    await userEvent.click(screen.getByRole("button", { name: "Define nmk-cookie…" }));
+    expect(onDefine).toHaveBeenCalledWith("nmk-cookie");
   });
 });

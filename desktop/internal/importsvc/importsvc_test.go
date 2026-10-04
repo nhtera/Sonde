@@ -6,6 +6,7 @@ package importsvc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -647,6 +648,29 @@ func TestEnvironmentsToTheProject(t *testing.T) {
 	}
 	if got, note := paths(pv); strings.Join(got, ",") != "again/secrets/dev.secrets,again/sonde.yaml" || !note {
 		t.Errorf("files %q, note %v", got, note)
+	}
+}
+
+// TestUsedVariables: an import reports the variables its requests use,
+// outside comments, with the number of files using each: a Postman
+// dynamic variable ($timestamp) too, set by hand.
+func TestUsedVariables(t *testing.T) {
+	s, _, _, _ := service(t)
+	col := `{"info":{"name":"x"},"variable":[{"key":"base","value":"http://h"}],"item":[
+		{"name":"a","request":{"method":"GET","url":"{{base}}/a","header":[{"key":"Cookie","value":"{{nmk-cookie}}"}]},
+		 "event":[{"listen":"test","script":{"exec":["// {{inScript}}"]}}]},
+		{"name":"b","request":{"method":"GET","url":"{{base}}/b?t={{$timestamp}}","header":[{"key":"Cookie","value":"{{ nmk-cookie }}"}]}}
+	]}`
+	w, err := s.Write(context.Background(), Request{Kind: Postman, Text: col, Folder: "imported"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, v := range w.Variables {
+		got = append(got, fmt.Sprintf("%s:%d", v.Name, v.Files))
+	}
+	if strings.Join(got, ",") != "base:2,nmk-cookie:2,timestamp:1" {
+		t.Errorf("variables %q", got)
 	}
 }
 

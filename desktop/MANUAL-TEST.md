@@ -41,6 +41,15 @@ Tick each item, and write down the OS version and the build (version, commit).
       name, not its path. Remove it.
 - [ ] Import: pick a Postman collection and a folder through the dialogs;
       the preview lists the files.
+- [ ] Import a Postman collection whose requests use a variable it never
+      defines (a cookie from a Postman environment) into an empty folder.
+      **Expect:** the collection's variables show in Environments at once;
+      the result lists the variable to define; **Define…** saves it as a
+      secret (`secrets/<env>.secrets`, mode 0600) and the row goes.
+- [ ] Run a file with an undefined `{{name}}`: **Define name…** on the
+      error, and **Define…** on the editor's hover (the card shows whole
+      on line 1 too), open the same dialog; after Save, **Run again**
+      sends the request.
 - [ ] Form › Body › file: pick a file outside the project. The app offers
       to copy it into `assets/`; it never overwrites an existing file.
 - [ ] A selection is single use: pick a data file, wait over 5 minutes, then

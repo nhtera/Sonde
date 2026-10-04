@@ -164,3 +164,10 @@
 .layout-card .layout-title .accent { color: var(--accent); font: 500 11px var(--font-ui); }
 .layout-card > .muted.small { padding-left: 21px; font-size: 12px; }
 .layout-card .layout-tree { margin-top: 6px; font-size: 11.5px; line-height: 18px; }
+/* Variables to define: one row each, its Define button at the end. */
+.define-card { align-items: flex-start; }
+.define-card .warn-text { flex: 1; min-width: 0; }
+.define-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.define-list li { display: flex; align-items: center; gap: 10px; }
+.define-list code { color: var(--accent); font-size: 12px; }
+.define-list .btn { margin-left: auto; }

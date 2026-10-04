@@ -5,6 +5,8 @@ package importsvc
 
 import (
 	"encoding/json"
+	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -179,4 +181,42 @@ func collection(data []byte) (name string, folders int) {
 	}
 	walk(doc.Item)
 	return strings.TrimSpace(doc.Info.Name), folders
+}
+
+// placeholder is a {{variable}}, its name captured.
+var placeholder = regexp.MustCompile(`\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}`)
+
+// used lists the variables the request files use (outside comments) and
+// none of them captures, by name, with the number of files using each.
+func (p *plan) used() []Used {
+	files := map[string]int{}
+	captured := map[string]bool{}
+	for _, f := range p.files {
+		if ext := path.Ext(f.Path); ext != ".hurl" && ext != ".sonde" {
+			continue
+		}
+		for _, n := range captureNames(f.Path, string(f.Data)) {
+			captured[n] = true
+		}
+		seen := map[string]bool{}
+		for _, line := range strings.Split(string(f.Data), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "#") {
+				continue
+			}
+			for _, m := range placeholder.FindAllStringSubmatch(line, -1) {
+				if !seen[m[1]] && m[1] != "newDate" && m[1] != "newUuid" {
+					seen[m[1]] = true
+					files[m[1]]++
+				}
+			}
+		}
+	}
+	out := []Used{}
+	for name, n := range files {
+		if !captured[name] {
+			out = append(out, Used{Name: name, Files: n})
+		}
+	}
+	slices.SortFunc(out, func(a, b Used) int { return strings.Compare(a.Name, b.Name) })
+	return out
 }

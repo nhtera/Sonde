@@ -7,6 +7,7 @@
 import { useKeyLabel } from "../../../app/keymap/use-keys";
 import { FailureBox } from "../../../components/run/failure-box";
 import { failureOf } from "../../../components/run/model";
+import { defineVariable } from "../../panels/env/define-variable";
 import type { Entry } from "../../../lib/view";
 import { runCommand } from "../actions";
 import { assertRows } from "../model";
@@ -20,7 +21,7 @@ export function AssertsTab({ entry, lines, onShowResponse }: { entry: Entry; lin
   return (
     <div className="tab-pad">
       {failure && (
-        <FailureBox failure={failure} gotoKeys={gotoKeys} onGoto={(line) => runCommand("editor.gotoLine", line)} onShowResponse={onShowResponse} />
+        <FailureBox failure={failure} gotoKeys={gotoKeys} onGoto={(line) => runCommand("editor.gotoLine", line)} onShowResponse={onShowResponse} onDefine={defineVariable} />
       )}
       <ul className="assert-rows">
         {asserts

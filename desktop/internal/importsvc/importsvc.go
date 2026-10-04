@@ -154,6 +154,16 @@ type Written struct {
 	Counts  Counts   `json:"counts"`
 	// Wrote is, for a Postman collection, what lines became.
 	Wrote []Wrote `json:"wrote,omitempty"`
+	// Variables are the {{variables}} the request files use and no
+	// request captures: those the page finds in no environment are to
+	// define.
+	Variables []Used `json:"variables"`
+}
+
+// Used is a variable the request files use: in how many of them.
+type Used struct {
+	Name  string `json:"name"`
+	Files int    `json:"files"`
 }
 
 // plan is an import computed: the converter's output and the files.
@@ -270,7 +280,7 @@ func (s *Service) Write(ctx context.Context, req Request, overwrite []string) (*
 	if err != nil {
 		return nil, err
 	}
-	w := &Written{Files: []string{}, Kept: []string{}, Secrets: []string{}, Counts: p.counts()}
+	w := &Written{Files: []string{}, Kept: []string{}, Secrets: []string{}, Counts: p.counts(), Variables: p.used()}
 	if req.Kind == Postman {
 		_, w.Counts.Folders = collection(p.data)
 		w.Wrote = p.wrote()
