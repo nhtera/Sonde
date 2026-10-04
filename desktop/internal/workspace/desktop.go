@@ -144,12 +144,12 @@ func (d *Desktop) remember(p *Project) {
 }
 
 // Reveal shows file in the system file manager.
-func (d *Desktop) Reveal(ctx context.Context, file string) error {
+func (d *Desktop) Reveal(_ context.Context, file string) error {
 	p, err := d.ws.abs(file)
 	if err != nil {
 		return err
 	}
-	return osfile.Reveal(ctx, p)
+	return osfile.Reveal(p)
 }
 
 // Trash moves file (or folder) to the system trash.

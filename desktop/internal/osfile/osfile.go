@@ -1,9 +1,10 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package osfile moves files to the system trash and shows them in the
-// file manager. Programs are started with argument lists, never a shell.
-// The window app only: server mode registers neither.
+// Package osfile moves files to the system trash, shows them in the file
+// manager and opens them in their default app. Programs are started with
+// argument lists, never a shell. The window app only: server mode
+// registers none of them.
 package osfile
 
 import (
@@ -20,19 +21,39 @@ import (
 )
 
 // Reveal shows path in the system file manager.
-func Reveal(ctx context.Context, path string) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	var cmd *exec.Cmd
+func Reveal(path string) error {
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.CommandContext(ctx, "open", "-R", "--", path)
+		return start("open", "-R", "--", path)
 	case "windows":
-		cmd = exec.CommandContext(ctx, "explorer", "/select,"+path) //nolint:gosec // G204: an argument, not a shell
+		return start("explorer", "/select,"+path)
 	default:
-		cmd = exec.CommandContext(ctx, "xdg-open", filepath.Dir(path)) //nolint:gosec // G204: an argument, not a shell
+		return start("xdg-open", filepath.Dir(path))
 	}
-	return cmd.Start()
+}
+
+// Open opens path in its default app.
+func Open(path string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return start("open", "--", path)
+	case "windows":
+		return start("rundll32", "url.dll,FileProtocolHandler", path)
+	default:
+		return start("xdg-open", path)
+	}
+}
+
+// start runs a program without waiting for it. It is not bound to a
+// context: one that is gets killed when the context ends, which is as
+// soon as the caller returns. Wait runs in the background to reap it.
+func start(name string, args ...string) error {
+	cmd := exec.Command(name, args...) //nolint:gosec // G204: fixed programs, arguments not a shell
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() { _ = cmd.Wait() }()
+	return nil
 }
 
 // Trash moves path (a file or folder) to the user's trash.

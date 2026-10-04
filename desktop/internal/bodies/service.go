@@ -8,14 +8,12 @@ import (
 	"mime"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/nhtera/sonde/desktop/internal/apperr"
+	"github.com/nhtera/sonde/desktop/internal/osfile"
 )
 
 // Route serves the store's bodies; a service with only ServeHTTP binds
@@ -69,7 +67,7 @@ var allowed = map[string]bool{".pdf": true, ".png": true, ".jpg": true, ".gif": 
 // OpenExternally opens body id (redacted) in the system's app for its
 // type. The file is private (0700 folder), has an allowlisted extension
 // (else .txt) and is marked as downloaded (quarantine, Mark of the Web).
-func (d *Desktop) OpenExternally(ctx context.Context, id string) error {
+func (d *Desktop) OpenExternally(_ context.Context, id string) error {
 	data, ct, ok := d.s.Redacted(id)
 	if !ok {
 		return apperr.New(apperr.NotFound, "this response is no longer available")
@@ -95,18 +93,7 @@ func (d *Desktop) OpenExternally(ctx context.Context, id string) error {
 		return err
 	}
 	markDownloaded(path)
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.CommandContext(ctx, "open", "--", path)
-	case "windows":
-		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", path) //nolint:gosec // G204: an argument, not a shell
-	default:
-		cmd = exec.CommandContext(ctx, "xdg-open", path) //nolint:gosec // G204: an argument, not a shell
-	}
-	return cmd.Start()
+	return osfile.Open(path)
 }
 
 // ServiceShutdown removes the files opened externally when the app quits.

@@ -6,9 +6,34 @@ package osfile
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
+
+// TestStartOutlivesTheCall: a started program runs to its end after
+// start returns (Reveal in Finder and Open in default app once killed
+// theirs at once).
+func TestStartOutlivesTheCall(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sh")
+	}
+	f := filepath.Join(t.TempDir(), "done")
+	if err := start("sh", "-c", `sleep 0.2; touch "$0"`, f); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, err := os.Stat(f); err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the program did not finish")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
 
 func TestTrashFreedesktop(t *testing.T) {
 	data := t.TempDir()
