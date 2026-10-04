@@ -159,9 +159,9 @@ jobs:
 
   sign-macos:
     # The Developer ID certificate and the notarization key live only in
-    # the protected `release` environment. This job installs nothing of
-    # the project's: it verifies, signs, notarizes and staples, then
-    # attests the disk image it made.
+    # the protected `release` environment. This job builds nothing of the
+    # project's: it verifies, signs, lays out the disk image (dmgbuild,
+    # pinned by hash), notarizes and staples, then attests the image.
     needs: build-test
     runs-on: macos-14
     environment: release
@@ -175,6 +175,11 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             desktop/scripts/verify-artifacts.sh
+            desktop/scripts/make-dmg.sh
+            desktop/build/darwin/dmg-settings.py
+            desktop/build/darwin/dmg-background.tiff
+            desktop/build/darwin/dmg-requirements.txt
+            desktop/build/darwin/icons.icns
           sparse-checkout-cone-mode: false
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -225,7 +230,9 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$app"
 
           dmg="out/$base.dmg"
-          hdiutil create -volname "Sonde" -srcfolder "$app" -ov -format UDZO "$dmg"
+          python3 -m venv "$work/venv"
+          "$work/venv/bin/pip" install --quiet --require-hashes --no-deps --only-binary :all: -r desktop/build/darwin/dmg-requirements.txt
+          PATH="$work/venv/bin:$PATH" desktop/scripts/make-dmg.sh "$app" "$dmg"
           codesign --force --timestamp --sign "$IDENTITY" "$dmg"
 
           echo "$NOTARY_KEY" | base64 --decode > "$work/key.p8"

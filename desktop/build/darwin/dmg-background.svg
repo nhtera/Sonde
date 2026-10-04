@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="380" viewBox="0 0 540 380">
+  <!-- Source of dmg-background.tiff: rendered at 540x380 and 1080x760, then tiffutil -cathidpicheck 1x.png 2x.png -out dmg-background.tiff. Icons sit at (135, 175) and (405, 175) (dmg-settings.py). -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F9FC"/><stop offset="1" stop-color="#E9EEF5"/>
+    </linearGradient>
+  </defs>
+  <rect width="540" height="380" fill="url(#bg)"/>
+  <text x="270" y="58" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif" font-size="17" font-weight="600" fill="#1B2640">Install Sonde</text>
+  <g fill="none" stroke="#2A9D8F" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M222 175H312"/>
+    <path d="M296 159L314 175L296 191"/>
+  </g>
+  <text x="270" y="292" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif" font-size="13" fill="#4A5568">Drag Sonde to the Applications folder</text>
+</svg>

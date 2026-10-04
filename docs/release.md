@@ -275,9 +275,12 @@ every action pinned by SHA and no Actions cache:
    which **fails closed**: a file missing from the digests, a SHA-256 that
    differs, or an attestation that is absent or not made by this
    repository's `release-desktop.yml` stops the job before anything is
-   signed. They install nothing from the project. macOS imports the
+   signed. They build nothing from the project. macOS imports the
    certificate into a temporary keychain, signs the app with the hardened
-   runtime, builds and signs the `.dmg`, notarizes it (`notarytool submit
+   runtime, lays out the `.dmg` with `desktop/scripts/make-dmg.sh` (the app,
+   an Applications link and a background that says to drag one onto the
+   other, written by `dmgbuild`, pinned by hash in
+   `desktop/build/darwin/dmg-requirements.txt`) and signs it, notarizes it (`notarytool submit
    --wait`), staples and validates the ticket, checks it with `spctl`, and
    attests the disk image it made. Windows signs with `signtool` only when
    `WINDOWS_CERT_PFX_BASE64` is set, and attests a signed installer (an
