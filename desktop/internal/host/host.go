@@ -15,6 +15,7 @@ import (
 
 	"github.com/nhtera/sonde/desktop/internal/appdirs"
 	"github.com/nhtera/sonde/desktop/internal/bodies"
+	"github.com/nhtera/sonde/desktop/internal/closeguard"
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/envsvc"
 	"github.com/nhtera/sonde/desktop/internal/handles"
@@ -69,12 +70,15 @@ type Host struct {
 	Imports   *importsvc.Service
 	// Perf measures the window app when it is traced (--perf-trace).
 	Perf *perftrace.Trace
+	// Guard holds the window's close and quit back over unsaved edits.
+	Guard *closeguard.Guard
 }
 
 // Setup builds the parts services share, once Emit is set, and opens Root
 // when given.
 func (h *Host) Setup() error {
 	h.Handles = handles.New()
+	h.Guard = &closeguard.Guard{Emit: h.Emit.Emit}
 	h.Workspace = workspace.New(h.Emit)
 	h.Bodies = bodies.New(h.Dirs.Cache())
 	h.Settings = settings.Open(h.Dirs.Config(), h.Emit, h.Handles)

@@ -8,12 +8,15 @@ import { Palette } from "../features/palette/palette";
 import { ThemePicker } from "../features/palette/theme-picker";
 import { Toasts } from "../features/shell/toasts";
 import { appError } from "../lib/api";
+import { serverMode } from "../lib/mode";
 import { startLspSession } from "../lib/lsp-session";
 import { useEnv } from "../state/env";
 import { useSettings } from "../state/settings";
 import { isDirty, useTabs } from "../state/tabs";
 import { useUI } from "../state/ui";
 import { useWorkspace } from "../state/workspace";
+import { startEditMenu } from "./edit-menu";
+import { startLeaveGuard } from "./leave-guard";
 import { bindKeys } from "./keymap/keymap-manager";
 import { ShortcutsSheet } from "./keymap/shortcuts-sheet";
 import { useKeys } from "./keymap/use-keys";
@@ -41,6 +44,9 @@ export function App() {
     window.addEventListener("beforeunload", guard);
     return () => window.removeEventListener("beforeunload", guard);
   }, []);
+  // The window app's close and quit (beforeunload does not run for them).
+  useEffect(() => (serverMode ? undefined : startLeaveGuard()), []);
+  useEffect(() => (serverMode ? undefined : startEditMenu()), []);
 
   return (
     <>

@@ -126,7 +126,8 @@ files but cannot open them.
 ### Unsaved edits
 
 A run uses the text in the tab, saved or not. Closing a tab, opening another
-folder or leaving the page with unsaved edits asks first. If a file changes
+folder, closing the window, quitting or leaving the page with unsaved edits
+asks first, naming the files. If a file changes
 on disk while you have unsaved edits, the tab offers Reload or Keep mine;
 the app does not merge silently. The app's own saves do not trigger that
 prompt.

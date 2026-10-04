@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/host"
@@ -63,7 +64,11 @@ func run() error {
 	if err := h.Setup(); err != nil {
 		return err
 	}
-	app = application.New(appOptions(h))
+	appOpts := appOptions(h)
+	// ⌘Q and the menu's Quit wait for the page while edits are unsaved.
+	appOpts.ShouldQuit = func() bool { return !h.Guard.Hold() }
+	app = application.New(appOpts)
+	h.Guard.Quit = app.Quit
 	app.Menu.SetApplicationMenu(appMenu())
 	opts := application.WebviewWindowOptions{
 		Title:     "Sonde",
@@ -83,6 +88,12 @@ func run() error {
 		opts.BackgroundColour = c
 	}
 	win := app.Window.NewWithOptions(opts)
+	// So do the close button and Close Window (⇧⌘W).
+	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		if h.Guard.Hold() {
+			e.Cancel()
+		}
+	})
 	// The UI font size is the webview's zoom: every measure scales alike
 	// (menus, resizers, the editor), unlike a page's CSS zoom.
 	zoom := func(s settings.Settings) {

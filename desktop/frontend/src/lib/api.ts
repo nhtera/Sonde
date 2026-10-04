@@ -6,6 +6,7 @@
 // registered in server mode: callers check lib/mode first.
 
 export { Service as Workspace, Desktop as WorkspaceDesktop } from "@bindings/desktop/internal/workspace";
+export { Guard as CloseGuard } from "@bindings/desktop/internal/closeguard";
 export type { FileText, Node, Project, Recent, Request } from "@bindings/desktop/internal/workspace";
 export { Service as Runs } from "@bindings/desktop/internal/runsvc";
 export type { RunRequest, SendRequest, TestRequest, DataRequest, Summary, Unit } from "@bindings/desktop/internal/runsvc";
