@@ -14,6 +14,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
+	"github.com/nhtera/sonde/internal/convert"
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
@@ -82,7 +83,8 @@ func (s *Spec) Generate(opt GenerateOptions) (gen *Generated, err error) {
 		return nil, fmt.Errorf("invalid variable name %q", opt.BaseURLVar)
 	}
 	g := &generator{spec: s, opt: opt, out: &Generated{Variables: map[string]string{}}, warned: map[string]bool{}}
-	g.out.Variables[opt.BaseURLVar] = g.baseURL()
+	g.base = g.baseURL()
+	g.out.Variables[opt.BaseURLVar] = g.base
 	for _, t := range s.templates {
 		item := s.doc.Paths.Value(t)
 		ops := item.Operations()
@@ -103,6 +105,7 @@ type generator struct {
 	opt    GenerateOptions
 	out    *Generated
 	warned map[string]bool
+	base   string // the base URL variable's value
 }
 
 func (g *generator) warn(kind, msg string) {
@@ -112,18 +115,62 @@ func (g *generator) warn(kind, msg string) {
 	}
 }
 
-// baseURL is the first server's URL, made absolute.
+// baseURL is the first server's URL, made absolute: the spec's, else the
+// one most operations declare (theirs or their path's; on a tie, the
+// lowest).
 func (g *generator) baseURL() string {
-	if len(g.spec.servers) == 0 {
+	first := ""
+	if len(g.spec.servers) > 0 {
+		first = g.spec.servers[0]
+	} else {
+		uses := map[string]int{}
+		for _, t := range g.spec.templates {
+			item := g.spec.doc.Paths.Value(t)
+			for _, op := range item.Operations() {
+				if u := ownServer(item, op); u != "" {
+					uses[u]++
+				}
+			}
+		}
+		for u, n := range uses {
+			if first == "" || n > uses[first] || n == uses[first] && u < first {
+				first = u
+			}
+		}
+	}
+	if first == "" {
 		g.warn("server", "the spec has no servers: base_url is http://localhost")
 		return "http://localhost"
 	}
-	u := strings.TrimRight(g.spec.servers[0], "/")
+	return g.absolute(first)
+}
+
+// absolute makes a server URL absolute, on http://localhost.
+func (g *generator) absolute(server string) string {
+	u := strings.TrimRight(server, "/")
 	if !strings.Contains(u, "://") {
-		g.warn("server", fmt.Sprintf("the first server %q is relative: base_url is http://localhost%s", g.spec.servers[0], u))
+		g.warn("server", fmt.Sprintf("the server %q is relative: it is http://localhost%s", server, u))
 		u = "http://localhost" + u
 	}
 	return u
+}
+
+// ownServer is the first server an operation (op, when not nil) or else
+// its path item declares, overriding the spec's; "" when neither does.
+func ownServer(item *openapi3.PathItem, op *openapi3.Operation) string {
+	if op != nil && op.Servers != nil {
+		for _, srv := range *op.Servers {
+			if srv != nil {
+				return serverURL(srv)
+			}
+		}
+	}
+	for _, srv := range item.Servers {
+		if srv != nil {
+			return serverURL(srv)
+		}
+	}
+	return ""
 }
 
 func (g *generator) operation(template, method string, item *openapi3.PathItem, op *openapi3.Operation) {
@@ -140,17 +187,27 @@ func (g *generator) operation(template, method string, item *openapi3.PathItem, 
 		e.Comments = append(e.Comments, "deprecated")
 	}
 	e.URL = g.url(template, params)
+	if strings.Contains(template, "//") {
+		// Most often a variable exported while it was empty.
+		g.warn("path", fmt.Sprintf("%s: the path has an empty segment", name))
+	}
+	if own := ownServer(item, op); own != "" {
+		// An operation on a server of its own sends there, not to base_url.
+		if u := g.absolute(own); u != g.base {
+			e.URL[0] = syntax.Lit(u)
+		}
+	}
 	for _, p := range params {
 		if p == nil || p.Value == nil || !p.Value.Required {
 			continue
 		}
 		switch p.Value.In {
 		case openapi3.ParameterInQuery:
-			e.Query = append(e.Query, syntax.KV(p.Value.Name, scalarText(paramExample(p.Value))))
+			e.Query = append(e.Query, syntax.Field{Key: syntax.PlainText(p.Value.Name), Value: g.text(paramExample(p.Value))})
 		case openapi3.ParameterInHeader:
-			e.Headers = append(e.Headers, syntax.KV(p.Value.Name, scalarText(paramExample(p.Value))))
+			e.Headers = append(e.Headers, syntax.Field{Key: syntax.PlainText(p.Value.Name), Value: g.text(paramExample(p.Value))})
 		case openapi3.ParameterInCookie:
-			e.Cookies = append(e.Cookies, syntax.KV(p.Value.Name, scalarText(paramExample(p.Value))))
+			e.Cookies = append(e.Cookies, syntax.Field{Key: syntax.PlainText(p.Value.Name), Value: g.text(paramExample(p.Value))})
 		}
 	}
 	g.security(&e, op)
@@ -270,14 +327,14 @@ func (g *generator) body(e *syntax.EntrySpec, name string, op *openapi3.Operatio
 		if mt != "application/json" {
 			e.Headers = append(e.Headers, syntax.KV("Content-Type", mt))
 		}
-		b, err := syntax.JSONBody(jsonValue(v))
+		b, err := syntax.JSONBody(jsonValue(v, g.note))
 		if err != nil {
 			return err
 		}
 		e.Body = b
 	case 2:
 		for _, k := range sortedKeys(v) {
-			e.Form = append(e.Form, syntax.KV(k, scalarText(v.(map[string]any)[k])))
+			e.Form = append(e.Form, syntax.Field{Key: syntax.PlainText(k), Value: g.text(v.(map[string]any)[k])})
 		}
 	case 3:
 		obj, _ := v.(map[string]any)
@@ -287,13 +344,17 @@ func (g *generator) body(e *syntax.EntrySpec, name string, op *openapi3.Operatio
 				f.File = &syntax.MultipartFile{Name: syntax.PlainText(k + ".bin")}
 				g.warn("body", fmt.Sprintf("%s: multipart field %q reads the file %s.bin", name, k, k))
 			} else {
-				f.Value = syntax.PlainText(scalarText(obj[k]))
+				f.Value = g.text(obj[k])
 			}
 			e.Multipart = append(e.Multipart, f)
 		}
 	case 4:
 		e.Headers = append(e.Headers, syntax.KV("Content-Type", mt))
-		e.Body = syntax.RawTextBody(scalarText(v), "")
+		if text := scalarText(v); strings.Contains(text, "{{") {
+			e.Body = syntax.TextBody(g.text(v), "")
+		} else {
+			e.Body = syntax.RawTextBody(text, "")
+		}
 	default:
 		g.warn("body", fmt.Sprintf("%s: request body %s is not generated", name, mt))
 	}
@@ -378,6 +439,10 @@ func successStatus(op *openapi3.Operation) string {
 
 func (g *generator) filePath(template, method string, op *openapi3.Operation) string {
 	name := kebab(strings.ReplaceAll(op.OperationID, "/", "-"))
+	// A generated operationId (a path, a hash) loses to a shorter summary.
+	if summary := strings.Join(strings.Fields(strings.ReplaceAll(op.Summary, "/", " ")), " "); summary != "" && (name == "" || len(summary) < len(name)) {
+		name = summary
+	}
 	if name == "" {
 		name = strings.ToLower(method) + "-" + strings.NewReplacer("{", "", "}", "", "/", "-").Replace(strings.Trim(template, "/"))
 	}
@@ -459,8 +524,24 @@ func scalarText(v any) string {
 	return string(b)
 }
 
-// jsonValue converts an example to the types syntax.JSONBody accepts.
-func jsonValue(v any) any {
+// text is an example value as request text: a {{name}} in it stays a
+// variable, as collection exporters write them into examples.
+func (g *generator) text(v any) syntax.Text {
+	t, warns := convert.ParseText(scalarText(v))
+	g.note(warns)
+	return t
+}
+
+// note records the warnings of convert.ParseText.
+func (g *generator) note(warns []convert.Warning) {
+	for _, w := range warns {
+		g.warn(w.Kind, w.Message)
+	}
+}
+
+// jsonValue converts an example to the types syntax.JSONBody accepts; a
+// string with a {{name}} keeps it a variable (warnings go to note).
+func jsonValue(v any, note func([]convert.Warning)) any {
 	switch x := v.(type) {
 	case int64:
 		return json.Number(strconv.FormatInt(x, 10))
@@ -474,16 +555,25 @@ func jsonValue(v any) any {
 	case map[string]any:
 		out := make(map[string]any, len(x))
 		for k, e := range x {
-			out[k] = jsonValue(e)
+			out[k] = jsonValue(e, note)
 		}
 		return out
 	case []any:
 		out := make([]any, len(x))
 		for i, e := range x {
-			out[i] = jsonValue(e)
+			out[i] = jsonValue(e, note)
 		}
 		return out
-	case nil, bool, string, json.Number:
+	case string:
+		if !strings.Contains(x, "{{") {
+			return x
+		}
+		t, warns := convert.ParseText(x)
+		if note != nil {
+			note(warns)
+		}
+		return t
+	case nil, bool, json.Number:
 		return x
 	}
 	// Other decoded shapes (such as typed slices) go through JSON.
@@ -495,7 +585,7 @@ func jsonValue(v any) any {
 	if json.Unmarshal(b, &out) != nil {
 		return nil
 	}
-	return jsonValue(out)
+	return jsonValue(out, note)
 }
 
 // varName makes a variable name of s: letters, digits, "_" and "-",

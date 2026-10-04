@@ -167,7 +167,7 @@ func TestExampleSchemas(t *testing.T) {
 
 func jsonRoundTrip(t *testing.T, v any) any {
 	t.Helper()
-	jv := jsonValue(v)
+	jv := jsonValue(v, nil)
 	b, err := syntax.JSONBody(jv)
 	if err != nil {
 		t.Fatal(err)
@@ -197,3 +197,73 @@ func normalize(v any) any {
 }
 
 var _ = context.Background
+
+// TestOperationServersAndNames checks a spec whose servers are on its
+// operations and paths, not at the top: the one most operations use is
+// base_url, another is written into its operation's URL. A generated operationId loses to a
+// shorter summary. A {{name}} in an example stays a variable.
+func TestOperationServersAndNames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "spec.yaml")
+	spec := `openapi: 3.0.0
+info: {title: t, version: "1"}
+paths:
+  /me:
+    servers: [{url: "http://localhost:8080"}]
+    get:
+      summary: Who am I
+      operationId: users_me_documents_collection_auth_who_am_i_yml
+      responses: {"200": {description: ok}}
+    delete:
+      servers: [{url: "http://localhost:8080"}]
+      parameters:
+        - {name: Cookie, in: header, required: true, schema: {type: string}, example: "{{session-cookie}}"}
+      requestBody:
+        content:
+          application/json:
+            example: {name: "{{name}} (copy)"}
+      responses: {"204": {description: ok}}
+  /policies//duplicate:
+    post:
+      servers: [{url: "http://localhost:8080"}]
+      responses: {"200": {description: ok}}
+  /pets:
+    servers: [{url: "http://pets.local:9000/"}]
+    get:
+      summary: List all the pets there are
+      operationId: listPets
+      responses: {"200": {description: ok}}
+`
+	if err := os.WriteFile(path, []byte(spec), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Load(context.Background(), path, LoadOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gen, err := s.Generate(GenerateOptions{Group: GroupFlat})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gen.Variables["base_url"] != "http://localhost:8080" || fmt.Sprint(gen.Warnings) != "[{path POST /policies//duplicate: the path has an empty segment}]" {
+		t.Errorf("base_url %q, warnings %v", gen.Variables["base_url"], gen.Warnings)
+	}
+	got := map[string]string{}
+	for _, f := range gen.Files {
+		for _, line := range strings.Split(string(syntax.Format(f.File)), "\n") {
+			if !strings.HasPrefix(line, "#") {
+				got[f.Path] = line // the request line
+				break
+			}
+		}
+	}
+	want := map[string]string{"Who am I": "GET {{base_url}}/me", "delete-me": "DELETE {{base_url}}/me", "list-pets": "GET http://pets.local:9000/pets", "post-policies--duplicate": "POST {{base_url}}/policies//duplicate"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("files %v, want %v", got, want)
+	}
+	for _, f := range gen.Files {
+		if src := string(syntax.Format(f.File)); f.Path == "delete-me" &&
+			(!strings.Contains(src, "Cookie: {{session-cookie}}") || !strings.Contains(src, `{"name": "{{name}} (copy)"}`)) {
+			t.Errorf("placeholders not kept:\n%s", src)
+		}
+	}
+}

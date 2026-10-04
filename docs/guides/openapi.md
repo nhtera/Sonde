@@ -150,9 +150,13 @@ Each operation becomes one file. The common flags (`--ext`, `--force`,
 
 - **Comments:** the operationId and summary.
 - **URL:** `{{base_url}}` followed by the path. Path parameters become
-  variables, such as `{{petId}}`.
+  variables, such as `{{petId}}`. An operation or path with servers of its
+  own sends to its first one when that is not `base_url`. A path with an
+  empty segment (`/a//b`, often a variable exported while empty) is
+  imported as written, with a warning.
 - **Required parameters:** query, header and cookie parameters, with their
-  example values.
+  example values. A `{{name}}` in an example value (as collection tools
+  export them) stays a variable, here and in bodies.
 - **Security:** placeholders for the operation's first security
   requirement:
 
@@ -194,12 +198,15 @@ Generated values are deterministic:
 | `flat` | All files in the output directory. |
 
 File names come from the operationId in kebab-case (`listPets` →
-`list-pets.hurl`), or from the method and path without one.
+`list-pets.hurl`), or from the summary when that is shorter (a generated
+operationId such as `users_me_docs_auth_who_am_i_yml` gives way to "Who
+am I" → `who-am-i.hurl`), or from the method and path without either.
 
 The import also writes `sonde.yaml`, unless the output directory already
 has one. Its `default` environment sets:
 
-- `base_url`, from the first server;
+- `base_url`, from the first server; a spec with servers only on its
+  operations or paths takes the one most operations use;
 - each path parameter, from its example.
 
 When the spec lies inside the output directory, `sonde.yaml` also names it

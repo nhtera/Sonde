@@ -236,22 +236,26 @@ func readLimited(rd io.Reader, name string) ([]byte, error) {
 	return bytes.Clone(data), nil
 }
 
+// serverURL is a server's URL, its variables replaced by their defaults.
+func serverURL(srv *openapi3.Server) string {
+	u := srv.URL
+	for name, v := range srv.Variables {
+		if v != nil {
+			u = strings.ReplaceAll(u, "{"+name+"}", v.Default)
+		}
+	}
+	return u
+}
+
 func newSpec(doc *openapi3.T) *Spec {
 	check := *doc
 	check.OpenAPI = "3.0.3"
 	check.JSONSchemaDialect = ""
 	s := &Spec{doc: doc, checkDoc: &check}
 	for _, srv := range doc.Servers {
-		if srv == nil {
-			continue
+		if srv != nil {
+			s.servers = append(s.servers, serverURL(srv))
 		}
-		u := srv.URL
-		for name, v := range srv.Variables {
-			if v != nil {
-				u = strings.ReplaceAll(u, "{"+name+"}", v.Default)
-			}
-		}
-		s.servers = append(s.servers, u)
 	}
 	if doc.Paths != nil {
 		s.templates = doc.Paths.InMatchingOrder()

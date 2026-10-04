@@ -22,6 +22,10 @@ const notes: Record<string, string> = {
   secret: "Values to move to a secret",
   unsupported: "Other items not converted",
   environments: "Environments not in the app's sonde.yaml",
+  server: "Base URL to check",
+  auth: "Credentials to set",
+  body: "Bodies to check",
+  path: "Paths to check",
 };
 
 /** What suggestions with these labels add: "asserts", "asserts and

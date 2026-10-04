@@ -21,9 +21,9 @@ const layouts = {
     { id: "folder", title: "One file per folder", sub: "Requests run top to bottom, so captures carry over." },
   ],
   openapi: [
-    { id: "tag", title: "By tag", sub: "A file per tag." },
-    { id: "path", title: "By path", sub: "A file per path." },
-    { id: "flat", title: "One file", sub: "Every operation in one file." },
+    { id: "tag", title: "By tag", sub: "A file per operation, in a folder per tag." },
+    { id: "path", title: "By path", sub: "A file per operation, in a folder per first path segment." },
+    { id: "flat", title: "No folders", sub: "A file per operation, side by side." },
   ],
 } as const;
 
