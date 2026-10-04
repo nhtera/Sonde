@@ -56,6 +56,8 @@ var (
 	// ErrVerification wraps every refusal of a manifest's signature, so a
 	// caller can tell it from a network or format error.
 	ErrVerification = errors.New("verification failed")
+	// ErrNoKeys: a key folder holds no public key.
+	ErrNoKeys = errors.New("no public key (*.pub)")
 
 	// A field of a canonical line: no space, no newline, so a line splits
 	// back into exactly the fields that were signed; never "." or "..", nor
@@ -235,7 +237,7 @@ func LoadKeys(fsys fs.FS) (map[string]ed25519.PublicKey, error) {
 		}
 	}
 	if len(keys) == 0 {
-		return nil, errors.New("no public key (*.pub)")
+		return nil, ErrNoKeys
 	}
 	return keys, nil
 }
