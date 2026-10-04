@@ -19,6 +19,9 @@ const Topic = "app:leave"
 type Guard struct {
 	unsaved atomic.Int32
 	leaving atomic.Bool
+	// exiting is set by AllowExit (Go only): an update is quitting the app
+	// after the user agreed.
+	exiting atomic.Bool
 	// Quit quits the app.
 	Quit func()
 	// Emit sends an event to the page.
@@ -42,7 +45,7 @@ func (g *Guard) Leave() {
 // are unsaved edits and the user has not agreed to leave. When it holds,
 // it asks the page to confirm.
 func (g *Guard) Hold() bool {
-	if g.leaving.Load() || g.unsaved.Load() == 0 {
+	if g.leaving.Load() || g.exiting.Load() || g.unsaved.Load() == 0 {
 		return false
 	}
 	if g.Emit != nil {
@@ -50,3 +53,12 @@ func (g *Guard) Hold() bool {
 	}
 	return true
 }
+
+// AllowExit lets the next close or quit through, for an update that quits
+// the app once the user agreed. A package function, not a method: the page
+// binds Guard's methods and must never call it.
+func AllowExit(g *Guard) { g.exiting.Store(true) }
+
+// RestoreExit holds the close and the quit again after an update did not
+// quit after all. A Leave the page asked for stays.
+func RestoreExit(g *Guard) { g.exiting.Store(false) }

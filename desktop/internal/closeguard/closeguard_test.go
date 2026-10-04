@@ -29,3 +29,21 @@ func TestGuard(t *testing.T) {
 		t.Fatalf("agreed to leave: quit %d, and nothing holds the quit it starts", quit)
 	}
 }
+
+func TestAllowAndRestoreExit(t *testing.T) {
+	g := &Guard{}
+	g.SetUnsaved(1)
+	AllowExit(g)
+	if g.Hold() {
+		t.Fatal("AllowExit: the update's quit is held")
+	}
+	RestoreExit(g)
+	if !g.Hold() {
+		t.Fatal("RestoreExit: the quit goes through over unsaved edits")
+	}
+	g.Leave()
+	RestoreExit(g)
+	if g.Hold() {
+		t.Fatal("RestoreExit undid the page's Leave")
+	}
+}
