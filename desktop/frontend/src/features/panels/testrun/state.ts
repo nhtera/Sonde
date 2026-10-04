@@ -10,7 +10,7 @@ import { appError, Runs, Workspace, type Summary } from "../../../lib/api";
 import { startRun } from "../../../lib/run-bridge";
 import type { RunEvent } from "../../../lib/view";
 import { useEnv } from "../../../state/env";
-import { apply, type FileRun } from "../../../state/run-model";
+import { apply, unitsOutcome, type FileRun } from "../../../state/run-model";
 import { useTabs } from "../../../state/tabs";
 import { useUI } from "../../../state/ui";
 import type { Node } from "../../../lib/api";
@@ -104,7 +104,7 @@ export const useTestRun = create<TestRunState>((set, get) => ({
         onDone: (summary) =>
           set((s) => {
             const files = { ...s.files };
-            for (const f of Object.keys(files)) files[f] = { ...files[f], running: false };
+            for (const f of Object.keys(files)) files[f] = { ...files[f], running: false, outcome: unitsOutcome(summary.units, f) };
             return { running: false, summary, files };
           }),
       },

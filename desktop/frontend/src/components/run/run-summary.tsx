@@ -27,6 +27,7 @@ export interface RunSummaryProps {
 export function outcomeOf(run: FileRun): Outcome {
   if (run.running) return "running";
   if (run.summary) return run.summary.outcome as Outcome;
+  if (run.outcome) return run.outcome;
   return run.error ? "error" : "failed";
 }
 

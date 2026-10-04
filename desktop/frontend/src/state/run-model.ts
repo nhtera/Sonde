@@ -55,6 +55,20 @@ export interface FileRun {
   summary: Summary | null;
   error: string | null;
   data?: DataRun;
+  /** A file of a test run: its outcome there, from its units (it has no
+   * summary of its own). */
+  outcome?: "passed" | "failed" | "canceled" | "error" | "interrupted";
+}
+
+/** A test run file's outcome from its units (rows, for a data run);
+ * undefined when it has none. */
+export function unitsOutcome(units: Summary["units"], file: string): FileRun["outcome"] {
+  const mine = (units ?? []).filter((u) => u.file === file);
+  if (mine.length === 0) return undefined;
+  if (mine.some((u) => u.canceled)) return "canceled";
+  if (mine.some((u) => u.interrupted)) return "interrupted";
+  if (mine.some((u) => u.error || u.parseError)) return "error";
+  return mine.every((u) => u.success) ? "passed" : "failed";
 }
 
 /** Whether a data row failed: a request did, or the row could not run. */

@@ -334,8 +334,12 @@ func TestRunData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Files != 2 || s.Outcome != Passed {
+	if s.Files != 2 || s.Outcome != Passed || !strings.Contains(s.Text, "Executed files:") {
 		t.Fatalf("data %+v", s)
+	}
+	// Its report exports, as a test run's does.
+	if _, err := f.runs.Export("d1", "tap", t.TempDir()); err != nil {
+		t.Errorf("export of a data run: %v", err)
 	}
 	got := f.shop.requests()
 	if len(got) != 2 || !strings.Contains(got[0], "/items/1") || !strings.Contains(got[1], "/items/3") {
@@ -356,8 +360,12 @@ func TestRunDataProjectFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Files != 2 || s.Outcome != Passed {
+	if s.Files != 2 || s.Outcome != Passed || !strings.Contains(s.Text, "Executed files:") {
 		t.Fatalf("data %+v", s)
+	}
+	// Its report exports, as a test run's does.
+	if _, err := f.runs.Export("d1", "tap", t.TempDir()); err != nil {
+		t.Errorf("export of a data run: %v", err)
 	}
 	got := f.shop.requests()
 	if len(got) != 2 || !strings.Contains(got[0], "/items/4") || !strings.Contains(got[1], "/items/5") {

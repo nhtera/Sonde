@@ -3,7 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { RunItem } from "../lib/run-bridge";
-import { applyData, shownRow, showRow, type DataRun, type FileRun } from "./run-model";
+import type { Summary } from "../lib/api";
+import { applyData, shownRow, showRow, unitsOutcome, type DataRun, type FileRun } from "./run-model";
 
 describe("run-model: data-driven runs", () => {
   function freshRun(): FileRun {
@@ -134,5 +135,19 @@ describe("run-model: data-driven runs", () => {
 
     expect(result.entries).toEqual({});
     expect(result.data?.row).toBe(99);
+  });
+});
+
+describe("unitsOutcome", () => {
+  const u = (file: string, o: Partial<{ success: boolean; canceled: boolean; error: string }> = {}) =>
+    ({ file, success: true, interrupted: false, canceled: false, requests: 1, durationMs: 1, ...o }) as NonNullable<Summary["units"]>[number];
+  it("is the file's own, from its units or rows", () => {
+    const units = [u("a.hurl"), u("a.hurl"), u("b.hurl", { success: false }), u("c.hurl", { canceled: true, success: false })];
+    expect(unitsOutcome(units, "a.hurl")).toBe("passed");
+    expect(unitsOutcome(units, "b.hurl")).toBe("failed");
+    expect(unitsOutcome(units, "c.hurl")).toBe("canceled");
+    expect(unitsOutcome([...units, u("a.hurl", { success: false })], "a.hurl")).toBe("failed");
+    expect(unitsOutcome(units, "d.hurl")).toBeUndefined();
+    expect(unitsOutcome([u("e.hurl", { success: false, error: "unreadable" })], "e.hurl")).toBe("error");
   });
 });

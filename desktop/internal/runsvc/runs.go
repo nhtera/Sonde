@@ -398,7 +398,9 @@ func (r *Runs) start(ctx context.Context, runID, kind string, files []string, bo
 		}
 	} else {
 		rn.finish(ctx)
-		if kind == "test" {
+		// A test run and a data run (the Test run panel's two) get the
+		// summary and are kept for their reports.
+		if kind == "test" || kind == "data" {
 			rn.summary.Text = testText(rn.shown(), time.Duration(rn.summary.Duration)*time.Millisecond)
 			r.keepTest(runID, rn)
 		}
