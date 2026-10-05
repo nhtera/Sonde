@@ -12,6 +12,10 @@ export const strings = {
     description:
       "Write requests and asserts in .hurl files. Run them in Sonde Desktop, with sonde --test in CI, or through sonde mcp for your agents.",
   },
+  theme: {
+    toLight: "Switch to light theme",
+    toDark: "Switch to dark theme",
+  },
   notFound: {
     title: "Page not found",
     body: "Nothing lives at this address.",

@@ -1,0 +1,98 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* Shared components (src/components/ui): the desktop app's motifs at web
+   scale. Ported from the approved landing draft. Real text uses --muted,
+   never --faint (decoration only); no text below 12px; touch targets 44px. */
+@layer components {
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--s5); }
+  .mono { font-family: var(--font-code); }
+  .muted { color: var(--muted); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .skip { position: absolute; left: -9999px; }
+  .skip:focus {
+    left: var(--s4); top: var(--s3); z-index: 50;
+    background: var(--accent); color: var(--accent-ink);
+    padding: var(--s3) var(--s4); min-height: 44px;
+    display: inline-flex; align-items: center; border-radius: var(--r-control);
+  }
+
+  /* Button: primary teal / ghost. */
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--s2);
+    height: 44px; padding: 0 var(--s5);
+    border-radius: var(--r-control); border: 1px solid var(--line);
+    font: 500 .9375rem/1 var(--font-ui); color: var(--text); background: transparent;
+    cursor: pointer; text-decoration: none;
+    transition: transform .12s var(--ease), background-color .2s var(--ease), border-color .2s var(--ease);
+  }
+  .btn:hover { border-color: var(--muted); transform: translateY(-1px); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { filter: brightness(1.06); }
+
+  /* Kbd: ⌘K / ⌘R chips. */
+  .kbd { font: 500 .75rem/1 var(--font-code); padding: 3px 6px; border-radius: var(--r-chip); background: var(--raised); color: var(--muted); }
+  .btn.primary .kbd { background: var(--accent-kbd); color: var(--accent-ink); }
+
+  /* Result pills. */
+  .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 var(--s2); border-radius: var(--r-chip); font: 600 .75rem/1 var(--font-ui); }
+  .pill.pass { background: var(--pass-soft); color: var(--pass); }
+  .pill.fail { background: var(--fail-soft); color: var(--fail); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.neutral { background: var(--raised); color: var(--muted); }
+
+  /* Chips; .cap = a captured value (→ token / ← cart_id). */
+  .chip {
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+    height: 22px; padding: 0 6px; border-radius: var(--r-chip);
+    font: .75rem/1 var(--font-code); border: 1px solid var(--line); color: var(--muted);
+  }
+  .chip.cap { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+
+  /* Methods are colored mono text, never filled. */
+  .m-get { color: var(--m-get); } .m-post { color: var(--m-post); } .m-put { color: var(--m-put); }
+  .m-patch { color: var(--m-patch); } .m-del { color: var(--m-delete); }
+
+  /* Syntax tokens; comments use --muted (see src/lib/shiki.ts). */
+  .t-sec { color: var(--t-sec); } .t-key { color: var(--t-key); } .t-str { color: var(--t-str); }
+  .t-num { color: var(--t-num); } .t-var { color: var(--t-var); } .t-com { color: var(--muted); }
+  .t-f { color: var(--t-f); }
+  .ok { color: var(--pass); } .bad { color: var(--fail); } .warn { color: var(--warn); }
+
+  .icon-btn {
+    width: 44px; height: 44px; display: grid; place-items: center;
+    border-radius: var(--r-control); border: 1px solid transparent; background: transparent;
+    color: var(--muted); cursor: pointer;
+    transition: color .2s var(--ease), border-color .2s var(--ease);
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--line); }
+  .icon-btn svg { width: 20px; height: 20px; }
+  [data-theme="dark"] .i-sun, [data-theme="light"] .i-moon { display: none; }
+
+  /* Window frame around app screenshots; a themed shot shows the image that
+     matches html[data-theme]. */
+  .frame { border-radius: var(--r-window); border: 1px solid var(--line); background: var(--panel); overflow: hidden; box-shadow: var(--shadow); }
+  .frame img { display: block; width: 100%; height: auto; }
+  [data-theme="dark"] .shot-light, [data-theme="light"] .shot-dark { display: none; }
+
+  /* Code card: a file with gutter marks ✓ ✕ ◆ and the failed-line wash. */
+  .file { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; }
+  .file-head { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line2); font-size: var(--t-small); }
+  .file-head .chip { margin-left: auto; }
+  .code { margin: 0; padding: var(--s4) 0; font: .8125rem/1.85 var(--font-code); overflow-x: auto; background: var(--bg); }
+  .code .l { display: block; padding: 0 var(--s4) 0 0; white-space: pre; }
+  .code .n { display: inline-block; width: 40px; padding-right: var(--s3); text-align: right; color: var(--muted); user-select: none; }
+  .code .g { display: inline-block; width: 18px; color: var(--faint); }
+  .code .l.failed { background: var(--fail-row); box-shadow: inset 2px 0 0 var(--fail); }
+  .code .inline-err { color: var(--fail); margin-left: var(--s3); }
+  @media (max-width: 620px) {
+    .code { font-size: .75rem; mask-image: linear-gradient(90deg, black calc(100% - 20px), transparent); }
+    .code .n { width: 28px; padding-right: var(--s2); }
+    .code .g { width: 14px; }
+  }
+
+  /* Brand: logo mark + name. */
+  .brand { display: flex; align-items: center; gap: var(--s2); font-weight: 600; font-size: 1rem; min-height: 44px; color: var(--text); text-decoration: none; }
+  .brand svg { width: 26px; height: 26px; }
+}
