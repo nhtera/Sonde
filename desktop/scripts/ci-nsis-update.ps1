@@ -24,6 +24,17 @@ $exe = Join-Path $Dir 'Sonde.exe'
 function Fail([string] $msg) { Write-Error "FAIL: $msg"; exit 1 }
 function Hash([string] $p) { (Get-FileHash -Algorithm SHA256 $p).Hash }
 function Value([string] $name) { (Get-ItemProperty -Path $key -Name $name -ErrorAction SilentlyContinue).$name }
+# Settle waits until the update's relaunch of Sonde.exe (a payload that
+# quits at once without an argument) has come and gone.
+function Settle {
+  Start-Sleep 3
+  for ($i = 0; $i -lt 20; $i++) {
+    if (-not (Get-Process | Where-Object { $_.Path -eq $exe })) { return }
+    Start-Sleep 1
+  }
+  Fail 'Sonde.exe is still running after the relaunch'
+}
+
 # Run waits for the installer alone, not for what it starts (the relaunch
 # through Explorer), and never for more than 2 minutes.
 function Run([string] $file, [string[]] $argv) {
@@ -41,7 +52,9 @@ if ((Value 'InstallLocation') -ne $Dir) { Fail "InstallLocation is '$(Value 'Ins
 # The update waits for the app (a process that quits in 8 s).
 $app = Start-Process -FilePath powershell -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep 8') -PassThru
 $t0 = Get-Date
-if ((Run $InstallerB @('/S', '/UPDATE', "/WAITPID=$($app.Id)")) -ne 0) { Fail 'installer B /UPDATE' }
+$code = Run $InstallerB @('/S', '/UPDATE', "/WAITPID=$($app.Id)")
+if ($code -ne 0) { Fail "installer B /UPDATE: exit $code" }
+Settle
 if (((Get-Date) - $t0).TotalSeconds -lt 6) { Fail 'the update did not wait for the app to quit' }
 if ((Hash $exe) -ne (Hash $PayloadB)) { Fail 'the update did not replace Sonde.exe in the custom folder' }
 if (Test-Path "$env:ProgramFiles\The Sonde Authors\Sonde") { Fail 'the update installed under Program Files' }
@@ -50,13 +63,17 @@ if ((Value 'DisplayVersion') -ne '0.0.2') { Fail "DisplayVersion is '$(Value 'Di
 
 # The folder comes from the registry, never from the command line.
 $elsewhere = Join-Path $env:RUNNER_TEMP 'elsewhere'
-if ((Run $InstallerB @('/S', '/UPDATE', "/D=$elsewhere")) -ne 0) { Fail 'installer B /UPDATE /D=' }
+$code = Run $InstallerB @('/S', '/UPDATE', "/D=$elsewhere")
+if ($code -ne 0) { Fail "installer B /UPDATE /D=: exit $code" }
+Settle
 if (Test-Path $elsewhere) { Fail '/UPDATE installed into the folder /D= named' }
 if ((Hash $exe) -ne (Hash $PayloadB)) { Fail 'the update with /D= did not update the recorded folder' }
 
 # A 0.1.0 install recorded no InstallLocation: DisplayIcon finds the folder.
 Remove-ItemProperty -Path $key -Name InstallLocation
-if ((Run $InstallerA @('/S', '/UPDATE')) -ne 0) { Fail 'the update of a 0.1.0 install' }
+$code = Run $InstallerA @('/S', '/UPDATE')
+if ($code -ne 0) { Fail "the update of a 0.1.0 install: exit $code" }
+Settle
 if ((Hash $exe) -ne (Hash $PayloadA)) { Fail 'the DisplayIcon fallback did not find the folder' }
 if ((Value 'InstallLocation') -ne $Dir) { Fail 'InstallLocation was not written by the update' }
 

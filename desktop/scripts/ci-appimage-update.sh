@@ -33,8 +33,6 @@ for _ in $(seq 50); do [ -s "$t/mountpoint" ] && break; sleep 0.1; done
 mnt="$(head -1 "$t/mountpoint")"
 [ -d "$mnt/usr/bin" ] || fail "no mount at '$mnt'"
 echo "mountinfo: $(grep -F " $mnt " /proc/self/mountinfo || echo none)"
-ps -o pid,ppid,args --ppid "$mounter" --pid "$mounter" || true
-cat "$mnt/AppRun" 2>/dev/null | head -20 || true
 
 # 1. Started by the runtime: the check passes.
 "$img" --update-install-check || fail "the AppImage runtime's own launch was refused"

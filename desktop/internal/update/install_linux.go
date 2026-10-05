@@ -64,18 +64,20 @@ func checkAppImage(appImage, appDir string) (reason, detail string) {
 	if err != nil {
 		return reasonNotAppImage, err.Error()
 	}
-	fuse, named := appImageMount(mounts, appDir, appImage)
+	fuse, byPath, byName := appImageMount(mounts, appDir, appImage)
 	if !fuse {
 		return reasonNotAppImage, fmt.Sprintf("no FUSE mount at APPDIR %q", appDir)
 	}
-	if !named && !openedByRuntime(appImage) {
+	// A mount named by the file name alone needs proof it is this file:
+	// the runtime serving it runs from the image itself.
+	if proven := byPath || byName && runtimeRunning(appImage); !proven {
 		var src string
 		for _, m := range mounts {
 			if filepath.Clean(m.point) == filepath.Clean(appDir) {
 				src = m.fstype + " " + m.source
 			}
 		}
-		return reasonNotAppImage, fmt.Sprintf("the mount at APPDIR is %q, not %q, and no runtime process holds it open", src, appImage)
+		return reasonNotAppImage, fmt.Sprintf("the mount at APPDIR is %q, not %q served by its own runtime", src, appImage)
 	}
 	uid := uint32(os.Getuid()) //nolint:gosec // a uid
 	var st unix.Stat_t
@@ -99,62 +101,29 @@ func sysStat(fi os.FileInfo) (*syscall.Stat_t, bool) {
 	return st, ok
 }
 
-// openedByRuntime is the fallback where mountinfo does not name the image
-// (best effort): the AppImage runtime forks its FUSE server before it
-// starts the app, so that server, a child or a sibling of this process,
-// holds the very file $APPIMAGE names open.
-func openedByRuntime(appImage string) bool {
+// runtimeRunning reports whether a process of this user runs from the very
+// file $APPIMAGE names: the AppImage runtime, which serves the mount.
+func runtimeRunning(appImage string) bool {
 	var want unix.Stat_t
 	if unix.Stat(appImage, &want) != nil {
 		return false
 	}
-	for _, pid := range runtimeCandidates() {
-		fds, err := os.ReadDir("/proc/" + pid + "/fd")
-		if err != nil {
-			continue
-		}
-		for _, fd := range fds {
-			var st unix.Stat_t
-			if unix.Stat("/proc/"+pid+"/fd/"+fd.Name(), &st) == nil && st.Dev == want.Dev && st.Ino == want.Ino {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// runtimeCandidates are this process and the processes whose parent is
-// this process or its parent.
-func runtimeCandidates() []string {
-	self, parent := os.Getpid(), os.Getppid()
-	out := []string{"self"}
+	self := os.Getpid()
 	procs, err := os.ReadDir("/proc")
 	if err != nil {
-		return out
+		return false
 	}
 	for _, p := range procs {
 		pid, err := strconv.Atoi(p.Name())
 		if err != nil || pid == self {
 			continue
 		}
-		stat, err := os.ReadFile("/proc/" + p.Name() + "/stat")
-		if err != nil {
-			continue
-		}
-		// pid (comm) state ppid ...: comm may hold spaces and parentheses.
-		rest := string(stat)
-		if i := strings.LastIndexByte(rest, ')'); i >= 0 {
-			rest = rest[i+1:]
-		}
-		f := strings.Fields(rest)
-		if len(f) < 2 {
-			continue
-		}
-		if ppid, err := strconv.Atoi(f[1]); err == nil && (ppid == self || ppid == parent) {
-			out = append(out, p.Name())
+		var st unix.Stat_t
+		if unix.Stat("/proc/"+p.Name()+"/exe", &st) == nil && st.Dev == want.Dev && st.Ino == want.Ino {
+			return true
 		}
 	}
-	return out
+	return false
 }
 
 // Install writes the staged AppImage next to the running one, checks it
