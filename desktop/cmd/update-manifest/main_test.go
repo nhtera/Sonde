@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -51,7 +52,7 @@ func TestSignVerify(t *testing.T) {
 	must(t, run(verifyArgs(dir, keys), io.Discard))
 
 	// The private key is readable by its owner only, and never replaced.
-	if info, err := os.Stat(filepath.Join(keys, "k1.key")); err != nil || info.Mode().Perm() != 0o600 {
+	if info, err := os.Stat(filepath.Join(keys, "k1.key")); err != nil || runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Fatalf("k1.key mode = %v, %v; want 0600", info.Mode(), err)
 	}
 	if err := run([]string{"genkey", "-id", "k1", "-out", keys}, io.Discard); err == nil {

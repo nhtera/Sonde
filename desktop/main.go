@@ -64,7 +64,11 @@ func run() error {
 	}
 	// For CI and support: the in-place install check, without a window.
 	if *installCheck {
-		if ok, reason := update.NewInstaller(update.InstallerDeps{}).CanInstall(); !ok {
+		inst := update.NewInstaller(update.InstallerDeps{})
+		if ok, reason := inst.CanInstall(); !ok {
+			if d, ok := inst.(interface{ Detail() string }); ok && d.Detail() != "" {
+				reason += " (" + d.Detail() + ")"
+			}
 			return errors.New(reason)
 		}
 		fmt.Println("this copy can install updates in place")

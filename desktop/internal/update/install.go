@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -57,9 +58,10 @@ func translocated(bundle string) bool {
 	return strings.Contains(bundle, "/AppTranslocation/")
 }
 
-// bundleOf is the .app folder that holds the executable exe, or "".
+// bundleOf is the .app folder that holds the executable exe, or "" (macOS
+// paths, handled alike on any OS for the tests).
 func bundleOf(exe string) string {
-	for d := filepath.Dir(exe); d != filepath.Dir(d); d = filepath.Dir(d) {
+	for d := path.Dir(exe); d != path.Dir(d); d = path.Dir(d) {
 		if strings.HasSuffix(d, ".app") {
 			return d
 		}
