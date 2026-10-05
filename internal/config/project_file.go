@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"sync"
 
@@ -62,6 +63,11 @@ type Environment struct {
 	// SecretsFiles is "secrets_files:", as written in sonde.yaml
 	// (relative to Dir).
 	SecretsFiles []string
+	// Secrets is "secrets:", the names of the secrets the environment
+	// needs: their values come from its secrets files (which may then be
+	// missing, as on a fresh clone) or from any other secret source
+	// (SONDE_SECRET_*, --secret); MissingSecrets says which none sets.
+	Secrets []string
 }
 
 // Defaults is a sonde.yaml "defaults:" block.
@@ -85,6 +91,7 @@ type environmentYAML struct {
 	Variables      map[string]yaml.Node `yaml:"variables"`
 	VariablesFiles []string             `yaml:"variables_files"`
 	SecretsFiles   []string             `yaml:"secrets_files"`
+	Secrets        []string             `yaml:"secrets"`
 }
 
 type defaultsYAML struct {
@@ -241,8 +248,23 @@ func buildEnvironment(path string, root *projectSandbox, envYAML environmentYAML
 		}
 	}
 	env.SecretsFiles = envYAML.SecretsFiles
+	seen := map[string]bool{}
+	for _, name := range envYAML.Secrets {
+		switch {
+		case !secretNameRE.MatchString(name):
+			return Environment{}, fmt.Errorf("%s: secrets: %q is not a variable name", path, name)
+		case seen[name]:
+			return Environment{}, fmt.Errorf("%s: secrets: %q is listed twice", path, name)
+		}
+		seen[name] = true
+	}
+	env.Secrets = envYAML.Secrets
 	return env, nil
 }
+
+// secretNameRE is a name "secrets:" lists: one a secrets file or
+// --secret can define and a {{name}} can use.
+var secretNameRE = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
 
 // ProjectCache finds the nearest ancestor sonde.yaml for a directory,
 // memoizing the result per directory so a repeated lookup (common across

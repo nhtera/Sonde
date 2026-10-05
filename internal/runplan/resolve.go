@@ -10,6 +10,7 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/nhtera/sonde/engine"
 	"github.com/nhtera/sonde/internal/config"
@@ -23,8 +24,9 @@ import (
 type jobExtras struct {
 	vars    map[string]any
 	secrets map[string]string
-	// project is the file's sonde.yaml.
+	// project is the file's sonde.yaml, env its environment.
 	project *config.Project
+	env     string
 	// validator checks the file's responses against its contract (nil:
 	// the run's, from --openapi).
 	validator engine.ResponseValidator
@@ -41,6 +43,9 @@ func (p *Plan) Resolve(ctx context.Context, files []Input) error {
 		return err
 	}
 	p.extras, p.Warnings = extras, warnings
+	if err := p.checkSecrets(); err != nil {
+		return err
+	}
 	if p.Data != nil {
 		for name, e := range extras {
 			if err := p.Data.CheckSecrets(e.secrets); err != nil {
@@ -55,6 +60,33 @@ func (p *Plan) Resolve(ctx context.Context, files []Input) error {
 		if _, _, ok := p.env.Lookup("JOBS"); !ok {
 			p.Workers = defaultsJobs
 		}
+	}
+	return nil
+}
+
+// checkSecrets reports the "secrets:" names of each file's environment
+// that no secret source of the run sets (its secrets files, missing on a
+// fresh clone, SONDE_SECRET_*/HURL_SECRET_*, --secrets-file, --secret):
+// once per sonde.yaml environment, with where to set them.
+func (p *Plan) checkSecrets() error {
+	seen := map[string]bool{}
+	names := make([]string, 0, len(p.extras))
+	for name := range p.extras {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		e := p.extras[name]
+		key := e.project.Path + "\x00" + e.env
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		missing := e.project.MissingSecrets(e.env, e.secrets, func(n string) bool { _, ok := p.Options.Secrets[n]; return ok })
+		if len(missing) == 0 {
+			continue
+		}
+		return e.project.MissingSecretsError(e.env, missing)
 	}
 	return nil
 }
@@ -148,7 +180,7 @@ func resolveJobExtras(files []Input, inv *Invocation, env config.Env) (extras ma
 		if rerr != nil {
 			return nil, 0, nil, rerr
 		}
-		e := jobExtras{secrets: secrets, project: proj}
+		e := jobExtras{secrets: secrets, project: proj, env: envName}
 		if len(vars) > 0 {
 			e.vars = make(map[string]any, len(vars))
 			for name, v := range vars {

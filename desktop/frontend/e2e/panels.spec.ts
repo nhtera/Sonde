@@ -117,12 +117,14 @@ test("Mark secret moves a variable out of sonde.yaml, comments kept", async ({ p
   await expect(row).toContainText("secrets/local.secrets");
   await expect(row.getByLabel("webhook value")).toHaveValue("");
   await page.screenshot({ path: `${candidates}/panels-env-5a.png` });
-  // sonde.yaml: the name is gone, its comments stay.
+  // sonde.yaml: the variable is gone, the name listed in secrets: only
+  // (never the value), its comments stay.
   await page.getByRole("button", { name: /^Edit sonde\.yaml/ }).click();
   await expect(page.locator(".cm-content")).toBeVisible();
   const yaml = await page.locator(".cm-content").textContent();
   expect(yaml).toContain("# results-api: the Results panel's browser tests");
-  expect(yaml).not.toContain("webhook");
+  expect(yaml).toMatch(/secrets:\s*- webhook/);
+  expect(yaml?.match(/webhook/g)).toHaveLength(1);
   expect(yaml).not.toContain("whsec-e2e-value");
 });
 

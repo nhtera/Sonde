@@ -26,6 +26,8 @@ environments:
       - env/local.vars
     secrets_files:
       - env/local.secrets
+    secrets:
+      - api_token
 
   staging:
     variables:
@@ -56,6 +58,18 @@ openapi:
   - `secrets_files` (optional): paths to secrets files, same format,
     loaded as secrets (redacted), same rules as `--secrets-file`: a name
     already defined by an earlier secrets source is an error.
+  - `secrets` (optional): the names of the secrets the environment needs,
+    committed with `sonde.yaml` while their values stay in the secrets
+    files, kept out of git (add `*.secrets` to `.gitignore`). A name is
+    listed once and is a variable name (`[A-Za-z0-9_][A-Za-z0-9_.-]*`).
+    With `secrets` set, a `secrets_files` entry that does not exist (a
+    fresh clone) is no error: each listed name may come from any secret
+    source instead (CI: `SONDE_SECRET_<name>`). A run of the environment
+    in which a listed name is set by none of them fails before any
+    request, naming each missing secret and where to set it:
+    `sonde.yaml: environment local: secret api_token not set: add it to
+    env/local.secrets, or set SONDE_SECRET_api_token`. Without `secrets`,
+    a missing secrets file stays an error.
 - `defaults` (optional):
   - `env`: the environment used when neither `--env` nor `SONDE_ENV` is set.
   - `jobs`: the default `--jobs` value when the flag is not given; an

@@ -618,3 +618,27 @@ func TestRecoverPanics(t *testing.T) {
 		t.Fatalf("res=%v err=%v log=%s", res, err, log.String())
 	}
 }
+
+// TestRunDeclaredSecrets: a fresh clone (no secrets file) runs when the
+// server sets every secret the environment lists; one set by nothing is
+// named, with where to set it.
+func TestRunDeclaredSecrets(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"ok":true}`)) }))
+	t.Cleanup(srv.Close)
+	f := &runFixture{root: tempRoot(t), host: strings.TrimPrefix(srv.URL, "http://"), log: &syncBuffer{}}
+	writeFiles(t, f.root, map[string]string{
+		"sonde.yaml": "version: 1\nenvironments:\n  local:\n    variables:\n      base: " + srv.URL + "\n    secrets_files: [local.secrets]\n    secrets: [token]\n",
+		"ok.hurl":    "GET {{base}}/\nX-Token: {{token}}\nHTTP 200\n",
+	})
+	var out runOutput
+	res := call(t, f.connect(t, Config{}), "sonde_run", map[string]any{"path": "ok.hurl", "env": "local"}, &out)
+	if !res.IsError || !strings.Contains(resultText(res), "secret token not set: add it to local.secrets, or set SONDE_SECRET_token") {
+		t.Errorf("missing: %s", resultText(res))
+	}
+	out = runOutput{}
+	const token = "server-token-77" //nolint:gosec // G101: test sentinel
+	res = call(t, f.connect(t, Config{Secrets: map[string]string{"token": token}}), "sonde_run", map[string]any{"path": "ok.hurl", "env": "local"}, &out)
+	if res.IsError || !out.Success {
+		t.Errorf("set by the server: %s", resultText(res))
+	}
+}

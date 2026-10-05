@@ -20,6 +20,8 @@ type EnvironmentSkeleton struct {
 	Variables map[string]string
 	// SecretsFiles is the "secrets_files:" list.
 	SecretsFiles []string
+	// Secrets is the "secrets:" list of secret names.
+	Secrets []string
 }
 
 // ProjectSkeleton is the data EmitProject renders to a sonde.yaml skeleton.
@@ -45,6 +47,7 @@ type skeletonYAML struct {
 type envSkeletonYAML struct {
 	Variables    map[string]string `yaml:"variables,omitempty"`
 	SecretsFiles []string          `yaml:"secrets_files,omitempty"`
+	Secrets      []string          `yaml:"secrets,omitempty"`
 }
 
 type defaultsSkeletonYAML struct {

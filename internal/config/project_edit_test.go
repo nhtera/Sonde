@@ -149,7 +149,7 @@ func TestSetSecret(t *testing.T) {
 		t.Errorf("secrets file %+v", sec)
 	}
 	y := string(only(t, edits, "sonde.yaml").Data)
-	if strings.Contains(y, "port: 8080") || !strings.Contains(y, "    secrets_files:\n      - secrets/dev.secrets\n") {
+	if strings.Contains(y, "port: 8080") || !strings.Contains(y, "    secrets_files:\n      - secrets/dev.secrets\n    secrets:\n      - port\n") {
 		t.Errorf("sonde.yaml:\n%s", y)
 	}
 	if string(only(t, edits, "dev.properties").Data) != "" {
@@ -161,7 +161,8 @@ func TestSetSecret(t *testing.T) {
 	if edits, err = p.SetSecret("dev", "b", "2"); err != nil {
 		t.Fatal(err)
 	}
-	if e := only(t, edits, "other.secrets"); string(e.Data) != "b=2\n" || !e.Created || len(edits) != 1 {
+	// Its name is listed in secrets: (the yaml edit), for a fresh clone.
+	if e := only(t, edits, "other.secrets"); string(e.Data) != "b=2\n" || !e.Created || len(edits) != 2 || !strings.Contains(string(only(t, edits, "sonde.yaml").Data), "    secrets:\n      - b\n") {
 		t.Errorf("listed secrets file: %+v (%d edits)", e, len(edits))
 	}
 	if _, err := p.SetVariable("dev", "c", value.Int(3)); err != nil {
@@ -174,7 +175,7 @@ func TestSetSecret(t *testing.T) {
 	if edits, err = p.SetSecret("dev", "z", "3"); err != nil {
 		t.Fatal(err)
 	}
-	if e := only(t, edits, "dev.secrets"); string(e.Data) != "y=2\nz=3\n" || e.Created || len(edits) != 1 {
+	if e := only(t, edits, "dev.secrets"); string(e.Data) != "y=2\nz=3\n" || e.Created || len(edits) != 2 {
 		t.Errorf("existing secrets file: %+v (%d edits)", e, len(edits))
 	}
 	if _, err := p.SetSecret("dev", "q", "multi\nline"); err == nil {
@@ -279,6 +280,60 @@ func TestEditCRLFAndEmptyEnv(t *testing.T) {
 	}
 }
 
+// TestAddEnvironments: an import's environments go after the last one,
+// the file otherwise as it was, and read back as added.
+func TestAddEnvironments(t *testing.T) {
+	add := map[string]EnvironmentSkeleton{
+		"collection": {Variables: map[string]string{"baseUrl": "http://x", "port": "8080"}, SecretsFiles: []string{"secrets/collection.secrets"}},
+	}
+	cases := []struct{ name, src, want string }{
+		{"after the last", editYAML + "openapi:\n  spec: api.yaml\n", editYAML +
+			"  collection:\n    variables:\n      baseUrl: http://x\n      port: \"8080\"\n    secrets_files:\n      - secrets/collection.secrets\n" +
+			"openapi:\n  spec: api.yaml\n"},
+		{"no environments", "version: 1 # v", "version: 1 # v\nenvironments:\n  collection:\n    variables:\n" +
+			"      baseUrl: http://x\n      port: \"8080\"\n    secrets_files:\n      - secrets/collection.secrets\n"},
+		{"an empty one", "version: 1\nenvironments: ~ # none yet\n", "version: 1\nenvironments: # none yet\n  collection:\n    variables:\n" +
+			"      baseUrl: http://x\n      port: \"8080\"\n    secrets_files:\n      - secrets/collection.secrets\n"},
+		{"CRLF", "version: 1\r\nenvironments:\r\n  dev:\r\n", "version: 1\r\nenvironments:\r\n  dev:\r\n  collection:\r\n    variables:\r\n" +
+			"      baseUrl: http://x\r\n      port: \"8080\"\r\n    secrets_files:\r\n      - secrets/collection.secrets\r\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := project(t, c.src, map[string]string{"dev.properties": "a=1\n"})
+			edits, err := p.AddEnvironments(add)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(edits) != 1 {
+				t.Fatalf("%d edits", len(edits))
+			}
+			if got := string(only(t, edits, "sonde.yaml").Data); got != c.want {
+				t.Errorf("sonde.yaml:\n%s\nwant:\n%s", got, c.want)
+			}
+		})
+	}
+	// An empty one (a collection without variables) is "name:", which
+	// edits; one written "{}" already does not keep others out.
+	p := project(t, "version: 1\nenvironments:\n  dev: {}\n", nil)
+	edits, err := p.AddEnvironments(map[string]EnvironmentSkeleton{"collection": {}, "local": add["collection"]})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "version: 1\nenvironments:\n  dev: {}\n  collection:\n  local:\n    variables:\n      baseUrl: http://x\n      port: \"8080\"\n" +
+		"    secrets_files:\n      - secrets/collection.secrets\n"
+	if got := string(only(t, edits, "sonde.yaml").Data); got != want {
+		t.Errorf("sonde.yaml:\n%s\nwant:\n%s", got, want)
+	}
+	p = project(t, editYAML, map[string]string{"dev.properties": "a=1\n"})
+	if _, err := p.AddEnvironments(map[string]EnvironmentSkeleton{"dev": {}}); err == nil {
+		t.Error("an environment there already is added")
+	}
+	p = project(t, "version: 1\nenvironments: {dev: {}}\n", nil)
+	if _, err := p.AddEnvironments(add); !errors.Is(err, ErrEditByHand) {
+		t.Errorf("flow style: %v", err)
+	}
+}
+
 func TestProperties(t *testing.T) {
 	for _, tc := range []struct{ in, name, raw, want string }{
 		{"", "a", "1", "a=1\n"},
@@ -335,5 +390,83 @@ func TestEditValidation(t *testing.T) {
 	// prod does not resolve (its secrets file is missing): dev still edits.
 	if _, err := p.SetVariable("dev", "x", value.Int(1)); err != nil {
 		t.Errorf("an already broken environment blocks the edit: %v", err)
+	}
+}
+
+// TestSecretsListed: a secret set is listed in "secrets:" once, in block
+// or flow style; removed, it leaves the list ("[]" when it was the last).
+func TestSecretsListed(t *testing.T) {
+	for _, c := range []struct{ name, src, after, removed string }{
+		{"block", "version: 1\nenvironments:\n  dev:\n    secrets:\n      - a\n", "    secrets:\n      - a\n      - b\n", "    secrets:\n      - a\n"},
+		{"flow", "version: 1\nenvironments:\n  dev:\n    secrets: [a]\n", "    secrets: [a, b]\n", "    secrets: [a]\n"},
+		{"none", "version: 1\nenvironments:\n  dev:\n    variables:\n      x: 1\n", "    secrets:\n      - b\n", "    secrets: []\n"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			p := project(t, c.src, nil)
+			edits, err := p.SetSecret("dev", "b", "v")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := WriteEdits(sandboxOpen(t, p.Dir), edits); err != nil {
+				t.Fatal(err)
+			}
+			if p, err = LoadProject(p.Path); err != nil {
+				t.Fatal(err)
+			}
+			if y, _ := os.ReadFile(p.Path); !strings.Contains(string(y), c.after) {
+				t.Fatalf("set:\n%s", y)
+			}
+			if edits, err = p.SetSecret("dev", "b", "w"); err != nil || strings.Contains(string(only(t, edits, "dev.secrets").Data), "b=v") {
+				t.Fatalf("set again: %v", err)
+			}
+			for _, ed := range edits {
+				if filepath.Base(ed.Path) == "sonde.yaml" {
+					t.Error("listed twice")
+				}
+			}
+			if edits, err = p.RemoveVariable("dev", "b"); err != nil {
+				t.Fatal(err)
+			}
+			if y := string(only(t, edits, "sonde.yaml").Data); !strings.Contains(y, c.removed) || strings.Contains(y, "- b") {
+				t.Errorf("removed:\n%s", y)
+			}
+		})
+	}
+}
+
+// sandboxOpen opens dir as a Root closed with the test.
+func sandboxOpen(t *testing.T, dir string) *sandbox.Root {
+	t.Helper()
+	root, err := sandbox.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = root.Close() })
+	return root
+}
+
+// TestMergeEnvironments: an import's values go into a picked environment:
+// what it defines is kept (a variable, a secret, one listed), new names
+// are added, an earlier merge winning; new environments are added too.
+func TestMergeEnvironments(t *testing.T) {
+	src := "version: 1\nenvironments:\n  local:\n    variables:\n      base_url: http://mine\n    secrets: [token]\n"
+	p := project(t, src, nil)
+	edits, kept, err := p.MergeEnvironments([]EnvMerge{
+		{Env: "local", Variables: map[string]string{"policyId": "p-2", "base_url": "http://theirs"}, Secrets: []string{"nmk-cookie", "token"}},
+		{Env: "local", Variables: map[string]string{"policyId": "p-1", "port": "8080"}},
+	}, map[string]EnvironmentSkeleton{"partner": {Variables: map[string]string{"x": "1"}, Secrets: []string{"key"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "version: 1\nenvironments:\n  local:\n    variables:\n      base_url: http://mine\n      policyId: p-2\n      port: \"8080\"\n" +
+		"    secrets: [token, nmk-cookie]\n  partner:\n    variables:\n      x: \"1\"\n    secrets:\n      - key\n"
+	if got := string(only(t, edits, "sonde.yaml").Data); got != want {
+		t.Errorf("sonde.yaml:\n%s\nwant:\n%s", got, want)
+	}
+	if got := strings.Join(kept["local"], ","); got != "base_url,policyId,token" {
+		t.Errorf("kept %v", kept)
+	}
+	if _, _, err := p.MergeEnvironments([]EnvMerge{{Env: "nope"}}, nil); err == nil {
+		t.Error("an unknown environment is merged into")
 	}
 }

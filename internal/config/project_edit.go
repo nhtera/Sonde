@@ -171,6 +171,9 @@ func (p *Project) SetSecret(env, name, secret string) ([]FileEdit, error) {
 		if err := e.setProperty(src.File, name, secret, 0o600); err != nil {
 			return nil, err
 		}
+		if err := e.declareSecret(env, name); err != nil {
+			return nil, err
+		}
 		return e.result()
 	}
 	rel, err := p.SecretsFileFor(env)
@@ -188,7 +191,19 @@ func (p *Project) SetSecret(env, name, secret string) ([]FileEdit, error) {
 	if err := e.removeVariable(env, name, false); err != nil {
 		return nil, err
 	}
+	if err := e.declareSecret(env, name); err != nil {
+		return nil, err
+	}
 	return e.result()
+}
+
+// declareSecret lists name in the "secrets:" of env, so a fresh clone
+// (without the secrets file) knows it is needed.
+func (e *projectEdit) declareSecret(env, name string) error {
+	if slices.Contains(e.p.Environments[env].Secrets, name) {
+		return nil
+	}
+	return e.yamlAppend(env, "secrets", name)
 }
 
 // RemoveVariable removes name from every source of environment env.
@@ -200,7 +215,96 @@ func (p *Project) RemoveVariable(env, name string) ([]FileEdit, error) {
 	if err := e.removeVariable(env, name, true); err != nil {
 		return nil, err
 	}
+	if err := e.yamlRemoveItem(env, "secrets", name); err != nil {
+		return nil, err
+	}
 	return e.result()
+}
+
+// AddEnvironments adds the environments add to sonde.yaml, after its last
+// one (under a new "environments:" when it has none), as an import writes
+// them. A name sonde.yaml has already is an error: the caller leaves it
+// out. The secrets files they name are not created.
+func (p *Project) AddEnvironments(add map[string]EnvironmentSkeleton) ([]FileEdit, error) {
+	edits, _, err := p.MergeEnvironments(nil, add)
+	return edits, err
+}
+
+// EnvMerge is an imported environment merged into one of the project's:
+// its variables (string values) and the names of its secrets.
+type EnvMerge struct {
+	Env       string
+	Variables map[string]string
+	Secrets   []string
+}
+
+// MergeEnvironments adds to each environment of merges the variables and
+// secret names ("secrets:") it does not define yet, in order (an earlier
+// merge into the same environment wins), then the environments add (as
+// AddEnvironments). kept are the names left as the project has them, by
+// environment, sorted.
+func (p *Project) MergeEnvironments(merges []EnvMerge, add map[string]EnvironmentSkeleton) (edits []FileEdit, kept map[string][]string, err error) {
+	for name := range add {
+		if _, ok := p.Environments[name]; ok {
+			return nil, nil, fmt.Errorf("%s: environment %q is there already", p.Path, name)
+		}
+	}
+	e := p.newEdit()
+	kept = map[string][]string{}
+	taken := map[string]map[string]bool{}
+	for _, m := range merges {
+		if taken[m.Env] == nil {
+			names, err := p.editableNames(m.Env)
+			if err != nil {
+				return nil, nil, err
+			}
+			taken[m.Env] = map[string]bool{}
+			for n := range names {
+				taken[m.Env][n] = true
+			}
+			for _, n := range p.Environments[m.Env].Secrets {
+				taken[m.Env][n] = true
+			}
+		}
+		vars := make([]string, 0, len(m.Variables))
+		for n := range m.Variables {
+			vars = append(vars, n)
+		}
+		slices.Sort(vars)
+		for _, n := range vars {
+			if taken[m.Env][n] {
+				kept[m.Env] = append(kept[m.Env], n)
+				continue
+			}
+			taken[m.Env][n] = true
+			if err := e.yamlSetVariable(m.Env, n, value.String(m.Variables[n])); err != nil {
+				return nil, nil, err
+			}
+		}
+		for _, n := range m.Secrets {
+			if taken[m.Env][n] {
+				kept[m.Env] = append(kept[m.Env], n)
+				continue
+			}
+			taken[m.Env][n] = true
+			if err := e.yamlAppend(m.Env, "secrets", n); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	for env := range kept {
+		kept[env] = slices.Compact(slices.Sorted(slices.Values(kept[env])))
+	}
+	if len(add) > 0 {
+		if err := e.yamlAddEnvironments(add); err != nil {
+			return nil, nil, err
+		}
+	}
+	if len(e.order) == 0 {
+		return nil, kept, nil
+	}
+	edits, err = e.result()
+	return edits, kept, err
 }
 
 // editableNames returns the names env defines and their sources, for an
@@ -587,6 +691,12 @@ func (e *projectEdit) yamlRemoveVariable(env, name string) error {
 
 // yamlAddSecretsFile appends rel to the secrets_files of env.
 func (e *projectEdit) yamlAddSecretsFile(env, rel string) error {
+	return e.yamlAppend(env, "secrets_files", rel)
+}
+
+// yamlAppend appends item to the list key of env (secrets_files,
+// secrets), adding the key when env has none.
+func (e *projectEdit) yamlAppend(env, key, item string) error {
 	y, err := e.yamlLoad()
 	if err != nil {
 		return err
@@ -595,21 +705,21 @@ func (e *projectEdit) yamlAddSecretsFile(env, rel string) error {
 	if err != nil {
 		return err
 	}
-	item, err := yamlKey(rel)
+	text, err := yamlKey(item)
 	if err != nil {
 		return err
 	}
 	var out []byte
-	k, seq := get(envVal, "secrets_files")
+	k, seq := get(envVal, key)
 	switch {
 	case k == nil:
 		ind := indentOf(envVal, envKey)
-		block := ind + "secrets_files:" + y.nl + ind + "  - " + item + y.nl
+		block := ind + key + ":" + y.nl + ind + "  - " + text + y.nl
 		at := y.mappingEnd(envKey, envVal)
 		out = splice(y.src, at, at, y.lead(at)+block)
 	case seq.Kind == yaml.SequenceNode && seq.Style&yaml.FlowStyle == 0 && len(seq.Content) > 0:
 		first := seq.Content[0]
-		line := strings.Repeat(" ", first.Column-3) + "- " + item + y.nl
+		line := strings.Repeat(" ", first.Column-3) + "- " + text + y.nl
 		at := y.endAfter(k)
 		out = splice(y.src, at, at, y.lead(at)+line)
 	case seq.Kind == yaml.SequenceNode && seq.Style&yaml.FlowStyle != 0 && y.endAfter(k) == y.lineEnd(seq.Line):
@@ -624,32 +734,211 @@ func (e *projectEdit) yamlAddSecretsFile(env, rel string) error {
 			sep = ""
 		}
 		at := y.lines[seq.Line-1] + i
-		out = splice(y.src, at, at, sep+item)
+		out = splice(y.src, at, at, sep+text)
 	default:
 		return ErrEditByHand
 	}
-	before, err := y.secretsFiles(env)
+	before, err := y.list(env, key)
 	if err != nil {
 		return err
 	}
+	return e.yamlSaveList(y, out, env, key, append(before, item))
+}
+
+// yamlRemoveItem removes item from the list key of env (the key stays,
+// maybe empty); nothing when it is not there.
+func (e *projectEdit) yamlRemoveItem(env, key, item string) error {
+	y, err := e.yamlLoad()
+	if err != nil {
+		return err
+	}
+	_, envVal, err := y.env(env)
+	if err != nil {
+		return err
+	}
+	before, err := y.list(env, key)
+	if err != nil || !slices.Contains(before, item) {
+		return err
+	}
+	k, seq := get(envVal, key)
+	var out []byte
+	switch {
+	case seq.Style&yaml.FlowStyle == 0:
+		for _, it := range seq.Content {
+			if it.Value == item {
+				if it.Kind != yaml.ScalarNode || y.endAfter(k) < y.lineEnd(it.Line) {
+					return ErrEditByHand
+				}
+				out = splice(y.src, y.lines[it.Line-1], y.lineEnd(it.Line), "")
+				break
+			}
+		}
+		if len(before) == 1 {
+			// The last item: "key: []", not a key with nothing under it.
+			ny, err := parseYAMLDoc(out)
+			if err != nil {
+				return fmt.Errorf("%w: %v", ErrEditByHand, err)
+			}
+			_, nenv, _ := ny.env(env)
+			nk, _ := get(nenv, key)
+			at := ny.lineEnd(nk.Line)
+			lineText := strings.TrimRight(string(ny.src[ny.lines[nk.Line-1]:at]), "\r\n")
+			out = splice(ny.src, ny.lines[nk.Line-1], at, lineText+" []"+ny.nl)
+		}
+	case y.endAfter(k) == y.lineEnd(seq.Line):
+		// [a, b] on one line: written again without item.
+		rest := make([]string, 0, len(before))
+		for _, it := range before {
+			if it != item {
+				if q, err := yamlKey(it); err == nil {
+					rest = append(rest, q)
+				}
+			}
+		}
+		lineText := string(y.src[y.lines[seq.Line-1]:y.lineEnd(seq.Line)])
+		open, end := strings.Index(lineText, "["), strings.LastIndex(lineText, "]")
+		if open < 0 || end < open {
+			return ErrEditByHand
+		}
+		at := y.lines[seq.Line-1]
+		out = splice(y.src, at+open, at+end+1, "["+strings.Join(rest, ", ")+"]")
+	default:
+		return ErrEditByHand
+	}
+	want := slices.DeleteFunc(slices.Clone(before), func(s string) bool { return s == item })
+	return e.yamlSaveList(y, out, env, key, want)
+}
+
+// yamlSaveList records out as the new sonde.yaml once the list key of env
+// reads back as want and its inline variables as they were.
+func (e *projectEdit) yamlSaveList(y *yamlDoc, out []byte, env, key string, want []string) error {
 	ny, err := parseYAMLDoc(out)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrEditByHand, err)
 	}
-	after, err := ny.secretsFiles(env)
-	if err != nil || !slices.Equal(after, append(before, rel)) {
-		return fmt.Errorf("%w: secrets_files would read %v", ErrEditByHand, after)
+	after, err := ny.list(env, key)
+	if err != nil || !slices.Equal(after, want) {
+		return fmt.Errorf("%w: %s would read %v", ErrEditByHand, key, after)
 	}
 	return e.yamlSaveChecked(y, out, env, func(map[string]value.Value) {})
 }
 
-// secretsFiles returns the secrets_files of env.
-func (y *yamlDoc) secretsFiles(env string) ([]string, error) {
+// yamlAddEnvironments appends add to the environments mapping, each
+// rendered as EmitProject renders it.
+func (e *projectEdit) yamlAddEnvironments(add map[string]EnvironmentSkeleton) error {
+	y, err := e.yamlLoad()
+	if err != nil {
+		return err
+	}
+	// An empty one is written "name:", not "name: {}": flow style is
+	// edited by hand, and its variables are to be defined here.
+	names := make([]string, 0, len(add))
+	for name := range add {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	var b bytes.Buffer
+	for _, name := range names {
+		env := add[name]
+		if len(env.Variables) == 0 && len(env.SecretsFiles) == 0 && len(env.Secrets) == 0 {
+			key, err := yamlKey(name)
+			if err != nil {
+				return err
+			}
+			b.WriteString(key + ":\n")
+			continue
+		}
+		enc := yaml.NewEncoder(&b)
+		enc.SetIndent(2)
+		if err := enc.Encode(map[string]envSkeletonYAML{name: envSkeletonYAML(env)}); err != nil {
+			return err
+		}
+		if err := enc.Close(); err != nil {
+			return err
+		}
+	}
+	block := func(indent string) string {
+		var out strings.Builder
+		for _, line := range strings.SplitAfter(b.String(), "\n") {
+			if line != "" {
+				out.WriteString(indent + strings.TrimSuffix(line, "\n") + y.nl)
+			}
+		}
+		return out.String()
+	}
+	var out []byte
+	switch k, envs := get(y.root, "environments"); {
+	case k == nil:
+		at := len(y.src)
+		out = splice(y.src, at, at, y.lead(at)+"environments:"+y.nl+block("  "))
+	case envs.Kind == yaml.MappingNode && envs.Style&yaml.FlowStyle == 0:
+		at := y.mappingEnd(k, envs)
+		out = splice(y.src, at, at, y.lead(at)+block(indentOf(envs, k)))
+	case envs.Kind == yaml.ScalarNode && envs.Tag == "!!null" && y.endAfter(k) == y.lineEnd(k.Line):
+		// "environments:" with nothing under it: its line is rewritten
+		// without the null value (if written), the entries go after.
+		indent := strings.Repeat(" ", k.Column-1)
+		line := indent + "environments:" + y.nl
+		for _, c := range []string{k.LineComment, envs.LineComment} {
+			if c != "" {
+				line = indent + "environments: " + c + y.nl
+				break
+			}
+		}
+		out = splice(y.src, y.lines[k.Line-1], y.lineEnd(k.Line), line+block(indent+"  "))
+	default:
+		return ErrEditByHand
+	}
+	// Every environment there before reads back as it was, and the new
+	// ones as added.
+	before, err := loadProjectData(e.p.Path, y.src) // with this edit's earlier changes
+	if err != nil {
+		return err
+	}
+	edited, err := loadProjectData(e.p.Path, out)
+	if err != nil || len(edited.Environments) != len(before.Environments)+len(add) {
+		return fmt.Errorf("%w: the environments would not read back", ErrEditByHand)
+	}
+	for name, env := range before.Environments {
+		if !sameEnvironment(edited.Environments[name], env) {
+			return fmt.Errorf("%w: the edit would change environment %s", ErrEditByHand, name)
+		}
+	}
+	for name, sk := range add {
+		want := Environment{SecretsFiles: sk.SecretsFiles, Secrets: sk.Secrets}
+		if len(sk.Variables) > 0 {
+			want.Variables = map[string]value.Value{}
+			for n, v := range sk.Variables {
+				want.Variables[n] = value.String(v)
+			}
+		}
+		if !sameEnvironment(edited.Environments[name], want) {
+			return fmt.Errorf("%w: environment %s would not read back", ErrEditByHand, name)
+		}
+	}
+	return e.yamlSave(out)
+}
+
+// sameEnvironment reports whether a and b read the same.
+func sameEnvironment(a, b Environment) bool {
+	if len(a.Variables) != len(b.Variables) || !slices.Equal(a.VariablesFiles, b.VariablesFiles) || !slices.Equal(a.SecretsFiles, b.SecretsFiles) || !slices.Equal(a.Secrets, b.Secrets) {
+		return false
+	}
+	for n, v := range b.Variables {
+		if g, ok := a.Variables[n]; !ok || g.Kind() != v.Kind() || !value.Equal(g, v) {
+			return false
+		}
+	}
+	return true
+}
+
+// list returns the items of the list key of env.
+func (y *yamlDoc) list(env, key string) ([]string, error) {
 	_, envVal, err := y.env(env)
 	if err != nil {
 		return nil, err
 	}
-	_, seq := get(envVal, "secrets_files")
+	_, seq := get(envVal, key)
 	var out []string
 	if seq != nil {
 		for _, it := range seq.Content {

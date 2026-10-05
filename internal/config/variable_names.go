@@ -71,6 +71,9 @@ func (p *Project) VariableNames(env string) (map[string]VariableSource, error) {
 			return nil
 		},
 		func(rel string, data []byte, readErr error) error {
+			if p.optionalSecretsFile(env, readErr) {
+				return nil
+			}
 			if readErr != nil {
 				recordErr(fmt.Errorf("%s: secrets_files: %w", p.Path, readErr))
 				return nil

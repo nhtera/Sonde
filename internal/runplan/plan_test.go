@@ -231,3 +231,24 @@ func TestResolveJobs(t *testing.T) {
 		t.Error("--env without a sonde.yaml is not refused")
 	}
 }
+
+// TestResolveDeclaredSecrets: on a fresh clone (no secrets file) a run
+// with every "secrets:" name set elsewhere (CI: SONDE_SECRET_*) resolves;
+// one without says which secret is missing and where to set it.
+func TestResolveDeclaredSecrets(t *testing.T) {
+	dir := t.TempDir()
+	yaml := "version: 1\nenvironments:\n  local:\n    secrets_files: [secrets/local.secrets]\n    secrets: [nmk-cookie]\n"
+	if err := os.WriteFile(filepath.Join(dir, "sonde.yaml"), []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	file := []Input{{Name: filepath.Join(dir, "a.hurl")}}
+	p := mustNew(t, &Invocation{Env: "local", Set: set("env")}, config.Env{"SONDE_SECRET_nmk-cookie": "c=1"})
+	if err := p.Resolve(context.Background(), file); err != nil {
+		t.Fatalf("set by SONDE_SECRET_: %v", err)
+	}
+	p = mustNew(t, &Invocation{Env: "local", Set: set("env")}, config.Env{})
+	err := p.Resolve(context.Background(), file)
+	if err == nil || !strings.Contains(err.Error(), "secret nmk-cookie not set: add it to secrets/local.secrets, or set SONDE_SECRET_nmk-cookie") {
+		t.Errorf("missing: %v", err)
+	}
+}

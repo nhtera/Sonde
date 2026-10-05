@@ -4,6 +4,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -85,5 +86,43 @@ func TestSelectEnv(t *testing.T) {
 				t.Errorf("SelectEnv(%q,%q,%q) = %q, want %q", tt.flag, tt.envVar, tt.defaultEnv, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestDeclaredSecrets: an environment listing its "secrets:" names runs
+// without its secrets file (a fresh clone), MissingSecrets naming those
+// no source sets; without "secrets:" a missing file stays an error.
+func TestDeclaredSecrets(t *testing.T) {
+	src := "version: 1\nenvironments:\n  local:\n    secrets_files: [secrets/local.secrets]\n    secrets: [token, cookie]\n  bare:\n    secrets_files: [secrets/bare.secrets]\n"
+	p := project(t, src, nil)
+	vars, secrets, err := p.Resolve("local")
+	if err != nil || len(vars) != 0 || len(secrets) != 0 {
+		t.Fatalf("no secrets file: %v %v %v", vars, secrets, err)
+	}
+	if got := p.MissingSecrets("local", secrets, func(n string) bool { return n == "cookie" }); strings.Join(got, ",") != "token" {
+		t.Errorf("missing %v, want token (cookie is set elsewhere)", got)
+	}
+	if names, err := p.VariableNames("local"); err != nil || len(names) != 0 {
+		t.Errorf("names %v, %v", names, err)
+	}
+	if _, _, err := p.Resolve("bare"); err == nil || !strings.Contains(err.Error(), "secrets_files") {
+		t.Errorf("a missing file without secrets: %v", err)
+	}
+
+	p = project(t, src, map[string]string{"secrets/local.secrets": "token=t1\ncookie=c1\n"})
+	_, secrets, err = p.Resolve("local")
+	if err != nil || secrets["token"] != "t1" || len(p.MissingSecrets("local", secrets, nil)) != 0 {
+		t.Errorf("with the file: %v %v", secrets, err)
+	}
+
+	for _, bad := range []string{"[token, token]", "[\"a b\"]", "[\"\"]"} {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "sonde.yaml")
+		if err := os.WriteFile(path, []byte("version: 1\nenvironments:\n  local:\n    secrets: "+bad+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := LoadProject(path); err == nil {
+			t.Errorf("secrets: %s loads", bad)
+		}
 	}
 }
