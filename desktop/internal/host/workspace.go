@@ -22,10 +22,13 @@ func init() {
 }
 
 // pickFolder shows the native folder dialog; "" when canceled.
-func pickFolder() (string, error) {
+func pickFolder(p workspace.FolderPrompt) (string, error) {
 	return application.Get().Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
 		CanChooseDirectories: true,
 		CanChooseFiles:       false,
-		Title:                "Open a project folder",
+		CanCreateDirectories: true,
+		Title:                p.Title,
+		Message:              p.Message,
+		ButtonText:           p.Button,
 	}).PromptForSingleSelection()
 }

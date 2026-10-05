@@ -25,7 +25,9 @@ interface WorkspaceState {
   gitSecrets: string[];
   load(): Promise<void>;
   refresh(): Promise<void>;
-  openFolder(): Promise<void>;
+  /** Asks for a folder and opens it; toImport says it is the folder an
+   * import writes into. */
+  openFolder(toImport?: boolean): Promise<void>;
   openRecent(id: string): Promise<void>;
   /** Writes the example project (Documents/Sonde/shop-api) and opens it. */
   openExample(): Promise<void>;
@@ -68,9 +70,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     }
     set({ tree, index: index ?? [], git, gitStatus, gitSecrets, gitLines });
   },
-  openFolder: async () => {
+  openFolder: async (toImport = false) => {
     if (!(await discardEdits())) return;
-    const project = await WorkspaceDesktop.OpenFolder();
+    const project = await (toImport ? WorkspaceDesktop.OpenFolderToImport() : WorkspaceDesktop.OpenFolder());
     if (project) await afterOpen(project);
   },
   openExample: async () => {

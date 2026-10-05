@@ -47,18 +47,40 @@ type Desktop struct {
 	config  *sandbox.Root
 	handles *handles.Table
 	// pickFolder shows the native folder dialog; "" when canceled.
-	pickFolder func() (string, error)
+	pickFolder func(FolderPrompt) (string, error)
 }
+
+// FolderPrompt is what the folder dialog says of why a folder is asked:
+// macOS shows the message and no title, Windows and Linux the title and
+// no message. An empty Button keeps the platform's own (Linux: "_Open").
+type FolderPrompt struct{ Title, Message, Button string }
+
+var (
+	openPrompt = FolderPrompt{Title: "Open a project folder", Message: "Choose a folder to open as a project."}
+	// An import writes into a project: the folder comes first, the file
+	// to import is picked next, in the import dialog.
+	importPrompt = FolderPrompt{
+		Title:   "Choose the project folder to import into",
+		Message: "Choose the project folder to import into. You pick the file to import next.",
+		Button:  "Choose Folder",
+	}
+)
 
 // NewDesktop returns the window-only bindings over ws. config is the
 // app's config folder; pickFolder shows the native folder dialog.
-func NewDesktop(ws *Workspace, config *sandbox.Root, h *handles.Table, pickFolder func() (string, error)) *Desktop {
+func NewDesktop(ws *Workspace, config *sandbox.Root, h *handles.Table, pickFolder func(FolderPrompt) (string, error)) *Desktop {
 	return &Desktop{ws: ws, config: config, handles: h, pickFolder: pickFolder}
 }
 
 // OpenFolder asks for a folder and opens it; nil when canceled.
-func (d *Desktop) OpenFolder() (*Project, error) {
-	dir, err := d.pickFolder()
+func (d *Desktop) OpenFolder() (*Project, error) { return d.pickAndOpen(openPrompt) }
+
+// OpenFolderToImport asks for the folder an import writes into and opens
+// it; nil when canceled.
+func (d *Desktop) OpenFolderToImport() (*Project, error) { return d.pickAndOpen(importPrompt) }
+
+func (d *Desktop) pickAndOpen(prompt FolderPrompt) (*Project, error) {
+	dir, err := d.pickFolder(prompt)
 	if err != nil || dir == "" {
 		return nil, err
 	}
