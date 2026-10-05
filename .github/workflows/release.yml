@@ -25,13 +25,21 @@ jobs:
       - run: go test ./...
       - run: make lint apicheck
       # Checks the whole module (go.mod included) against the previous CLI
-      # tag and fails if the tag is not a valid next version.
+      # tag and fails if the tag is not a valid next version. The module's
+      # versions are listed from the module cache first, which holds only
+      # the base: once the tag is pushed, anyone can fetch it through
+      # proxy.golang.org before this job runs, and gorelease would then
+      # refuse it as a version that already exists (v1.4.0). The tag push
+      # itself is what keeps a version from being made twice.
       - name: gorelease
         env:
           TAG: ${{ github.ref_name }}
         run: |
           if base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$TAG^" 2>/dev/null); then
-            go run golang.org/x/exp/cmd/gorelease@v0.0.0-20260908205506-85c1c2202aba -base="$base" -version="$TAG"
+            go install golang.org/x/exp/cmd/gorelease@v0.0.0-20260908205506-85c1c2202aba
+            go mod download "github.com/nhtera/sonde@$base"
+            GOPROXY="file://$(go env GOMODCACHE)/cache/download,https://proxy.golang.org,direct" \
+              "$(go env GOPATH)/bin/gorelease" -base="$base" -version="$TAG"
           else
             echo "gorelease: no earlier tag to compare with"
           fi
