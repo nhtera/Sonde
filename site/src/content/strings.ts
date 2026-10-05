@@ -16,6 +16,11 @@ export const strings = {
     toLight: "Switch to light theme",
     toDark: "Switch to dark theme",
   },
+  docs: {
+    titleSuffix: " · Sonde docs",
+    edit: "Edit on GitHub",
+    lastUpdated: "Last updated",
+  },
   notFound: {
     title: "Page not found",
     body: "Nothing lives at this address.",

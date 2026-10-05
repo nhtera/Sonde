@@ -18,7 +18,9 @@ export default defineConfig({
       prerender: {
         enabled: true,
         crawlLinks: true,
-        failOnError: false,
+        failOnError: true,
+        // A link with an anchor is the same page; render it once.
+        filter: (page) => !page.path.includes("#"),
       },
       // Routes no page links to: the search index, the docs index and the 404 page.
       pages: [{ path: "/api/search.json" }, { path: "/api/docs-tree.json" }, { path: "/404" }],
