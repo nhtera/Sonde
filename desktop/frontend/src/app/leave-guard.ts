@@ -10,10 +10,11 @@ import { CloseGuard } from "../lib/api";
 import { on } from "../lib/events";
 import { isDirty, useTabs } from "../state/tabs";
 
-/** What the confirmation says for the unsaved files. */
-export function leaveMessage(paths: string[]): string {
+/** What the confirmation says for the unsaved files, before verb (Quit,
+ * Restart). */
+export function leaveMessage(paths: string[], verb = "Quit"): string {
   const files = paths.length === 1 ? `${paths[0]} has` : `${paths.length} files have`;
-  return `${files} unsaved changes${paths.length > 1 ? `: ${paths.join(", ")}` : ""}. Quit without saving?`;
+  return `${files} unsaved changes${paths.length > 1 ? `: ${paths.join(", ")}` : ""}. ${verb} without saving?`;
 }
 
 /** Reports the unsaved tabs to the guard and confirms a leave it holds;

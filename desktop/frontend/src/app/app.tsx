@@ -8,9 +8,10 @@ import { Palette } from "../features/palette/palette";
 import { ThemePicker } from "../features/palette/theme-picker";
 import { Toasts } from "../features/shell/toasts";
 import { appError } from "../lib/api";
-import { serverMode } from "../lib/mode";
+import { serverMode, updatesOn } from "../lib/mode";
 import { startLspSession } from "../lib/lsp-session";
 import { useEnv } from "../state/env";
+import { startUpdates } from "../state/update";
 import { useSettings } from "../state/settings";
 import { isDirty, useTabs } from "../state/tabs";
 import { useUI } from "../state/ui";
@@ -47,6 +48,7 @@ export function App() {
   // The window app's close and quit (beforeunload does not run for them).
   useEffect(() => (serverMode ? undefined : startLeaveGuard()), []);
   useEffect(() => (serverMode ? undefined : startEditMenu()), []);
+  useEffect(() => (updatesOn ? startUpdates() : undefined), []);
 
   return (
     <>

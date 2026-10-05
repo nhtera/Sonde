@@ -48,5 +48,11 @@ export function harnessFixture<T>(name: string): T | undefined {
  */
 export const windowLook = !serverMode || harnessWindowLook();
 
+/**
+ * Whether the app updates itself (the window app). The test harness runs
+ * the update service on scripted parts, and shows it when its tests ask.
+ */
+export const updatesOn = !serverMode || String(harnessFixture<string | number>("updates")) === "1";
+
 /** The platform, for key labels and the title bar. */
 export const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);

@@ -10,14 +10,16 @@ import { type ReactNode } from "react";
 import { create } from "zustand";
 import { useKeyLabel } from "../../../app/keymap/use-keys";
 import { confirm } from "../../../components/ask";
-import { appError, Dialogs, History, Settings as SettingsSvc, type SettingsValue } from "../../../lib/api";
-import { windowLook } from "../../../lib/mode";
+import { appError, Dialogs, History, Settings as SettingsSvc, Update, type SettingsValue } from "../../../lib/api";
+import { updatesOn, windowLook } from "../../../lib/mode";
 import { useEnv } from "../../../state/env";
 import { useSettings } from "../../../state/settings";
 import { useUI } from "../../../state/ui";
 import { SuggestInput } from "../../form/suggest-input";
 import { ThemeSettings } from "./theme-settings";
 import { useCookieJar } from "../cookies/cookie-jar";
+import { lastResult, privacyLine, updateCheckNote } from "../../update/texts";
+import { useUpdate } from "../../../state/update";
 
 const sections = [
   { id: "general", title: "General" },
@@ -289,9 +291,10 @@ export function SettingsMain() {
               </div>
             </Row>
             <p className="muted small">Kept in the app&apos;s data, never in the project. Authorization, Cookie and Set-Cookie values, captured tokens and declared secrets are saved as ***.</p>
+            {updatesOn && <UpdateRows />}
             <div className="set-row">
               <div>
-                <i className="dot" /> Sonde sends no telemetry. No account, no analytics, no crash reports. Sonde never phones home.
+                <i className="dot" /> {privacyLine(updatesOn)}
               </div>
               <button
                 className="btn danger"
@@ -308,5 +311,49 @@ export function SettingsMain() {
         )}
       </div>
     </div>
+  );
+}
+
+/** The update check's settings (the window app): the switch and what it
+ * sends, Check now with the last check, and a skipped version. */
+function UpdateRows() {
+  const v = useSettings((st) => st.value);
+  const result = useUpdate((st) => lastResult(st.status));
+  if (!v) return null;
+  const u = v.updates;
+  const last = u.lastCheck ? new Date(u.lastCheck) : null;
+  return (
+    <>
+      <div className="set-row">
+        <div>
+          <div>Check for updates</div>
+          <div className="muted small">{updateCheckNote}</div>
+        </div>
+        <div className="set-control">
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            aria-label="Check for updates"
+            checked={u.check}
+            onChange={(e) => void useSettings.getState().save({ ...v, updates: { ...u, check: e.target.checked } }).catch(fail)}
+          />
+        </div>
+      </div>
+      <Row name="Updates">
+        <span className="muted small">
+          {last && !isNaN(last.getTime()) ? `Last checked ${last.toLocaleString()}` : "Not checked yet"}
+          {result && ` · ${result}`}
+        </span>
+        {u.skipped && (
+          <button className="btn" onClick={() => void Update.ClearSkip().catch(fail)}>
+            Show skipped updates again
+          </button>
+        )}
+        <button className="btn" onClick={() => void Update.Check().catch(fail)}>
+          Check now
+        </button>
+      </Row>
+    </>
   );
 }

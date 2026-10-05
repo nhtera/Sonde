@@ -10,6 +10,9 @@ import { isDirty, useTabs } from "../../state/tabs";
 import { useUI } from "../../state/ui";
 import { envColor } from "../../lib/env-color";
 import { isRequestPath } from "../../lib/files";
+import { updatesOn } from "../../lib/mode";
+import { useUpdate } from "../../state/update";
+import { UpdateItem } from "../update/update-item";
 
 declare const __APP_VERSION__: string;
 
@@ -22,6 +25,7 @@ export function StatusBar() {
   const cursor = useUI((s) => s.cursor);
   const summary = run?.summary;
   const c = counts(Object.values(run?.entries ?? {}));
+  const info = useUpdate((s) => s.info);
   return (
     <footer className="statusbar">
       {env && (
@@ -45,8 +49,9 @@ export function StatusBar() {
           Ln {cursor.line}, Col {cursor.col}
         </span>
       )}
+      {updatesOn && <UpdateItem />}
       <button onClick={() => useUI.getState().setShortcutsOpen(true)}>? Shortcuts</button>
-      <span className="mono" style={{ color: "var(--faint)" }}>
+      <span className="mono" style={{ color: "var(--faint)" }} title={info ? `Sonde Desktop ${info.version} · engine ${info.engine}` : undefined}>
         sonde {__APP_VERSION__} · local only
       </span>
     </footer>

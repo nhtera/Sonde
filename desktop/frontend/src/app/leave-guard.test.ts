@@ -25,6 +25,13 @@ beforeEach(() => {
   useTabs.setState({ tabs: [], active: null, closed: [] });
 });
 
+describe("leaveMessage", () => {
+  it("says Quit by default, and the verb it is given", () => {
+    expect(leaveMessage(["a.hurl"])).toBe("a.hurl has unsaved changes. Quit without saving?");
+    expect(leaveMessage(["a.hurl", "b.hurl"], "Restart")).toBe("2 files have unsaved changes: a.hurl, b.hurl. Restart without saving?");
+  });
+});
+
 describe("leave guard", () => {
   it("reports the unsaved tabs as they change", () => {
     const stop = startLeaveGuard();
