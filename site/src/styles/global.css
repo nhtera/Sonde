@@ -1,0 +1,8 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+@import "tailwindcss";
+/* The color utilities preset.css needs, without neutral.css (its
+   `.dark #nd-sidebar` rule would outrank the token mapping). */
+@import "fumadocs-ui/css/lib/default-colors.css";
+@import "fumadocs-ui/css/preset.css";

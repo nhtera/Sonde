@@ -27,12 +27,14 @@ for f in bad.go bad.tsx; do
   fi
 done
 
-# Without arguments the check lists the repository's Go files and the
-# desktop frontend sources.
+# Without arguments the check lists the repository's Go files, the
+# desktop frontend sources and the website sources.
 repo="$tmp/repo"
-mkdir -p "$repo/desktop/frontend/src" "$repo/editors"
+mkdir -p "$repo/desktop/frontend/src" "$repo/editors" "$repo/site/src" "$repo/site/scripts"
 cp "$tmp/good.go" "$repo/main.go"
 cp "$tmp/good.ts" "$repo/desktop/frontend/src/ok.ts"
+cp "$tmp/good.ts" "$repo/site/src/ok.tsx"
+printf 'export {};\n' > "$repo/site/src/routeTree.gen.ts" # generated: not checked
 printf 'export {};\n' > "$repo/editors/elsewhere.ts" # outside desktop/: not checked
 git -C "$repo" init -q
 (cd "$repo" && "$script" > /dev/null) || { echo "FAIL: clean repository failed the check" >&2; exit 1; }
@@ -44,6 +46,12 @@ cp "$tmp/good.go" "$repo/other.go"
 cp "$tmp/bad.tsx" "$repo/desktop/frontend/src/bad.tsx"
 if (cd "$repo" && "$script" > /dev/null 2>&1); then
   echo "FAIL: desktop/**/*.tsx without a header passed" >&2
+  exit 1
+fi
+rm "$repo/desktop/frontend/src/bad.tsx"
+cp "$tmp/bad.tsx" "$repo/site/scripts/bad.mjs"
+if (cd "$repo" && "$script" > /dev/null 2>&1); then
+  echo "FAIL: site/**/*.mjs without a header passed" >&2
   exit 1
 fi
 echo "check-license-headers self-test ok"
