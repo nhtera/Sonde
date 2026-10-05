@@ -64,6 +64,12 @@ var (
 		Message: "Choose the project folder to import into. You pick the file to import next.",
 		Button:  "Choose Folder",
 	}
+	// A new project is made inside the folder picked.
+	locationPrompt = FolderPrompt{
+		Title:   "Choose where to make the project",
+		Message: "Choose the folder to make the project in. Its own folder is made inside.",
+		Button:  "Choose Folder",
+	}
 )
 
 // NewDesktop returns the window-only bindings over ws. config is the
@@ -85,6 +91,83 @@ func (d *Desktop) pickAndOpen(prompt FolderPrompt) (*Project, error) {
 		return nil, err
 	}
 	return d.open(dir)
+}
+
+// ProjectsDir is the folder new projects go in by default: Documents/Sonde
+// (Sonde in the home folder when Documents is missing). It may not exist
+// yet.
+func (d *Desktop) ProjectsDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	if fi, err := os.Stat(filepath.Join(home, "Documents")); err == nil && fi.IsDir() {
+		return filepath.Join(home, "Documents", "Sonde")
+	}
+	return filepath.Join(home, "Sonde")
+}
+
+// PickProjectsDir asks for the folder to make a new project in; "" when
+// canceled.
+func (d *Desktop) PickProjectsDir() (string, error) { return d.pickFolder(locationPrompt) }
+
+// starterYAML is a new project's sonde.yaml: one environment, local, to
+// define values in.
+const starterYAML = "version: 1\n\nenvironments:\n  local:\n\ndefaults:\n  env: local\n"
+
+// CreateProject makes the project name in parent (an absolute folder; ""
+// ProjectsDir, made when missing) with a starter sonde.yaml, and opens
+// it. A folder of that name there already is an error: it is never
+// written into.
+func (d *Desktop) CreateProject(parent, name string) (*Project, error) {
+	name = strings.TrimSpace(name)
+	switch {
+	case name == "" || name == "." || name == "..":
+		return nil, apperr.New(apperr.Invalid, "a project needs a name")
+	case strings.ContainsAny(name, `/\:`) || strings.HasPrefix(name, "."):
+		return nil, apperr.New(apperr.Invalid, "a name without / \\ : and not starting with a dot: "+name)
+	case len(name) > 100:
+		return nil, apperr.New(apperr.Invalid, "a name of at most 100 characters")
+	}
+	if parent == "" {
+		parent = d.ProjectsDir()
+	}
+	if !filepath.IsAbs(parent) {
+		return nil, apperr.New(apperr.Invalid, "not a folder: "+parent)
+	}
+	// Written through a file root on the nearest folder that exists: the
+	// location's missing folders are made, nothing outside it.
+	base := filepath.Clean(parent)
+	for {
+		if fi, err := os.Stat(base); err == nil && fi.IsDir() {
+			break
+		}
+		up := filepath.Dir(base)
+		if up == base {
+			return nil, apperr.New(apperr.Invalid, "not a folder: "+parent)
+		}
+		base = up
+	}
+	rel, err := filepath.Rel(base, filepath.Join(parent, name))
+	if err != nil {
+		return nil, apperr.Wrap(apperr.Invalid, err)
+	}
+	rel = filepath.ToSlash(rel)
+	root, err := sandbox.Open(base)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.Denied, err)
+	}
+	defer func() { _ = root.Close() }()
+	if _, err := root.Lstat(rel); err == nil {
+		return nil, apperr.New(apperr.Conflict, "a folder named "+name+" is there already: open it, or choose another name")
+	}
+	if err := root.MkdirAll(rel, 0o750); err != nil {
+		return nil, apperr.Wrap(apperr.Denied, err)
+	}
+	if err := root.WriteFileAtomic(rel+"/sonde.yaml", []byte(starterYAML), 0o644); err != nil {
+		return nil, apperr.Wrap(apperr.Denied, err)
+	}
+	return d.open(filepath.Join(parent, name))
 }
 
 // OpenExample writes the example project into Documents/Sonde (Sonde in

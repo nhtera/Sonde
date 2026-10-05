@@ -14,6 +14,7 @@ import { useSettings } from "../state/settings";
 import { isDirty, useTabs } from "../state/tabs";
 import { useUI } from "../state/ui";
 import { useWorkspace } from "../state/workspace";
+import { newProject } from "../features/shell/new-project";
 import { registry } from "./registry";
 import { isRequestPath } from "../lib/files";
 
@@ -141,6 +142,7 @@ registry.command({
 
 // The window's own (the harness shows it for the design screens).
 if (windowLook) {
+  registry.command({ id: "project.new", title: "New project…", run: () => void newProject() });
   registry.command({ id: "folder.open", title: "Open a folder…", run: () => useWorkspace.getState().openFolder() });
   registry.command({ id: "project.openExample", title: "Try the example project", run: () => useWorkspace.getState().openExample() });
 }
