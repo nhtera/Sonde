@@ -118,8 +118,7 @@ func parsePartHeaders(block string) (name, filename, contentType string, ok bool
 // dispositionParam extracts a Content-Disposition parameter's value
 // ("name=" or "filename="), quoted or not.
 func dispositionParam(line, key string) string {
-	lower := strings.ToLower(line)
-	idx := strings.Index(lower, key)
+	idx := indexASCIIFold(line, key)
 	if idx < 0 {
 		return ""
 	}
@@ -134,4 +133,27 @@ func dispositionParam(line, key string) string {
 		return rest[:end]
 	}
 	return rest
+}
+
+// indexASCIIFold returns the byte index of key (lowercase ASCII) in s,
+// matching ASCII letters in either case, or -1. Unlike searching
+// strings.ToLower(s), the index is s's own: lowercasing can change a
+// string's length (İ, invalid UTF-8).
+func indexASCIIFold(s, key string) int {
+	for i := 0; i+len(key) <= len(s); i++ {
+		j := 0
+		for ; j < len(key); j++ {
+			c := s[i+j]
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			if c != key[j] {
+				break
+			}
+		}
+		if j == len(key) {
+			return i
+		}
+	}
+	return -1
 }
