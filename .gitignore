@@ -21,6 +21,9 @@ testdata/conformance/hurl/.venv/
 testdata/conformance/hurl/build/
 testdata/conformance/hurl/**/__pycache__/
 
+# Sites
+site/node_modules/*
+
 # Plans and research stay private; public design lives in docs/
 /plans/
 
@@ -31,3 +34,17 @@ testdata/conformance/hurl/**/__pycache__/
 # The output option of results-api/export.hurl (48 MiB).
 /desktop/testdata/results-api/exports/*
 !/desktop/testdata/results-api/exports/.gitkeep
+
+# Website (site/): dependencies, build output and generated files.
+# content/ is generated from docs/ by the sync step.
+/site/node_modules/
+/site/dist/
+/site/.output/
+/site/.tanstack/
+/site/.source/
+/site/src/routeTree.gen.ts
+/site/*.tsbuildinfo
+/site/content/
+/site/deploy/node_modules/
+/site/.cloudflare/
+/site/.wrangler/

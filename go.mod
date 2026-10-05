@@ -4,6 +4,9 @@ go 1.26.0
 
 toolchain go1.27.1
 
+// The website (Node, with Go files inside node_modules) is not part of the module.
+ignore ./site
+
 require (
 	github.com/andybalholm/brotli v1.2.5
 	github.com/antchfx/htmlquery v1.3.6

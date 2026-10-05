@@ -4,8 +4,9 @@
 #
 # Fails if a source file lacks "SPDX-License-Identifier: Apache-2.0" in its
 # first 3 lines. With arguments, checks those files; otherwise checks every
-# tracked or untracked-but-not-ignored .go file in the repository and every
-# .ts, .tsx, .css and .grammar file under desktop/.
+# tracked or untracked-but-not-ignored .go file in the repository, every
+# .ts, .tsx, .css and .grammar file under desktop/, and every .ts, .tsx,
+# .css and .mjs file under site/ (generated files excluded).
 set -euo pipefail
 
 if [ "$#" -gt 0 ]; then
@@ -17,7 +18,10 @@ else
   listing="$(mktemp)"
   trap 'rm -f "$listing"' EXIT
   git -C "$root" ls-files -z --cached --others --exclude-standard -- '*.go' \
-    'desktop/*.ts' 'desktop/*.tsx' 'desktop/*.css' 'desktop/*.grammar' > "$listing"
+    'desktop/*.ts' 'desktop/*.tsx' 'desktop/*.css' 'desktop/*.grammar' \
+    'site/*.ts' 'site/*.tsx' 'site/*.css' 'site/*.mjs' \
+    ':(exclude)site/src/routeTree.gen.ts' ':(exclude)site/.source/*' \
+    ':(exclude)site/worker-configuration.d.ts' > "$listing"
   files=()
   while IFS= read -r -d '' f; do files+=("$root/$f"); done < "$listing"
 fi

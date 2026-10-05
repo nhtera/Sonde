@@ -17,7 +17,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-bindings desktop-check desktop-record desktop-e2e desktop-vuln lint-desktop-native tag-guards
+.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-bindings desktop-check desktop-record desktop-e2e desktop-vuln lint-desktop-native tag-guards site site-dev site-check
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -124,6 +124,24 @@ desktop-e2e: desktop-bindings ## Build server mode, the test-only harness and th
 	cd desktop && CGO_ENABLED=0 go build -o bin/fixture-server ./cmd/fixture-server
 	CGO_ENABLED=0 go build -o desktop/bin/sonde ./cmd/sonde
 	cd desktop/frontend && npx playwright test
+
+# The website (site/): landing page and docs, built from docs/. Node >= 22.18.
+site: ## Build the website into site/dist (every page prerendered)
+	npm --prefix site ci --ignore-scripts --no-audit --no-fund
+	npm --prefix site run build
+
+site-dev: ## Serve the website locally with live reload (http://localhost:3000)
+	npm --prefix site run dev
+
+site-check: ## Website: install (no scripts), install-script and license checks, audit, lint, typecheck, tests, build
+	npm --prefix site ci --ignore-scripts --no-audit --no-fund
+	npm --prefix site run check:install-scripts
+	npm --prefix site run check:licenses
+	npm --prefix site audit --audit-level=high
+	npm --prefix site run lint
+	npm --prefix site run typecheck
+	npm --prefix site test
+	npm --prefix site run build
 
 tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses $(BIN)/apidiff ## Install pinned tools into ./bin
 
