@@ -23,7 +23,7 @@ const defined = new Set([...tokens.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m
 
 // Variables the site defines itself (spacing, type scale, motion, layout)
 // or that Tailwind and Fumadocs define.
-const own = /^--(s\d+|t-(display|h2|h3|body|small|micro)|ease|wrap|i|color-|text-|radius-|font-sans|font-mono|spacing|shiki-|fd-|tw-)/;
+const own = /^--(s\d+|shot-dark|shot-light|t-(display|h2|h3|body|small|micro)|ease|wrap|i|color-|text-|radius-|font-sans|font-mono|spacing|shiki-|fd-|tw-)/;
 
 function used(source: string): string[] {
   return [...new Set([...source.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]))];

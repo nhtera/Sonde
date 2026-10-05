@@ -61,7 +61,8 @@ test("a docs page links back to its source on GitHub", async () => {
   await page.close();
 });
 
-async function assertEventually(fn, timeout = 5000) {
+// The first search also loads the dialog chunk and the index.
+async function assertEventually(fn, timeout = 15000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
     if (await fn()) return;

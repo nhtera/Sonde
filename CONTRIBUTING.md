@@ -40,6 +40,13 @@ on first use (`make tools`).
 
 Before opening a pull request run `make build test lint license-check`.
 
+### Website
+
+The landing page and docs at https://sonde.erai.dev live in `site/` (Node
+22.18+): `make site-dev` serves it, `make site-check` runs its checks and
+build. `docs/` is the source of the docs pages; edit the Markdown there,
+never a copy under `site/`. See [site/README.md](site/README.md).
+
 ## Conventions
 
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/)

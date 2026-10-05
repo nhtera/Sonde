@@ -96,3 +96,12 @@
   .brand { display: flex; align-items: center; gap: var(--s2); font-weight: 600; font-size: 1rem; min-height: 44px; color: var(--text); text-decoration: none; }
   .brand svg { width: 26px; height: 26px; }
 }
+
+/* 404 page. */
+@layer components {
+  .not-found { min-height: 100vh; display: grid; place-content: center; justify-items: start; gap: var(--s4); padding: var(--s6) var(--s5); max-width: 40rem; margin: 0 auto; }
+  .not-found-code { color: var(--fail); font-size: .875rem; margin: var(--s5) 0 0; }
+  .not-found h1 { margin: 0; font-size: var(--text-h1); font-weight: 600; letter-spacing: -.02em; }
+  .not-found p { margin: 0; color: var(--muted); }
+  .not-found .ctas { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s3); }
+}

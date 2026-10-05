@@ -11,17 +11,18 @@ import { readFileSync } from "node:fs";
 // Packages whose install scripts are known. None is needed: each ships its
 // platform binary as an optional dependency, which npm installs without
 // running scripts.
+// Matched by package name wherever npm nests it (the Cloudflare tools pin
+// their own workerd).
 const allowed = new Set([
-  "node_modules/esbuild", // checks its platform binary
-  "node_modules/wrangler/node_modules/esbuild",
-  "node_modules/fsevents", // optional macOS file watcher; ships prebuilt
-  "node_modules/workerd", // checks its platform binary
+  "esbuild", // checks its platform binary
+  "fsevents", // optional macOS file watcher; ships prebuilt
+  "workerd", // checks its platform binary
 ]);
 
 const lockPath = new URL("../package-lock.json", import.meta.url);
 const lock = JSON.parse(readFileSync(lockPath, "utf8"));
 const unexpected = Object.entries(lock.packages ?? {})
-  .filter(([path, pkg]) => pkg.hasInstallScript && !allowed.has(path))
+  .filter(([path, pkg]) => pkg.hasInstallScript && !allowed.has(path.replace(/^.*node_modules\//, "")))
   .map(([path]) => path);
 
 if (unexpected.length > 0) {

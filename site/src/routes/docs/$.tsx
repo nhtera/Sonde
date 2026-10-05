@@ -6,9 +6,11 @@ import browserCollections from "collections/browser";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import { TOC, TOCProvider } from "fumadocs-ui/layouts/docs/page/slots/toc";
 import { Suspense } from "react";
 import { IndexCards } from "@/components/docs/index-cards";
 import { PageFooter } from "@/components/docs/page-footer";
+import { TocPopover } from "@/components/docs/toc-popover";
 import { getMDXComponents } from "@/components/mdx";
 import { strings } from "@/content/strings";
 import { loadDocsPage } from "@/lib/docs-data";
@@ -37,7 +39,9 @@ export const Route = createFileRoute("/docs/$")({
 const clientLoader = browserCollections.docs.createClientLoader({
   component({ toc, frontmatter, default: MDX }, { tree }: { tree?: Parameters<typeof IndexCards>[0]["tree"] }) {
     return (
-      <DocsPage toc={toc}>
+      <DocsPage toc={toc} tableOfContent={{ container: { role: "complementary", "aria-label": strings.docs.toc } }}
+        slots={{ toc: { provider: TOCProvider, main: TOC, popover: TocPopover } }}
+      >
         <DocsTitle>{frontmatter.title}</DocsTitle>
         <DocsDescription>{frontmatter.description}</DocsDescription>
         <DocsBody>

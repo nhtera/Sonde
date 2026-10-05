@@ -84,3 +84,35 @@
 .docs-index a:hover { border-color: var(--line); }
 .docs-index b { font-weight: 600; font-size: .9375rem; }
 .docs-index span { color: var(--muted); font-size: .8125rem; line-height: 1.5; }
+
+/* Code blocks (src/components/docs/code-block.tsx). */
+.code-block {
+  position: relative;
+  margin: var(--s4) 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--panel);
+  font-size: .875rem;
+}
+.code-area { overflow: auto; max-height: 600px; padding: 14px 0; font-size: .8125rem; --padding-right: calc(var(--spacing) * 12); }
+.code-area:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-card); }
+.code-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+/* 44px hit area around the 32px button. */
+.code-copy::before { content: ""; position: absolute; inset: -6px; }
+.code-copy:hover { color: var(--text); border-color: var(--line); }
+.code-copy svg { width: 16px; height: 16px; }

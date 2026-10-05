@@ -12,8 +12,10 @@ Node 22.18 or later.
 ```sh
 npm --prefix site ci --ignore-scripts
 npm --prefix site run dev      # http://localhost:3000
-npm --prefix site run build    # prerendered output in site/dist/
-npm --prefix site run preview  # the built site, served by the Worker runtime
+npm --prefix site run build    # output in site/.cloudflare/output/v0/
+npm --prefix site run preview  # the built site, served by the Workers runtime
+npm --prefix site test         # unit tests
+npm --prefix site run test:browser  # axe, cascade, docs and search on the build (npx playwright install chromium)
 ```
 
 From the repository root: `make site`, `make site-dev`, `make site-check`.
@@ -48,11 +50,12 @@ Recorded 2026-10-06 with `@tanstack/react-start` 1.168.60,
   theme.
 - **Prerender (gate d: passed).** `crawlLinks` finds every linked page.
   Paths no page links to are listed in `vite.config.ts` `pages`:
-  `/api/search.json`, `/api/docs-tree.json`, `/404`. Output:
-  - `site/dist/client/`: static assets, one `index.html` per page
-    (`docs/getting-started/index.html`), `404/index.html`, the two JSON
-    files;
-  - `site/dist/server/`: the Worker (`index.js`, `wrangler.json`).
+  `/api/search.json`, `/api/docs-tree.json`, `/404.html`, `/sitemap.xml`,
+  `/robots.txt`. Output (Cloudflare Build Output, phase 5):
+  - `.cloudflare/output/v0/workers/default/assets/`: one `index.html` per
+    page (`docs/getting-started/index.html`), `404.html`, the JSON files,
+    `_headers`. Every check runs on this directory (`scripts/paths.mjs`);
+  - `.cloudflare/output/v0/workers/default/bundle/`: the Worker.
 - **Search (gate e: passed).** `/api/search.json` is a prerendered file (an
   Orama export); the ⌘K dialog downloads it on first open and searches in
   the browser. The index is not in the Worker bundle.
@@ -64,17 +67,92 @@ Recorded 2026-10-06 with `@tanstack/react-start` 1.168.60,
   runs in workerd and cannot write to the build output.
 - **Worker scope (gate f: passed, under `vite preview`).** Prerendered
   paths and the JSON files are served as assets; `/docs/x/` redirects to
-  `/docs/x` (`html_handling: drop-trailing-slash`); `/nope` returns status
-  404 with the site's 404 page, rendered by the Worker. The Worker has no
-  bindings and no secrets; it is about 0.6 MB gzipped.
+  `/docs/x` (`drop-trailing-slash`). Assets are served before the Worker,
+  so the deployed Worker (`src/server.ts`) only sees paths with no page: it
+  answers with `404.html`, status 404 and the security headers. TanStack
+  renders only for prerender requests (a per-build token header) and in
+  development. Its one binding is `ASSETS`; no secrets. About 0.8 MB
+  gzipped. (`not_found_handling: "404-page"` does not apply while a Worker
+  exists: misses go to the Worker.)
+- **404 page.** `404.html` is made static after the build
+  (`scripts/static-404.mjs`): it is served at any URL, where hydrating would
+  put the router in its not-found state and re-render. It has only links.
 - **Relative links (gate g).** Fumadocs' `createRelativeLink` needs the
   server-side source while rendering, but pages render from the browser
   collection, and it cannot send unpublished files to GitHub or enforce a
   scheme policy. Links are rewritten at build time by a remark plugin
   instead (`src/lib/remark-sonde-links.ts`).
+- **CSP.** `scripts/csp-headers.mjs` writes `_headers` after the build:
+  security headers for every path, immutable caching for `/assets/*` and
+  `/screens/*`, and one `Content-Security-Policy` per page with the SHA-256
+  of each inline script (no `'unsafe-inline'` for scripts). Scripts are
+  hashed as the browser parses them: TanStack's hydration data contains a
+  NUL, which the HTML parser turns into U+FFFD. Cloudflare reads at most 100
+  `_headers` rules; the step fails before that (45 today).
+- **Search loads on demand.** The search dialog and its index client are a
+  lazy chunk; nothing about search is on the critical path.
 - **No trailing slash.** URLs are `/docs/x`; `src/lib/urls.ts` builds every
   site URL.
 - **Fumadocs colors.** `fumadocs-ui/css/neutral.css` is not imported (its
   `.dark #nd-sidebar` rule would beat the token mapping);
   `fumadocs-ui/css/lib/default-colors.css` registers the color utilities
   that `preset.css` needs, and the site maps them to the desktop tokens.
+
+## Deploy
+
+`.github/workflows/site.yml`, with the `cf` CLI (beta, pinned):
+
+- `site-build` (pull requests that touch the site's inputs, and `main`):
+  no secrets. Installs without scripts, runs the npm checks, lint,
+  typecheck and tests, `npm run sync`, `npx cf build`, `npm run finalize`,
+  the link check and the browser tests on the output, checks that the
+  build changed no file, and runs `cf deploy --prebuilt --dry-run` (no
+  credentials needed). On `main` it uploads `.cloudflare/output/v0`.
+- `site-gate`: always runs; the required check.
+- `site-deploy` (`main` only, environment `site`): installs only `cf` from
+  `site/deploy/`, deploys the uploaded output with `CLOUDFLARE_API_TOKEN`
+  on that one step, then runs `site/deploy/smoke.sh`.
+- A published GitHub release dispatches a run on `main`, which refreshes the
+  Download link (newest stable `desktop/v*` tag).
+
+One-time setup (dashboard): an API token with Account · Workers
+Scripts:Edit only, 1-year TTL (rotate yearly); `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` as secrets of the GitHub environment `site`
+(deployment branches: `main`); after the first deploy, attach the custom
+domain `sonde.erai.dev` to the `sonde-site` Worker (Settings → Domains &
+Routes); require `site-gate` in branch protection.
+
+## Rollback
+
+Not tried against production yet: the first deploy needs the token and
+the `site` environment.
+
+```sh
+# With CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment:
+cd site/deploy && npm ci --ignore-scripts
+npx cf workers versions list --worker-id sonde-site     # find the previous version id
+npx cf workers deployments create --worker sonde-site --strategy percentage \
+  --versions '[{"version_id":"<previous-id>","percentage":100}]'
+```
+
+With Wrangler: `npx wrangler rollback --name sonde-site`. Roll forward by
+re-running the `site` workflow on `main` (workflow_dispatch).
+
+## Fallback: Wrangler
+
+If a `cf` beta breaks the build or deploy, use the GA path: replace
+`@cloudflare/vite-plugin` with `1.62.5` and `cloudflare.config.ts` with
+`wrangler.jsonc`:
+
+```jsonc
+{
+  "name": "sonde-site",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./src/server.ts",
+  "assets": { "binding": "ASSETS", "html_handling": "drop-trailing-slash" }
+}
+```
+
+Build with `vite build` (output in `dist/client` and `dist/server`), and
+deploy with a pinned `wrangler` in `site/deploy/` (`wrangler deploy`).

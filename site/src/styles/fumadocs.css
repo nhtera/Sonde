@@ -1,0 +1,11 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* Fumadocs' preset.css, limited to what the site uses: the docs layout and
+   the shared pieces (search dialog, sidebar). The home, notebook and flux
+   layouts' classes are left out to keep the render-blocking CSS small. */
+@import "fumadocs-ui/css/lib/base.css";
+@import "fumadocs-ui/css/lib/shiki.css";
+@plugin "../../node_modules/fumadocs-ui/dist/tailwind/typography.js";
+@import "fumadocs-ui/css/generated/docs.css";
+@import "fumadocs-ui/css/generated/shared.css";
