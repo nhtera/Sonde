@@ -40,8 +40,8 @@ const token = (p, name) => p.evaluate((n) => {
 test("dark is the default, with no class or attribute flash", async () => {
   const p = await page();
   await p.goto(`${base}/docs`);
-  const html = await p.evaluate(() => [document.documentElement.className, document.documentElement.dataset.theme]);
-  assert.deepEqual(html, ["dark", "dark"]);
+  const html = await p.evaluate(() => [document.documentElement.classList.contains("dark"), document.documentElement.classList.contains("light"), document.documentElement.dataset.theme]);
+  assert.deepEqual(html, [true, false, "dark"]);
   await p.context().close();
 });
 

@@ -17,7 +17,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-bindings desktop-check desktop-record desktop-e2e desktop-vuln lint-desktop-native tag-guards site site-dev site-check
+.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-bindings desktop-check desktop-record desktop-e2e desktop-vuln lint-desktop-native tag-guards site site-dev site-check site-screens
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -125,8 +125,20 @@ desktop-e2e: desktop-bindings ## Build server mode, the test-only harness and th
 	CGO_ENABLED=0 go build -o desktop/bin/sonde ./cmd/sonde
 	cd desktop/frontend && npx playwright test
 
+# The newest stable desktop tag (a pre-release has a - suffix), or the newest
+# tag when none is stable: the version the screenshots' status bar shows.
+site-screens: desktop-bindings ## Capture the website's screenshots from the desktop harness, then optimize them into site/ (browsers: npx playwright install)
+	v=$$(git tag --list 'desktop/v*' --sort=-v:refname | grep -v -- '-' | head -n 1); \
+	[ -n "$$v" ] || v=$$(git tag --list 'desktop/v*' --sort=-v:refname | head -n 1); \
+	[ -n "$$v" ] || { echo "no desktop/v* tag: the status bar needs a version" >&2; exit 1; }; \
+	v=$${v#desktop/v}; \
+	SONDE_VERSION=$$v npm --prefix desktop/frontend run build:harness && \
+	(cd desktop && CGO_ENABLED=0 go build -tags server,e2eharness -o bin/sonde-desktop-harness . && CGO_ENABLED=0 go build -o bin/fixture-server ./cmd/fixture-server) && \
+	(cd desktop/frontend && E2E_MARKETING=1 npx playwright test --project=marketing) && \
+	SONDE_VERSION=$$v npm --prefix site run screens
+
 # The website (site/): landing page and docs, built from docs/. Node >= 22.18.
-site: ## Build the website into site/dist (every page prerendered)
+site: ## Build the website into site/.cloudflare/output/v0 (every page prerendered)
 	npm --prefix site ci --ignore-scripts --no-audit --no-fund
 	npm --prefix site run build
 
@@ -142,6 +154,7 @@ site-check: ## Website: install (no scripts), install-script and license checks,
 	npm --prefix site run typecheck
 	npm --prefix site test
 	npm --prefix site run build
+	npm --prefix site run check-links
 
 tools: $(BIN)/golangci-lint $(BIN)/govulncheck $(BIN)/go-licenses $(BIN)/apidiff ## Install pinned tools into ./bin
 

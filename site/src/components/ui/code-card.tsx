@@ -23,9 +23,9 @@ const MARK: Record<Exclude<GutterMark, undefined>, { glyph: string; className: s
 };
 
 /** A source file as the editor shows it: line numbers, gutter marks, the failed-line wash. */
-export function CodeCard({ file, badge, lines, label }: { file: string; badge?: ReactNode; lines: CodeLine[]; label: string }) {
+export function CodeCard({ file, badge, lines, label, className }: { file: string; badge?: ReactNode; lines: CodeLine[]; label: string; className?: string }) {
   return (
-    <div className="file">
+    <div className={className ? `file ${className}` : "file"}>
       <div className="file-head">
         <span className="mono">{file}</span>
         {badge}

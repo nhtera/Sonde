@@ -1,7 +1,7 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Checks the built site as it will be deployed (dist/client by default):
+// Checks the built site as it will be deployed (OUTPUT_DIR by default):
 // every internal href/src resolves to a file (`/x` → x/index.html), every
 // anchor names an element id on its page, and the docs content
 // (`<article id="nd-page">`) carries no <script>, <iframe> or on*= handler.
@@ -11,6 +11,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { OUTPUT_DIR } from "./paths.mjs";
 
 const decode = (s) => s.replace(/&amp;/g, "&").replace(/&#x27;/g, "'").replace(/&quot;/g, '"');
 
@@ -91,7 +92,7 @@ export function checkSite(root) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const root = resolve(process.argv[2] ?? join(fileURLToPath(new URL("..", import.meta.url)), "dist/client"));
+  const root = resolve(process.argv[2] ?? OUTPUT_DIR);
   const { problems, pages } = checkSite(root);
   if (problems.length) {
     console.error(`check-links: ${problems.length} problem(s) in ${root}:\n  ${problems.join("\n  ")}`);

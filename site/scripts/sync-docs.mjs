@@ -7,6 +7,7 @@
 //
 //   content/docs/**.md, meta.json   the docs, H1 moved into frontmatter
 //   content/generated/install.json  install commands from README.md ## Install
+//   content/generated/desktop.json  the Download link: newest stable desktop/v* tag
 //   content/generated/inputs.json   every repository file this step read
 //
 // Fails fast on a missing doc, a doc without an H1 or a description, a bad
@@ -16,8 +17,8 @@
 //   node scripts/sync-docs.mjs            (SONDE_SITE_NO_DATES=1 omits dates)
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stringify } from "yaml";
 import { checkDocName, contentPathOf, SOURCE_PATH, slugOf } from "../src/lib/doc-paths.ts";
@@ -95,6 +96,24 @@ export function parseInstall(readme) {
   return tabs;
 }
 
+const RELEASES = "https://github.com/nhtera/sonde/releases";
+
+/**
+ * The Sonde Desktop release the Download button opens: the newest
+ * desktop/vX.Y.Z tag without a pre-release suffix. Never /releases/latest,
+ * which is the CLI. Without tags (a shallow clone), the filtered list.
+ */
+export function desktopRelease(tags) {
+  const stable = tags.map((t) => t.trim()).find((t) => /^desktop\/v\d+\.\d+\.\d+$/.test(t));
+  if (!stable) return { tag: null, url: `${RELEASES}?q=desktop%2F&expanded=true` };
+  return { tag: stable, url: `${RELEASES}/tag/${stable}` };
+}
+
+function desktopTags(repo) {
+  const out = execFileSync("git", ["tag", "--list", "desktop/v*", "--sort=-v:refname"], { cwd: repo, encoding: "utf8" });
+  return out.split("\n").filter(Boolean);
+}
+
 function lastUpdated(repo, repoPath) {
   const out = execFileSync("git", ["log", "-1", "--format=%cs", "--", repoPath], { cwd: repo, encoding: "utf8" }).trim();
   return out || undefined;
@@ -117,8 +136,29 @@ function listDocs(dir, base = "") {
   return out.sort();
 }
 
+/** Files the build reads from outside site/ besides the docs. */
+const BUILD_INPUTS = ["desktop/frontend/src/app/theme/tokens.css", "editors/vscode/syntaxes/sonde.tmLanguage.json"];
+
+/**
+ * Repository files a doc links to (outside code fences), relative to the
+ * repository root. The build fails when one is missing, so a change to them
+ * must run the site build.
+ */
+export function linkedFiles(body, sourceRel, repo) {
+  const text = body.replace(/^```[\s\S]*?^```/gm, "").replace(/`[^`\n]*`/g, "");
+  const out = new Set();
+  for (const m of text.matchAll(/\]\(([^)\s#]+)(?:#[^)\s]*)?\)|^\[[^\]]+\]:\s*(\S+)/gm)) {
+    const url = m[1] ?? m[2];
+    if (!url || /^[a-z][a-z0-9+.-]*:|^\/\//i.test(url)) continue;
+    const path = posix.normalize(posix.join("docs", posix.dirname(sourceRel), url.split("#")[0]));
+    if (path.startsWith("..")) continue;
+    if (existsSync(join(repo, path)) && statSync(join(repo, path)).isFile()) out.add(path);
+  }
+  return out;
+}
+
 export function sync({ repo = REPO, out = join(SITE, "content"), dates = !process.env.SONDE_SITE_NO_DATES, log = console.log } = {}) {
-  const inputs = new Set(["README.md", "docs/README.md", "docs/cli/README.md"]);
+  const inputs = new Set(["README.md", "docs/README.md", "docs/cli/README.md", ...BUILD_INPUTS]);
   const nav = loadNav(repo);
   const published = publishedSet(nav);
   if (dates) checkNotShallow(repo);
@@ -138,6 +178,7 @@ export function sync({ repo = REPO, out = join(SITE, "content"), dates = !proces
     inputs.add(source);
     const md = readFileSync(file, "utf8");
     const { title, body } = splitTitle(md, source);
+    for (const linked of linkedFiles(body, rel, repo)) inputs.add(linked);
     if (/!\[[^\]]*\]\(/.test(body.replace(/```[\s\S]*?```/g, ""))) throw new Error(`${source}: images are not supported on the site yet`);
     const description = descriptions.get(rel) || firstParagraph(body);
     if (!description) throw new Error(`${source}: no description (docs/README.md table row or first paragraph)`);
@@ -178,6 +219,7 @@ export function sync({ repo = REPO, out = join(SITE, "content"), dates = !proces
   // Generated data for the landing page.
   const gen = join(out, "generated");
   mkdirSync(gen, { recursive: true });
+  writeFileSync(join(gen, "desktop.json"), `${JSON.stringify(desktopRelease(desktopTags(repo)), null, 2)}\n`);
   writeFileSync(join(gen, "install.json"), `${JSON.stringify(parseInstall(readFileSync(join(repo, "README.md"), "utf8")), null, 2)}\n`);
 
   const unpublished = listDocs(join(repo, "docs")).filter((rel) => !published.has(rel));

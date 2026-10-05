@@ -3,25 +3,34 @@
 
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
-import type { ReactNode } from "react";
-import SearchDialog from "@/components/search";
+import { lazy, type ReactNode } from "react";
+import { JS_CLASS_SCRIPT } from "@/components/landing/reveal";
 import { strings } from "@/content/strings";
 import { fontPreloads } from "@/styles/fonts";
 import globalCss from "@/styles/global.css?url";
 
+// The search dialog (and its index client) loads when first opened, not with the page.
+const SearchDialog = lazy(() => import("@/components/search"));
+
 export const Route = createRootRoute({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: strings.site.title },
-      { name: "description", content: strings.site.description },
+      // A path with no page gets the prerendered 404.html; when it hydrates
+      // there, the router is in its not-found state and must render the same head.
+      ...(matches.some((m) => m.status === "notFound" || ("globalNotFound" in m && m.globalNotFound))
+        ? [{ title: strings.notFound.metaTitle }, { name: "robots", content: "noindex" }]
+        : [{ title: strings.site.title }, { name: "description", content: strings.site.description }]),
     ],
     links: [
       ...fontPreloads,
       { rel: "stylesheet", href: globalCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     ],
+    // Before first paint: lets CSS hide not-yet-revealed sections only when
+    // a script will reveal them.
+    scripts: [{ children: JS_CLASS_SCRIPT }],
   }),
   component: RootComponent,
 });
@@ -42,7 +51,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         <RootProvider
-          search={{ SearchDialog }}
+          search={{ SearchDialog, preload: false }}
           // One toggle drives Fumadocs (.dark) and the desktop tokens
           // (data-theme). Dark is the default; the OS setting is ignored
           // until the reader picks.

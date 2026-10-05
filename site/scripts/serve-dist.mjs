@@ -1,17 +1,20 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Serves the prerendered site (dist/client) the way Cloudflare's static
-// assets do with `html_handling: drop-trailing-slash`: /docs/x is
-// docs/x/index.html, /docs/x/ redirects to /docs/x, and a miss is the 404
-// page with status 404. For the browser tests and local audits; the real
+// Serves the built site (scripts/paths.mjs OUTPUT_DIR) the way Cloudflare's
+// static assets do with `drop-trailing-slash` and `404-page`: /docs/x is
+// docs/x/index.html, /docs/x/ redirects to /docs/x, and a miss is 404.html
+// with status 404. Text is brotli-compressed, as Cloudflare does, so
+// audits see production-like transfer sizes. For the browser tests and local audits; the real
 // Worker is exercised by `npm run preview`.
 //
 //   node scripts/serve-dist.mjs [port] [dir]
 
 import { createReadStream, statSync } from "node:fs";
+import { createBrotliCompress } from "node:zlib";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
+import { OUTPUT_DIR } from "./paths.mjs";
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -34,7 +37,7 @@ function isFile(p) {
   }
 }
 
-export function startServer({ port = 0, dir = "dist/client" } = {}) {
+export function startServer({ port = 0, dir = OUTPUT_DIR } = {}) {
   const root = resolve(dir);
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -51,14 +54,17 @@ export function startServer({ port = 0, dir = "dist/client" } = {}) {
     const candidates = [base, join(base, "index.html"), `${base}.html`];
     const file = candidates.find(isFile);
     const status = file ? 200 : 404;
-    const served = file ?? join(root, "404", "index.html");
-    res.writeHead(status, { "content-type": TYPES[extname(served)] ?? "application/octet-stream" });
-    createReadStream(served).pipe(res);
+    const served = file ?? join(root, "404.html");
+    const type = TYPES[extname(served)] ?? "application/octet-stream";
+    const compress = /^(text\/|application\/(json|xml)|image\/svg)/.test(type) && /\bbr\b/.test(req.headers["accept-encoding"] ?? "");
+    res.writeHead(status, { "content-type": type, ...(compress ? { "content-encoding": "br", vary: "accept-encoding" } : {}) });
+    const body = createReadStream(served);
+    (compress ? body.pipe(createBrotliCompress()) : body).pipe(res);
   });
   return new Promise((ok) => server.listen(port, "127.0.0.1", () => ok(server)));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const server = await startServer({ port: Number(process.argv[2] ?? 4321), dir: process.argv[3] });
-  console.log(`serving dist/client on http://127.0.0.1:${server.address().port}`);
+  console.log(`serving ${process.argv[3] ?? OUTPUT_DIR} on http://127.0.0.1:${server.address().port}`);
 }
