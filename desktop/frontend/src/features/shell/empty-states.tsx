@@ -3,10 +3,11 @@
 
 import { registry, useRegistry } from "../../app/registry";
 import { useKeyLabel } from "../../app/keymap/use-keys";
-import { DocIcon, FilesIcon, ImportIcon, PlayIcon, SondeMark } from "../../components/icons";
+import { DocIcon, FilesIcon, ImportIcon, PlayIcon, PlusIcon, SondeMark } from "../../components/icons";
 import { windowLook } from "../../lib/mode";
 import { useRuns } from "../../state/run";
 import { useWorkspace } from "../../state/workspace";
+import { newProject } from "./new-project";
 
 /** First launch: no folder open. */
 export function Welcome() {
@@ -26,6 +27,13 @@ export function Welcome() {
           <p>The same file runs in CI and for AI agents.</p>
         </div>
         <div className="actions">
+          {windowLook && (
+            <button onClick={() => void newProject()}>
+              <PlusIcon size={16} />
+              <span>New project</span>
+              <span className="hint mono" style={{ fontSize: 11 }}>Documents/Sonde</span>
+            </button>
+          )}
           {windowLook && (
             <button onClick={() => void useWorkspace.getState().openFolder()}>
               <FilesIcon size={16} />

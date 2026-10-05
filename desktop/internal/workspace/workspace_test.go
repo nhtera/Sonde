@@ -18,6 +18,7 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/emit"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
+	"github.com/nhtera/sonde/internal/config"
 )
 
 func write(t *testing.T, dir, rel, text string) {
@@ -561,4 +562,58 @@ func TestDuplicateFolder(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "env copy", "notes.hurl")); err != nil {
 		t.Errorf("notes.hurl not copied: %v", err)
 	}
+}
+
+// TestCreateProject: a new project is a folder of its name in the
+// location, with a starter sonde.yaml (local), opened; a name taken, or
+// not a folder name, is refused; the location is picked with its prompt.
+func TestCreateProject(t *testing.T) {
+	s, _, _ := open(t)
+	var prompts []FolderPrompt
+	d := NewDesktop(s, sandboxtest.Open(t, t.TempDir()), handles.New(), func(p FolderPrompt) (string, error) {
+		prompts = append(prompts, p)
+		return "", nil
+	})
+	parent := filepath.Join(t.TempDir(), "made", "here")
+	p, err := d.CreateProject(parent, "  NMK data  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(parent, "NMK data")
+	if got, _ := filepath.EvalSymlinks(p.Dir); got != mustEval(t, dir) {
+		t.Errorf("opened %s, want %s", p.Dir, dir)
+	}
+	proj, err := config.LoadProject(filepath.Join(dir, "sonde.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := proj.Environments["local"]; !ok || proj.Defaults.Env != "local" {
+		t.Errorf("starter sonde.yaml: %+v", proj)
+	}
+	if _, err := d.CreateProject(parent, "NMK data"); code(err) != apperr.Conflict {
+		t.Errorf("a name taken: %v", err)
+	}
+	for _, name := range []string{"", " ", "..", ".hidden", "a/b", `a\b`, "c:d", strings.Repeat("x", 101)} {
+		if _, err := d.CreateProject(parent, name); code(err) != apperr.Invalid {
+			t.Errorf("name %q: %v", name, err)
+		}
+	}
+	if _, err := d.CreateProject("relative", "x"); code(err) != apperr.Invalid {
+		t.Errorf("a relative location: %v", err)
+	}
+	if dir, err := d.PickProjectsDir(); dir != "" || err != nil || len(prompts) != 1 || prompts[0] != locationPrompt {
+		t.Errorf("pick: %q %v %+v", dir, err, prompts)
+	}
+	if d.ProjectsDir() == "" || filepath.Base(d.ProjectsDir()) != "Sonde" {
+		t.Errorf("default location %q", d.ProjectsDir())
+	}
+}
+
+func mustEval(t *testing.T, p string) string {
+	t.Helper()
+	got, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
 }

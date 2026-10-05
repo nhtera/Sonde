@@ -8,6 +8,7 @@
 import { registry } from "../../app/registry";
 import { serverMode } from "../../lib/mode";
 import { useWorkspace } from "../../state/workspace";
+import { newProject } from "../shell/new-project";
 import { ImportDialog } from "./import-dialog";
 import { kinds, useImport } from "./state";
 import "./import.css";
@@ -23,13 +24,14 @@ const titles: Record<string, string> = {
 };
 
 // ⌘I and the welcome screen: the dialog (a project first: an import
-// writes into one).
+// writes into one; with none open, one is made, or an existing folder
+// picked).
 registry.command({
   id: "import.open",
   title: "Import…",
   group: "Import",
   run: async () => {
-    if (!useWorkspace.getState().project && !serverMode) await useWorkspace.getState().openFolder(true);
+    if (!useWorkspace.getState().project && !serverMode) await newProject(true);
     if (useWorkspace.getState().project) useImport.getState().show("postman");
   },
 });

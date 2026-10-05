@@ -98,10 +98,16 @@ before it signs anything.
 
 ## First run
 
-The app opens on a welcome screen. **Open a folder** (⌘O, Ctrl+O) picks a
-project folder; recent folders are remembered. A project is a
-folder of request files, usually with a `sonde.yaml` in it
-([sonde-yaml.md](sonde-yaml.md)).
+The app opens on a welcome screen. **New project** makes one at once: a
+folder of the name you give in `Documents/Sonde` (or a location you pick
+with **Change…**), with a starter `sonde.yaml` (one environment, `local`),
+opened; a folder of that name already there is never written into.
+**Open a folder** (⌘O, Ctrl+O) picks an existing project folder; recent
+folders are remembered. Both are also in the project switcher (the project
+name in the title bar), with **Import into <project>…**, which imports into
+the open project. An import with no project open first offers a new
+project (or an existing folder). A project is a folder of request files,
+usually with a `sonde.yaml` in it ([sonde-yaml.md](sonde-yaml.md)).
 
 You can also start it with a folder: `sonde-desktop --root DIR`. On macOS
 the program is `Sonde.app/Contents/MacOS/sonde-desktop` inside the app.
@@ -561,7 +567,8 @@ native dialog, a path on the machine of the person at the screen, or the
 clipboard of the server. The window app alone has:
 
 - native file dialogs: the data-file run, the TLS files in Settings,
-  picking a file for a body, **Open a folder** (use `--root`);
+  picking a file for a body, **New project** and **Open a folder** (use
+  `--root`);
 - Reveal in Finder / Explorer and Move to Trash;
 - Save response to file and Open in default app;
 - report export;

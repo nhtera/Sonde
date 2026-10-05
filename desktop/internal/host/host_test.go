@@ -53,7 +53,7 @@ func TestServicesPerMode(t *testing.T) {
 // folder by path, the stores).
 func TestBindingsPerMode(t *testing.T) {
 	windowMethods := []string{
-		"WorkspaceDesktop.OpenFolder", "WorkspaceDesktop.OpenFolderToImport", "WorkspaceDesktop.OpenRecent", "WorkspaceDesktop.Reveal", "WorkspaceDesktop.Trash",
+		"WorkspaceDesktop.OpenFolder", "WorkspaceDesktop.OpenFolderToImport", "WorkspaceDesktop.ProjectsDir", "WorkspaceDesktop.PickProjectsDir", "WorkspaceDesktop.CreateProject", "WorkspaceDesktop.OpenRecent", "WorkspaceDesktop.Reveal", "WorkspaceDesktop.Trash",
 		"WorkspaceDesktop.CopyIntoProject", "BodiesDesktop.SaveResponse", "BodiesDesktop.OpenExternally",
 		"CopyasReveal.Curl", "CopyasReveal.Sonde", "Dialogs.OpenFile",
 		"Update.State", "Update.Check", "Update.Install", "Update.Skip", "Update.ClearSkip",

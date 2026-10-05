@@ -28,6 +28,9 @@ interface WorkspaceState {
   /** Asks for a folder and opens it; toImport says it is the folder an
    * import writes into. */
   openFolder(toImport?: boolean): Promise<void>;
+  /** Makes the project name in parent ("" Documents/Sonde) and opens it;
+   * false when unsaved edits are kept. Its errors are thrown. */
+  createProject(parent: string, name: string): Promise<boolean>;
   openRecent(id: string): Promise<void>;
   /** Writes the example project (Documents/Sonde/shop-api) and opens it. */
   openExample(): Promise<void>;
@@ -74,6 +77,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     if (!(await discardEdits())) return;
     const project = await (toImport ? WorkspaceDesktop.OpenFolderToImport() : WorkspaceDesktop.OpenFolder());
     if (project) await afterOpen(project);
+  },
+  createProject: async (parent, name) => {
+    if (!(await discardEdits())) return false;
+    const project = await WorkspaceDesktop.CreateProject(parent, name);
+    if (project) await afterOpen(project);
+    return !!project;
   },
   openExample: async () => {
     if (!(await discardEdits())) return;

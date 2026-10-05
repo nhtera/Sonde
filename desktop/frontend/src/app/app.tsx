@@ -3,6 +3,7 @@
 
 import { useEffect } from "react";
 import { AskHost } from "../components/ask";
+import { NewProjectDialog } from "../features/shell/new-project";
 import { registry, useRegistry } from "./registry";
 import { Palette } from "../features/palette/palette";
 import { ThemePicker } from "../features/palette/theme-picker";
@@ -57,6 +58,7 @@ export function App() {
       <ThemePicker />
       <ShortcutsSheet />
       <AskHost />
+      <NewProjectDialog />
       {registry.getSlots("app.overlays").map((o) => (
         <o.render key={o.id} />
       ))}

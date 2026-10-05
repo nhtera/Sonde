@@ -13,6 +13,7 @@ import { useWorkspace } from "../../state/workspace";
 import { envColor } from "../../lib/env-color";
 import { useKeyLabel } from "../../app/keymap/use-keys";
 import { isRequestPath } from "../../lib/files";
+import { newProject } from "./new-project";
 
 export function TitleBar() {
   const project = useWorkspace((s) => s.project);
@@ -116,12 +117,16 @@ function ProjectSwitcher({ name }: { name: string }) {
             </Menu.Item>
           ))}
           {folders.length > 0 && <Menu.Separator className="menu-sep" />}
+          <Menu.Item className="menu-item" onSelect={() => void newProject()}>
+            New project…
+          </Menu.Item>
           <Menu.Item className="menu-item" onSelect={() => void useWorkspace.getState().openFolder()}>
             Open folder…<span className="hint">{openKeys}</span>
           </Menu.Item>
           {registry.getCommand("import.open") && (
+            // Into the open project (a folder of it), not a new one.
             <Menu.Item className="menu-item" onSelect={() => void registry.getCommand("import.open")?.run()}>
-              Import collection…<span className="hint">{importKeys}</span>
+              Import into {name}…<span className="hint">{importKeys}</span>
             </Menu.Item>
           )}
           <div className="menu-note">Each folder has its own sonde.yaml, history and cookie jar.</div>
