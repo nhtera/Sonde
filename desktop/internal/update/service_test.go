@@ -251,8 +251,8 @@ func TestSkip(t *testing.T) {
 	if err := r.m.ClearSkip(); err != nil {
 		t.Fatal(err)
 	}
-	if r.st.Get().Updates.Skipped != "" || r.m.Status().Skipped {
-		t.Fatal("ClearSkip kept the skip")
+	if s := r.m.Status(); r.st.Get().Updates.Skipped != "" || s.Skipped || s.Manual {
+		t.Fatalf("after ClearSkip: %+v; want the offer, not skipped, not a check's answer", s)
 	}
 }
 

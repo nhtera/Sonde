@@ -30,6 +30,11 @@ func TestServicesPerMode(t *testing.T) {
 	}
 	for _, m := range []Mode{ModeServer, ModeHarness} {
 		for _, name := range windowOnly {
+			// The harness runs the real update service on scripted parts
+			// (harness_update.go, e2eharness builds only).
+			if m == ModeHarness && name == "update" {
+				continue
+			}
 			if slices.Contains(names(m), name) {
 				t.Errorf("mode %d registers the window-only service %s", m, name)
 			}
@@ -78,7 +83,8 @@ func TestBindingsPerMode(t *testing.T) {
 			if m == ModeDesktop && !has {
 				t.Errorf("the window app lacks %s", wm)
 			}
-			if m != ModeDesktop && has {
+			harnessUpdate := m == ModeHarness && strings.HasPrefix(wm, "Update.")
+			if m != ModeDesktop && has && !harnessUpdate {
 				t.Errorf("mode %d binds the window-only %s", m, wm)
 			}
 		}
