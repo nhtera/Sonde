@@ -87,8 +87,8 @@ func checkAppImage(appImage, appDir string) (reason, detail string) {
 	dir := filepath.Dir(appImage)
 	fi, err := os.Lstat(dir) //nolint:gosec // G703: the AppImage's own folder, checked here
 	ds, ok := sysStat(fi)
-	if err != nil || !ok || ds.Uid != uid || !privateDir(fi.Mode()) {
-		return reasonShared, fmt.Sprintf("the folder %q is not this user's alone", dir)
+	if err != nil || !ok || ds.Uid != uid || !privateDir(fi.Mode()) || unix.Access(dir, unix.W_OK) != nil {
+		return reasonShared, fmt.Sprintf("the folder %q is not this user's alone, or not writable", dir)
 	}
 	return "", ""
 }

@@ -35,7 +35,7 @@ const (
 	reasonNotOwned     = "Sonde was installed by another user or by an administrator, so it cannot replace itself."
 	reasonNotInstalled = "This copy of Sonde was not installed with its installer, so it cannot replace itself."
 	reasonNotAppImage  = "Sonde is not running from an AppImage, so it cannot replace itself."
-	reasonShared       = "The AppImage's folder is shared or read-only, so Sonde cannot replace it."
+	reasonShared       = "The AppImage's folder can be written by others, or not by you, so Sonde cannot replace it."
 )
 
 // rehash checks the bytes r reads against the signed size and SHA-512: the
