@@ -80,26 +80,119 @@ OutFile "..\..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the i
 !endif
 ShowInstDetails show # This will always show the installation details.
 
+# Sonde's silent update mode, started by the app: /S /UPDATE /WAITPID=<pid>.
+# It installs into the folder the machine-wide install recorded (never a
+# folder from the command line), waits for the app to quit, and refuses to
+# touch a Sonde.exe that still runs.
+Var Updating
+
+# relaunch starts Sonde again through Explorer: as the user, not with the
+# installer's elevation. An update that stops also starts it again, since
+# the app quit for it. Exit codes: 2, no install recorded; 3, Sonde.exe
+# still running.
+!macro relaunch
+    Exec '"$WINDIR\explorer.exe" "$INSTDIR\${PRODUCT_EXECUTABLE}"'
+!macroend
+
 Function .onInit
    !insertmacro wails.checkArchitecture
+
+   ${GetParameters} $R0
+   ClearErrors
+   ${GetOptions} $R0 "/UPDATE" $R1
+   ${If} ${Errors}
+       Return
+   ${EndIf}
+   StrCpy $Updating 1
+   # Never a page: the folder is the recorded one.
+   SetSilent silent
+
+   # The installed folder, from the machine-wide key only (64-bit view):
+   # InstallLocation, or for a 0.1.0 install the folder of DisplayIcon.
+   SetRegView 64
+   ReadRegStr $R2 HKLM "${UNINST_KEY}" "InstallLocation"
+   ${If} $R2 == ""
+       ReadRegStr $R3 HKLM "${UNINST_KEY}" "DisplayIcon"
+       # A quoted value: without its quotes.
+       StrCpy $R8 $R3 1
+       ${If} $R8 == '"'
+           StrCpy $R3 $R3 "" 1
+           StrCpy $R3 $R3 -1
+       ${EndIf}
+       ${If} $R3 != ""
+           ${GetParent} $R3 $R2
+       ${EndIf}
+   ${EndIf}
+   ${If} $R2 == ""
+       SetErrorLevel 2
+       Abort
+   ${EndIf}
+   StrCpy $INSTDIR $R2
+
+   # Wait up to 60 s for the app to quit.
+   ClearErrors
+   ${GetOptions} $R0 "/WAITPID=" $R4
+   ${IfNot} ${Errors}
+       # A number, whatever the command line held.
+       IntOp $R4 $R4 + 0
+       System::Call 'kernel32::OpenProcess(i 0x00100000, i 0, i $R4) p .R5'
+       ${If} $R5 P<> 0
+           System::Call 'kernel32::WaitForSingleObject(p R5, i 60000) i .R6'
+           System::Call 'kernel32::CloseHandle(p R5)'
+       ${EndIf}
+   ${EndIf}
+
+   # A Sonde.exe that still runs (another window) cannot be written:
+   # stop before anything changes.
+   ${If} ${FileExists} "$INSTDIR\${PRODUCT_EXECUTABLE}"
+       ClearErrors
+       FileOpen $R7 "$INSTDIR\${PRODUCT_EXECUTABLE}" a
+       ${If} ${Errors}
+           SetErrorLevel 3
+           !insertmacro relaunch
+           Abort
+       ${EndIf}
+       FileClose $R7
+   ${EndIf}
+FunctionEnd
+
+# After an update, start Sonde again.
+Function .onInstSuccess
+   ${If} $Updating == 1
+       !insertmacro relaunch
+   ${EndIf}
 FunctionEnd
 
 Section
     !insertmacro wails.setShellContext
 
-    !insertmacro wails.webview2runtime
+    # The app already ran on this machine: an update never runs the
+    # WebView2 bootstrapper elevated.
+    ${If} $Updating != 1
+        !insertmacro wails.webview2runtime
+    ${EndIf}
 
     SetOutPath $INSTDIR
     
     !insertmacro wails.files
 
-    CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
-    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+    # An update keeps the shortcuts the user kept (or deleted).
+    ${If} $Updating != 1
+        CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+        CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+    ${EndIf}
 
     !insertmacro wails.associateFiles
     !insertmacro wails.associateCustomProtocols
     
     !insertmacro wails.writeUninstaller
+
+    # Where it is installed: the app checks it before updating itself in
+    # place, and /UPDATE installs there.
+    !if "${WAILS_INSTALL_SCOPE}" != "user"
+        SetRegView 64
+        WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+    !endif
 SectionEnd
 
 Section "uninstall" 
