@@ -11,6 +11,7 @@ package update
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -474,14 +475,31 @@ func (m *Manager) Restart() error {
 	closeguard.AllowExit(m.guard)
 	if err := m.inst.Install(rec); err != nil {
 		closeguard.RestoreExit(m.guard)
-		m.failInstall("The update could not be installed: " + err.Error())
-		return apperr.Wrap(apperr.Invalid, err)
+		msg := "The update could not be installed: " + err.Error()
+		// An installer's own sentence (canceled, cannot replace itself).
+		if e, ok := errors.AsType[*Error](err); ok && e.Kind == KindInstall {
+			msg = sentence(err.Error())
+		}
+		m.failInstall(msg)
+		return apperr.New(apperr.Invalid, msg)
 	}
 	m.after(watchdogAfter, func() {
 		closeguard.RestoreExit(m.guard)
 		m.failInstall(fmt.Sprintf("The update did not finish. Sonde is still on %s.", m.version))
 	})
 	return nil
+}
+
+// sentence is s with a capital first letter and a final period.
+func sentence(s string) string {
+	if s == "" {
+		return s
+	}
+	s = strings.ToUpper(s[:1]) + s[1:]
+	if !strings.HasSuffix(s, ".") {
+		s += "."
+	}
+	return s
 }
 
 func (m *Manager) others() int {

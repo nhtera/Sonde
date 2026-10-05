@@ -571,7 +571,7 @@ Only what the code enforces:
 
 ```sh
 sonde-desktop [--root DIR] [--data DIR] [--perf-trace FILE [--perf-tour JSON]]
-              [--update-channel stable|prerelease] [--update-api URL]
+              [--update-channel stable|prerelease] [--update-api URL] [--update-install-check]
 ```
 
 | Flag | Meaning |
@@ -582,6 +582,7 @@ sonde-desktop [--root DIR] [--data DIR] [--perf-trace FILE [--perf-tour JSON]]
 | `--perf-tour JSON` | the tour's parameters; `scripts/perf.mjs` passes them |
 | `--update-channel stable\|prerelease` | save the update channel: `prerelease` also offers release candidates. It is saved in the settings, so the app relaunched by an update keeps it |
 | `--update-api URL` | for this run only, look for releases on a test release server instead of GitHub: `https://`, or `http://` on `127.0.0.1` or `localhost`. It serves both the tag list and the release files |
+| `--update-install-check` | check whether this copy can install updates in place, then quit without opening a window: exit code 0 when it can, 1 with the reason when it cannot (on Windows, read the exit code; the window app prints nothing there) |
 
 `--perf-trace` and `--perf-tour` are for measuring a build, not for
 everyday use. `node scripts/perf.mjs`, run in `desktop/` after packaging,
