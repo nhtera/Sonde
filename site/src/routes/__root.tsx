@@ -6,6 +6,7 @@ import { RootProvider } from "fumadocs-ui/provider/tanstack";
 import type { ReactNode } from "react";
 import SearchDialog from "@/components/search";
 import { strings } from "@/content/strings";
+import { fontPreloads } from "@/styles/fonts";
 import globalCss from "@/styles/global.css?url";
 
 export const Route = createRootRoute({
@@ -17,6 +18,7 @@ export const Route = createRootRoute({
       { name: "description", content: strings.site.description },
     ],
     links: [
+      ...fontPreloads,
       { rel: "stylesheet", href: globalCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     ],
@@ -41,7 +43,10 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body>
         <RootProvider
           search={{ SearchDialog }}
-          theme={{ attribute: ["class", "data-theme"], defaultTheme: "dark", enableSystem: false }}
+          // One toggle drives Fumadocs (.dark) and the desktop tokens
+          // (data-theme). Dark is the default; the OS setting is ignored
+          // until the reader picks.
+          theme={{ attribute: ["class", "data-theme"], defaultTheme: "dark", enableSystem: false, storageKey: "sonde-site-theme" }}
         >
           {children}
         </RootProvider>

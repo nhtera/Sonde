@@ -6,7 +6,8 @@ import sondeGrammar from "../../../editors/vscode/syntaxes/sonde.tmLanguage.json
 
 // Code colors are CSS variables from the desktop tokens (--t-*), so one
 // theme serves dark and light and follows the toggle with no re-render.
-// The scope → token mapping mirrors desktop/frontend/src/features/editor/theme.ts.
+// The scope → token mapping mirrors desktop/frontend/src/features/editor/theme.ts,
+// except comments: they use --muted, since --t-com is below 4.5:1 for small text.
 const v = (name: string) => `var(--${name})`;
 
 export const sondeTheme: ThemeRegistration = {
@@ -19,7 +20,7 @@ export const sondeTheme: ThemeRegistration = {
   fg: v("text"),
   bg: v("bg"),
   tokenColors: [
-    { scope: ["comment", "punctuation.definition.comment"], settings: { foreground: v("t-com"), fontStyle: "italic" } },
+    { scope: ["comment", "punctuation.definition.comment"], settings: { foreground: v("muted"), fontStyle: "italic" } },
     { scope: ["string", "string.regexp", "markup.inline.raw"], settings: { foreground: v("t-str") } },
     { scope: ["constant.numeric", "constant.language", "constant.character", "constant.other"], settings: { foreground: v("t-num") } },
     // Hurl: methods, HTTP version and status line.

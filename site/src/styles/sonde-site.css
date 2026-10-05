@@ -1,0 +1,90 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* Website layer on top of the desktop tokens. Every color is a token from
+   tokens.css; this file only maps them and adds what a website needs. */
+
+/* Fumadocs colors → desktop tokens. Fumadocs' own palettes
+   (neutral.css, lib/default-colors.css) are not imported. The tokens
+   switch on html[data-theme], so one mapping serves both themes. */
+@theme {
+  --color-fd-background: var(--bg);
+  --color-fd-foreground: var(--text);
+  --color-fd-card: var(--panel);
+  --color-fd-card-foreground: var(--text);
+  --color-fd-popover: var(--raised);
+  --color-fd-popover-foreground: var(--text);
+  --color-fd-muted: var(--panel);
+  --color-fd-muted-foreground: var(--muted);
+  --color-fd-secondary: var(--raised);
+  --color-fd-secondary-foreground: var(--text);
+  --color-fd-accent: var(--accent-soft);
+  --color-fd-accent-foreground: var(--text);
+  --color-fd-border: var(--line);
+  --color-fd-ring: var(--accent-line);
+  --color-fd-primary: var(--accent);
+  --color-fd-primary-foreground: var(--accent-ink);
+  --color-fd-overlay: var(--scrim);
+  --color-fd-info: var(--info);
+  --color-fd-warning: var(--warn);
+  --color-fd-error: var(--fail);
+  --color-fd-success: var(--pass);
+  --color-fd-idea: var(--warn);
+  --color-fd-diff-remove: var(--fail-soft);
+  --color-fd-diff-remove-symbol: var(--fail);
+  --color-fd-diff-add: var(--pass-soft);
+  --color-fd-diff-add-symbol: var(--pass);
+
+  /* Desktop surfaces as Tailwind colors (bg-panel, text-muted, border-line…). */
+  --color-backdrop: var(--backdrop);
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
+
+  /* The app's type scale stops at 20px; the site adds a display scale. */
+  --text-display: clamp(2.5rem, 3.4vw + 1.2rem, 4.25rem);
+  --text-h1: 2.25rem;
+  --text-h2: clamp(1.9rem, 1.6vw + 1.2rem, 2.75rem);
+  --text-h3: 1.25rem;
+
+  --radius-chip: var(--r-chip);
+  --radius-control: var(--r-control);
+  --radius-row: var(--r-row);
+  --radius-card: var(--r-card);
+  --radius-window: var(--r-window);
+}
+
+:root {
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --s7: 48px; --s8: 64px; --s9: 96px; --s10: 128px;
+  --t-display: var(--text-display);
+  --t-h2: var(--text-h2);
+  --t-h3: 1.25rem; --t-body: 1.0625rem; --t-small: .875rem; --t-micro: .75rem;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --wrap: 1200px;
+}
+
+/* tokens.css is written for an app shell; a web page scrolls and selects.
+   Prose is 15px/1.6; UI chrome stays at the app's 13px. */
+@layer base {
+  html, body, #root { height: auto; }
+  body {
+    overflow: visible;
+    user-select: auto;
+    background: var(--bg);
+    color: var(--text);
+    font: 400 15px/1.6 var(--font-ui);
+  }
+  ::selection { background: var(--accent-soft); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--r-chip); }
+  /* A sticky header is 64px tall; anchored targets clear it. */
+  :target, [id] { scroll-margin-top: 72px; }
+}

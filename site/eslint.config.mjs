@@ -26,6 +26,13 @@ export default tseslint.config(
     },
   },
   {
+    // Browser tests: Node code that also passes functions to the page.
+    files: ["test/browser/**/*.mjs"],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
+  {
     ignores: ["dist/**", "node_modules/**", ".source/**", ".output/**", ".tanstack/**", ".wrangler/**", ".cloudflare/**", "content/**", "src/routeTree.gen.ts", "deploy/node_modules/**"],
   },
 );

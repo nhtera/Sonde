@@ -9,9 +9,10 @@
     "preview": "vite preview",
     "typecheck": "tsr generate && tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --test",
+    "test": "node --test \"scripts/**/*.test.mjs\" \"src/**/*.test.ts\"",
     "check:install-scripts": "node scripts/check-install-scripts.mjs",
-    "check:licenses": "node scripts/check-npm-licenses.mjs"
+    "check:licenses": "node scripts/check-npm-licenses.mjs",
+    "test:browser": "node --test \"test/browser/**/*.test.mjs\""
   },
   "dependencies": {
     "@fontsource/geist": "5.3.0",
@@ -22,11 +23,13 @@
     "fumadocs-core": "16.16.2",
     "fumadocs-mdx": "15.4.6",
     "fumadocs-ui": "16.16.2",
+    "next-themes": "0.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@cloudflare/vite-plugin": "1.62.5",
     "@eslint/js": "10.0.1",
     "@tailwindcss/vite": "4.3.3",
@@ -39,6 +42,7 @@
     "eslint": "10.11.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.12.0",
+    "playwright": "1.63.0",
     "shiki": "4.5.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",

@@ -1,8 +1,19 @@
 /* Copyright 2026 The Sonde Authors */
 /* SPDX-License-Identifier: Apache-2.0 */
 
+/* Layer order: the desktop tokens join `base`, so Tailwind utilities and
+   the site's components always win over its app-shell globals
+   (button, :focus-visible, body). */
+@layer theme, base, components, utilities;
+
 @import "tailwindcss";
-/* The color utilities preset.css needs, without neutral.css (its
-   `.dark #nd-sidebar` rule would outrank the token mapping). */
-@import "fumadocs-ui/css/lib/default-colors.css";
+@import "@fontsource/geist/400.css";
+@import "@fontsource/geist/500.css";
+@import "@fontsource/geist/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
 @import "fumadocs-ui/css/preset.css";
+/* The design system, imported as it is (never copied). */
+@import "../../../desktop/frontend/src/app/theme/tokens.css" layer(base);
+@import "./sonde-site.css";
+@import "./components.css";
