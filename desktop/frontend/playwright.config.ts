@@ -54,6 +54,10 @@ const importURL = `http://127.0.0.1:${importPort}`;
 const importHarness =
   `sh -c 't=$(mktemp -d); trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
   `mkdir "$t/p" && cp -R ../testdata/shop-api/. "$t/p" && SONDE_VARIABLE_region=eu ${harness} --root "$t/p" --data "$t/data" --port ${importPort}'`;
+// e2e/update.spec.ts: the update service on scripted parts (it keeps its
+// state between steps), on a copy of shop-api.
+const updatePort = Number(process.env.E2E_UPDATE_PORT) || 34134;
+const updateURL = `http://127.0.0.1:${updatePort}`;
 // e2e/full-flow.spec.ts: the whole journey on a copy of results-api.
 const fullPort = Number(process.env.E2E_FULL_PORT) || 34132;
 const fullURL = `http://127.0.0.1:${fullPort}`;
@@ -83,15 +87,15 @@ export default defineConfig({
   reporter: process.env.CI ? "list" : "line",
   use: { baseURL },
   projects: [
-    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual/, use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual/, use: { ...devices["Desktop Safari"] } },
+    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual|update/, use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual|update/, use: { ...devices["Desktop Safari"] } },
     // Timings are measured alone, after the other browser tests (the load
     // of seven test servers and browsers would skew them).
     {
       name: "perf",
       testMatch: /perf/,
       workers: 1,
-      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "panels", "import", "full", "editor-webkit"],
+      dependencies: ["chromium", "webkit", "shell", "results", "results-webkit", "form", "panels", "import", "full", "editor-webkit", "update"],
       use: { ...devices["Desktop Chrome"], baseURL: perfURL },
     },
     // The shell's tests share one harness (its settings, its runs): one
@@ -112,6 +116,8 @@ export default defineConfig({
           use: { ...devices["Desktop Safari"], baseURL: visualURL(k), colorScheme: "dark" as const },
         }))
       : []),
+    // Updates: one test, its own harness.
+    { name: "update", testMatch: /update\.spec/, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: updateURL } },
     // The full journey: one test, its own harness.
     { name: "full", testMatch: /full-flow/, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: fullURL } },
     // Import and Copy as share one harness (they write its files).
@@ -153,6 +159,15 @@ export default defineConfig({
           command: shopHarness(shellPort),
           url: `${shellURL}/health`,
           reuseExistingServer: !process.env.CI,
+          // SIGTERM (not the default SIGKILL): the server's temp folder goes.
+          gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
+          timeout: 30_000,
+        },
+        {
+          command: shopHarness(updatePort),
+          url: `${updateURL}/health`,
+          // Fresh every run: the update service keeps its state.
+          reuseExistingServer: false,
           // SIGTERM (not the default SIGKILL): the server's temp folder goes.
           gracefulShutdown: { signal: "SIGTERM", timeout: 3000 },
           timeout: 30_000,
