@@ -73,6 +73,13 @@ func TestSummarizeProject(t *testing.T) {
 	if !strings.Contains(b.String(), "already exists") {
 		t.Errorf("summary should say sonde.yaml already exists:\n%s", b.String())
 	}
+
+	// A secrets stub written: a hint to keep secret values out of git.
+	b.Reset()
+	Summarize(&b, Output{}, &Result{Extra: []string{"secrets/dev.secrets", "secrets/prod.secrets"}})
+	if strings.Count(b.String(), "add *.secrets to .gitignore") != 1 {
+		t.Errorf("summary should hint at .gitignore once:\n%s", b.String())
+	}
 }
 
 func TestSummarizeQuotesControlCharacters(t *testing.T) {

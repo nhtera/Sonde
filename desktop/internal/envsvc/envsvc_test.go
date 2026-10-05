@@ -377,7 +377,8 @@ func TestEnvVariables(t *testing.T) {
 }
 
 // TestSetSecretNeverInYAML: a secret added as one goes to the env's secrets
-// file (0600) and its value never to sonde.yaml.
+// file (0600) and its value never to sonde.yaml, its name listed there in
+// "secrets:" only (for a fresh clone).
 func TestSetSecretNeverInYAML(t *testing.T) {
 	e, proj, _ := project(t)
 	before := read(t, proj, "sonde.yaml")
@@ -385,8 +386,8 @@ func TestSetSecretNeverInYAML(t *testing.T) {
 		t.Fatal(err)
 	}
 	yaml := read(t, proj, "sonde.yaml")
-	if strings.Contains(yaml, secretValue) || strings.Contains(yaml, "hook") || yaml == before {
-		t.Error("sonde.yaml: the value or name leaked, or the secrets file is not referenced")
+	if strings.Contains(yaml, secretValue) || strings.Count(yaml, "hook") != 1 || !strings.Contains(yaml, "    secrets:\n      - hook\n") || yaml == before {
+		t.Errorf("sonde.yaml: the value leaked, the name is not listed in secrets: alone, or the secrets file is not referenced:\n%s", yaml)
 	}
 	info, err := os.Stat(filepath.Join(proj, "secrets", "staging.secrets"))
 	if err != nil || runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {

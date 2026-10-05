@@ -4,7 +4,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -124,6 +126,9 @@ func (p *Project) Resolve(env string) (variables map[string]value.Value, secrets
 			return nil
 		},
 		func(rel string, data []byte, readErr error) error {
+			if p.optionalSecretsFile(env, readErr) {
+				return nil
+			}
 			if readErr != nil {
 				return fmt.Errorf("%s: secrets_files: %w", p.Path, readErr)
 			}
@@ -143,6 +148,47 @@ func (p *Project) Resolve(env string) (variables map[string]value.Value, secrets
 		return nil, nil, werr
 	}
 	return variables, secrets, nil
+}
+
+// optionalSecretsFile reports whether readErr, a secrets file of env
+// failing to read, is a file that is not there (a fresh clone: it is
+// kept out of git) of an environment listing its "secrets:" names: their
+// values may come from any other secret source, and MissingSecrets says
+// which none sets. Without "secrets:", a missing file stays an error.
+func (p *Project) optionalSecretsFile(env string, readErr error) bool {
+	return errors.Is(readErr, fs.ErrNotExist) && len(p.Environments[env].Secrets) > 0
+}
+
+// MissingSecrets returns the "secrets:" names of env that neither its
+// secrets files (secrets, from Resolve) nor have (any other secret
+// source of the run) set, in their listed order.
+func (p *Project) MissingSecrets(env string, secrets map[string]string, have func(name string) bool) []string {
+	var out []string
+	for _, name := range p.Environments[env].Secrets {
+		if _, ok := secrets[name]; !ok && (have == nil || !have(name)) {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// MissingSecretsError is the error of a run of env with the listed
+// secrets missing (MissingSecrets): each one, and where to set it.
+func (p *Project) MissingSecretsError(env string, missing []string) error {
+	where := "its secrets file"
+	if f, err := p.SecretsFileFor(env); err == nil {
+		where = f
+	}
+	vars := make([]string, len(missing))
+	for i, n := range missing {
+		vars[i] = "SONDE_SECRET_" + n
+	}
+	it := "them"
+	if len(missing) == 1 {
+		it = "it"
+	}
+	return fmt.Errorf("%s: environment %s: secret %s not set: add %s to %s, or set %s",
+		p.Path, env, strings.Join(missing, ", "), it, where, strings.Join(vars, ", "))
 }
 
 // envNames returns p.Environments' keys, sorted, for an "available: ..."

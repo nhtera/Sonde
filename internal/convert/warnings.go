@@ -64,6 +64,12 @@ func Summarize(w io.Writer, out Output, res *Result) {
 	for _, f := range res.ExtraKept {
 		fmt.Fprintf(w, "%s: already exists, left untouched\n", f)
 	}
+	for _, f := range res.Extra {
+		if strings.HasSuffix(f, ".secrets") {
+			fmt.Fprintf(w, "keep secret values out of git: add *.secrets to .gitignore\n")
+			break
+		}
+	}
 	switch {
 	case res.Project != "":
 		fmt.Fprintf(w, "%s %s\n", verb, res.Project)

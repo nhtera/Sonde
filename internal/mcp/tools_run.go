@@ -203,6 +203,11 @@ func (s *server) prepare(ctx context.Context, rf *requestFile, callEnv string) (
 	if err != nil {
 		return job, nil, "", s.relative(err)
 	}
+	// The secrets the environment lists, set by none of its files (a
+	// fresh clone) nor the server's --secret / SONDE_SECRET_*.
+	if missing := proj.MissingSecrets(envName, secrets, func(n string) bool { _, ok := s.cfg.Secrets[n]; return ok }); len(missing) > 0 {
+		return job, nil, "", s.relative(proj.MissingSecretsError(envName, missing))
+	}
 	job.Secrets = secrets
 	if len(vars) > 0 {
 		job.Variables = make(map[string]any, len(vars))

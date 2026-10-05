@@ -218,7 +218,7 @@ Canonical format (`internal/syntax.Format`): horizontal whitespace and line endi
 7. captures during the run (unit-scoped)
 
 Environment selection: `--env` > `SONDE_ENV` > `defaults.env`.
-Secrets: `sonde.yaml` `secrets_files`, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secrets-file`, `--secret`, `--data-secret` columns, `redact` captures. Same secret name from two sources → error (Hurl message). Secret vs variable name clash → exit 1 (a data column named like a command line secret too). Secrets shorter than 4 chars → warning.
+Secrets: `sonde.yaml` `secrets_files`, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secrets-file`, `--secret`, `--data-secret` columns, `redact` captures. Same secret name from two sources → error (Hurl message). Secret vs variable name clash → exit 1 (a data column named like a command line secret too). Secrets shorter than 4 chars → warning. An environment's `secrets:` lists the names it needs: its secrets file may then be missing (a fresh clone), and a listed name no source sets stops the run before any request (exit 1), naming where to set it.
 
 Type inference for CLI/env/CSV values (Hurl-compatible): `true`/`false` → bool, `null` → null, integer → int, float → float, else string.
 
