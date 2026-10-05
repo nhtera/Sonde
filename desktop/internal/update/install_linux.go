@@ -27,54 +27,68 @@ type appImageInstaller struct {
 	appImage string // $APPIMAGE, proven to be the running image
 	appDir   string
 	reason   string
+	detail   string
 }
 
 // NewInstaller returns the Linux installer for the running app.
 func NewInstaller(deps InstallerDeps) Installer {
 	i := &appImageInstaller{deps: deps, appImage: os.Getenv("APPIMAGE"), appDir: os.Getenv("APPDIR")}
-	i.reason = checkAppImage(i.appImage, i.appDir)
+	i.reason, i.detail = checkAppImage(i.appImage, i.appDir)
 	return i
 }
 
 func (i *appImageInstaller) CanInstall() (bool, string) { return i.reason == "", i.reason }
 
+// Detail names the check that failed.
+func (i *appImageInstaller) Detail() string { return i.detail }
+
 // checkAppImage is why $APPIMAGE cannot be replaced in place, or "": the
 // app must run from APPDIR, a FUSE mount of that very file, which the user
 // owns in a folder only they can write. An inherited or forged APPIMAGE
-// fails one of these.
-func checkAppImage(appImage, appDir string) string {
+// fails one of these. detail names the check that failed, for
+// --update-install-check.
+func checkAppImage(appImage, appDir string) (reason, detail string) {
 	if appImage == "" || appDir == "" || !filepath.IsAbs(appImage) {
-		return reasonNotAppImage
+		return reasonNotAppImage, fmt.Sprintf("APPIMAGE=%q APPDIR=%q", appImage, appDir)
 	}
 	exe, err := os.Executable()
 	if err != nil || !insideDir(exe, appDir) {
-		return reasonNotAppImage
+		return reasonNotAppImage, fmt.Sprintf("the executable %q is not in APPDIR %q", exe, appDir)
 	}
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
-		return reasonNotAppImage
+		return reasonNotAppImage, err.Error()
 	}
 	mounts, err := parseMountinfo(f)
 	_ = f.Close()
 	if err != nil {
-		return reasonNotAppImage
+		return reasonNotAppImage, err.Error()
 	}
 	fuse, named := appImageMount(mounts, appDir, appImage)
-	if !fuse || !named && !openedByRuntime(appImage) {
-		return reasonNotAppImage
+	if !fuse {
+		return reasonNotAppImage, fmt.Sprintf("no FUSE mount at APPDIR %q", appDir)
+	}
+	if !named && !openedByRuntime(appImage) {
+		var src string
+		for _, m := range mounts {
+			if filepath.Clean(m.point) == filepath.Clean(appDir) {
+				src = m.fstype + " " + m.source
+			}
+		}
+		return reasonNotAppImage, fmt.Sprintf("the mount at APPDIR is %q, not %q, and no runtime process holds it open", src, appImage)
 	}
 	uid := uint32(os.Getuid()) //nolint:gosec // a uid
 	var st unix.Stat_t
 	if unix.Lstat(appImage, &st) != nil || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Uid != uid {
-		return reasonShared
+		return reasonShared, "the AppImage is not a regular file of this user"
 	}
 	dir := filepath.Dir(appImage)
 	fi, err := os.Lstat(dir) //nolint:gosec // G703: the AppImage's own folder, checked here
 	ds, ok := sysStat(fi)
 	if err != nil || !ok || ds.Uid != uid || !privateDir(fi.Mode()) {
-		return reasonShared
+		return reasonShared, fmt.Sprintf("the folder %q is not this user's alone", dir)
 	}
-	return ""
+	return "", ""
 }
 
 func sysStat(fi os.FileInfo) (*syscall.Stat_t, bool) {
@@ -149,7 +163,7 @@ func runtimeCandidates() []string {
 // starts the new one once Sonde has quit.
 func (i *appImageInstaller) Install(r Record) error {
 	// Checked again: the image may have moved or changed since launch.
-	if i.reason = checkAppImage(i.appImage, i.appDir); i.reason != "" {
+	if i.reason, i.detail = checkAppImage(i.appImage, i.appDir); i.reason != "" {
 		return &Error{Kind: KindInstall, Err: errors.New(i.reason)}
 	}
 	if err := replaceFile(filepath.Dir(i.appImage), filepath.Base(i.appImage), r); err != nil {

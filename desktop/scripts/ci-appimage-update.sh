@@ -26,16 +26,20 @@ img="$t/apps/Sonde.AppImage"
 cp "$src" "$img"
 chmod 755 "$img"
 
-# 1. Started by the runtime: the check passes.
-"$img" --update-install-check || fail "the AppImage runtime's own launch was refused"
-
-# 2. The same mount, a foreign APPIMAGE: refused.
+# How this runtime mounts its image, for the log.
 "$img" --appimage-mount > "$t/mountpoint" &
 mounter=$!
 for _ in $(seq 50); do [ -s "$t/mountpoint" ] && break; sleep 0.1; done
 mnt="$(head -1 "$t/mountpoint")"
 [ -d "$mnt/usr/bin" ] || fail "no mount at '$mnt'"
-grep -F " $mnt " /proc/self/mountinfo || true
+echo "mountinfo: $(grep -F " $mnt " /proc/self/mountinfo || echo none)"
+ps -o pid,ppid,args --ppid "$mounter" --pid "$mounter" || true
+cat "$mnt/AppRun" 2>/dev/null | head -20 || true
+
+# 1. Started by the runtime: the check passes.
+"$img" --update-install-check || fail "the AppImage runtime's own launch was refused"
+
+# 2. The same mount, a foreign APPIMAGE: refused.
 bin="$(find "$mnt/usr/bin" -name 'sonde-desktop*' -type f | head -1)"
 cp "$src" "$t/Other.AppImage"
 if APPIMAGE="$t/Other.AppImage" APPDIR="$mnt" "$bin" --update-install-check; then

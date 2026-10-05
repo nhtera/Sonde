@@ -295,6 +295,7 @@ jobs:
           (cd "$work/payload" && go mod init payload >/dev/null 2>&1 && \
             go build -ldflags "-X main.tag=A" -o ../payload-a.exe . && \
             go build -ldflags "-X main.tag=B" -o ../payload-b.exe .)
+          mkdir -p desktop/bin # the script's OutFile folder
           cd desktop/build/windows/nsis
           "$GITHUB_WORKSPACE/bin/wails3" generate webview2bootstrapper -dir .
           for v in a:0.0.1 b:0.0.2; do

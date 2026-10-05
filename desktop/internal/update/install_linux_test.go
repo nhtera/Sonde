@@ -111,11 +111,11 @@ func TestRelaunchAfter(t *testing.T) {
 }
 
 func TestCheckAppImageRefusesWithoutTheRuntime(t *testing.T) {
-	if got := checkAppImage("", ""); got != reasonNotAppImage {
+	if got, _ := checkAppImage("", ""); got != reasonNotAppImage {
 		t.Errorf("no APPIMAGE: %q", got)
 	}
 	// A forged environment: this test binary does not run from APPDIR.
-	if got := checkAppImage("/tmp/x.AppImage", t.TempDir()); got != reasonNotAppImage {
+	if got, _ := checkAppImage("/tmp/x.AppImage", t.TempDir()); got != reasonNotAppImage {
 		t.Errorf("a forged APPDIR: %q", got)
 	}
 }
