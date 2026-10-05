@@ -1,0 +1,11 @@
+# Order events over server-sent events
+GET {{base_url}}/events?n=10
+Accept: text/event-stream
+[Options]
+sonde-stream-count: 6
+sonde-stream-timeout: 30s
+HTTP 200
+[Asserts]
+sondeStream count == 6
+sondeStream "event" nth 5 == "order"
+sondeStream nth 4 jsonpath "$.n" == 5

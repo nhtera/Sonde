@@ -1,0 +1,273 @@
+{
+  "version": "0.1.0",
+  "shots": {
+    "agents": {
+      "width": 1440,
+      "height": 900,
+      "dark": [
+        {
+          "w": 2880,
+          "src": "/screens/agents-dark-2880.1534519c.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/agents-dark-1440.796e7b81.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/agents-dark-1080.f6f8d8b6.webp"
+        }
+      ],
+      "light": [
+        {
+          "w": 2880,
+          "src": "/screens/agents-light-2880.3d85ce66.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/agents-light-1440.be836fca.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/agents-light-1080.3da83ffd.webp"
+        }
+      ]
+    },
+    "coverage": {
+      "width": 1440,
+      "height": 900,
+      "dark": [
+        {
+          "w": 2880,
+          "src": "/screens/coverage-dark-2880.8d0f432e.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/coverage-dark-1440.bfa4c2cc.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/coverage-dark-1080.a8926d36.webp"
+        }
+      ],
+      "light": [
+        {
+          "w": 2880,
+          "src": "/screens/coverage-light-2880.4afa1232.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/coverage-light-1440.629718e6.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/coverage-light-1080.e3621f08.webp"
+        }
+      ],
+      "crop": {
+        "x": 54,
+        "y": 189,
+        "w": 236,
+        "h": 284
+      }
+    },
+    "env": {
+      "width": 1440,
+      "height": 900,
+      "dark": [
+        {
+          "w": 2880,
+          "src": "/screens/env-dark-2880.79e5ca98.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/env-dark-1440.8187b7ba.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/env-dark-1080.415117c9.webp"
+        }
+      ],
+      "light": [
+        {
+          "w": 2880,
+          "src": "/screens/env-light-2880.68f7baf6.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/env-light-1440.ed68694a.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/env-light-1080.e9f3b7d0.webp"
+        }
+      ],
+      "crop": {
+        "x": 441,
+        "y": 552,
+        "w": 360,
+        "h": 256
+      }
+    },
+    "form": {
+      "width": 1440,
+      "height": 900,
+      "dark": [
+        {
+          "w": 2880,
+          "src": "/screens/form-dark-2880.6d1db73f.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/form-dark-1440.f86f3884.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/form-dark-1080.17821d28.webp"
+        }
+      ],
+      "light": [
+        {
+          "w": 2880,
+          "src": "/screens/form-light-2880.f336c2ee.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/form-light-1440.a782079f.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/form-light-1080.449fee45.webp"
+        }
+      ]
+    },
+    "hero": {
+      "width": 1440,
+      "height": 900,
+      "dark": [
+        {
+          "w": 2880,
+          "src": "/screens/hero-dark-2880.27195b44.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/hero-dark-1440.45a33497.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/hero-dark-1080.c381c4d1.webp"
+        }
+      ],
+      "light": [
+        {
+          "w": 2880,
+          "src": "/screens/hero-light-2880.275a2b1a.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/hero-light-1440.4cec0063.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/hero-light-1080.661abd61.webp"
+        }
+      ]
+    },
+    "palette": {
+      "width": 1440,
+      "height": 900,
+      "dark": [
+        {
+          "w": 2880,
+          "src": "/screens/palette-dark-2880.ffeb733d.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/palette-dark-1440.32e0ddd4.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/palette-dark-1080.e80cdf89.webp"
+        }
+      ],
+      "light": [
+        {
+          "w": 2880,
+          "src": "/screens/palette-light-2880.c36fbe08.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/palette-light-1440.afb08881.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/palette-light-1080.eca4b489.webp"
+        }
+      ]
+    },
+    "run": {
+      "width": 1440,
+      "height": 900,
+      "dark": [
+        {
+          "w": 2880,
+          "src": "/screens/run-dark-2880.f4ec0f1c.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/run-dark-1440.8a47f746.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/run-dark-1080.f114f515.webp"
+        }
+      ],
+      "light": [
+        {
+          "w": 2880,
+          "src": "/screens/run-light-2880.05050790.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/run-light-1440.9caa39a0.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/run-light-1080.3fdbb199.webp"
+        }
+      ]
+    },
+    "streams": {
+      "width": 1440,
+      "height": 900,
+      "dark": [
+        {
+          "w": 2880,
+          "src": "/screens/streams-dark-2880.1e73741c.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/streams-dark-1440.2d272ee9.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/streams-dark-1080.1907eb8b.webp"
+        }
+      ],
+      "light": [
+        {
+          "w": 2880,
+          "src": "/screens/streams-light-2880.6b88873f.webp"
+        },
+        {
+          "w": 1440,
+          "src": "/screens/streams-light-1440.5b9e49b7.webp"
+        },
+        {
+          "w": 1080,
+          "src": "/screens/streams-light-1080.ade07f5a.webp"
+        }
+      ]
+    }
+  }
+}
