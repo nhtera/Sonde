@@ -161,6 +161,32 @@ that rebinds a DNS name to 127.0.0.1.
 | Secrets cross to the browser | the same view boundary as the window; there is no reveal in server mode: Copy as always masks, and nothing writes to a clipboard from Go |
 | A slow or stuck client holds resources | reads time out after 1 minute; a lagging event stream client is dropped (32 MiB cap) and reconnects and resynchronizes |
 
+### Updates
+
+The window app updates itself ([desktop.md](desktop.md#updates),
+[decision 0008](decisions/0008-desktop-updates.md)). An update runs as the
+user on every machine that installs it, so the release feed, the network
+and the CI that builds releases are all untrusted until a signature says
+otherwise.
+
+| Threat | Control |
+|---|---|
+| A forged or altered release (a compromised feed, a tag pushed by someone else, a proxy) | each release's `Sonde-Desktop-X.Y.Z.update.json` carries one **ed25519** signature over the version, a digest of the notes, and every update file's platform, arch, name, size and **SHA-512**; the app verifies it against a **pinned key set** before downloading anything (`k1` active, `k2` an offline standby, both built in since 0.2.0). The manifest's version must equal the tag's, so an old signed release cannot pose as a newer one. Unknown fields are refused. A failed verification is shown, never silent |
+| A swapped or oversized download | the file must match its signed SHA-512 (checked while it downloads) and its signed size: the download stops one byte past it and fails if short. Every URL is built in Go from a version that parsed and a file name that was signed, never taken from the feed (GitHub's pagination links are followed only on the API host) |
+| A redirect or a host the user was not told about | requests go to `api.github.com` and `github.com` over TLS, and redirects only to GitHub's hosts over https; `--update-api` (a test release server, one run) takes https or loopback http only and shows "Test update server" |
+| The signing key leaks from CI | it lives only in the `desktop-update-signing` environment: `desktop/v*` tags only, and the maintainer approves every run. A tag ruleset limits release tags to the maintainer. The signing job runs no toolchain and no module download, only the manifest tool the build job built first and attested, after checking the attestation, and it checks its output against the committed keys. Someone with admin rights on the repository can still change the environment: that is the limit |
+| A key is lost or compromised | rotation signs with `k2`, which every app since 0.2.0 already trusts, and pins a new standby; a compromise is answered by rotating at once and asking users of the affected versions to reinstall by hand ([release.md](release.md#update-signing-keys)) |
+| The swap breaks the app or another user's copy | **macOS:** the whole bundle must be the user's (a bundle with one file owned by someone else is never half-replaced), not translocated, and on the temp folder's volume; the staged app must pass `codesign --verify --deep --strict` with an Apple-anchored certificate of Sonde's team (`certificate leaf[subject.OU]`) before the swap. **Windows:** only the machine-wide install recorded in HKLM is updated (user keys are never read); the staged installer is checked again through a handle that keeps others from writing it while it starts; the installer takes its folder from HKLM, never from the command line, waits for Sonde to quit, and refuses to run over a `Sonde.exe` that still runs. **Linux:** the AppImage is replaced only when the app's FUSE mount names it by path, or by file name while a process of the user runs from that very file (the runtime), in a folder only the user can write, through a folder handle, and checked again through the descriptor that wrote it |
+| An update quits over unsaved work, or never quits | Restart asks about unsaved tabs first, and refuses while another Sonde window runs; the close guard lets only that quit through, and holds again if Sonde is still running 45 s later |
+
+Limits, stated: the Windows installer is **not code-signed**, and no signing
+is planned, so UAC names an "Unknown publisher". UAC is not a boundary
+against software that already runs as the user, which could tamper with a
+staged update; such software can already do worse. On macOS the window
+between the signature check and the swap is equally open to the user's own
+software. The update check sends nothing but its requests (no identifier,
+no version in a query); GitHub sees the IP address.
+
 ## Supply chain
 
 Dependencies are kept minimal and reviewed with `go mod why`; `govulncheck`
@@ -172,7 +198,9 @@ keyless via GitHub OIDC) and ship a Software Bill of Materials (`syft`);
 publish credentials live only in the protected `release` environment.
 The desktop app's releases add build provenance attestations that the
 signing jobs verify before they sign anything
-([release.md](release.md#desktop-release)). One known gap: the AppImage's
+([release.md](release.md#desktop-release)). Its update manifest is signed
+in a separate environment, by a tool built and attested before any secret
+is in reach, with no toolchain in the signing job. One known gap: the AppImage's
 `linuxdeploy` is pinned and checked, but the `AppRun` that Wails downloads
 from the archived AppImageKit "continuous" release is not, nor is the
 AppImage runtime (the first code an AppImage runs) that linuxdeploy's

@@ -132,7 +132,8 @@ run. It uses the CLI's engine, so a file that passes in the app passes in CI.
 There is no account and no telemetry; history stays on your computer.
 
 Builds for macOS (signed and notarized), Windows (not signed yet) and Linux
-(AppImage) are on the releases page under `desktop/vX.Y.Z` tags. A server
+(AppImage) are on the releases page under `desktop/vX.Y.Z` tags; from 0.2.0
+on, the app updates itself, from signed releases. A server
 mode serves the app to a browser on `127.0.0.1`, for a project on a remote
 machine. It is a separate program, not covered by the CLI's v1 promise. Read
 [docs/desktop.md](docs/desktop.md).
