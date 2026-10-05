@@ -313,9 +313,13 @@ func (m *Manager) Check(manual bool) {
 	switch m.st.State {
 	case StateDisabled, StateChecking, StateDownloading, StateVerifying, StateReady:
 		// Nothing to start: a manual check shows the current state (the
-		// reason, the check in flight, the update ready to install).
+		// reason, the check in flight, the update ready to install, with
+		// the other windows counted again).
 		if manual {
 			m.st.Manual = true
+			if m.st.State == StateReady {
+				m.st.OtherInstances = m.others()
+			}
 			m.emitLocked()
 		}
 		m.mu.Unlock()
@@ -551,7 +555,8 @@ func (m *Manager) ClearSkip() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.st.Skipped {
-		m.st.Skipped = false
+		// The offer as it was, not a new answer to a check.
+		m.st.Skipped, m.st.Manual = false, false
 		m.emitLocked()
 	}
 	return nil
