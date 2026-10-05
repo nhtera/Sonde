@@ -240,16 +240,40 @@ func TestFileOperations(t *testing.T) {
 	}
 }
 
+// TestDesktopFolderPrompts checks the folder dialog says why it asks:
+// the folder an import writes into is not mistaken for the file to import.
+func TestDesktopFolderPrompts(t *testing.T) {
+	s, _, dir := open(t)
+	var got []FolderPrompt
+	d := NewDesktop(s, sandboxtest.Open(t, t.TempDir()), handles.New(), func(p FolderPrompt) (string, error) {
+		got = append(got, p)
+		return dir, nil
+	})
+	if p, err := d.OpenFolder(); p == nil || err != nil {
+		t.Fatalf("open: %v %v", p, err)
+	}
+	if p, err := d.OpenFolderToImport(); p == nil || err != nil {
+		t.Fatalf("open to import: %v %v", p, err)
+	}
+	if len(got) != 2 || got[0] != openPrompt || got[1] != importPrompt {
+		t.Fatalf("prompts %+v", got)
+	}
+	// Each platform shows the title or the message, not both: both say it.
+	if !strings.Contains(got[1].Title, "import into") || !strings.Contains(got[1].Message, "import into") {
+		t.Errorf("the import prompt does not say what the folder is for: %+v", got[1])
+	}
+}
+
 func TestDesktopRecentAndCopy(t *testing.T) {
 	s, _, dir := open(t)
 	cfg := sandboxtest.Open(t, t.TempDir())
 	h := handles.New()
-	d := NewDesktop(s, cfg, h, func() (string, error) { return dir, nil })
+	d := NewDesktop(s, cfg, h, func(FolderPrompt) (string, error) { return dir, nil })
 	if _, err := d.OpenFolder(); err != nil {
 		t.Fatal(err)
 	}
 	other := t.TempDir()
-	d.pickFolder = func() (string, error) { return other, nil }
+	d.pickFolder = func(FolderPrompt) (string, error) { return other, nil }
 	if _, err := d.OpenFolder(); err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +290,7 @@ func TestDesktopRecentAndCopy(t *testing.T) {
 	if _, err := d.OpenRecent("nope"); code(err) != apperr.NotFound {
 		t.Errorf("unknown recent: %v", err)
 	}
-	d.pickFolder = func() (string, error) { return "", nil }
+	d.pickFolder = func(FolderPrompt) (string, error) { return "", nil }
 	if p, err := d.OpenFolder(); p != nil || err != nil {
 		t.Errorf("canceled dialog: %v %v", p, err)
 	}
@@ -312,7 +336,7 @@ func TestPickedFileSymlink(t *testing.T) {
 	s, _, _ := open(t)
 	cfg := sandboxtest.Open(t, t.TempDir())
 	h := handles.New()
-	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
+	d := NewDesktop(s, cfg, h, func(FolderPrompt) (string, error) { return "", nil })
 
 	// Create a file outside and a symlink inside pointing to it
 	outside := filepath.Join(t.TempDir(), "external.json")
@@ -338,7 +362,7 @@ func TestPickedFileWithPathTraversal(t *testing.T) {
 	s, _, _ := open(t)
 	cfg := sandboxtest.Open(t, t.TempDir())
 	h := handles.New()
-	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
+	d := NewDesktop(s, cfg, h, func(FolderPrompt) (string, error) { return "", nil })
 	projectDir := s.Root().Dir()
 	outside := filepath.Join(filepath.Dir(projectDir), "outside-"+filepath.Base(projectDir)+".txt")
 	if err := os.WriteFile(outside, []byte("x"), 0o600); err != nil {
@@ -359,7 +383,7 @@ func TestPickedFileProjectDirItself(t *testing.T) {
 	s, _, _ := open(t)
 	cfg := sandboxtest.Open(t, t.TempDir())
 	h := handles.New()
-	d := NewDesktop(s, cfg, h, func() (string, error) { return "", nil })
+	d := NewDesktop(s, cfg, h, func(FolderPrompt) (string, error) { return "", nil })
 
 	projectDir := s.Root().Dir()
 	handle, _ := h.Put(projectDir, handles.OpenFile)

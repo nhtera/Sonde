@@ -29,7 +29,7 @@ registry.command({
   title: "Import…",
   group: "Import",
   run: async () => {
-    if (!useWorkspace.getState().project && !serverMode) await useWorkspace.getState().openFolder();
+    if (!useWorkspace.getState().project && !serverMode) await useWorkspace.getState().openFolder(true);
     if (useWorkspace.getState().project) useImport.getState().show("postman");
   },
 });
