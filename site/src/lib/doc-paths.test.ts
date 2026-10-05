@@ -41,6 +41,9 @@ test("GitHub URLs and the edit URL", () => {
   assert.equal(githubUrl("docs/decisions", { dir: true }), "https://github.com/nhtera/sonde/tree/main/docs/decisions");
   assert.equal(editUrl("docs/guides/openapi.md"), "https://github.com/nhtera/sonde/edit/main/docs/guides/openapi.md");
   assert.throws(() => editUrl("docs/../../etc/passwd"), /not a docs source path/);
+  assert.throws(() => editUrl("docs/../x.md"), /not a docs source path/);
+  assert.throws(() => editUrl("docs/./x.md"), /not a docs source path/);
+  assert.equal(editUrl("docs/cli/README.md"), "https://github.com/nhtera/sonde/edit/main/docs/cli/README.md");
   assert.throws(() => editUrl("https://evil.example/x.md"), /not a docs source path/);
 });
 

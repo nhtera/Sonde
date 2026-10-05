@@ -21,7 +21,9 @@
   --color-fd-accent: var(--accent-soft);
   --color-fd-accent-foreground: var(--text);
   --color-fd-border: var(--line);
-  --color-fd-ring: var(--accent-line);
+  /* Focus rings use the full accent: --accent-line is under 3:1 against
+     the surfaces (WCAG 1.4.11), --accent is 9.5:1 dark, 4.8:1 light. */
+  --color-fd-ring: var(--accent);
   --color-fd-primary: var(--accent);
   --color-fd-primary-foreground: var(--accent-ink);
   --color-fd-overlay: var(--scrim);

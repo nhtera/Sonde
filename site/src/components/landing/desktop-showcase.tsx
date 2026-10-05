@@ -1,22 +1,37 @@
 // Copyright 2026 The Sonde Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import desktop from "../../../content/generated/desktop.json";
+import { ButtonLink } from "@/components/ui/button";
 import { strings } from "@/content/strings";
+import { nextTab } from "./tab-keys";
 import { ThemedShot, type ShotId } from "./themed-shot";
 
 const t = strings.showcase;
 
-/** Real app screens in vertical tabs (a row of tabs under 980px); arrow keys move between them. */
+/** Whether a media query matches; the prerendered page assumes the desktop layout. */
+function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const m = matchMedia(query);
+      m.addEventListener("change", onChange);
+      return () => m.removeEventListener("change", onChange);
+    },
+    () => matchMedia(query).matches,
+    () => true,
+  );
+}
+
+/** Real app screens in vertical tabs (a row of tabs under 980px); arrow keys, Home and End move between them. */
 export function DesktopShowcase() {
   const [current, setCurrent] = useState(0);
+  const vertical = useMediaQuery("(min-width: 981px)");
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKey = (e: KeyboardEvent, i: number) => {
-    const d = ({ ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 } as Record<string, number>)[e.key];
-    if (!d) return;
+    const n = nextTab(e, i, t.tabs.length);
+    if (n === undefined) return;
     e.preventDefault();
-    const n = (i + d + t.tabs.length) % t.tabs.length;
     setCurrent(n);
     tabs.current[n]?.focus();
   };
@@ -28,7 +43,7 @@ export function DesktopShowcase() {
           <p>{t.body}</p>
         </div>
         <div className="show">
-          <div className="show-tabs" role="tablist" aria-label={t.tabsLabel} aria-orientation="vertical">
+          <div className="show-tabs" role="tablist" aria-label={t.tabsLabel} aria-orientation={vertical ? "vertical" : "horizontal"}>
             {t.tabs.map((tab, i) => (
               <button
                 key={tab.id}
@@ -55,9 +70,9 @@ export function DesktopShowcase() {
               </div>
             ))}
             <div className="show-cta">
-              <a className="btn primary" href={desktop.url}>
+              <ButtonLink variant="primary" href={desktop.url}>
                 {t.download}
-              </a>
+              </ButtonLink>
               <small>{t.note}</small>
             </div>
           </div>

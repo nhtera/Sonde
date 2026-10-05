@@ -14,7 +14,9 @@
 // file name, or a shallow clone (dates). Runs no shell: git is called with
 // execFileSync and fixed arguments.
 //
-//   node scripts/sync-docs.mjs            (SONDE_SITE_NO_DATES=1 omits dates)
+//   node scripts/sync-docs.mjs            (SONDE_SITE_NO_DATES=1 omits dates;
+//                                          SONDE_SITE_RELEASES_FILE lists the
+//                                          published release tags)
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -23,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import { stringify } from "yaml";
 import { checkDocName, contentPathOf, SOURCE_PATH, slugOf } from "../src/lib/doc-paths.ts";
 import { loadNav, publishedSet } from "../src/lib/docs-nav.ts";
+import { REPO_URL } from "../src/lib/urls.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const SITE = resolve(here, "..");
@@ -96,17 +99,30 @@ export function parseInstall(readme) {
   return tabs;
 }
 
-const RELEASES = "https://github.com/nhtera/sonde/releases";
+const RELEASES = `${REPO_URL}/releases`;
 
 /**
  * The Sonde Desktop release the Download button opens: the newest
- * desktop/vX.Y.Z tag without a pre-release suffix. Never /releases/latest,
- * which is the CLI. Without tags (a shallow clone), the filtered list.
+ * desktop/vX.Y.Z tag without a pre-release suffix that has a published
+ * release (a tag can exist before its release does). Never
+ * /releases/latest, which is the CLI. `published` is the list of release
+ * tags, when known (CI); without it every tag counts. With no match, the
+ * filtered release list.
  */
-export function desktopRelease(tags) {
-  const stable = tags.map((t) => t.trim()).find((t) => /^desktop\/v\d+\.\d+\.\d+$/.test(t));
+export function desktopRelease(tags, published) {
+  const released = published ? new Set(published) : null;
+  const stable = tags
+    .map((t) => t.trim())
+    .find((t) => /^desktop\/v\d+\.\d+\.\d+$/.test(t) && (!released || released.has(t)));
   if (!stable) return { tag: null, url: `${RELEASES}?q=desktop%2F&expanded=true` };
   return { tag: stable, url: `${RELEASES}/tag/${stable}` };
+}
+
+/** Published release tags, one per line, from SONDE_SITE_RELEASES_FILE (written by CI with gh). */
+function publishedReleases() {
+  const file = process.env.SONDE_SITE_RELEASES_FILE;
+  if (!file) return undefined;
+  return readFileSync(file, "utf8").split("\n").map((l) => l.trim()).filter(Boolean);
 }
 
 function desktopTags(repo) {
@@ -219,7 +235,7 @@ export function sync({ repo = REPO, out = join(SITE, "content"), dates = !proces
   // Generated data for the landing page.
   const gen = join(out, "generated");
   mkdirSync(gen, { recursive: true });
-  writeFileSync(join(gen, "desktop.json"), `${JSON.stringify(desktopRelease(desktopTags(repo)), null, 2)}\n`);
+  writeFileSync(join(gen, "desktop.json"), `${JSON.stringify(desktopRelease(desktopTags(repo), publishedReleases()), null, 2)}\n`);
   writeFileSync(join(gen, "install.json"), `${JSON.stringify(parseInstall(readFileSync(join(repo, "README.md"), "utf8")), null, 2)}\n`);
 
   const unpublished = listDocs(join(repo, "docs")).filter((rel) => !published.has(rel));

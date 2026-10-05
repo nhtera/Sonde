@@ -13,8 +13,8 @@ import { doc, REPO_URL } from "./urls.ts";
 /** A doc file name: lowercase letters, digits, `-` and `_`. README.md is the folder index. */
 export const DOC_NAME = /^[a-z0-9_-]+\.md$/;
 
-/** Repository paths of docs are validated before they reach a URL. */
-export const SOURCE_PATH = /^docs\/[a-z0-9_/.-]+\.md$|^docs\/(?:[a-z0-9_-]+\/)*README\.md$/;
+/** Repository paths of docs are validated before they reach a URL: plain segments only, no `..`. */
+export const SOURCE_PATH = /^docs\/(?:[a-z0-9_-]+\/)*(?:[a-z0-9_-]+|README)\.md$/;
 
 export function isReadme(path: string): boolean {
   return posix.basename(path) === "README.md";
