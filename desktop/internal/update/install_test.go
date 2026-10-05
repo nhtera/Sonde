@@ -85,8 +85,9 @@ func TestInstalledHere(t *testing.T) {
 	}
 }
 
-// Mountinfo lines of an AppImage (type-2 runtime) as distributions show
-// them.
+// Mountinfo lines of an AppImage (type-2 runtime): with the image's path
+// as the source, or only its file name (the runtime Sonde ships records
+// that, seen on ubuntu-24.04).
 const (
 	ubuntuMount = "1251 29 0:62 / /tmp/.mount_SondeaB3xQz ro,nosuid,nodev,relatime shared:651 - fuse.Sonde-Desktop-0.2.0-linux-x86_64.AppImage /home/ana/Apps/Sonde-Desktop-0.2.0-linux-x86_64.AppImage ro,user_id=1000,group_id=1000\n"
 	fedoraMount = "771 64 0:58 / /tmp/.mount_Sonde8Kp2Lm ro,nosuid,nodev,relatime - fuse.Sonde.AppImage Sonde.AppImage ro,user_id=1000,group_id=1000\n"
@@ -104,19 +105,20 @@ func TestMountinfo(t *testing.T) {
 	}
 	cases := []struct {
 		name, info, dir, image string
-		fuse, named            bool
+		fuse, byPath, byName   bool
 	}{
-		{"Ubuntu: this image", otherMounts + ubuntuMount, "/tmp/.mount_SondeaB3xQz", "/home/ana/Apps/Sonde-Desktop-0.2.0-linux-x86_64.AppImage", true, true},
-		{"Ubuntu: a foreign APPIMAGE", otherMounts + ubuntuMount, "/tmp/.mount_SondeaB3xQz", "/home/ana/Downloads/Other.AppImage", true, false},
-		{"Fedora: the source has no folder", fedoraMount, "/tmp/.mount_Sonde8Kp2Lm", "/home/ana/Sonde.AppImage", true, false},
-		{"Debian: escaped spaces", debianMount, "/tmp/.mount_SondeZ1", "/home/ana/My Apps/Sonde Desktop.AppImage", true, true},
-		{"no mount there", otherMounts, "/tmp/.mount_SondeaB3xQz", "/home/ana/Apps/Sonde.AppImage", false, false},
-		{"not FUSE", otherMounts, "/", "/dev/sda2", false, false},
+		{"a full path", otherMounts + ubuntuMount, "/tmp/.mount_SondeaB3xQz", "/home/ana/Apps/Sonde-Desktop-0.2.0-linux-x86_64.AppImage", true, true, false},
+		{"a foreign APPIMAGE", otherMounts + ubuntuMount, "/tmp/.mount_SondeaB3xQz", "/home/ana/Downloads/Other.AppImage", true, false, false},
+		{"the file name only (as on ubuntu-24.04)", fedoraMount, "/tmp/.mount_Sonde8Kp2Lm", "/home/ana/Sonde.AppImage", true, false, true},
+		{"the file name only, a foreign APPIMAGE", fedoraMount, "/tmp/.mount_Sonde8Kp2Lm", "/home/ana/Other.AppImage", true, false, false},
+		{"escaped spaces", debianMount, "/tmp/.mount_SondeZ1", "/home/ana/My Apps/Sonde Desktop.AppImage", true, true, false},
+		{"no mount there", otherMounts, "/tmp/.mount_SondeaB3xQz", "/home/ana/Apps/Sonde.AppImage", false, false, false},
+		{"not FUSE", otherMounts, "/", "/dev/sda2", false, false, false},
 	}
 	for _, c := range cases {
-		fuse, named := appImageMount(parse(c.info), c.dir, c.image)
-		if fuse != c.fuse || named != c.named {
-			t.Errorf("%s: fuse %v named %v, want %v %v", c.name, fuse, named, c.fuse, c.named)
+		fuse, byPath, byName := appImageMount(parse(c.info), c.dir, c.image)
+		if fuse != c.fuse || byPath != c.byPath || byName != c.byName {
+			t.Errorf("%s: %v %v %v, want %v %v %v", c.name, fuse, byPath, byName, c.fuse, c.byPath, c.byName)
 		}
 	}
 }

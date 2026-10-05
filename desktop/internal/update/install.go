@@ -173,18 +173,22 @@ func unescapeMount(s string) string {
 }
 
 // appImageMount reports how APPDIR is mounted: whether a FUSE mount is
-// there at all, and whether its source names the AppImage.
-func appImageMount(mounts []mount, appDir, appImage string) (fuse, named bool) {
+// there at all, and whether its source names the AppImage by its path, or
+// only by its file name (as some runtimes record it).
+func appImageMount(mounts []mount, appDir, appImage string) (fuse, byPath, byName bool) {
 	for _, m := range mounts {
 		if filepath.Clean(m.point) != filepath.Clean(appDir) || !strings.HasPrefix(m.fstype, "fuse") {
 			continue
 		}
 		fuse = true
-		if filepath.Clean(m.source) == filepath.Clean(appImage) {
-			named = true
+		switch {
+		case filepath.Clean(m.source) == filepath.Clean(appImage):
+			byPath = true
+		case !strings.Contains(m.source, "/") && m.source == filepath.Base(appImage):
+			byName = true
 		}
 	}
-	return fuse, named
+	return fuse, byPath, byName
 }
 
 // insideDir reports whether p is dir or below it.
