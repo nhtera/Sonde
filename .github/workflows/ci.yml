@@ -228,6 +228,134 @@ jobs:
       - run: go test -tags server ./internal/update/... ./cmd/update-manifest/...
         working-directory: desktop
 
+  desktop-install-windows:
+    # Stands in for a Windows machine: builds the NSIS installer twice
+    # (0.0.1 and 0.0.2, small payloads) and runs its silent update mode
+    # the way the app does (scripts/ci-nsis-update.ps1). Runs when the
+    # installer or the updater changes, and on main.
+    runs-on: windows-2022
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: changes
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || git diff --name-only "origin/$GITHUB_BASE_REF...HEAD" | grep -qE '^desktop/(build/windows/nsis/|internal/update/|scripts/ci-nsis-update)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: NSIS is the pinned version
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          want="$(tr -d '\r\n' < desktop/build/windows/nsis/makensis.version)"
+          got="$(makensis -VERSION)"
+          [ "$got" = "$want" ] || { echo "makensis $got, pinned $want (desktop/build/windows/nsis/makensis.version)" >&2; exit 1; }
+      - name: Every install records InstallLocation
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          # shellcheck disable=SC2016 # NSIS text, matched literally
+          grep -F 'WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"' desktop/build/windows/nsis/project.nsi
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.changes.outputs.run == 'true'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: desktop/go.sum
+      - if: steps.changes.outputs.run == 'true'
+        run: desktop/scripts/tools.sh install
+      - name: Two installers with small payloads
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/nsis"
+          mkdir -p "$work/payload"
+          # A payload that sleeps for its first argument's seconds.
+          cat > "$work/payload/main.go" <<'GO'
+          package main
+
+          import (
+          	"os"
+          	"strconv"
+          	"time"
+          )
+
+          var tag = "A"
+
+          func main() {
+          	if len(os.Args) > 1 {
+          		n, _ := strconv.Atoi(os.Args[1])
+          		time.Sleep(time.Duration(n) * time.Second)
+          	}
+          	_ = tag
+          }
+          GO
+          (cd "$work/payload" && go mod init payload >/dev/null 2>&1 && \
+            go build -ldflags "-X main.tag=A" -o ../payload-a.exe . && \
+            go build -ldflags "-X main.tag=B" -o ../payload-b.exe .)
+          cd desktop/build/windows/nsis
+          "$GITHUB_WORKSPACE/bin/wails3" generate webview2bootstrapper -dir .
+          for v in a:0.0.1 b:0.0.2; do
+            makensis -DARG_WAILS_AMD64_BINARY="$(cygpath -w "$work/payload-${v%%:*}.exe")" -DINFO_PRODUCTVERSION="${v#*:}" project.nsi
+            mv ../../../bin/Sonde-amd64-installer.exe "$work/setup-${v%%:*}.exe"
+          done
+      - name: The silent update mode
+        if: steps.changes.outputs.run == 'true'
+        shell: pwsh
+        run: |
+          $w = Join-Path $env:RUNNER_TEMP 'nsis'
+          ./desktop/scripts/ci-nsis-update.ps1 -InstallerA "$w\setup-a.exe" -InstallerB "$w\setup-b.exe" `
+            -PayloadA "$w\payload-a.exe" -PayloadB "$w\payload-b.exe" -Dir (Join-Path $env:RUNNER_TEMP 'custom\Sonde')
+
+  desktop-install-linux:
+    # Stands in for a Linux machine: builds the AppImage and checks, with a
+    # real FUSE mount, that the app recognizes its own image, refuses a
+    # foreign one, and that the image can be replaced while mounted
+    # (scripts/ci-appimage-update.sh). Runs when the updater or the Linux
+    # packaging changes, and on main.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: changes
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || git diff --name-only "origin/$GITHUB_BASE_REF...HEAD" | grep -qE '^desktop/(build/linux/|internal/update/|scripts/ci-appimage-update)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.changes.outputs.run == 'true'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: desktop/go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.changes.outputs.run == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+      - if: steps.changes.outputs.run == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev libfuse2 xvfb
+      - if: steps.changes.outputs.run == 'true'
+        run: |
+          desktop/scripts/tools.sh install
+          echo "${{ github.workspace }}/bin" >> "$GITHUB_PATH"
+      - if: steps.changes.outputs.run == 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: desktop/frontend
+      - name: The AppImage
+        if: steps.changes.outputs.run == 'true'
+        run: task linux:create:appimage
+        working-directory: desktop
+      - name: The in-place install's checks, with a real mount
+        if: steps.changes.outputs.run == 'true'
+        run: xvfb-run -a scripts/ci-appimage-update.sh bin/*.AppImage
+        working-directory: desktop
+
   desktop-macos:
     # The native window build needs cgo and the platform webview, so it runs
     # on macOS, for pull requests labelled "desktop".

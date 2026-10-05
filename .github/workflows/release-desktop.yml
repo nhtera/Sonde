@@ -142,6 +142,13 @@ jobs:
       - name: Package (Windows NSIS installers, amd64 and arm64)
         if: matrix.target == 'windows'
         run: |
+          # The pinned NSIS, and a script that records InstallLocation (the
+          # app's in-place updates need it).
+          want="$(tr -d '\r\n' < build/windows/nsis/makensis.version)"
+          got="$(makensis -VERSION)"
+          [ "$got" = "$want" ] || { echo "makensis $got, pinned $want" >&2; exit 1; }
+          # shellcheck disable=SC2016 # NSIS text, matched literally
+          grep -F 'WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"' build/windows/nsis/project.nsi
           v="$(node -p "require('./frontend/package.json').version")"
           mkdir -p out
           for arch in amd64 arm64; do
