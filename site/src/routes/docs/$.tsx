@@ -7,9 +7,14 @@ import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
 import { Suspense } from "react";
+import { IndexCards } from "@/components/docs/index-cards";
+import { PageFooter } from "@/components/docs/page-footer";
 import { getMDXComponents } from "@/components/mdx";
+import { strings } from "@/content/strings";
 import { loadDocsPage } from "@/lib/docs-data";
 import { baseOptions } from "@/lib/layout.shared";
+import { pageHead } from "@/lib/seo";
+import { doc } from "@/lib/urls";
 
 export const Route = createFileRoute("/docs/$")({
   component: Page,
@@ -17,19 +22,29 @@ export const Route = createFileRoute("/docs/$")({
     const slugs = params._splat?.split("/").filter(Boolean) ?? [];
     const data = await loadDocsPage(slugs);
     await clientLoader.preload(data.path);
-    return data;
+    return { ...data, slug: slugs.join("/") };
   },
+  head: ({ loaderData }) =>
+    loaderData
+      ? pageHead({
+          title: loaderData.slug ? `${loaderData.title}${strings.docs.titleSuffix}` : `${loaderData.title} · Sonde`,
+          description: loaderData.description,
+          path: doc(loaderData.slug),
+        })
+      : {},
 });
 
 const clientLoader = browserCollections.docs.createClientLoader({
-  component({ toc, frontmatter, default: MDX }) {
+  component({ toc, frontmatter, default: MDX }, { tree }: { tree?: Parameters<typeof IndexCards>[0]["tree"] }) {
     return (
       <DocsPage toc={toc}>
         <DocsTitle>{frontmatter.title}</DocsTitle>
         <DocsDescription>{frontmatter.description}</DocsDescription>
         <DocsBody>
           <MDX components={getMDXComponents()} />
+          {tree ? <IndexCards tree={tree} /> : null}
         </DocsBody>
+        <PageFooter source={frontmatter.source} lastUpdated={frontmatter.lastUpdated} />
       </DocsPage>
     );
   },
@@ -39,7 +54,7 @@ function Page() {
   const { pageTree, path } = useFumadocsLoader(Route.useLoaderData());
   return (
     <DocsLayout {...baseOptions()} tree={pageTree}>
-      <Suspense>{clientLoader.useContent(path)}</Suspense>
+      <Suspense>{clientLoader.useContent(path, path === "index.md" ? { tree: pageTree } : {})}</Suspense>
     </DocsLayout>
   );
 }

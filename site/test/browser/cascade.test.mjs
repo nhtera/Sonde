@@ -73,11 +73,14 @@ for (const theme of ["dark", "light"]) {
       document.body.append(d);
       return getComputedStyle(d).backgroundColor;
     }));
-    const sidebar = await p.$("#nd-sidebar");
-    if (sidebar) {
-      const color = await sidebar.evaluate((el) => getComputedStyle(el).color);
-      assert.notEqual(color, "rgba(0, 0, 0, 0)");
-    }
+    // The docs sidebar sits on --panel (Fumadocs' own sidebar palette is not imported).
+    const sidebarBg = await p.$eval("#nd-sidebar", (el) => getComputedStyle(el).backgroundColor);
+    assert.equal(sidebarBg, await p.evaluate(() => {
+      const d = document.createElement("div");
+      d.style.background = "var(--panel)";
+      document.body.append(d);
+      return getComputedStyle(d).backgroundColor;
+    }));
     // Code text uses the syntax tokens.
     const codeColors = await p.$$eval("pre code span span", (els) => [...new Set(els.map((e) => getComputedStyle(e).color))]);
     assert.ok(codeColors.includes(await token(p, "--t-str")), `no --t-str in ${codeColors}`);

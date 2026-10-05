@@ -1,0 +1,86 @@
+/* Copyright 2026 The Sonde Authors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* Docs chrome in the desktop app's file-tree style: hairline separators,
+   folder rows, the active row on --raised with a teal dot, mono labels for
+   CLI command pages. Fumadocs markup is styled from outside. */
+
+#nd-sidebar a[data-active] {
+  border-radius: var(--r-row);
+  color: var(--muted);
+}
+#nd-sidebar a[data-active]:hover { background: var(--hover); color: var(--text); }
+#nd-sidebar a[data-active="true"] {
+  background: var(--raised);
+  color: var(--text);
+}
+#nd-sidebar a[data-active="true"]::after {
+  content: "";
+  margin-inline-start: auto;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+}
+/* Command pages read like the command line. */
+#nd-sidebar a[href^="/docs/cli/"] .fd-page-tree-item-name {
+  font-family: var(--font-code);
+  font-size: .8125rem;
+}
+/* Section separators: small caps label over a hairline. */
+#nd-sidebar p:has(> .fd-page-tree-item-name) {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line2);
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+#nd-sidebar button[aria-expanded] { border-radius: var(--r-row); color: var(--text); }
+#nd-sidebar button[aria-expanded]:hover { background: var(--hover); }
+
+/* Prose: 15px/1.6, links in the accent with a quiet underline. */
+.prose { --tw-prose-links: var(--accent); font-size: 15px; line-height: 1.6; }
+.prose a { text-decoration-color: var(--accent-line); text-underline-offset: 3px; }
+.prose a:hover { text-decoration-color: var(--accent); }
+
+/* Edit link and date under the page. */
+.docs-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2) var(--s4);
+  margin-top: var(--s6);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line2);
+  font-size: .8125rem;
+  color: var(--muted);
+}
+.docs-meta a { display: inline-flex; align-items: center; gap: var(--s2); min-height: 44px; color: var(--muted); }
+.docs-meta a:hover { color: var(--text); }
+.docs-meta svg { width: 16px; height: 16px; }
+
+/* /docs index cards. */
+.docs-index { display: grid; gap: var(--s6); margin-top: var(--s5); }
+.docs-index h2 { margin: 0 0 var(--s3); font-size: 1rem; font-weight: 600; color: var(--text); }
+.docs-index ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--s3); }
+.docs-index a {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  height: 100%;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--line2);
+  border-radius: var(--r-card);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color .2s var(--ease);
+}
+.docs-index a:hover { border-color: var(--line); }
+.docs-index b { font-weight: 600; font-size: .9375rem; }
+.docs-index span { color: var(--muted); font-size: .8125rem; line-height: 1.5; }

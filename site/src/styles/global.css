@@ -17,3 +17,4 @@
 @import "../../../desktop/frontend/src/app/theme/tokens.css" layer(base);
 @import "./sonde-site.css";
 @import "./components.css";
+@import "./docs.css";
