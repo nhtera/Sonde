@@ -389,6 +389,14 @@ signature, an unsigned field and another key set.
 ### Before tagging
 
 - `make desktop-check`, `make desktop-e2e` and `make tag-guards` pass.
+- `desktop/internal/update/keys/` holds `k1.pub` and `k2.pub`, and both
+  private keys are backed up (password manager and offline drive).
+- The `desktop-update-signing` environment exists with its required
+  reviewer, `desktop/v*` deployment tags and the `DESKTOP_UPDATE_KEY`
+  secret; the tag ruleset is on. The maintainer is ready to approve the
+  `sign-update` run.
+- `go test ./internal/update/ -run StablePath` (in `desktop/`) passes: the
+  stable channel against the real tag list.
 - On macOS, run the native checklist in
   [desktop/MANUAL-TEST.md](../desktop/MANUAL-TEST.md), including `node
   scripts/perf.mjs`, and paste its table into the release pull request.
@@ -400,3 +408,40 @@ signature, an unsigned field and another key set.
   build log ([security.md](security.md#supply-chain)).
 - Rolling forward follows the CLI's policy above: never delete or retag a
   published `desktop/v*`; publish the next patch.
+
+### Rehearsing an updater change
+
+A release that changes the updater (and 0.2.0, its first) is rehearsed with
+release candidates, on macOS. Windows and Linux are covered by the
+`desktop-install-windows` and `desktop-install-linux` CI jobs: link their
+green runs. Every tag and every signing run needs the maintainer's
+approval.
+
+1. With the changes merged and CI green, publish `X.Y.Z-rc.1`: set the
+   version, tag, approve the signing run. The prerelease carries the `.zip`
+   and the `.update.json`.
+2. Install rc.1 from its disk image into Applications, and run it once with
+   `--update-channel prerelease` (the channel is saved).
+3. Make a visible change and publish `X.Y.Z-rc.2` the same way.
+4. Start rc.1 without flags. A check runs 5 seconds after the window opens
+   only when the last answered check is a day old: use Help › Check for
+   Updates… (or clear `updates.lastCheck` in `settings.json` first to see
+   the automatic one). rc.2 is offered. Install it; with a second window
+   open, Restart refuses; close it. With an unsaved tab, Restart asks
+   first; then rc.2 runs, still on the prerelease channel.
+5. Reinstall rc.1 into Applications and run it with
+   `--update-api http://127.0.0.1:PORT`, a local fake that lists rc.2's tag
+   and serves its files with one change each: the signature removed, the
+   version changed, the notes changed, one byte of the file flipped, more
+   bytes than signed, the manifest missing (404). The first three and the
+   last fail the check; the flipped byte and the oversize fail Install. Each
+   gives an error and installs nothing; "Test update server" shows
+   throughout.
+6. If anything is fixed, repeat with rc.3: rc.2 → rc.3 runs the updater
+   that ships.
+7. Release `X.Y.Z`. A stable install of it says "up to date", and its
+   `.update.json`, downloaded from the release, passes
+   `update-manifest verify` against the committed keys.
+
+Record the table (OS, version, step, pass or fail, notes) in the release
+pull request, and tick [MANUAL-TEST.md](../desktop/MANUAL-TEST.md) §12.

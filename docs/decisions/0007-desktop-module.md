@@ -132,6 +132,9 @@ against the checkout, not against a published CLI tag.
   installers are unsigned).
 - Server mode is a larger attack surface than a window, and needs its own
   tests: a security suite runs against the server build.
+- Updating the window app is decided in
+  [0008](0008-desktop-updates.md): a signed manifest per release, checked
+  against keys the app pins.
 - The window app and server mode share one frontend, which must work in the
   platform webview and in a browser; the visual and behavior suites run on a
   harness build in Chromium and WebKit, and the native surfaces (dialogs,

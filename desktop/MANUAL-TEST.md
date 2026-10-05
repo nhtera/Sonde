@@ -199,3 +199,38 @@ the download size). It exits 1 if a measured budget is missed.
 - [x] **Paste the table into the release pull request**, with the machine
       (for example "MacBook Air M1, macOS 15.x"). MacBook Pro M4 Pro, macOS
       15.7.3, in #3.
+
+## 12. Updates
+
+Against a release candidate's update to the next one
+([release.md](../docs/release.md#rehearsing-an-updater-change)). Windows and
+Linux stay unticked, marked "CI only (D5)" with a link to the green
+`desktop-install-windows` and `desktop-install-linux` runs, until a machine is
+available.
+
+- [ ] With the switch on and no check in the last 24 hours, the update is
+      offered within 5 seconds of opening the window. *(macOS / Windows /
+      Linux)*
+- [ ] After a sleep longer than 24 hours, it is offered within an hour of
+      waking.
+- [ ] Offline: no message from the daily check; Help › Check for Updates…
+      says "Could not reach GitHub." with Download.
+- [ ] Install shows progress; with an unsaved tab, Restart to update asks
+      first ("Restart without saving"), and Cancel keeps everything.
+- [ ] The new version runs. **macOS:** no Gatekeeper dialog. **Windows:** not
+      elevated, in the same folder, with the new version in Installed apps.
+      **Linux:** the AppImage file is the new one.
+- [ ] Skip this version: the next daily check stays quiet; a manual check
+      shows "(skipped)" with Install anyway; Settings › Show skipped updates
+      again clears it.
+- [ ] Two Sonde windows open: Restart waits with "Quit the other Sonde
+      windows first", and works after the other one quits (Check again).
+- [ ] The fallbacks show their reason and Download: the app run from the
+      disk image (translocated); a bundle with a file owned by root (nothing
+      is deleted); an AppImage in a group-writable folder; the administrator
+      prompt declined.
+- [ ] Switch off: no request of the app's own in 2 minutes (a proxy log).
+- [ ] With Settings › Network › Proxy set, the check goes through that proxy
+      (the proxy log shows `api.github.com`).
+- [ ] The negative checks of the rehearsal (signature removed, version,
+      notes, a flipped byte, oversize, missing manifest) are each refused.

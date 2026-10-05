@@ -6,13 +6,15 @@ and for [AI agents](guides/mcp.md): the app builds its runs with the code
 the CLI uses (`internal/runplan`), so the same flags, environment variables,
 config file and `sonde.yaml` apply.
 
-There is no account and no telemetry. The app sends the requests you wrote
-and nothing else. Run history stays on your computer.
+There is no account and no telemetry. The app sends the requests you wrote,
+and one more: the [update check](#updates), which you can turn off. Run
+history stays on your computer.
 
 The desktop app is a separate program with its own version. It is not part of
 the CLI's v1 contract: see [stability.md](stability.md#sonde-desktop). The design
-is recorded in [decisions/0007-desktop-module.md](decisions/0007-desktop-module.md),
-the trust model in [security.md](security.md#sonde-desktop).
+is recorded in [decisions/0007-desktop-module.md](decisions/0007-desktop-module.md)
+and, for updates, [decisions/0008-desktop-updates.md](decisions/0008-desktop-updates.md);
+the trust model is in [security.md](security.md#sonde-desktop).
 
 ## Install
 
@@ -26,6 +28,8 @@ Each carries:
 | `Sonde-Desktop-X.Y.Z-windows-amd64-setup.exe` | Windows, x64 |
 | `Sonde-Desktop-X.Y.Z-windows-arm64-setup.exe` | Windows, ARM64 |
 | `Sonde-Desktop-X.Y.Z-linux-x86_64.AppImage` | Linux, x86_64 |
+| `Sonde-Desktop-X.Y.Z-macos-universal.zip` | the same macOS app, for in-app updates |
+| `Sonde-Desktop-X.Y.Z.update.json` | the signed list of update files the app checks ([Updates](#updates)) |
 | `Sonde-Desktop-Server-X.Y.Z-OS-ARCH[.exe]` | server mode (below), for linux, darwin and windows on amd64 and arm64 |
 | `Sonde-Desktop-X.Y.Z.sbom.spdx.json` | the software bill of materials |
 | `checksums.txt`, `checksums.txt.sigstore.json` | SHA-256 of every file above, and its cosign signature |
@@ -326,7 +330,8 @@ Finished runs are kept per project in the app's config folder (`history/`,
 mode 0600, in the shape of the CLI's JSON report). The History panel lists
 their requests, newest first (method, path, status, file); opening one shows
 its run in the results panel, read-only, on that request. Nothing leaves the
-computer.
+computer. The one request the app makes on its own is the
+[update check](#updates), which this section's settings also turn off.
 
 Settings › History & privacy turns history off, or keeps runs for 7 days, 30
 days (the default) or forever, and clears it. Bodies are not stored, and
@@ -357,6 +362,77 @@ Windows, `~/.config` and `~/.cache` on Linux):
 
 Both folders are private to your user (0700). `--data DIR` puts them under
 `DIR/config` and `DIR/cache` instead.
+
+## Updates
+
+From 0.2.0 on, the window app updates itself. 0.1.0 has no updater:
+download 0.2.0 by hand once.
+
+**When it checks.** Once a day: 5 seconds after the window opens, or on an
+hourly tick, or when the computer wakes, once a day has passed since the
+last answer, Sonde looks for a newer release.
+Help › Check for Updates… (also in the app menu on macOS) and **Check for
+updates…** in the palette check at once. Settings › History & privacy has
+the switch, **Check now**, the last check and its result. Server mode
+never checks: it is updated with the binary that runs it.
+
+Settings shows exactly what the check does:
+
+> Once a day Sonde asks GitHub which Sonde Desktop versions exist (api.github.com). When one is newer, it downloads that version's signed description from github.com. These requests send nothing about you, your projects or your computer; GitHub sees your IP address, as with any download.
+
+and the privacy line:
+
+> No account and no telemetry. Sonde sends the requests you write, plus the update check when it is on.
+
+The hosts are `api.github.com` (the list of `desktop/v*` tags), `github.com`
+and GitHub's release-asset host it redirects to (the description, and the
+update file when you install). Requests go through the app's proxy setting,
+or else the `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` environment
+variables (not the system's proxy settings). A measured run
+(`--perf-trace`) makes no check. With the switch off, Sonde makes no
+request of its own; Check now still asks when you click it.
+
+**What it offers.** A newer release shows in the status bar; the first one
+in a session also opens a dialog, and a later new version a toast: **Install**, **Skip this
+version** or **Later**. The notes are shown as text. A skipped version is
+not offered again by the daily check; a manual check still shows it,
+marked skipped, with **Install anyway**, and Settings has **Show skipped
+updates again**. Release candidates are offered only on the prerelease
+channel (`--update-channel prerelease`, saved).
+
+**What it trusts.** Each release carries a description,
+`Sonde-Desktop-X.Y.Z.update.json`, signed with a key the app has built in.
+It lists every update file with its size and SHA-512. Nothing is downloaded
+unless the signature verifies, and nothing is installed unless the file
+matches. A failed verification shows as "Update not verified" in the status
+bar, even when the check ran in the background. See
+[security.md](security.md#updates).
+
+**Installing.** Install downloads in the background; then **Restart to
+update** asks about unsaved tabs first (the restart does not save them).
+While another Sonde window is open, Restart waits: quit the other windows,
+then Check again. If Sonde is still running 45 seconds after the hand-off,
+it says the update did not finish and offers the release page.
+
+| System | What happens | When it offers Download instead |
+|---|---|---|
+| macOS | the signed app replaces `Sonde.app`, then opens | the app runs from the disk image or Downloads (move it to Applications), another user or an administrator owns part of it, or it is on another volume than the temporary folder |
+| Windows | the release's installer runs silently, asks for administrator rights as a new install does, updates the installed folder, then starts Sonde | Sonde was not installed with its installer for all users (a copied exe), or you decline the administrator prompt |
+| Linux | the AppImage file is replaced; Sonde starts the new one when it quits | Sonde is not running from an AppImage it can prove is its own, or the AppImage's folder can be written by other users or not by you |
+
+On Windows the installer is not code-signed, so the administrator prompt
+names an "Unknown publisher". An installer you download by hand may also
+get a SmartScreen warning: choose **More info**, then **Run anyway**, after
+checking the file against `checksums.txt` ([Windows](#windows)). On Windows and Linux,
+installing updates in place is tested by automated tests (a real silent
+installer run, a real AppImage mount) but not yet on users' machines; every
+error screen offers the release page.
+
+**If an update goes wrong on macOS,** the previous app is kept as
+`Sonde.app.bak` next to it while the swap runs. If Sonde is missing
+afterwards, rename `Sonde.app.bak` back to `Sonde.app`, or download the
+release again. The swap writes its log to `wails-update-<pid>.log` in the
+temporary folder (`$TMPDIR`).
 
 ## Git and folder trust
 
@@ -581,7 +657,7 @@ sonde-desktop [--root DIR] [--data DIR] [--perf-trace FILE [--perf-tour JSON]]
 | `--perf-trace FILE` | run the performance tour, write the measures to FILE as JSON, then quit |
 | `--perf-tour JSON` | the tour's parameters; `scripts/perf.mjs` passes them |
 | `--update-channel stable\|prerelease` | save the update channel: `prerelease` also offers release candidates. It is saved in the settings, so the app relaunched by an update keeps it |
-| `--update-api URL` | for this run only, look for releases on a test release server instead of GitHub: `https://`, or `http://` on `127.0.0.1` or `localhost`. It serves both the tag list and the release files |
+| `--update-api URL` | for this run only, look for releases on a test release server instead of GitHub: `https://`, or `http://` on `127.0.0.1` or `localhost`. It serves both the tag list and the release files; the status bar shows "Test update server", and manifests are still verified against the app's own keys |
 | `--update-install-check` | check whether this copy can install updates in place, then quit without opening a window: exit code 0 when it can, 1 with the reason when it cannot (on Windows, read the exit code; the window app prints nothing there) |
 
 `--perf-trace` and `--perf-tour` are for measuring a build, not for
