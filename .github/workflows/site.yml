@@ -9,16 +9,18 @@ name: site
 #   site-deploy  main only, environment "site": deploys the build job's
 #                artifact with the pinned cf CLI; the token is on one step
 #
-# A published release (a new desktop/v* tag) dispatches a run on main, so the
-# Download button points at it.
+# A finished desktop release run (release-desktop) starts a run on main, so
+# the Download button points at the new release. (`on: release` would never
+# fire: releases are created with GITHUB_TOKEN, which starts no workflows.)
 
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: [release-desktop]
+    types: [completed]
 
 permissions:
   contents: read
@@ -30,6 +32,8 @@ concurrency:
 env:
   # cf needs Node 22.18 or later.
   NODE_VERSION: "22.18"
+  # No CLI telemetry from CI.
+  DO_NOT_TRACK: "1"
   # Everything the site build reads. site/scripts/ci-paths.mjs checks the
   # build's inputs (content/generated/inputs.json) against this list.
   SITE_PATHS: |
@@ -45,18 +49,9 @@ env:
     .github/workflows/site.yml
 
 jobs:
-  release-refresh:
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - run: gh workflow run site.yml --repo "$GITHUB_REPOSITORY" --ref main
-        env:
-          GH_TOKEN: ${{ github.token }}
-
   changes:
-    if: github.event_name != 'release'
+    # A desktop release run that failed published nothing new.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       site: ${{ steps.filter.outputs.site }}
@@ -68,7 +63,8 @@ jobs:
       - id: filter
         run: |
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then echo "site=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          git diff --name-only "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/changed.txt"
+          # No rename pairing: a moved file lists its old path too.
+          git -c core.quotePath=false diff --name-only --no-renames "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/changed.txt"
           node site/scripts/ci-paths.mjs match "$RUNNER_TEMP/changed.txt" | tee -a "$GITHUB_OUTPUT"
         env:
           BASE_REF: ${{ github.base_ref }}
@@ -99,7 +95,18 @@ jobs:
       - run: npm run check:install-scripts
       - run: npm run check:licenses
       - run: npm audit --audit-level=high
+      # The deploy job's own install (cf only), checked here, without secrets.
+      - run: npm --prefix deploy audit --audit-level=high
+      - run: node scripts/check-install-scripts.mjs deploy/package-lock.json
+      # The Download link: only desktop releases that are published (a tag
+      # can exist before its release does). Only gh runs with the token here.
+      - name: Published desktop releases
+        run: gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 100 --json tagName --jq '.[].tagName' > "$RUNNER_TEMP/releases.txt"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: npm run sync
+        env:
+          SONDE_SITE_RELEASES_FILE: ${{ runner.temp }}/releases.txt
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -124,7 +131,7 @@ jobs:
           retention-days: 7
 
   site-gate:
-    if: always() && github.event_name != 'release'
+    if: always()
     needs: [changes, site-build]
     runs-on: ubuntu-latest
     steps:
@@ -138,7 +145,7 @@ jobs:
 
   site-deploy:
     needs: site-build
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: site
@@ -161,7 +168,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: site/deploy
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: site-output
           path: out/.cloudflare/output/v0

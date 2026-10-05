@@ -4,13 +4,14 @@
 import { useRef, useState, type KeyboardEvent } from "react";
 import install from "../../../content/generated/install.json";
 import { strings } from "@/content/strings";
+import { nextTab } from "./tab-keys";
 
 const t = strings.hero;
 
 /**
  * Install commands, read from README.md ## Install at build time. One line
  * per command: a long one scrolls sideways (focusable) with a fade edge.
- * Tabs use a roving tabindex with arrow keys.
+ * Tabs use a roving tabindex: arrow keys, Home and End.
  */
 export function InstallTabs() {
   const [current, setCurrent] = useState(0);
@@ -22,10 +23,10 @@ export function InstallTabs() {
     if (focus) tabs.current[i]?.focus();
   };
   const onKey = (e: KeyboardEvent, i: number) => {
-    const d = ({ ArrowRight: 1, ArrowLeft: -1 } as Record<string, number>)[e.key];
-    if (!d) return;
+    const n = nextTab(e, i, install.length);
+    if (n === undefined) return;
     e.preventDefault();
-    pick((i + d + install.length) % install.length, true);
+    pick(n, true);
   };
   const command = install[current].command;
   return (

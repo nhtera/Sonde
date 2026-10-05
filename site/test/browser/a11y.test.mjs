@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // axe (WCAG 2.2 AA) on the landing page, a docs page and the 404 page, at
-// four viewports in both themes, and no sideways scrolling at 375px.
+// four viewports in both themes, and no sideways scrolling from 360px up.
 // Needs `npm run build` and a Chromium (npx playwright install chromium).
 
 import AxeBuilder from "@axe-core/playwright";
@@ -72,10 +72,12 @@ for (const path of PAGES) {
       }
     }
   }
-  test(`no sideways scroll at 375: ${path}`, async () => {
-    const page = await open(path, [375, 812], "dark");
-    const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
-    await page.context().close();
-    assert.ok(scroll <= client, `scrollWidth ${scroll} > ${client}`);
-  });
+  for (const width of [360, 375, 768, 1280, 1440]) {
+    test(`no sideways scroll at ${width}: ${path}`, async () => {
+      const page = await open(path, [width, 800], "dark");
+      const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+      await page.context().close();
+      assert.ok(scroll <= client, `scrollWidth ${scroll} > ${client}`);
+    });
+  }
 }

@@ -56,9 +56,15 @@ let clientIndex: Promise<DocsIndex> | undefined;
 // production: every page is a static asset).
 export async function loadDocsPage(slugs: string[]): Promise<DocsPageData> {
   if (import.meta.env.SSR) return serverDocsPage({ data: slugs });
-  clientIndex ??= fetch(DOCS_INDEX_URL).then((r) => {
-    if (!r.ok) throw new Error(`${DOCS_INDEX_URL}: ${r.status}`);
-    return r.json() as Promise<DocsIndex>;
-  });
+  clientIndex ??= fetch(DOCS_INDEX_URL)
+    .then((r) => {
+      if (!r.ok) throw new Error(`${DOCS_INDEX_URL}: ${r.status}`);
+      return r.json() as Promise<DocsIndex>;
+    })
+    .catch((err) => {
+      // A failed download is retried on the next navigation.
+      clientIndex = undefined;
+      throw err;
+    });
   return pick(await clientIndex, slugs);
 }

@@ -43,6 +43,9 @@ test("the Download link is the newest stable desktop release, never /releases/la
   });
   assert.equal(desktopRelease([]).url, "https://github.com/nhtera/sonde/releases?q=desktop%2F&expanded=true");
   assert.equal(desktopRelease(["desktop/v1.0.0-beta.1"]).tag, null);
+  // A tag whose release is not published yet is skipped.
+  assert.equal(desktopRelease(["desktop/v0.2.0", "desktop/v0.1.0"], ["v1.4.1", "desktop/v0.1.0"]).tag, "desktop/v0.1.0");
+  assert.equal(desktopRelease(["desktop/v0.2.0"], []).tag, null);
 });
 
 /** A minimal repository with the docs layout the nav expects. */

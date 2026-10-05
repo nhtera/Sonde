@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Checks the built site as it will be deployed (OUTPUT_DIR by default):
-// every internal href/src resolves to a file (`/x` → x/index.html), every
-// anchor names an element id on its page, and the docs content
-// (`<article id="nd-page">`) carries no <script>, <iframe> or on*= handler.
+// every internal href, src, srcset candidate and CSS url() resolves to a
+// file (`/x` → x/index.html), every anchor names an element id on its page,
+// and the docs content (`<article id="nd-page">`) carries no <script>,
+// <iframe>, on*= handler or javascript: URL.
 //
 //   node scripts/check-links.mjs [dir]
 
@@ -51,6 +52,20 @@ export function docsContent(html) {
   return html.slice(start, end < 0 ? undefined : end);
 }
 
+/** Every URL a page loads or links to: href, src, each srcset candidate, and CSS url(). */
+export function references(html) {
+  const out = [];
+  for (const m of html.matchAll(/\s(href|src)="([^"]*)"/g)) out.push(decode(m[2]));
+  for (const m of html.matchAll(/\s(?:srcset|imageSrcSet)="([^"]*)"/gi)) {
+    for (const part of decode(m[1]).split(",")) {
+      const url = part.trim().split(/\s+/)[0];
+      if (url) out.push(url);
+    }
+  }
+  for (const m of decode(html).matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) out.push(m[1]);
+  return out.filter((u) => u !== "");
+}
+
 /** Problems in one built site directory, as strings. */
 export function checkSite(root) {
   const problems = [];
@@ -63,23 +78,27 @@ export function checkSite(root) {
   for (const file of files) {
     const html = readFileSync(file, "utf8");
     const from = pagePath(root, file);
+    // Active content inside the docs article: script or iframe tags, on*
+    // attributes, javascript: URLs in attributes. Text is not matched, so a
+    // doc may mention `onload =` or javascript: in prose or code.
     const content = docsContent(html);
-    if (/<script\b|<iframe\b|\son[a-z]+\s*=|javascript:/i.test(content)) {
+    const tags = content.match(/<[a-z][^>]*>/gi) ?? [];
+    if (tags.some((t) => /^<(script|iframe)\b/i.test(t) || /\son[a-z]+\s*=/i.test(t) || /=\s*["']?\s*javascript:/i.test(t))) {
       problems.push(`${from}: active content (script, iframe, on*= or javascript:) inside the docs content`);
     }
-    for (const m of html.matchAll(/\s(href|src)="([^"]*)"/g)) {
-      const url = decode(m[2]);
+    for (const url of references(html)) {
       if (/^(https?:|mailto:|data:)/i.test(url)) continue;
       if (/^javascript:/i.test(url)) {
         problems.push(`${from}: javascript: URL`);
         continue;
       }
-      const target = new URL(url, `http://site${from === "/" ? "/" : `${from}/`}`);
-      if (url.startsWith("#")) target.pathname = from;
+      // The page is served at `from` with no trailing slash, so relative URLs
+      // resolve the way a browser resolves them there.
+      const target = new URL(url, `http://site${from}`);
       const path = target.pathname.length > 1 ? target.pathname.replace(/\/$/, "") : "/";
       const targetFile = resolveFile(root, path);
       if (!targetFile) {
-        problems.push(`${from}: ${m[1]}="${url}" → ${path} does not exist`);
+        problems.push(`${from}: "${url}" → ${path} does not exist`);
         continue;
       }
       const anchor = decodeURIComponent(target.hash.slice(1));

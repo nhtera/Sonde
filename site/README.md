@@ -93,10 +93,11 @@ Recorded 2026-10-06 with `@tanstack/react-start` 1.168.60,
   lazy chunk; nothing about search is on the critical path.
 - **No trailing slash.** URLs are `/docs/x`; `src/lib/urls.ts` builds every
   site URL.
-- **Fumadocs colors.** `fumadocs-ui/css/neutral.css` is not imported (its
-  `.dark #nd-sidebar` rule would beat the token mapping);
-  `fumadocs-ui/css/lib/default-colors.css` registers the color utilities
-  that `preset.css` needs, and the site maps them to the desktop tokens.
+- **Fumadocs colors and CSS.** Neither `neutral.css` (its `.dark
+  #nd-sidebar` rule would beat the token mapping) nor
+  `lib/default-colors.css` is imported: `src/styles/sonde-site.css` defines
+  the `--color-fd-*` theme itself, from the desktop tokens. Of `preset.css`,
+  only the docs layout's parts are imported (`src/styles/fumadocs.css`).
 
 ## Deploy
 
@@ -112,15 +113,20 @@ Recorded 2026-10-06 with `@tanstack/react-start` 1.168.60,
 - `site-deploy` (`main` only, environment `site`): installs only `cf` from
   `site/deploy/`, deploys the uploaded output with `CLOUDFLARE_API_TOKEN`
   on that one step, then runs `site/deploy/smoke.sh`.
-- A published GitHub release dispatches a run on `main`, which refreshes the
-  Download link (newest stable `desktop/v*` tag).
+- A finished `release-desktop` run starts a run on `main` (`workflow_run`),
+  which refreshes the Download link: the newest stable `desktop/v*` tag
+  that has a published release (CI lists them with `gh`; the build job
+  passes the list to sync in `SONDE_SITE_RELEASES_FILE`). `on: release`
+  would never fire: releases are created with `GITHUB_TOKEN`.
+- `DO_NOT_TRACK=1` turns off the `cf` CLI's telemetry in CI.
 
 One-time setup (dashboard): an API token with Account · Workers
 Scripts:Edit only, 1-year TTL (rotate yearly); `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` as secrets of the GitHub environment `site`
 (deployment branches: `main`); after the first deploy, attach the custom
 domain `sonde.erai.dev` to the `sonde-site` Worker (Settings → Domains &
-Routes); require `site-gate` in branch protection.
+Routes); require `site-gate` in branch protection. The first deploy's smoke
+step fails until the domain is attached; re-run the job after attaching it.
 
 ## Rollback
 

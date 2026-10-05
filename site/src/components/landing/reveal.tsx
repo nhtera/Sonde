@@ -7,12 +7,15 @@ import { useEffect } from "react";
 // are hidden only under html.js (set in the document head) and revealed by
 // an IntersectionObserver; reduced motion shows everything at once.
 
-/** Self-contained (it is also serialized into an inline script). */
+/**
+ * Self-contained (it is also serialized into an inline script). Returns a
+ * cleanup that stops observing, for the effect.
+ */
 function revealOnScroll() {
   const els = document.querySelectorAll(".reveal:not(.in)");
   if (!("IntersectionObserver" in window) || matchMedia("(prefers-reduced-motion: reduce)").matches) {
     els.forEach((e) => e.classList.add("in"));
-    return;
+    return () => {};
   }
   const io = new IntersectionObserver(
     (entries) =>
@@ -25,6 +28,7 @@ function revealOnScroll() {
     { rootMargin: "0px 0px -8% 0px" },
   );
   els.forEach((e) => io.observe(e));
+  return () => io.disconnect();
 }
 
 /** Marks the document as scripted before first paint (for the root head). */
@@ -37,5 +41,5 @@ export const JS_CLASS_SCRIPT = "document.documentElement.classList.add('js')";
  */
 export function Reveal() {
   useEffect(revealOnScroll, []);
-  return <script dangerouslySetInnerHTML={{ __html: `(${revealOnScroll.toString()})()` }} />;
+  return <script dangerouslySetInnerHTML={{ __html: `(${revealOnScroll.toString()})();` }} />;
 }

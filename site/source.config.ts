@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { pageSchema } from "fumadocs-core/source/schema";
 import { defineConfig, defineDocs } from "fumadocs-mdx/config";
 import { z } from "zod";
+import { SOURCE_PATH } from "./src/lib/doc-paths.ts";
 import { loadNav, publishedSet } from "./src/lib/docs-nav.ts";
 import remarkSondeLinks from "./src/lib/remark-sonde-links.ts";
 import { hurlLanguage, sondeTheme } from "./src/lib/shiki.ts";
@@ -23,7 +24,7 @@ export const docs = defineDocs({
     schema: pageSchema.extend({
       description: z.string().min(1),
       // The repository path the page comes from; the Edit link is built from it.
-      source: z.string().regex(/^docs\/[a-z0-9_/.-]+\.md$|^docs\/(?:[a-z0-9_-]+\/)*README\.md$/),
+      source: z.string().regex(SOURCE_PATH),
       lastUpdated: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     }),
   },

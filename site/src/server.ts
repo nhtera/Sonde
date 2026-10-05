@@ -28,6 +28,7 @@ let notFoundPage: Promise<{ html: string; csp: string }> | undefined;
 async function loadNotFound(env: Env, url: string) {
   if (!env.ASSETS) throw new Error("ASSETS binding missing");
   const res = await env.ASSETS.fetch(new URL("/404.html", url));
+  if (!res.ok) throw new Error(`404.html: ${res.status}`);
   const html = await res.text();
   const hashes = await Promise.all(inlineScripts(html).map(sha256Base64));
   return { html, csp: contentSecurityPolicy(hashes) };

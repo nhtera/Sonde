@@ -4,6 +4,7 @@
 import { Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import desktop from "../../../content/generated/desktop.json";
+import { ButtonLink } from "@/components/ui/button";
 import { WindowFrame } from "@/components/ui/window-frame";
 import { strings } from "@/content/strings";
 import { InstallTabs } from "./install-tabs";
@@ -32,9 +33,9 @@ export function Hero() {
           <div className="install reveal" style={delay(3)}>
             <InstallTabs />
             <div className="ctas">
-              <a className="btn primary" href={desktop.url}>
+              <ButtonLink variant="primary" href={desktop.url}>
                 {t.download}
-              </a>
+              </ButtonLink>
               <Link className="btn" to="/docs/$" params={{ _splat: "" }}>
                 {t.readDocs}
               </Link>

@@ -21,9 +21,6 @@ testdata/conformance/hurl/.venv/
 testdata/conformance/hurl/build/
 testdata/conformance/hurl/**/__pycache__/
 
-# Sites
-site/node_modules/*
-
 # Plans and research stay private; public design lives in docs/
 /plans/
 
