@@ -9,6 +9,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -50,6 +51,7 @@ func run() error {
 	// Hidden, for testing releases (docs/desktop.md › window flags).
 	channel := fs.String("update-channel", "", "save the update channel: stable or prerelease")
 	updateAPI := fs.String("update-api", "", "a test release server for this run (https, or http on loopback)")
+	installCheck := fs.Bool("update-install-check", false, "print whether this copy can install updates in place, then quit")
 	// macOS may pass -psn_… to an app opened from the Finder.
 	var args []string
 	for _, a := range os.Args[1:] {
@@ -59,6 +61,14 @@ func run() error {
 	}
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	// For CI and support: the in-place install check, without a window.
+	if *installCheck {
+		if ok, reason := update.NewInstaller(update.InstallerDeps{}).CanInstall(); !ok {
+			return errors.New(reason)
+		}
+		fmt.Println("this copy can install updates in place")
+		return nil
 	}
 	dirs, err := openDirs(*data)
 	if err != nil {
@@ -102,7 +112,8 @@ func run() error {
 	h.Guard.Quit = app.Quit
 	if err := h.Update.Attach(update.AttachOptions{
 		Updater: app.Updater, Engine: engine, API: *updateAPI,
-		OpenURL: app.Browser.OpenURL, Others: others,
+		Installer: update.NewInstaller(update.InstallerDeps{Quit: app.Quit, Restart: app.Updater.Restart}),
+		OpenURL:   app.Browser.OpenURL, Others: others,
 	}); err != nil {
 		return err
 	}
