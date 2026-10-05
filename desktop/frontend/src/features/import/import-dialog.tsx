@@ -8,7 +8,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { ImportResult } from "./result-tile";
 import { SourceForm } from "./source-form";
-import { kinds, useImport } from "./state";
+import { collectionPicked, kinds, useImport } from "./state";
 import { SuggestionsStep } from "./suggestions-step";
 
 export function ImportDialog() {
@@ -16,7 +16,7 @@ export function ImportDialog() {
   const step = useImport((s) => s.step);
   const kind = useImport((s) => s.req.kind);
   // A collection picked: its preview, without the source choices.
-  const picked = useImport((s) => s.req.kind === "postman" && s.req.input !== "");
+  const picked = useImport(collectionPicked);
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && useImport.getState().close()}>
       <Dialog.Portal>
@@ -79,7 +79,12 @@ function ImportTitle() {
         <Dialog.Title className="dialog-title">{`Import \u201c${name}\u201d from Postman`}</Dialog.Title>
         <p>
           {from}
-          {plural(c.requests, "request")} in {plural(c.folders, "folder")} · {plural(c.environments, "environment")}. Nothing is sent.
+          {plural(c.requests, "request")} in {plural(c.folders, "folder")} · {plural(c.environments, "environment")}. Nothing is sent.{" "}
+          {req.input && (
+            <button className="btn-ghost accent import-change" onClick={() => useImport.getState().update({ input: "" })}>
+              Change file
+            </button>
+          )}
         </p>
       </div>
     </>

@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import type { ImportSuggestion } from "../../lib/api";
 import { base64 } from "./pick";
 import { grouped } from "./result-tile";
-import { fileState, liftOf, ready, requestFile, tally } from "./state";
+import { useEnv } from "../../state/env";
+import { collectionPicked, defaultInto, fileState, liftOf, ready, requestFile, tally } from "./state";
 
 const cands = [
   { id: 0, name: "token", where: "Authorization header" },
@@ -13,6 +14,26 @@ const cands = [
 ];
 
 describe("import helpers", () => {
+  it("shows a picked collection without the source choices only while it reads", () => {
+    const req = { kind: "postman", input: "in-1" } as Parameters<typeof collectionPicked>[0]["req"];
+    expect(collectionPicked({ req, error: "" })).toBe(true);
+    // A file that does not read: the choices again, to pick another.
+    expect(collectionPicked({ req, error: "postman: invalid JSON" })).toBe(false);
+    expect(collectionPicked({ req: { ...req, input: "" }, error: "" })).toBe(false);
+    expect(collectionPicked({ req: { ...req, kind: "curl" }, error: "" })).toBe(false);
+  });
+
+  it("maps each collection environment into the project's of its name, else the current one", () => {
+    const env = (name: string) => ({ name, default: false, secretsFile: "", variables: [] });
+    useEnv.setState({ current: "local", project: { config: "sonde.yaml", envs: [env("dev"), env("local")] } });
+    expect(defaultInto(["collection", "dev"], {})).toEqual({ collection: "local", dev: "dev" });
+    // A pick stays, a new environment ("") too; nothing missing: no change.
+    expect(defaultInto(["collection", "dev"], { collection: "" })).toEqual({ collection: "", dev: "dev" });
+    expect(defaultInto(["collection"], { collection: "dev" })).toBeNull();
+    useEnv.setState({ current: "", project: { config: "", envs: [] } });
+    expect(defaultInto(["collection"], {})).toBeNull();
+  });
+
   it("lifts every candidate until the user picks (with an env), then only those still offered", () => {
     expect(liftOf(cands, null, "local")).toEqual([0, 1]);
     expect(liftOf(cands, null, "")).toEqual([]);
@@ -33,7 +54,7 @@ describe("import helpers", () => {
   });
 
   it("needs an input to preview", () => {
-    const req = { kind: "curl", input: "", text: "  ", environments: [], group: "", baseUrlVar: "", ext: "", folder: "", name: "", env: "", lift: null, target: "", targetText: "" };
+    const req = { kind: "curl", input: "", text: "  ", environments: [], group: "", baseUrlVar: "", ext: "", folder: "", name: "", env: "", lift: null, into: {}, target: "", targetText: "" };
     expect(ready(req)).toBe(false);
     expect(ready({ ...req, text: "curl x" })).toBe(true);
     expect(ready({ ...req, input: "id" })).toBe(true);

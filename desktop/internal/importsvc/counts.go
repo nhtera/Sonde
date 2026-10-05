@@ -36,10 +36,13 @@ func (p *plan) counts() Counts {
 			c.Scripts++
 		}
 	}
-	// Environments: those of the sonde.yaml the import writes (none when
-	// one is there already: it is never replaced).
+	// Environments: those of the sonde.yaml the import writes, or adds to
+	// the project's (none it has already: it keeps its own).
 	if p.res.Project != "" {
 		c.Environments = len(p.environments())
+	} else if p.edited != "" {
+		c.Environments = len(p.importEnvs) - len(p.envsKept)
+		c.SecretNames = p.secretNames
 	}
 	if p.postOpts.Group != "" {
 		c.PathVariables = p.pathVariables()

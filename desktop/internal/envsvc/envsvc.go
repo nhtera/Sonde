@@ -274,6 +274,18 @@ func (e *Envs) edit(fn func(*config.Project) ([]config.FileEdit, error)) error {
 		return err
 	}
 	e.emit.Emit(TopicChanged, nil)
+	// A secrets file written is kept out of git; failing that is not the
+	// edit failing (the value is written), and commits leave it out anyway.
+	for _, ed := range edits {
+		rel, err := filepath.Rel(root.Dir(), ed.Path)
+		if err != nil || !e.IsSecretFile(filepath.ToSlash(rel)) {
+			continue
+		}
+		if added, err := ignoreSecrets(root, filepath.ToSlash(rel)); err == nil && added {
+			e.emit.Emit(TopicIgnored, map[string]string{"line": secretsPattern, "file": filepath.ToSlash(rel)})
+		}
+		break
+	}
 	return nil
 }
 

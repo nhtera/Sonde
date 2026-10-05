@@ -4,6 +4,7 @@
 import { create } from "zustand";
 import { appError, Envs, type EnvProject, type Overrides } from "../lib/api";
 import { on } from "../lib/events";
+import { useUI } from "./ui";
 
 interface EnvState {
   project: EnvProject | null;
@@ -45,6 +46,11 @@ export function touchesEnvs(project: EnvProject | null, paths: string[]): boolea
 }
 
 on("env:changed", () => void useEnv.getState().load());
+// A secret written in a git repository: its file is kept out of git.
+on("env:gitignored", (data) => {
+  const { line, file } = data as { line: string; file: string };
+  useUI.getState().toast({ kind: "success", text: `Added ${line} to .gitignore: ${file} stays out of git` });
+});
 // Written outside the app, or by an import.
 on("ws:changed", (data) => {
   if (touchesEnvs(useEnv.getState().project, (data as { paths: string[] }).paths)) void useEnv.getState().load();

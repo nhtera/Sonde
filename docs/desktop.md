@@ -125,7 +125,10 @@ resets the open tabs, runs, Send sessions, session overrides and the mock.
 The app never reads or writes a path starting with `.` inside the project,
 `*.secrets` files, or the files `sonde.yaml` lists as `secrets_files`: secrets
 are edited in the Environments panel, and the Files tree shows the secrets
-files but cannot open them.
+files but cannot open them. One exception keeps secret values out of git:
+when the app writes a secret in a git repository whose `.gitignore` has no
+line covering the secrets file, it appends `*.secrets` to `.gitignore` (a
+line, nothing else) and says so.
 
 ### Unsaved edits
 
@@ -216,8 +219,10 @@ unfinished edit at the next start.
 "Undefined variable" (**Define name…**), the editor's hover on the
 variable, an import's result, or the palette ("Define a variable…", which
 asks for the name too). Enter its value and where it goes: a
-**secret** of the environment (its secrets file, never `sonde.yaml`; the
-default for a name like a cookie, token, key or password), a **variable**
+**secret** of the environment (its value in the secrets file, never
+`sonde.yaml`, which lists only its name in `secrets:` so a fresh clone
+knows it is needed; the default for a name like a cookie, token, key or
+password), a **variable**
 of the environment (`sonde.yaml`), or **this session only** (a session
 override). The toast offers **Run again**.
 
@@ -295,12 +300,19 @@ files first. Files that already exist are overwritten only if you tick
 them.
 
 - **Where it writes.** Collections default to a folder named `imported`.
-  In a project without a `sonde.yaml`, the environments (and their secrets
-  stubs) go to the project's `sonde.yaml`, the one the app reads; the
-  command finds it there too. In a project with one, it is never replaced:
-  the folder gets its own `sonde.yaml` (as `sonde import -o imported` does)
-  and the result says so. A curl command goes to the project folder, or
-  is inserted into the open file.
+  The project keeps one `sonde.yaml`, at its folder, for every collection:
+  the folder imported into gets none (a run reads the nearest one, which
+  would hide the project's environments). In a project with one, the
+  preview maps each of the collection's environments into one of the
+  project's (**Into environment**: the one of its name, else the current
+  one), or to a new environment of its own name. The collection's
+  variables the picked environment does not define yet are added to it;
+  those it defines keep their values, and the result names them. Secret
+  names are listed in its `secrets:` (no stub with empty values is
+  written): each person sets the values (**Define**). In a project
+  without a `sonde.yaml`, the environments and their secrets stubs go to
+  a new one at the project folder, as the command writes them. A curl
+  command goes to the project folder, or is inserted into the open file.
 - **curl secret lifting.** A credential typed into a pasted command (an
   `Authorization` header, the password of `-u`, an API key header or query
   value) is offered as a secret: ticked by default, it is replaced with a
