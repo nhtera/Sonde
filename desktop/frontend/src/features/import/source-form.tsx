@@ -13,7 +13,7 @@ import { useUI } from "../../state/ui";
 import { label } from "../../app/keymap/keymap-manager";
 import { CodePreview } from "../editor/code-preview";
 import { pickInput } from "./pick";
-import { liftOf, requestFile, useImport } from "./state";
+import { collectionPicked, liftOf, requestFile, useImport } from "./state";
 
 const layouts = {
   postman: [
@@ -42,10 +42,13 @@ export function SourceForm() {
   const names = useImport((s) => s.names);
   const preview = useImport((s) => s.preview);
   const error = useImport((s) => s.error);
+  const picked = useImport(collectionPicked);
   const busy = useImport((s) => s.busy);
   const pending = useImport((s) => s.pending);
   const overwrite = useImport((s) => s.overwrite);
   const envs = useEnv((s) => s.project?.envs ?? []);
+  // The collection's environments go into the project's: which, picked.
+  const mapping = (preview?.importEnvs ?? []).length > 0 && envs.length > 0;
   const active = useTabs((s) => s.active);
   const [shown, setShown] = useState(0);
   // curl: what is lifted shows as one line; its choices on Change.
@@ -112,6 +115,7 @@ export function SourceForm() {
         <span>
           {preview.counts.requests} request{preview.counts.requests === 1 ? "" : "s"} → {files.length} file{files.length === 1 ? "" : "s"}
           {preview.project === "created" && " · sonde.yaml"}
+          {preview.project === "added" && " · environments added to sonde.yaml"}
           {preview.project === "kept" && " · sonde.yaml kept as it is"}
           {warnings.length > 0 && ` · ${warnings.length} note${warnings.length === 1 ? "" : "s"}`}
         </span>
@@ -155,7 +159,7 @@ export function SourceForm() {
         }
       }}
     >
-      {req.kind === "postman" && req.input ? null : curl ? (
+      {picked ? null : curl ? (
         <div className="curl-columns">
           {source}
           <div className="curl-preview">
@@ -254,12 +258,24 @@ export function SourceForm() {
           </div>
         </div>
       )}
+      {req.kind !== "postman" && mapping && (
+        <dl className="import-summary">
+          <dt>Environments</dt>
+          <IntoEnvironments />
+        </dl>
+      )}
       {req.kind === "postman" && counts && (
         <dl className="import-summary">
           <dt>Environments</dt>
-          <dd>{counts.environments > 0 ? `${counts.environments} → sonde.yaml${preview?.project === "kept" ? " (kept as it is)" : ""}` : "none"}</dd>
+          {mapping ? <IntoEnvironments /> : <dd>{counts.environments > 0 ? `${counts.environments} → sonde.yaml` : "none"}</dd>}
           <dt>Secrets</dt>
-          <dd>{counts.secretStubs > 0 ? "Name-only stubs in the secrets files, values left empty" : "none"}</dd>
+          <dd>
+            {counts.secretStubs > 0
+              ? "Name-only stubs in the secrets files, values left empty"
+              : counts.secretNames > 0
+                ? `${counts.secretNames} listed by name in sonde.yaml; each person sets the values (kept out of git)`
+                : "none"}
+          </dd>
           <dt>Scripts</dt>
           <dd>{counts.scripts > 0 ? "Kept as # comments. Only status checks become HTTP lines." : "none"}</dd>
         </dl>
@@ -439,4 +455,30 @@ function FolderInput() {
     return () => clearTimeout(t);
   }, [folder]);
   return <input className="mono" aria-label="Into folder" value={folder} placeholder="the project folder" onChange={(e) => setFolder(e.target.value)} />;
+}
+
+/** Where each of the collection's environments goes: one of the project's
+ * environments (its values that one does not define yet), or a new one. */
+function IntoEnvironments() {
+  const req = useImport((s) => s.req);
+  const importEnvs = useImport((s) => s.preview?.importEnvs ?? []);
+  const envs = useEnv((s) => s.project?.envs ?? []);
+  const update = useImport((s) => s.update);
+  return (
+    <dd className="import-into">
+      {importEnvs.map((n) => (
+        <label key={n}>
+          <span className="mono">{n}</span> →{" "}
+          <select aria-label={`Into environment for ${n}`} value={req.into?.[n] ?? ""} onChange={(e) => update({ into: { ...req.into, [n]: e.target.value } })}>
+            {envs.map((e) => (
+              <option key={e.name} value={e.name}>
+                {e.name}
+              </option>
+            ))}
+            <option value="">a new environment {n}</option>
+          </select>
+        </label>
+      ))}
+    </dd>
+  );
 }

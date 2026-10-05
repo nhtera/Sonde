@@ -20,8 +20,10 @@ import (
 	"github.com/nhtera/sonde/desktop/internal/apperr"
 	"github.com/nhtera/sonde/desktop/internal/handles"
 	"github.com/nhtera/sonde/desktop/internal/sandboxtest"
+	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/sandbox"
 	"github.com/nhtera/sonde/internal/syntax"
+	"github.com/nhtera/sonde/internal/value"
 )
 
 // Sentinels of testdata/import/bearer.curl.
@@ -578,11 +580,11 @@ requests:
 	}
 }
 
-// TestSondeYAMLKept: an import into a project with a sonde.yaml keeps it
-// as it is, counts none of the collection's environments, and says so.
+// TestSondeYAMLKept: an import into a project with a sonde.yaml adds the
+// environments it has not to it, and keeps those it has as they are.
 func TestSondeYAMLKept(t *testing.T) {
 	s, dir, h, _ := service(t)
-	mine := "version: 1\n"
+	mine := "# mine\nversion: 1\nenvironments:\n  dev:\n    variables:\n      base_url: http://mine\n"
 	if err := os.WriteFile(filepath.Join(dir, "sonde.yaml"), []byte(mine), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -594,22 +596,28 @@ func TestSondeYAMLKept(t *testing.T) {
 	}
 	var note bool
 	for _, w := range pv.Warnings {
-		note = note || w.Kind == "environments" && strings.Contains(w.Message, "collection, dev")
+		note = note || w.Kind == "environments" && strings.Contains(w.Message, "the environment dev is already in sonde.yaml")
 	}
-	if pv.Project != "kept" || pv.Counts.Environments != 0 || !note {
+	if pv.Project != "added" || pv.Counts.Environments != 1 || !note {
 		t.Errorf("project %q, environments %d, note %v", pv.Project, pv.Counts.Environments, note)
 	}
 	if _, err := s.Write(context.Background(), req, []string{"sonde.yaml"}); err != nil {
 		t.Fatal(err)
 	}
-	if string(mustRead(t, filepath.Join(dir, "sonde.yaml"))) != mine {
-		t.Error("sonde.yaml replaced")
+	got := string(mustRead(t, filepath.Join(dir, "sonde.yaml")))
+	if !strings.HasPrefix(got, mine+"  collection:\n") {
+		t.Errorf("sonde.yaml:\n%s", got)
+	}
+	// dev's stub is not written: the project's dev is kept.
+	if _, err := os.Stat(filepath.Join(dir, "secrets", "dev.secrets")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the stub of a kept environment: %v", err)
 	}
 }
 
-// TestEnvironmentsToTheProject: imported into a folder, the environments
-// go to the project's sonde.yaml (the one the app reads) when it has
-// none, with their secrets stubs; else to the folder's, with a note.
+// TestEnvironmentsToTheProject: imported into a folder of a project
+// without a sonde.yaml, the environments and their secrets stubs go to
+// the project's (the one the app edits and a run reads); a later import
+// leaves the environments the project has as they are.
 func TestEnvironmentsToTheProject(t *testing.T) {
 	s, dir, h, _ := service(t)
 	req := Request{Kind: Postman, Input: stage(t, s, h, filepath.Join(testdata, "import", "shop.postman_collection.json"), false),
@@ -635,19 +643,89 @@ func TestEnvironmentsToTheProject(t *testing.T) {
 	if _, err := s.Write(context.Background(), req, nil); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mustRead(t, filepath.Join(dir, "sonde.yaml"))), "secrets/dev.secrets") {
-		t.Error("the project's sonde.yaml names no secrets stub")
+	if _, err := os.Stat(filepath.Join(dir, "imported", "sonde.yaml")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the folder has a sonde.yaml: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "secrets", "dev.secrets")); err != nil {
-		t.Error(err)
-	}
-	// The project has a sonde.yaml now: a second folder gets its own.
+	// The project has both environments now: kept, nothing written.
 	req.Folder = "again"
 	if pv, err = s.Preview(context.Background(), req); err != nil {
 		t.Fatal(err)
 	}
-	if got, note := paths(pv); strings.Join(got, ",") != "again/secrets/dev.secrets,again/sonde.yaml" || !note {
-		t.Errorf("files %q, note %v", got, note)
+	if got, note := paths(pv); len(got) != 0 || !note || pv.Project != "kept" || strings.Join(pv.ImportEnvs, ",") != "collection,dev" {
+		t.Errorf("files %q, note %v, project %q, envs %v", got, note, pv.Project, pv.ImportEnvs)
+	}
+}
+
+// TestImportIntoTheEnvironmentPicked: imported into a folder of a project
+// with a sonde.yaml, the collection's values go into the environment
+// picked: its variables added, what it has kept, secret names listed in
+// "secrets:" (no stub); the folder gets no sonde.yaml, so a run of the
+// requests reads the project's, and a secret defined later is theirs.
+func TestImportIntoTheEnvironmentPicked(t *testing.T) {
+	s, dir, _, _ := service(t)
+	mine := "version: 1\nenvironments:\n  local:\n    variables:\n      base_url: http://mine\n"
+	if err := os.WriteFile(filepath.Join(dir, "sonde.yaml"), []byte(mine), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	col := `{"info":{"name":"NMK"},"variable":[{"key":"policyId","value":"p-1"},{"key":"base_url","value":"http://theirs"},{"key":"nmk-cookie","value":"","type":"secret"}],` +
+		`"item":[{"name":"auth","item":[{"name":"who","request":{"method":"GET","url":"{{base_url}}/me","header":[{"key":"Cookie","value":"{{nmk-cookie}}"}]}}]}]}`
+	req := Request{Kind: Postman, Text: col, Folder: "NMK", Into: map[string]string{"collection": "local"}}
+	pv, err := s.Preview(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept bool
+	for _, w := range pv.Warnings {
+		kept = kept || w.Kind == "environments" && strings.Contains(w.Message, "local has base_url already")
+	}
+	if pv.Project != "added" || strings.Join(pv.ImportEnvs, ",") != "collection" || !kept || pv.Counts.Environments != 1 {
+		t.Errorf("project %q, envs %v, kept note %v, count %d, notes %v", pv.Project, pv.ImportEnvs, kept, pv.Counts.Environments, pv.Warnings)
+	}
+	for _, f := range pv.Files {
+		if f.Secret || strings.HasSuffix(f.Path, ".secrets") || f.Path == "NMK/sonde.yaml" {
+			t.Errorf("writes %s", f.Path)
+		}
+	}
+	if _, err := s.Write(context.Background(), req, nil); err != nil {
+		t.Fatal(err)
+	}
+	found, ok, err := config.NewProjectCache().FindProject(filepath.Join(dir, "NMK", "auth"))
+	if err != nil || !ok || found != filepath.Join(dir, "sonde.yaml") {
+		t.Fatalf("a run of NMK reads %q (%v, %v)", found, ok, err)
+	}
+	proj, err := config.LoadProject(found)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vars, secrets, err := proj.Resolve("local")
+	if err != nil || vars["base_url"] != value.String("http://mine") || vars["policyId"] != value.String("p-1") {
+		t.Fatalf("local: %v %v", vars, err)
+	}
+	if _, ok := proj.Environments["collection"]; ok {
+		t.Error("a collection environment is added")
+	}
+	// A fresh clone: the secret is listed, set nowhere yet.
+	if got := proj.MissingSecrets("local", secrets, nil); strings.Join(got, ",") != "nmk-cookie" {
+		t.Errorf("missing %v", got)
+	}
+	edits, err := proj.SetSecret("local", "nmk-cookie", "c=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := config.WriteEdits(sandboxtest.Open(t, dir), edits); err != nil {
+		t.Fatal(err)
+	}
+	if proj, err = config.LoadProject(found); err != nil {
+		t.Fatal(err)
+	}
+	if _, secrets, err := proj.Resolve("local"); err != nil || secrets["nmk-cookie"] != "c=1" || len(proj.Environments["local"].Secrets) != 1 {
+		t.Errorf("defined: %v, listed %v", err, proj.Environments["local"].Secrets)
+	}
+
+	req.Into = map[string]string{"collection": "nope"}
+	var ae *apperr.Error
+	if _, err := s.Preview(context.Background(), req); !errors.As(err, &ae) || ae.Code != apperr.Invalid {
+		t.Errorf("an unknown environment: %v", err)
 	}
 }
 
@@ -991,5 +1069,43 @@ func TestOpenCollectionSuggestions(t *testing.T) {
 	}
 	if got := string(mustRead(t, filepath.Join(dir, "create-policy.hurl"))); got != sg[0].After {
 		t.Errorf("accepted:\n%s", got)
+	}
+}
+
+// TestEnvironmentsAddedEdgeCases: a collection without variables, not
+// mapped, adds an empty environment; a sonde.yaml that is a link is not
+// edited.
+func TestEnvironmentsAddedEdgeCases(t *testing.T) {
+	s, dir, _, _ := service(t)
+	if err := os.WriteFile(filepath.Join(dir, "sonde.yaml"), []byte("version: 1\nenvironments:\n  local:\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bare := `{"info":{"name":"x"},"item":[{"name":"a","request":{"method":"GET","url":"http://h/a"}}]}`
+	pv, err := s.Preview(context.Background(), Request{Kind: Postman, Text: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pv.Project != "added" || pv.Counts.Environments != 1 || len(pv.Warnings) != 0 {
+		t.Errorf("no variables: project %q, environments %d, notes %v", pv.Project, pv.Counts.Environments, pv.Warnings)
+	}
+	if runtime.GOOS == "windows" {
+		return
+	}
+	if err := os.Rename(filepath.Join(dir, "sonde.yaml"), filepath.Join(dir, "real.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("real.yaml", filepath.Join(dir, "sonde.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	if pv, err = s.Preview(context.Background(), Request{Kind: Postman, Text: bare}); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range pv.Files {
+		if f.Path == "sonde.yaml" {
+			t.Error("a linked sonde.yaml is edited")
+		}
+	}
+	if pv.Project != "kept" || len(pv.Warnings) != 1 || !strings.Contains(pv.Warnings[0].Message, "symbolic link") {
+		t.Errorf("link: project %q, notes %v", pv.Project, pv.Warnings)
 	}
 }

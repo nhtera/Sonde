@@ -71,14 +71,35 @@ interface ImportState {
   apply(): Promise<void>;
 }
 
+/** Whether a collection file is picked and reads: the dialog shows its
+ * preview without the source choices. A file that does not read (its
+ * error shown) leaves them, to pick another. */
+export function collectionPicked(s: { req: ImportRequest; error: string }): boolean {
+  return s.req.kind === "postman" && s.req.input !== "" && !s.error;
+}
+
 /** The env lifted secrets go to: the current one, else the first. */
 function defaultEnv(): string {
   const { current, project } = useEnv.getState();
   return current || project?.envs?.[0]?.name || "";
 }
 
+/** The mapping into the project's environments with a default for each
+ * collection environment that has none; null when none is missing. */
+export function defaultInto(envs: string[], into: Record<string, string | undefined>): Record<string, string> | null {
+  const { current, project } = useEnv.getState();
+  const names = (project?.envs ?? []).map((e) => e.name);
+  if (names.length === 0) return null;
+  const missing = envs.filter((n) => !(n in into));
+  if (missing.length === 0) return null;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(into)) if (v !== undefined) out[k] = v;
+  for (const n of missing) out[n] = names.includes(n) ? n : current || names[0];
+  return out;
+}
+
 export function freshRequest(kind: ImportKind): ImportRequest {
-  return { kind, input: "", text: "", environments: [], group: "", baseUrlVar: "", ext: "hurl", folder: kind === "curl" ? "" : "imported", name: "", env: defaultEnv(), lift: null, target: "", targetText: "" };
+  return { kind, input: "", text: "", environments: [], group: "", baseUrlVar: "", ext: "hurl", folder: kind === "curl" ? "" : "imported", name: "", env: defaultEnv(), lift: null, into: {}, target: "", targetText: "" };
 }
 
 /** Whether req has an input to preview. */
@@ -177,7 +198,15 @@ export const useImport = create<ImportState>((set, get) => ({
     set({ pending: true });
     try {
       const preview = await Imports.Preview(req);
-      if (n === seq) set({ preview, error: "", pending: false });
+      if (n !== seq) return;
+      set({ preview, error: "", pending: false });
+      // The collection's environments go into the project's: each new one
+      // to the one of its name, else the current one (shown, changeable).
+      const into = defaultInto(preview?.importEnvs ?? [], req.into ?? {});
+      if (into) {
+        set({ req: { ...get().req, into } });
+        void get().refresh();
+      }
     } catch (err) {
       if (n === seq) set({ preview: null, error: appError(err).message, pending: false });
     }

@@ -21,7 +21,7 @@ const notes: Record<string, string> = {
   "dynamic-variable": "Dynamic variables to set by hand",
   secret: "Values to move to a secret",
   unsupported: "Other items not converted",
-  environments: "Environments not in the app's sonde.yaml",
+  environments: "Environments not added",
   server: "Base URL to check",
   auth: "Credentials to set",
   body: "Bodies to check",
@@ -136,7 +136,9 @@ export function ImportResult() {
     [c.requests, `request${c.requests === 1 ? "" : "s"} → ${c.files} file${c.files === 1 ? "" : "s"}`],
     [c.environments, `environment${c.environments === 1 ? "" : "s"}`],
     [c.statusChecks, `status checks → HTTP lines${c.pathVariables ? ` · ${c.pathVariables} path variable${c.pathVariables === 1 ? "" : "s"} → {{name}}` : ""}`],
-    [c.secretStubs, "secret stubs to fill in"],
+    // Stubs in a new sonde.yaml's secrets files, or names listed in the
+    // project's (secrets:), their values set by each person.
+    c.secretNames > 0 ? [c.secretNames, "secrets listed, values to set"] : [c.secretStubs, "secret stubs to fill in"],
   ];
   const name = preview?.name;
   const layout = req.kind === "postman" ? (req.group === "folder" ? "One file per folder" : "One file per request") : "";

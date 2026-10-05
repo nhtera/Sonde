@@ -15,7 +15,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/fs"
 	"path"
 	"path/filepath"
 	"slices"
@@ -99,6 +98,10 @@ type Request struct {
 	// Env: no value reaches the page unless the user keeps it in.
 	Env  string `json:"env"`
 	Lift []int  `json:"lift"`
+	// Into maps each of the collection's environments (Preview's
+	// ImportEnvs) to the project's environment its values go into; one
+	// not mapped is added as an environment of its own name.
+	Into map[string]string `json:"into"`
 	// Target is the open file a curl command is inserted into, TargetText
 	// its text: its dialect and its captures' names count.
 	Target     string `json:"target"`
@@ -121,8 +124,11 @@ type Counts struct {
 	StatusChecks  int `json:"statusChecks"`  // expected statuses written as HTTP lines
 	PathVariables int `json:"pathVariables"` // :id segments written as {{id}}
 	SecretStubs   int `json:"secretStubs"`
-	Scripts       int `json:"scripts"` // scripts kept as comments
-	Folders       int `json:"folders"` // a Postman collection's folders
+	// SecretNames are the secret names listed in the project's
+	// sonde.yaml ("secrets:"), their values left to each person.
+	SecretNames int `json:"secretNames"`
+	Scripts     int `json:"scripts"` // scripts kept as comments
+	Folders     int `json:"folders"` // a Postman collection's folders
 }
 
 // Warning is something the import could not carry over as is.
@@ -133,11 +139,14 @@ type Warning struct {
 
 // Preview is what an import would write.
 type Preview struct {
-	Files      []File      `json:"files"`
-	Warnings   []Warning   `json:"warnings"`
-	Skipped    []Warning   `json:"skipped"` // Kind: the item's name
-	Counts     Counts      `json:"counts"`
-	Project    string      `json:"project"` // "created", "kept" (sonde.yaml exists) or ""
+	Files    []File    `json:"files"`
+	Warnings []Warning `json:"warnings"`
+	Skipped  []Warning `json:"skipped"` // Kind: the item's name
+	Counts   Counts    `json:"counts"`
+	Project  string    `json:"project"` // "created", "added" (values added to it), "kept" (as it is) or ""
+	// ImportEnvs are the collection's environments that go into the
+	// project's sonde.yaml (Request.Into maps them).
+	ImportEnvs []string    `json:"importEnvs"`
 	Candidates []Candidate `json:"candidates"`
 	// Name is a Postman collection's name.
 	Name string `json:"name,omitempty"`
@@ -175,7 +184,6 @@ type plan struct {
 	res      *convert.Result
 	files    []convert.PlannedFile // by project path
 	exists   map[string]bool       // by project path
-	home     bool                  // sonde.yaml goes to the project folder
 	cands    []candidate
 	lifted   map[string]string
 	password bool     // a password was lifted
@@ -186,6 +194,14 @@ type plan struct {
 	// suggestions.
 	input   string
 	dialect syntax.Dialect
+	// edited is the project's sonde.yaml when the import writes values to
+	// it; importEnvs are the collection's environments, envsKept those
+	// not mapped that the project has (left as they are); notes say what
+	// of the converter's sonde.yaml is not added, and why.
+	edited               string
+	importEnvs, envsKept []string
+	secretNames          int // listed in "secrets:"
+	notes                []string
 }
 
 // Preview computes an import without writing anything.
@@ -196,7 +212,7 @@ func (s *Service) Preview(ctx context.Context, req Request) (*Preview, error) {
 	}
 	pv := &Preview{Files: []File{}, Warnings: []Warning{}, Skipped: []Warning{}, Counts: p.counts(), Candidates: []Candidate{}}
 	for _, f := range p.files {
-		pv.Files = append(pv.Files, File{Path: f.Path, Text: string(f.Data), Exists: p.exists[f.Path], Secret: f.Perm == 0o600})
+		pv.Files = append(pv.Files, File{Path: f.Path, Text: string(f.Data), Exists: p.exists[f.Path], Secret: f.Perm == 0o600 && f.Path != p.edited})
 	}
 	for _, w := range p.out.Warnings {
 		// "a password in plain text": not once the password is lifted.
@@ -212,17 +228,27 @@ func (s *Service) Preview(ctx context.Context, req Request) (*Preview, error) {
 		pv.Skipped = append(pv.Skipped, Warning{Kind: sk.Name, Message: sk.Reason})
 	}
 	switch envs := p.environments(); {
+	case p.edited != "":
+		pv.Project = "added"
 	case p.res.Project != "":
 		pv.Project = "created"
-		if p.rel != "" && !p.home && len(envs) > 0 {
-			pv.Warnings = append(pv.Warnings, Warning{Kind: "environments", Message: fmt.Sprintf("The environments (%s) go to %s/sonde.yaml: the app uses the project's own sonde.yaml, so add them there to run with them here", strings.Join(envs, ", "), p.rel)})
-		}
-	case p.res.ProjectSkipped:
+	case p.res.ProjectSkipped, len(p.envsKept) > 0, len(p.notes) > 0:
 		pv.Project = "kept"
-		if len(envs) > 0 {
+		if p.res.ProjectSkipped && len(envs) > 0 {
 			pv.Warnings = append(pv.Warnings, Warning{Kind: "environments", Message: fmt.Sprintf("sonde.yaml is there already and is never replaced: the environments %s are not added to it", strings.Join(envs, ", "))})
 		}
 	}
+	if len(p.envsKept) > 0 {
+		them := "them"
+		if len(p.envsKept) == 1 {
+			them = "it"
+		}
+		pv.Warnings = append(pv.Warnings, Warning{Kind: "environments", Message: fmt.Sprintf("%s already in %s, kept as written: the import does not change %s", environments(p.envsKept), p.projectFile(), them)})
+	}
+	for _, n := range p.notes {
+		pv.Warnings = append(pv.Warnings, Warning{Kind: "environments", Message: n})
+	}
+	pv.ImportEnvs = p.importEnvs
 	for _, c := range p.cands {
 		pv.Candidates = append(pv.Candidates, c.Candidate)
 	}
@@ -431,20 +457,36 @@ func (s *Service) plan(ctx context.Context, req Request) (*plan, error) {
 			return nil, err
 		}
 	}
-	// The app reads the project's own sonde.yaml only: a project without
-	// one gets the environments (and their secrets stubs) there, not in
-	// the folder imported into. The command finds it there too.
-	reqs, home := p.out, convert.Output{}
-	if rel != "" && p.out.ProjectYAML != nil && !hasProject(root) {
+	// The environments go to the project's sonde.yaml, the one the app
+	// edits and a run of the requests reads: one there gets the values
+	// in the environments picked (Into); a project without one gets it,
+	// with the secrets stubs, at its folder, not in the folder imported
+	// into (the command finds it there too).
+	reqs, home, project := p.out, convert.Output{}, ""
+	if p.out.ProjectYAML != nil {
+		project = p.projectFile()
+	}
+	switch {
+	case project != "":
+		reqs.Extra, reqs.ProjectYAML = nil, nil
+	case rel != "" && p.out.ProjectYAML != nil:
 		home = convert.Output{Extra: p.out.Extra, ProjectYAML: p.out.ProjectYAML}
 		reqs.Extra, reqs.ProjectYAML = nil, nil
-		p.home = true
 	}
 	var err error
 	if p.res, err = p.add(dir, rel, reqs, opts); err != nil {
 		return nil, err
 	}
-	if p.home {
+	if project != "" {
+		if err := p.mergeEnvironments(project, req.Into); err != nil {
+			var ae *apperr.Error
+			if errors.As(err, &ae) {
+				return nil, err
+			}
+			return nil, apperr.Wrap(apperr.Invalid, err)
+		}
+	}
+	if home.ProjectYAML != nil {
 		res, err := p.add(root.Dir(), "", home, opts)
 		if err != nil {
 			return nil, err
@@ -478,17 +520,6 @@ func (p *plan) add(dir, rel string, out convert.Output, opts convert.Options) (*
 		p.files = append(p.files, f)
 	}
 	return res, nil
-}
-
-// hasProject reports whether the project has a sonde.yaml (or one it
-// can not tell is missing).
-func hasProject(root *sandbox.Root) bool {
-	for _, name := range []string{"sonde.yaml", "sonde.yml"} {
-		if _, err := root.Stat(name); !errors.Is(err, fs.ErrNotExist) {
-			return true
-		}
-	}
-	return false
 }
 
 // convert runs req's converter with the command's options.

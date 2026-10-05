@@ -81,6 +81,39 @@ test("a pasted curl command: its credentials become {{names}}, their values the 
   }
 });
 
+test("an OpenAPI spec's environment goes into the one picked, or a new one", async ({ page }) => {
+  await command(page, "Import OpenAPI");
+  const dialog = page.getByRole("dialog");
+  const chooser = page.waitForEvent("filechooser");
+  await dialog.getByRole("button", { name: "Choose file…" }).click();
+  await (await chooser).setFiles(`${fixtures}/orders.openapi.yaml`);
+  const into = dialog.getByLabel("Into environment for default");
+  await expect(into).toHaveValue("local");
+  await expect(dialog).toContainText("local has base_url already");
+  await into.selectOption({ label: "a new environment default" });
+  await expect(dialog).toContainText("environments added to sonde.yaml");
+  await expect(dialog).not.toContainText("local has base_url already");
+});
+
+test("a file that is not a collection: the error, then another file picked", async ({ page }) => {
+  await command(page, "Import Postman");
+  const dialog = page.getByRole("dialog");
+  let chooser = page.waitForEvent("filechooser");
+  await dialog.getByRole("button", { name: "Choose file…" }).click();
+  await (await chooser).setFiles(`${fixtures}/bearer.curl`);
+  await expect(dialog).toContainText("postman: invalid JSON");
+  // The source choices stay, to pick another file.
+  await expect(dialog.getByRole("tab", { name: "Postman" })).toBeVisible();
+  chooser = page.waitForEvent("filechooser");
+  await dialog.getByRole("button", { name: "Choose file…" }).click();
+  await (await chooser).setFiles(`${fixtures}/shop.postman_collection.json`);
+  await expect(dialog.getByRole("heading", { name: /^Import “.+” from Postman$/ })).toBeVisible();
+  await expect(dialog).not.toContainText("invalid JSON");
+  // Picked and read: Change file goes back to the choices.
+  await dialog.getByRole("button", { name: "Change file" }).click();
+  await expect(dialog.getByRole("button", { name: "Choose file…" })).toBeVisible();
+});
+
 test("a Postman collection: honest counts, then suggestions accepted for one file and rejected for another", async ({ page }) => {
   await command(page, "Import Postman");
   const dialog = page.getByRole("dialog");
@@ -101,7 +134,8 @@ test("a Postman collection: honest counts, then suggestions accepted for one fil
   await expect(counts).toContainText("3requests → 3 files");
   await expect(counts).toContainText("2environments");
   await expect(counts).toContainText("1status checks → HTTP lines · 1 path variable → {{name}}");
-  await expect(counts).toContainText("1secret stubs to fill in");
+  // shop-api has a sonde.yaml: the secret's name is listed there, no stub.
+  await expect(counts).toContainText("1secrets listed, values to set");
   await expect(dialog).toContainText("2 scripts kept as # comments");
   await page.screenshot({ path: `${candidates}/import-12b.png` });
   await dialog.getByRole("button", { name: /Review suggestions/ }).click();
