@@ -48,3 +48,6 @@ site/node_modules/*
 /site/deploy/node_modules/
 /site/.cloudflare/
 /site/.wrangler/
+
+# The website's screenshots before they are optimized (make site-screens).
+/desktop/frontend/marketing-shots/

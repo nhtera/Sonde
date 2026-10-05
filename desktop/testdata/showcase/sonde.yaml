@@ -1,0 +1,19 @@
+# showcase: the project behind the website's screenshots
+# (make site-screens; the fixture API of desktop/cmd/fixture-server).
+version: 1
+
+environments:
+  local:
+    variables:
+      base_url: http://127.0.0.1:34120
+      user: ada
+      name: Grace Hopper
+      email: grace.hopper@shop.dev
+    secrets_files:
+      - secrets/local.secrets
+
+defaults:
+  env: local
+
+openapi:
+  spec: openapi.yaml

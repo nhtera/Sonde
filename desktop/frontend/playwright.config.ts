@@ -66,6 +66,21 @@ const fullURL = `http://127.0.0.1:${fullPort}`;
 const visual = !!process.env.E2E_VISUAL;
 const visualPorts = { shop: 34140, results: 34141, form: 34142, themes: 34143 };
 const visualURL = (k: keyof typeof visualPorts) => `http://127.0.0.1:${visualPorts[k]}`;
+// e2e/marketing.spec.ts: the website's screenshots (make site-screens), only
+// with E2E_MARKETING=1. Its servers are the only ones then: the harness over
+// a fixed copy of testdata/showcase and the fixture API (reuseExistingServer
+// is off, so a stray server never changes a shot).
+const marketing = !!process.env.E2E_MARKETING;
+const marketingPort = Number(process.env.E2E_MARKETING_PORT) || 34150;
+const marketingURL = `http://127.0.0.1:${marketingPort}`;
+// The app starts in an empty environment (no SONDE_VARIABLE_*, nothing of the
+// host's) with its own home; the project is a trusted git repository whose
+// secrets folder git ignores. The path is fixed: it names the folder.
+const marketingHarness =
+  `sh -c 't=/tmp/sonde-showcase; rm -rf "$t"; trap "rm -rf \\"$t\\"" EXIT INT TERM; ` +
+  `mkdir -p "$t/shop-api" "$t/home" && cp -R ../testdata/showcase/. "$t/shop-api" && echo secrets/ > "$t/shop-api/.gitignore" && ` +
+  `(cd "$t/shop-api" && git init -q -b main && ${gitEnv} git add -A && ${gitEnv} git commit -qm init) && ` +
+  `env -i PATH="$PATH" HOME="$t/home" LANG=en_US.UTF-8 ${harness} --root "$t/shop-api" --data "$t/data" --port ${marketingPort}'`;
 // The preview's sandbox and framing in WebKit (the macOS app's engine).
 const resultsWebkitPort = Number(process.env.E2E_RESULTS_WEBKIT_PORT) || 34123;
 const resultsWebkitURL = `http://127.0.0.1:${resultsWebkitPort}`;
@@ -87,8 +102,8 @@ export default defineConfig({
   reporter: process.env.CI ? "list" : "line",
   use: { baseURL },
   projects: [
-    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual|update/, use: { ...devices["Desktop Chrome"] } },
-    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual|update/, use: { ...devices["Desktop Safari"] } },
+    { name: "chromium", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual|update|marketing/, use: { ...devices["Desktop Chrome"] } },
+    { name: "webkit", testIgnore: /server-mode|shell|editor|perf|results|form\.spec|panels|import|full-flow|visual|update|marketing/, use: { ...devices["Desktop Safari"] } },
     // Timings are measured alone, after the other browser tests (the load
     // of seven test servers and browsers would skew them).
     {
@@ -116,6 +131,17 @@ export default defineConfig({
           use: { ...devices["Desktop Safari"], baseURL: visualURL(k), colorScheme: "dark" as const },
         }))
       : []),
+    ...(marketing
+      ? [
+          {
+            name: "marketing",
+            testMatch: /marketing\.spec/,
+            fullyParallel: false,
+            workers: 1,
+            use: { ...devices["Desktop Safari"], baseURL: marketingURL, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: "dark" as const },
+          },
+        ]
+      : []),
     // Updates: one test, its own harness.
     { name: "update", testMatch: /update\.spec/, workers: 1, use: { ...devices["Desktop Chrome"], baseURL: updateURL } },
     // The full journey: one test, its own harness.
@@ -128,7 +154,12 @@ export default defineConfig({
     { name: "server-chromium", testMatch: /server-mode/, use: { ...devices["Desktop Chrome"] } },
     { name: "server-webkit", testMatch: /server-mode/, use: { ...devices["Desktop Safari"] } },
   ],
-  webServer: process.env.E2E_BASE_URL
+  webServer: marketing
+    ? [
+        { command: marketingHarness, url: `${marketingURL}/health` },
+        { command: `${fixtureServer} --port 34120`, url: "http://127.0.0.1:34120/health" },
+      ].map((w) => ({ ...w, reuseExistingServer: false, gracefulShutdown: { signal: "SIGTERM" as const, timeout: 3000 }, timeout: 30_000 }))
+    : process.env.E2E_BASE_URL
     ? undefined
     : [
         ...(visual

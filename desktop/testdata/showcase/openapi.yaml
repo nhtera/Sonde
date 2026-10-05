@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: shop-api
+  version: "1"
+servers:
+  - url: http://127.0.0.1:34120
+paths:
+  /health:
+    get:
+      responses:
+        "204":
+          description: ready
+  /login:
+    post:
+      responses:
+        "200":
+          description: a token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, user]
+                properties:
+                  token: {type: string}
+                  user:
+                    type: object
+                    required: [id, name]
+                    properties:
+                      id: {type: integer}
+                      name: {type: string}
+  /carts:
+    post:
+      responses:
+        "201":
+          description: a new cart
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: {type: string}
+  /carts/{id}/items:
+    post:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: the cart's item count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cart, items]
+                properties:
+                  cart: {type: string}
+                  items: {type: integer}
+  /carts/{id}/checkout:
+    post:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: the order made from the cart
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order, status]
+                properties:
+                  order: {type: string}
+                  status: {type: string}
+  /orders/{id}:
+    get:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: an order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status]
+                properties:
+                  id: {type: string}
+                  status: {type: string}
+  /orders/{id}/refund:
+    post:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "202":
+          description: refund requested
+  /users:
+    post:
+      responses:
+        "201":
+          description: a new user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, email]
+                properties:
+                  id: {type: string}
+                  name: {type: string}
+                  email: {type: string}
+  /users/{id}:
+    get:
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: a user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id: {type: string}
+                  name: {type: string}
+                  email: {type: string}
+  /events:
+    get:
+      responses:
+        "200":
+          description: order events
+          content:
+            text/event-stream:
+              schema: {type: string}
