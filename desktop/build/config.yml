@@ -11,7 +11,7 @@ info:
   description: "Reads and runs .hurl files" # The application description
   copyright: "© 2026, The Sonde Authors" # Copyright text
   comments: "Sonde Desktop" # Comments
-  version: "0.2.0-rc.1" # The application version
+  version: "0.2.0" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
   #                               # If not set and Assets.car exists, defaults to "appicon"
