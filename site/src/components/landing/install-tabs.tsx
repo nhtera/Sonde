@@ -30,7 +30,7 @@ export function InstallTabs() {
   };
   const command = install[current].command;
   return (
-    <>
+    <div className="install-card">
       <div className="tabs" role="tablist" aria-label={t.installLabel}>
         {install.map((tab, i) => (
           <button
@@ -73,6 +73,6 @@ export function InstallTabs() {
           {copy === "done" ? t.copied : copy === "failed" ? t.copyFailed : t.copy}
         </button>
       </div>
-    </>
+    </div>
   );
 }
