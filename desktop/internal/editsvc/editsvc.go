@@ -74,6 +74,7 @@ const (
 	RemoveSection = "removeSection" // Section
 	AddLogin      = "addLogin"      // Key (the token's capture name); a login request before Entry
 	AppendEntries = "appendEntries" // Value: requests as text (an import), added at the end
+	MoveURLQuery  = "moveURLQuery"  // the URL's query string to [Query] rows
 )
 
 // Bodies gives a stored response body (redacted).
@@ -156,6 +157,8 @@ func (e *Edits) Apply(b Buffer, op Op) (*Result, error) {
 		res, err = syntaxedit.AddLoginEntry(name, src, n, loginSpec(op.Key))
 	case AppendEntries:
 		res, err = appendEntries(name, src, op.Value)
+	case MoveURLQuery:
+		res, err = syntaxedit.MoveURLQuery(name, src, n)
 	default:
 		return nil, apperr.New(apperr.Invalid, "unknown edit "+op.Kind)
 	}

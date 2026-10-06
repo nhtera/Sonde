@@ -50,7 +50,7 @@ function tabsOf(e: EntryModel, grpc: boolean): { id: string; title: string; note
     ];
   }
   return [
-    { id: "params", title: "Params", note: n(countOf(e, "query")) },
+    { id: "params", title: "Params", note: n(countOf(e, "query") + (e.URLQuery?.length ?? 0)) },
     { id: "auth", title: "Auth", note: authLabel[authOf(e).kind] || undefined },
     { id: "headers", title: "Headers", note: n(countOf(e, "headers")) },
     { id: "body", title: "Body", note: bodyLabel[bodyKindOf(e)] || undefined },

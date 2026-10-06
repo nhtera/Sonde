@@ -59,6 +59,14 @@ func TestApply(t *testing.T) {
 	if err != nil || !strings.Contains(res.Text, "X-Trace: 1") {
 		t.Fatalf("addRow %+v %v", res, err)
 	}
+	q := Buffer{File: "t.hurl", Text: "GET https://example.org/a?from=2026-09-06T15%3A00%3A00.000Z\n", Version: 1}
+	res, err = e.Apply(q, Op{Kind: MoveURLQuery, Entry: 1})
+	if err != nil || res.Text != "GET https://example.org/a\n[Query]\nfrom: 2026-09-06T15:00:00.000Z\n" {
+		t.Fatalf("moveURLQuery %+v %v", res, err)
+	}
+	if _, err := e.Apply(b, Op{Kind: MoveURLQuery, Entry: 1}); err == nil {
+		t.Error("moveURLQuery without a query string")
+	}
 	if _, err := e.Apply(b, Op{Kind: "rm -rf"}); err == nil {
 		t.Error("unknown op")
 	}
