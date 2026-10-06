@@ -207,6 +207,11 @@
 .form-view .binary-body { display: flex; gap: 8px; align-items: center; }
 .form-view .binary-body .suggest { flex: 1; }
 .form-view .btn-ghost.accent { color: var(--accent); }
+/* Params the URL holds itself: read-only rows, a way to [Query]. */
+.form-view .kv-grid.url-query { margin-bottom: 14px; }
+.form-view .url-query-action { display: flex; justify-content: flex-end; min-width: 0; }
+.form-view .url-query-action .btn-ghost { height: 22px; padding: 0 6px; font: 500 11.5px var(--font-ui); }
+.form-view .url-query-kept { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 400; }
 
 /* Options */
 .form-view .opt-head, .form-view .opt-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px 220px; gap: 6px 14px; align-items: center; padding: 7px 4px; }

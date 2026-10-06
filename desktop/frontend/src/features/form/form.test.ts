@@ -18,7 +18,7 @@ function entry(over: Partial<EntryModel> & { rows?: Record<string, ModelRow[]> }
   const { rows, ...rest } = over;
   return {
     Index: 2, Range: { Start: 0, End: 0 }, Method: "GET", MethodRange: { Start: 0, End: 0 }, URL: "https://api.test/x",
-    URLRange: { Start: 0, End: 0 }, HasResponse: true, Status: "200", StatusRange: { Start: 0, End: 0 },
+    URLRange: { Start: 0, End: 0 }, URLQuery: null, URLQueryKept: "", HasResponse: true, Status: "200", StatusRange: { Start: 0, End: 0 },
     HasBody: false, Body: "", BodyRange: { Start: 0, End: 0 }, Rows: (rows ?? {}) as EntryModel["Rows"], ...rest,
   };
 }

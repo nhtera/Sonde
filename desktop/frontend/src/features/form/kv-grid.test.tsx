@@ -30,6 +30,8 @@ const createEntry = (rowsData: Record<string, ModelRow[]> = {}): EntryModel => (
   MethodRange: { Start: 0, End: 4 },
   URL: "https://api.test/x",
   URLRange: { Start: 5, End: 25 },
+  URLQuery: null,
+  URLQueryKept: "",
   HasResponse: true,
   Status: "200",
   StatusRange: { Start: 26, End: 29 },
