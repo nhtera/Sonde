@@ -93,6 +93,11 @@ type EntryModel struct {
 	MethodRange Range
 	URL         string
 	URLRange    Range
+	// URLQuery are the params of the URL's own query string (nil: it has
+	// none); URLQueryKept says why MoveURLQuery would refuse to move them
+	// to [Query] ("": it would not).
+	URLQuery     []URLParam
+	URLQueryKept string
 	// HasResponse tells whether the entry has an expected response.
 	HasResponse bool
 	Status      string
@@ -513,6 +518,9 @@ func (d *doc) model(i int) EntryModel {
 		URL:         d.text(r.URL.Span),
 		URLRange:    d.off.rng(r.URL.Span.Start.Offset, r.URL.Span.End.Offset),
 		Rows:        map[Section][]Row{},
+	}
+	if q := urlQueryOf(r.URL); q != nil {
+		m.URLQuery, m.URLQueryKept = q.params, q.kept
 	}
 	if resp := en.e.Response; resp != nil {
 		m.HasResponse = true
