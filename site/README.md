@@ -120,8 +120,9 @@ Recorded 2026-10-06 with `@tanstack/react-start` 1.168.60,
   would never fire: releases are created with `GITHUB_TOKEN`.
 - `DO_NOT_TRACK=1` turns off the `cf` CLI's telemetry in CI.
 
-One-time setup (dashboard): an API token with Account · Workers
-Scripts:Edit only, 1-year TTL (rotate yearly); `CLOUDFLARE_API_TOKEN` and
+One-time setup (done 2026-10-06): the account-owned API token
+`sonde-site-deploy` with Workers Scripts:Edit only, expiring 2027-10-06
+(rotate yearly); `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` as secrets of the GitHub environment `site`
 (deployment branches: `main`); after the first deploy, attach the custom
 domain `sonde.erai.dev` to the `sonde-site` Worker (Settings → Domains &
@@ -130,19 +131,21 @@ step fails until the domain is attached; re-run the job after attaching it.
 
 ## Rollback
 
-Not tried against production yet: the first deploy needs the token and
-the `site` environment.
+Tried on production on 2026-10-06 (v1 → v2 → v1 → v2, the site served
+200 throughout). With a Cloudflare login (`npx cf auth login`) or
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment:
 
 ```sh
-# With CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment:
 cd site/deploy && npm ci --ignore-scripts
-npx cf workers versions list --worker-id sonde-site     # find the previous version id
+npx cf workers deployments list --worker sonde-site      # the active version
+npx cf workers versions list --worker-id sonde-site      # pick the previous version id
 npx cf workers deployments create --worker sonde-site --strategy percentage \
   --versions '[{"version_id":"<previous-id>","percentage":100}]'
 ```
 
 With Wrangler: `npx wrangler rollback --name sonde-site`. Roll forward by
-re-running the `site` workflow on `main` (workflow_dispatch).
+deploying the newer version id the same way, or by re-running the `site`
+workflow on `main` (workflow_dispatch).
 
 ## Fallback: Wrangler
 
