@@ -37,6 +37,38 @@ interface WorkspaceState {
   trust(): Promise<void>;
 }
 
+/** Counts the projects opened: a refresh started before another
+ * project opened is of the previous one. */
+let opened = 0;
+
+/** The refresh running, and the one to run when it ends: refreshes run
+ * one at a time, and the calls made meanwhile share the next one (files
+ * changing faster than a refresh takes would pile them up). */
+let running: Promise<void> | null = null;
+let waiting: Promise<void> | null = null;
+
+function oneAtATime(run: () => Promise<void>): Promise<void> {
+  if (waiting) return waiting;
+  if (!running) return start(run);
+  const next: Promise<void> = running
+    .catch(() => {})
+    .then(() => {
+      // Not when a project opened meanwhile and has its own.
+      if (waiting === next) waiting = null;
+      return start(run);
+    });
+  waiting = next;
+  return next;
+}
+
+function start(run: () => Promise<void>): Promise<void> {
+  const p: Promise<void> = run().finally(() => {
+    if (running === p) running = null;
+  });
+  running = p;
+  return p;
+}
+
 export const useWorkspace = create<WorkspaceState>((set, get) => ({
   project: null,
   loaded: false,
@@ -56,7 +88,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     set({ project, recent, loaded: true });
     if (project) await get().refresh();
   },
-  refresh: async () => {
+  refresh: () => oneAtATime(async () => {
+    const at = opened;
     const [tree, index, git] = await Promise.all([Workspace.Tree(), Workspace.Index(), Git.Info()]);
     let gitStatus: Record<string, string> = {};
     let gitSecrets: string[] = [];
@@ -71,8 +104,10 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
         // git unavailable: no badges
       }
     }
+    // Another project opened meanwhile: this is the previous one's.
+    if (at !== opened) return;
     set({ tree, index: index ?? [], git, gitStatus, gitSecrets, gitLines });
-  },
+  }),
   openFolder: async (toImport = false) => {
     if (!(await discardEdits())) return;
     const project = await (toImport ? WorkspaceDesktop.OpenFolderToImport() : WorkspaceDesktop.OpenFolder());
@@ -116,9 +151,14 @@ async function discardEdits(): Promise<boolean> {
   });
 }
 
-/** Forgets what belonged to the previous project: its tabs (their paths
- * are relative to it), runs, filter and editor view. */
+/** Forgets what belonged to the previous project: its tree, index and
+ * git state (shown until the new one's are read), tabs (their paths are
+ * relative to it), runs, filter and editor view. */
 function forgetProject() {
+  opened++;
+  // The new project's refresh does not wait for the previous one's.
+  running = waiting = null;
+  useWorkspace.setState({ tree: null, index: [], git: null, gitStatus: {}, gitLines: {}, gitSecrets: [] });
   useTabs.setState({ tabs: [], active: null, closed: [] });
   useRuns.getState().reset();
   useUI.setState({ treeFilter: "", editorView: null });
