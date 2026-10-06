@@ -64,7 +64,6 @@ export function FeatureGrid() {
           <Cell className="c-lsp" title={t.lsp.title} body={t.lsp.body} more={t.lsp.more} href={doc("guides/editors")}>
             <div className="vis">
               <Toks line={t.lsp.typed} />
-              {"\n          "}
               <span className="lsp-pop">
                 {t.lsp.completions.map((c) => (
                   <div key={c.name} className={c.on ? "on" : undefined}>

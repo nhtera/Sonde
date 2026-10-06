@@ -116,3 +116,11 @@
 .code-copy::before { content: ""; position: absolute; inset: -6px; }
 .code-copy:hover { color: var(--text); border-color: var(--line); }
 .code-copy svg { width: 16px; height: 16px; }
+
+/* No orphan word on the last line of descriptions and prose. */
+#nd-page p, .docs-index span { text-wrap: pretty; }
+
+/* Touch: the logo link in the docs header reaches 44px. */
+@media (pointer: coarse) {
+  #nd-sidebar a[href="/"], #nd-subnav a[href="/"] { min-height: 44px; }
+}

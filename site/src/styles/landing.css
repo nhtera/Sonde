@@ -138,10 +138,12 @@
 .c-git .vis{background:var(--bg)}
 .c-rep .fmts{display:flex;gap:var(--s2);flex-wrap:wrap;margin-left:auto}
 .diff .add{color:var(--pass)} .diff .del{color:var(--fail)}
-.lsp-pop{display:inline-block;margin-top:var(--s1);border:1px solid var(--line);background:var(--raised);border-radius:var(--r-control);box-shadow:var(--pop);padding:var(--s1) 0;white-space:normal}
-.lsp-pop div{padding:2px var(--s3)} .lsp-pop .on{background:var(--accent-soft);color:var(--text)} .lsp-pop .on .muted{color:var(--text)}
+.lsp-pop{display:block;width:max-content;max-width:calc(100% - 4ch);margin:var(--s1) 0 0 4ch;border:1px solid var(--line);background:var(--raised);border-radius:var(--r-control);box-shadow:var(--pop);padding:var(--s1) 0;white-space:normal}
+.lsp-pop div{padding:2px var(--s3)} .lsp-pop .muted{white-space:nowrap} .lsp-pop .on{background:var(--accent-soft);color:var(--text)} .lsp-pop .on .muted{color:var(--text)}
 @media (max-width:980px){.bento{grid-template-columns:repeat(2,minmax(0,1fr))}.c-git,.c-imp,.c-lsp,.c-rep{grid-column:span 2}.c-env,.c-oas,.c-data,.c-stream{grid-column:span 1}}
-@media (max-width:620px){.bento{grid-template-columns:minmax(0,1fr)}.bento>*{grid-column:auto!important}}
+/* One column from 760px: two columns there clip the code samples. */
+@media (max-width:760px){.bento{grid-template-columns:minmax(0,1fr)}.bento>*{grid-column:auto!important}}
+@media (max-width:620px){.c-rep .fmts{margin-left:0;display:grid;grid-template-columns:repeat(2,max-content)}}
 .cell{min-width:0}
 .cell .vis{overflow:hidden}
 
@@ -182,7 +184,7 @@
    Tight link rhythm on desktop (pointer: fine); 44px rows only where touch needs them. */
 .site-footer{border-top:1px solid var(--line2);padding:var(--s8) 0 var(--s6);font-size:var(--t-small);color:var(--muted)}
 .foot{display:grid;grid-template-columns:minmax(0,5fr) repeat(3,minmax(0,2fr));gap:var(--s6);align-items:start}
-.foot-brand .brand{color:var(--text);min-height:0;line-height:1}
+.foot-brand .brand{display:inline-flex;color:var(--text);min-height:0;line-height:1}
 .foot-brand p{margin-top:var(--s3);max-width:30ch;line-height:1.55}
 .foot-gh{display:inline-flex;align-items:center;gap:var(--s2);margin-top:var(--s5);height:36px;padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--r-control);color:var(--text);transition:border-color .2s var(--ease)}
 .foot-gh:hover{border-color:var(--muted)}
@@ -193,7 +195,7 @@
 .foot li a:hover,.foot-legal a:hover{color:var(--text)}
 .foot-legal{margin-top:var(--s8);padding-top:var(--s5);border-top:1px solid var(--line2);display:flex;justify-content:space-between;align-items:center;gap:var(--s4);flex-wrap:wrap}
 .foot-legal .mono{color:var(--muted)}
-@media (pointer:coarse),(max-width:760px){.foot ul{gap:0}.foot li a{display:inline-flex;align-items:center;min-height:44px;padding:0}.foot-gh{height:44px}}
+@media (pointer:coarse),(max-width:760px){.foot-brand .brand{min-height:44px}.foot ul{gap:0}.foot li a{display:inline-flex;align-items:center;min-height:44px;padding:0}.foot-gh{height:44px}}
 @media (max-width:980px){.foot{grid-template-columns:repeat(3,minmax(0,1fr))}.foot-brand{grid-column:1/-1}}
 @media (max-width:560px){.foot{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:var(--s6)}.foot nav:last-child{grid-column:1/-1}.foot nav:last-child ul{display:flex;flex-wrap:wrap;column-gap:var(--s5)}}
 
@@ -215,4 +217,7 @@
    its cell is revealed (or right away without JavaScript). */
 :root:not(.js)[data-theme="dark"] .shot-crop,[data-theme="dark"] .in .shot-crop{background-image:var(--shot-dark)}
 :root:not(.js)[data-theme="light"] .shot-crop,[data-theme="light"] .in .shot-crop{background-image:var(--shot-light)}
+/* Under 660px the showcase tabs are one row that scrolls sideways (to the
+   screen edges), instead of wrapping and leaving one tab alone on a line. */
+@media (max-width:660px){.show-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * var(--s5));padding:4px var(--s5)}.show-tabs::-webkit-scrollbar{display:none}.show-tabs button{flex:none}}
 }
