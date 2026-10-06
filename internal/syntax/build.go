@@ -229,6 +229,23 @@ type Field struct{ Key, Value Text }
 // KV is shorthand for Field{PlainText(key), PlainText(value)}.
 func KV(key, value string) Field { return Field{PlainText(key), PlainText(value)} }
 
+// FieldSource returns f's key and value as a `key: value` row writes
+// them (escaped source text).
+func FieldSource(f Field) (key, value string) {
+	var k, v strings.Builder
+	keyEscaper.write(&k, f.Key)
+	unquotedEscaper.write(&v, f.Value)
+	return k.String(), v.String()
+}
+
+// URLSource returns t as a request line writes its URL (escaped source
+// text).
+func URLSource(t Text) string {
+	var b strings.Builder
+	unquotedEscaper.write(&b, t)
+	return b.String()
+}
+
 func writeField(b *strings.Builder, f Field) {
 	keyEscaper.write(b, f.Key)
 	b.WriteString(": ")
