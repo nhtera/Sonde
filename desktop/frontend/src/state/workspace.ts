@@ -110,7 +110,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   }),
   openFolder: async (toImport = false) => {
     if (!(await discardEdits())) return;
-    const project = await (toImport ? WorkspaceDesktop.OpenFolderToImport() : WorkspaceDesktop.OpenFolder());
+    const project = await said(toImport ? WorkspaceDesktop.OpenFolderToImport() : WorkspaceDesktop.OpenFolder());
     if (project) await afterOpen(project);
   },
   createProject: async (parent, name) => {
@@ -121,17 +121,14 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   },
   openExample: async () => {
     if (!(await discardEdits())) return;
-    // It writes files (Documents/Sonde): a full disk or a denied folder
-    // is said, not dropped.
-    const project = await WorkspaceDesktop.OpenExample().catch((err: unknown) => {
-      useUI.getState().toast({ kind: "error", text: appError(err).message });
-      return null;
-    });
+    // It writes files (Documents/Sonde): a full disk or a denied folder.
+    const project = await said(WorkspaceDesktop.OpenExample());
     if (project) await afterOpen(project);
   },
   openRecent: async (id) => {
     if (!(await discardEdits())) return;
-    const project = await WorkspaceDesktop.OpenRecent(id);
+    // A folder moved or deleted since: said, and gone from the list.
+    const project = await said(WorkspaceDesktop.OpenRecent(id));
     if (project) await afterOpen(project);
   },
   trust: async () => {
@@ -162,6 +159,18 @@ function forgetProject() {
   useTabs.setState({ tabs: [], active: null, closed: [] });
   useRuns.getState().reset();
   useUI.setState({ treeFilter: "", editorView: null });
+}
+
+/** A folder that could not be opened is said, not dropped; the recent
+ * list is read again (a folder no longer there has left it). */
+async function said(open: Promise<Project | null>): Promise<Project | null> {
+  try {
+    return await open;
+  } catch (err) {
+    useUI.getState().toast({ kind: "error", text: appError(err).message });
+    useWorkspace.setState({ recent: (await WorkspaceDesktop.Recent().catch(() => null)) ?? useWorkspace.getState().recent });
+    return null;
+  }
 }
 
 async function afterOpen(project: Project) {

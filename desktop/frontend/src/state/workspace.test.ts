@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
 vi.mock("../lib/api", async (importOriginal) => ({ ...(await importOriginal<object>()), ...api }));
 
 const { useWorkspace } = await import("./workspace");
+const { useUI } = await import("./ui");
 
 const oldProject = { name: "old", dir: "/p/old" };
 const newProject = { name: "new", dir: "/p/new" };
@@ -55,6 +56,19 @@ describe("switching projects", () => {
     next.resolve(tree("new.http"));
     await opening;
     expect(useWorkspace.getState().tree?.children?.[0]?.name).toBe("new.http");
+  });
+});
+
+describe("a folder that cannot be opened", () => {
+  it("is said, and the recent list is read again", async () => {
+    const toast = vi.spyOn(useUI.getState(), "toast");
+    api.WorkspaceDesktop.OpenRecent.mockRejectedValueOnce(new Error(JSON.stringify({ code: "not-found", message: "sss is no longer there" })));
+    api.WorkspaceDesktop.Recent.mockResolvedValueOnce([]);
+    useWorkspace.setState({ recent: [{ id: "sss", name: "sss", dir: "/p/sss", openedAt: "" }] });
+    await useWorkspace.getState().openRecent("sss");
+    expect(toast).toHaveBeenCalledWith({ kind: "error", text: "sss is no longer there" });
+    expect(useWorkspace.getState().recent).toEqual([]);
+    expect(useWorkspace.getState().project).toEqual(oldProject);
   });
 });
 

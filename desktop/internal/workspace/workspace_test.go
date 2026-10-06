@@ -291,6 +291,16 @@ func TestDesktopRecentAndCopy(t *testing.T) {
 	if _, err := d.OpenRecent("nope"); code(err) != apperr.NotFound {
 		t.Errorf("unknown recent: %v", err)
 	}
+	// A folder deleted since: said, and removed from the list.
+	if err := os.RemoveAll(other); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.OpenRecent(recent[0].ID); code(err) != apperr.NotFound || !strings.Contains(err.Error(), "no longer there") {
+		t.Errorf("deleted recent: %v", err)
+	}
+	if got := d.Recent(); len(got) != 1 || got[0].Dir == other {
+		t.Errorf("deleted folder still recent: %+v", got)
+	}
 	d.pickFolder = func(FolderPrompt) (string, error) { return "", nil }
 	if p, err := d.OpenFolder(); p != nil || err != nil {
 		t.Errorf("canceled dialog: %v %v", p, err)

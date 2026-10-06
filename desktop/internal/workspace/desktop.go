@@ -207,12 +207,22 @@ func writeExample(base string) (string, error) {
 	return filepath.Join(base, filepath.FromSlash(rel)), nil
 }
 
-// OpenRecent opens the recent project id.
+// OpenRecent opens the recent project id. One whose folder is gone
+// (moved or deleted) is removed from the list.
 func (d *Desktop) OpenRecent(id string) (*Project, error) {
 	for _, r := range d.Recent() {
-		if r.ID == id {
-			return d.open(r.Dir)
+		if r.ID != id {
+			continue
 		}
+		p, err := d.open(r.Dir)
+		if errors.Is(err, fs.ErrNotExist) {
+			d.save(slices.DeleteFunc(d.Recent(), func(o Recent) bool { return o.ID == id }))
+			return nil, apperr.New(apperr.NotFound, r.Name+" is no longer there ("+r.Dir+"): it was removed from the recent folders")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%s could not be opened: %w", r.Name, err)
+		}
+		return p, nil
 	}
 	return nil, apperr.New(apperr.NotFound, "that project is no longer in the recent list")
 }
@@ -243,6 +253,11 @@ func (d *Desktop) remember(p *Project) {
 	if len(list) > maxRecent {
 		list = list[:maxRecent]
 	}
+	d.save(list)
+}
+
+// save writes the recent list.
+func (d *Desktop) save(list []Recent) {
 	if data, err := json.MarshalIndent(list, "", "  "); err == nil {
 		_ = d.config.WriteFileAtomic(recentFile, data, 0o600)
 	}
