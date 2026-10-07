@@ -26,12 +26,12 @@ difference is in [compat.md](../compat.md).
 |---|---|
 | `hurl FILE…` | `sonde FILE…` or `sonde run FILE…` |
 | `hurl --test FILE…` | `sonde --test FILE…` or `sonde test FILE…` |
-| `hurlfmt --check FILE` | `sonde fmt --check FILE` (exit 1 when a file is not formatted) |
-| `hurlfmt --in-place FILE` | `sonde fmt --write FILE` (whitespace and line endings only; no reordering) |
+| `hurlfmt --check FILE` | `sonde fmt --check FILE` (same output; exit 1, not 3, when a file is not formatted) |
+| `hurlfmt --in-place FILE` | `sonde fmt --write FILE` (same layout, section order included) |
 | (a syntax check) | `sonde check FILE` (exit 2 on a syntax error) |
 | `hurlfmt --in curl` | `sonde import curl INPUT -o DIR` (options Sonde cannot send yet, such as `--digest`, are kept with a warning) |
 | `hurlfmt --out curl FILE` | `sonde export curl FILE` |
-| `hurlfmt --out json` / `--out html` | Not provided |
+| `hurlfmt --out json` / `--out html [--standalone]` | `sonde export json FILE` / `sonde export html [--standalone] FILE` (same output, see [compat.md](../compat.md)) |
 | `hurl --curl FILE` | `sonde --curl FILE` (same format; secrets redacted) |
 
 ## What behaves differently

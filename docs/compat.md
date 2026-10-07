@@ -20,6 +20,8 @@ Differences on inputs outside the test tree:
 
 | Input | Hurl 8.0.1 | Sonde |
 |---|---|---|
+| `fmt` and `export` of rare spellings: a status with leading zeros (`HTTP 000200`), an upper-case JSON exponent (`1.0E+2`), spaces inside a placeholder in a JSON body (`{{ x }}`), a count of `-0` | normalized (`200`, `1.0e+2`, `{{x}}`, `0`) | kept as written |
+| `export json` of a value that is not valid JSON: `nth {{i}}`, a float too large for a double, a number JSON rejects (`0e`) | written as is (invalid JSON) | written as a string, so the document stays valid JSON |
 | Curl import of a `-d`/`--data` body | a ``` block, so the body gains a trailing newline | a ```raw block: the body bytes are kept exactly |
 | Curl import of `-H 'Name:'` (curl removes the header) | `Name:` header with an empty value | header removed, as curl does |
 | `[Query]` and `[QueryStringParams]` (or `[Form]`/`[FormParams]`, `[Multipart]`/`[MultipartFormData]`) in one request | only the first section is sent; `hurlfmt` drops the second | both are sent; `sonde fmt` keeps both |
@@ -37,8 +39,9 @@ Accepted as Hurl does: text after a placeholder's variable inside a string,
 e.g. `{{a b}}` or `{{a}b}}`, is ignored (and kept by `sonde fmt`); XML
 declarations with any encoding or version.
 
-`sonde fmt` prints what `hurlfmt` prints (checked on its suite: every
-`tests_export` lint fixture and the formatter scripts): whitespace
+`sonde fmt` and `sonde export json|html` print what `hurlfmt` prints
+(checked on its suite and, file by file, on every parseable file of the
+conformance suite): whitespace
 normalized, sections in canonical order, `ms` added to unitless durations,
 with `--color`, `--check` and `--write`. `--check` exits `1` when a file
 is not formatted (`hurlfmt`: `3`), keeping sonde's documented exit codes. Curl import differences

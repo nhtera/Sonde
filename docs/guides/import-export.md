@@ -4,7 +4,7 @@
 Sonde request files. This guide covers what every kind shares (the common
 flags, and the writer's rules for naming files, handling collisions and
 never touching an existing `sonde.yaml`), then each kind, then
-`sonde export curl`.
+`sonde export` (curl, JSON, HTML).
 
 ```sh
 sonde import openapi petstore.yaml -o requests/
@@ -162,10 +162,13 @@ Flags behave as in curl:
   - `--digest`, `--ntlm`, `--negotiate`, `--aws-sigv4`, `--http1.0` and
     `--http3` are kept as options with a warning: Sonde cannot send them
     yet, so those requests fail until it can.
+  - `--retry N` becomes `retry: N` with `HTTP *` and a `status < 500`
+    assert, so a 5xx response is retried as curl retries it; `-v` and
+    `--verbose` become `verbose: true`.
 - **Combined forms:** combined short flags (`-sSL`) and `--flag=value`
   both work.
 
-Output and diagnostic flags (`-s`, `-v`, `-i`, `--fail`, …) are ignored.
+Other output and diagnostic flags (`-s`, `-i`, `--fail`, …) are ignored.
 Any other flag is skipped with a warning, together with its value.
 
 ## Postman
@@ -268,3 +271,20 @@ defines, typically one an earlier entry would capture, stays `{{name}}`
 in the output, with a warning on stderr. Secrets are redacted as in every
 output, and no flag reveals them. An entry that `[Options]` skips
 (`skip: true`, `repeat: 0`) is left out.
+
+## Exporting the syntax tree: JSON and HTML
+
+`sonde export json [FILE…]` prints each `.hurl` file's syntax tree as one
+JSON document per file, and `sonde export html [--standalone] [FILE…]` prints
+it as syntax-highlighted HTML: a `<pre>` block with one `<span class="…">`
+per token, or with `--standalone` a complete page with its stylesheet. Both
+read standard input when no FILE is given, write to `-o FILE` instead of
+stdout, and print what `hurlfmt --out json` / `--out html` print (checked on
+its fixtures and on every file of the conformance suite; the known
+differences are in [compat.md](../compat.md)). `.sonde` files are refused. A file that does not parse is reported on
+stderr, the others are still exported, and the command exits with `2`.
+
+```sh
+sonde export json api.hurl | jq '.entries[].request.url'
+sonde export html --standalone api.hurl -o api.html
+```

@@ -1077,6 +1077,14 @@ sonde:
 
 differences:
   - area: "Syntax"
+    input: "`fmt` and `export` of rare spellings: a status with leading zeros (`HTTP 000200`), an upper-case JSON exponent (`1.0E+2`), spaces inside a placeholder in a JSON body (`{{ x }}`), a count of `-0`"
+    hurl: "normalized (`200`, `1.0e+2`, `{{x}}`, `0`)"
+    sonde: "kept as written"
+  - area: "Syntax"
+    input: "`export json` of a value that is not valid JSON: `nth {{i}}`, a float too large for a double, a number JSON rejects (`0e`)"
+    hurl: "written as is (invalid JSON)"
+    sonde: "written as a string, so the document stays valid JSON"
+  - area: "Syntax"
     input: "Curl import of a `-d`/`--data` body"
     hurl: "a ``` block, so the body gains a trailing newline"
     sonde: "a ```raw block: the body bytes are kept exactly"

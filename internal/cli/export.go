@@ -36,13 +36,13 @@ type exportCurlOptions struct {
 }
 
 // newExportCmd builds the `sonde export` command tree: one subcommand per
-// supported target format (only "curl" for now).
+// supported target format.
 func newExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export request files to another format",
 	}
-	cmd.AddCommand(newExportCurlCmd())
+	cmd.AddCommand(newExportCurlCmd(), newExportJSONCmd(), newExportHTMLCmd())
 	return cmd
 }
 

@@ -1,0 +1,86 @@
+pre {
+    padding: 0;
+    margin: 0;
+}
+
+code {
+    font-family: monospace;
+    font-size: 0.825rem;
+    line-height: 1.2rem;
+}
+
+.comment {
+    color: dimgray;
+}
+
+.method {
+    color: black;
+}
+
+.url {
+    color: darkblue;
+}
+
+.version {
+    color: black;
+}
+
+.number, .boolean, .unit {
+    color: blue;
+}
+
+.section-header {
+    color: darkmagenta;
+}
+
+.query-type {
+    color: teal;
+}
+
+.filter-type, .not, .predicate-type {
+    color: darkblue;
+}
+
+
+.string, .multiline, .name, .json, .xml, .base64, .hex, .filename, .cookie-value, .regex {
+    color: darkgreen;
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .comment {
+        color: dimgray;
+    }
+
+    .method {
+        color: orange;
+    }
+
+    .url {
+        color: cyan;
+    }
+
+    .version {
+        color: white;
+    }
+
+    .number, .boolean, .unit {
+        color: dodgerblue;
+    }
+
+    .section-header {
+        color: magenta;
+    }
+
+    .query-type {
+        color: cyan;
+    }
+
+    .filter-type, .not, .predicate-type {
+        color: orange;
+    }
+
+    .string, .multiline, .name, .json, .xml, .base64, .hex, .filename, .cookie-value {
+        color: forestgreen;
+    }
+}

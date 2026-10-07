@@ -322,6 +322,14 @@ linters:
               desc: "internal/syntaxedit may import only: internal/syntax (architecture §2)"
           allow:
             - github.com/nhtera/sonde/internal/syntax$
+        pkg-syntaxexport:
+          list-mode: lax
+          files: ["**/internal/syntaxexport/**", "!$test"]
+          deny:
+            - pkg: github.com/nhtera/sonde
+              desc: "internal/syntaxexport may import only: internal/syntax (architecture §2)"
+          allow:
+            - github.com/nhtera/sonde/internal/syntax$
         pkg-config:
           list-mode: lax
           files: ["**/internal/config/**", "!$test"]

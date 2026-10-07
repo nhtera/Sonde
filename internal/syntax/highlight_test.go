@@ -23,7 +23,9 @@ func TestTokensCoverSource(t *testing.T) {
 		}
 		var b strings.Builder
 		for _, tok := range Tokens(f) {
-			b.WriteString(tok.Text)
+			if tok.Kind != TokenOpen && tok.Kind != TokenClose {
+				b.WriteString(tok.Text)
+			}
 		}
 		if b.String() != string(Print(f)) {
 			t.Errorf("%s: tokens do not cover the source", path)

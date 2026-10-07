@@ -30,6 +30,13 @@ func Format(f *File) []byte {
 	return []byte(p.String())
 }
 
+// PrintNode renders one node back to source, as Print does.
+func PrintNode(n Node) string {
+	var p printer
+	p.node(n)
+	return p.String()
+}
+
 type printer struct {
 	strings.Builder
 	canonical bool
