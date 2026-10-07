@@ -77,13 +77,17 @@ type RequestSpec struct {
 // HTTPVersion is the requested protocol version.
 type HTTPVersion int
 
-// Requested versions. HTTP10 is not supported.
+// Requested versions, in the order of engine.HTTPVersion. HTTP10 is not
+// supported.
 const (
 	HTTPDefault HTTPVersion = iota
 	HTTP10
 	HTTP11
 	HTTP2
 	HTTP3
+	// HTTP2PriorKnowledge is cleartext HTTP/2 without an upgrade for
+	// http:// (h2c); HTTP2 for https://.
+	HTTP2PriorKnowledge
 )
 
 // IPResolve restricts name resolution.
@@ -126,16 +130,24 @@ type Options struct {
 	// NetrcAllowReroute sends netrc credentials even when resolve,
 	// connect-to or a proxy reroutes the host.
 	NetrcAllowReroute bool
-	NoProxy           string
-	NTLM              bool // unsupported
-	PathAsIs          bool
-	PinnedPublicKey   string
-	Proxy             string
-	Resolve           []string      // HOST:PORT:ADDR[,ADDR]...
-	Timeout           time.Duration // max-time; zero: 300s
-	UnixSocket        string
-	User              string // user:password
-	UserAgent         string // empty: sonde/<version>
+	// NoHeaders are the names of headers not sent, whether from the
+	// entry, Headers or the defaults (Accept, User-Agent, …). Host and
+	// Content-Length are always sent.
+	NoHeaders       []string
+	NoProxy         string
+	NTLM            bool // unsupported
+	PathAsIs        bool
+	PinnedPublicKey string
+	Proxy           string
+	// ProxyHeaders go to an HTTP proxy only: in the CONNECT request of an
+	// https:// URL, added to the request of an http:// URL sent through
+	// it. Without an HTTP proxy (none, or SOCKS) they are not sent.
+	ProxyHeaders []exchange.Header
+	Resolve      []string      // HOST:PORT:ADDR[,ADDR]...
+	Timeout      time.Duration // max-time; zero: 300s
+	UnixSocket   string
+	User         string // user:password
+	UserAgent    string // empty: sonde/<version>
 	// Verbose enables the debug callback for connection details.
 	Verbose bool
 	// LocalFiles are the file options given on the command line

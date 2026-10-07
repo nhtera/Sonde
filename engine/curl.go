@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -21,11 +22,21 @@ func (u *unit) curlCommand(spec *httpx.RequestSpec, opts *httpx.Options, output 
 	hasBody := len(spec.Multipart) > 0 || len(spec.Form) > 0 || len(spec.Body.Data) > 0
 	args = append(args, methodArgs(spec.Method, hasBody, opts.FollowLocation)...)
 	headers := append(append([]httpxHeader{}, headerList(spec)...), headerListFrom(opts)...)
+	headers = slices.DeleteFunc(headers, func(h httpxHeader) bool {
+		return slices.ContainsFunc(opts.NoHeaders, func(name string) bool { return strings.EqualFold(h.name, name) })
+	})
 	args = append(args, u.headerArgs(headers, spec)...)
-	args = append(args, u.bodyArgs(spec)...)
+	for _, name := range opts.NoHeaders {
+		args = append(args, "--header", shellString(name+":"))
+	}
+	body, stdin := u.bodyArgs(spec)
+	args = append(args, body...)
 	args = append(args, u.cookieArgs(spec)...)
 	args = append(args, u.optionArgs(opts, output)...)
 	args = append(args, urlArgs(spec)...)
+	if stdin != "" {
+		return stdin + " | " + strings.Join(args, " ")
+	}
 	return strings.Join(args, " ")
 }
 
@@ -97,8 +108,10 @@ func (u *unit) headerArgs(headers []httpxHeader, spec *httpx.RequestSpec) []stri
 	return args
 }
 
-func (u *unit) bodyArgs(spec *httpx.RequestSpec) []string {
-	var args []string
+// bodyArgs returns the body options, and the command that pipes a body
+// curl reads from its standard input ("" when none): a body with a NUL
+// byte, which no shell string can hold.
+func (u *unit) bodyArgs(spec *httpx.RequestSpec) (args []string, stdin string) {
 	for _, p := range spec.Form {
 		args = append(args, "--data", shellString(p.Name+"="+escapeURL(p.Value)))
 	}
@@ -111,19 +124,27 @@ func (u *unit) bodyArgs(spec *httpx.RequestSpec) []string {
 		args = append(args, "--form", shellString(fmt.Sprintf("%s=@%s;type=%s", p.File.Name, path, p.File.ContentType)))
 	}
 	if len(spec.Body.Data) == 0 {
-		return args
+		return args, ""
+	}
+	if spec.Body.Kind != httpx.BodyFile && slices.Contains(spec.Body.Data, 0) {
+		return append(args, "--data-binary", "@-"), "printf '" + hexEscapes(spec.Body.Data) + "'"
 	}
 	switch spec.Body.Kind {
 	case httpx.BodyFile:
-		return append(args, "--data-binary", shellString("@"+u.resolvedPath(spec.Body.Filename)))
+		return append(args, "--data-binary", shellString("@"+u.resolvedPath(spec.Body.Filename))), ""
 	case httpx.BodyBinary:
-		var b strings.Builder
-		for _, c := range spec.Body.Data {
-			fmt.Fprintf(&b, "\\x%02x", c)
-		}
-		return append(args, "--data", "$'"+b.String()+"'")
+		return append(args, "--data", "$'"+hexEscapes(spec.Body.Data)+"'"), ""
 	}
-	return append(args, "--data", shellString(string(spec.Body.Data)))
+	return append(args, "--data", shellString(string(spec.Body.Data))), ""
+}
+
+// hexEscapes writes every byte of data as \xHH.
+func hexEscapes(data []byte) string {
+	var b strings.Builder
+	for _, c := range data {
+		fmt.Fprintf(&b, "\\x%02x", c)
+	}
+	return b.String()
 }
 
 // cookieArgs lists the entry's cookies then the stored cookies matching
@@ -203,6 +224,8 @@ func (u *unit) optionArgs(o *httpx.Options, output *outputTarget) []string {
 		add("--http1.1")
 	case httpx.HTTP2:
 		add("--http2")
+	case httpx.HTTP2PriorKnowledge:
+		add("--http2-prior-knowledge")
 	case httpx.HTTP3:
 		add("--http3")
 	}
@@ -256,6 +279,13 @@ func (u *unit) optionArgs(o *httpx.Options, output *outputTarget) []string {
 	}
 	if o.Proxy != "" {
 		add("--proxy", shellString(o.Proxy))
+	}
+	for _, h := range o.ProxyHeaders {
+		if h.Value == "" {
+			add("--proxy-header", shellString(h.Name+";"))
+		} else {
+			add("--proxy-header", shellString(h.Name+": "+h.Value))
+		}
 	}
 	for _, r := range o.Resolve {
 		add("--resolve", shellArg(r))

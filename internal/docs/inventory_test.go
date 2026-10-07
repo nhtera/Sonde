@@ -47,10 +47,19 @@ func readTSV(t *testing.T, path string, ncols int) [][]string {
 	return rows
 }
 
-func loadGrammarInventory(t *testing.T) map[string]map[string]bool {
+// Inventory files: the conformance gate's version (8.0.1), and the pinned
+// upstream snapshot whose additions table.yaml marks `since: 8.1.0`.
+const (
+	grammarTSV     = "testdata/grammar-inventory.tsv"
+	grammarNextTSV = "testdata/grammar-inventory-next.tsv"
+	cliTSV         = "testdata/cli-inventory.tsv"
+	cliNextTSV     = "testdata/cli-inventory-next.tsv"
+)
+
+func loadGrammarInventory(t *testing.T, path string) map[string]map[string]bool {
 	t.Helper()
 	byKind := map[string]map[string]bool{}
-	for _, cols := range readTSV(t, "testdata/grammar-inventory.tsv", 2) {
+	for _, cols := range readTSV(t, path, 2) {
 		row := grammarRow{kind: cols[0], name: cols[1]}
 		if byKind[row.kind] == nil {
 			byKind[row.kind] = map[string]bool{}
@@ -60,13 +69,13 @@ func loadGrammarInventory(t *testing.T) map[string]map[string]bool {
 	return byKind
 }
 
-func loadCLIInventory(t *testing.T) map[string]map[string]cliRow {
+func loadCLIInventory(t *testing.T, path string) map[string]map[string]cliRow {
 	t.Helper()
 	byKind := map[string]map[string]cliRow{}
-	for _, cols := range readTSV(t, "testdata/cli-inventory.tsv", 5) {
+	for _, cols := range readTSV(t, path, 5) {
 		usage, err := strconv.Atoi(cols[4])
 		if err != nil {
-			t.Fatalf("cli-inventory.tsv: bad usage %q: %v", cols[4], err)
+			t.Fatalf("%s: bad usage %q: %v", path, cols[4], err)
 		}
 		row := cliRow{kind: cols[0], name: cols[1], short: cols[2], arg: cols[3], usage: usage}
 		if byKind[row.kind] == nil {
@@ -80,13 +89,15 @@ func loadCLIInventory(t *testing.T) map[string]map[string]cliRow {
 // TestGrammarInventoryMatches asserts table.yaml's queries/filters/
 // predicates/functions/options contain exactly the names extracted from
 // the reference parser source by scripts/gen-grammar-inventory.sh — no
-// missing, no extras.
+// missing, no extras. Rows marked `since: 8.1.0` are checked against the
+// pinned snapshot's inventory instead.
 func TestGrammarInventoryMatches(t *testing.T) {
 	tbl, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	grammar := loadGrammarInventory(t)
+	grammar := loadGrammarInventory(t, grammarTSV)
+	next := loadGrammarInventory(t, grammarNextTSV)
 
 	cases := map[string][]Entry{
 		"queries":    tbl.Queries,
@@ -96,22 +107,33 @@ func TestGrammarInventoryMatches(t *testing.T) {
 		"options":    tbl.Options,
 	}
 	for kind, entries := range cases {
-		want := grammar[kind]
-		if len(want) == 0 {
-			t.Fatalf("testdata/grammar-inventory.tsv: no rows for kind %q", kind)
+		if len(grammar[kind]) == 0 || len(next[kind]) == 0 {
+			t.Fatalf("grammar inventories: no rows for kind %q", kind)
 		}
-		got := map[string]bool{}
+		got := map[string]Entry{}
 		for _, e := range entries {
-			got[e.Name] = true
+			got[e.Name] = e
 		}
-		for name := range want {
-			if !got[name] {
-				t.Errorf("table.yaml %s: missing %q (present in grammar-inventory.tsv)", kind, name)
+		for _, inv := range []struct {
+			path  string
+			names map[string]bool
+		}{{grammarTSV, grammar[kind]}, {grammarNextTSV, next[kind]}} {
+			for name := range inv.names {
+				if _, ok := got[name]; !ok {
+					t.Errorf("table.yaml %s: missing %q (present in %s)", kind, name, inv.path)
+				}
 			}
 		}
-		for name := range got {
+		for name, e := range got {
+			want, path := grammar[kind], grammarTSV
+			if e.Since != "" {
+				want, path = next[kind], grammarNextTSV
+				if grammar[kind][name] {
+					t.Errorf("table.yaml %s %q: since %s, but %s has it", kind, name, e.Since, grammarTSV)
+				}
+			}
 			if !want[name] {
-				t.Errorf("table.yaml %s: extra %q (absent from grammar-inventory.tsv)", kind, name)
+				t.Errorf("table.yaml %s: extra %q (absent from %s)", kind, name, path)
 			}
 		}
 	}
@@ -120,13 +142,15 @@ func TestGrammarInventoryMatches(t *testing.T) {
 // TestCLIInventoryMatches asserts table.yaml's flags/env/options contain
 // exactly the names extracted from the reference CLI option definitions by
 // scripts/gen-cli-inventory.sh, and that each entry's usage field matches
-// the extracted occurrence count.
+// the extracted occurrence count. Rows marked `since: 8.1.0` are checked
+// against the pinned snapshot's inventory, and its usage counts.
 func TestCLIInventoryMatches(t *testing.T) {
 	tbl, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	cli := loadCLIInventory(t)
+	cli := loadCLIInventory(t, cliTSV)
+	next := loadCLIInventory(t, cliNextTSV)
 
 	cases := map[string][]Entry{
 		"flags":   tbl.Flags,
@@ -134,22 +158,38 @@ func TestCLIInventoryMatches(t *testing.T) {
 		"options": tbl.Options,
 	}
 	for kind, entries := range cases {
-		want := cli[kind]
-		if len(want) == 0 {
-			t.Fatalf("testdata/cli-inventory.tsv: no rows for kind %q", kind)
+		if len(cli[kind]) == 0 || len(next[kind]) == 0 {
+			t.Fatalf("CLI inventories: no rows for kind %q", kind)
 		}
 		got := map[string]Entry{}
 		for _, e := range entries {
 			got[e.Name] = e
 		}
-		for name, row := range want {
-			e, ok := got[name]
+		for _, inv := range []struct {
+			path string
+			rows map[string]cliRow
+		}{{cliTSV, cli[kind]}, {cliNextTSV, next[kind]}} {
+			for name := range inv.rows {
+				if _, ok := got[name]; !ok {
+					t.Errorf("table.yaml %s: missing %q (present in %s)", kind, name, inv.path)
+				}
+			}
+		}
+		for name, e := range got {
+			want, path := cli[kind], cliTSV
+			if e.Since != "" {
+				want, path = next[kind], cliNextTSV
+				if _, old := cli[kind][name]; old {
+					t.Errorf("table.yaml %s %q: since %s, but %s has it", kind, name, e.Since, cliTSV)
+				}
+			}
+			row, ok := want[name]
 			if !ok {
-				t.Errorf("table.yaml %s: missing %q (present in cli-inventory.tsv)", kind, name)
+				t.Errorf("table.yaml %s: extra %q (absent from %s)", kind, name, path)
 				continue
 			}
 			if e.Usage != row.usage {
-				t.Errorf("table.yaml %s %q: usage = %d, want %d (cli-inventory.tsv)", kind, name, e.Usage, row.usage)
+				t.Errorf("table.yaml %s %q: usage = %d, want %d (%s)", kind, name, e.Usage, row.usage, path)
 			}
 			if kind == "flags" {
 				if e.Short != row.short {
@@ -160,28 +200,25 @@ func TestCLIInventoryMatches(t *testing.T) {
 				}
 			}
 		}
-		for name := range got {
-			if _, ok := want[name]; !ok {
-				t.Errorf("table.yaml %s: extra %q (absent from cli-inventory.tsv)", kind, name)
-			}
-		}
 	}
 }
 
 // TestOptionsInventoriesAgree asserts the "options" kind lists the same
-// names in both generated .tsv files (the grammar and CLI scripts extract
-// it independently from different reference source files).
+// names in the grammar and CLI inventories of each version (the two scripts
+// extract it independently from different reference source files).
 func TestOptionsInventoriesAgree(t *testing.T) {
-	grammar := loadGrammarInventory(t)["options"]
-	cli := loadCLIInventory(t)["options"]
-	for name := range grammar {
-		if _, ok := cli[name]; !ok {
-			t.Errorf("options: %q in grammar-inventory.tsv but not cli-inventory.tsv", name)
+	for _, pair := range [][2]string{{grammarTSV, cliTSV}, {grammarNextTSV, cliNextTSV}} {
+		grammar := loadGrammarInventory(t, pair[0])["options"]
+		cli := loadCLIInventory(t, pair[1])["options"]
+		for name := range grammar {
+			if _, ok := cli[name]; !ok {
+				t.Errorf("options: %q in %s but not %s", name, pair[0], pair[1])
+			}
 		}
-	}
-	for name := range cli {
-		if _, ok := grammar[name]; !ok {
-			t.Errorf("options: %q in cli-inventory.tsv but not grammar-inventory.tsv", name)
+		for name := range cli {
+			if _, ok := grammar[name]; !ok {
+				t.Errorf("options: %q in %s but not %s", name, pair[1], pair[0])
+			}
 		}
 	}
 }

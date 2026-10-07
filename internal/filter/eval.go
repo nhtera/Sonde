@@ -12,16 +12,30 @@ import (
 	"github.com/nhtera/sonde/internal/value"
 )
 
+// Options change how filters evaluate.
+type Options struct {
+	// InAssert marks errors raised while evaluating an assert.
+	InAssert bool
+	// NoJSONPathCoercion keeps the result of a jsonpath filter a list of
+	// matches, even for no match or a single one.
+	NoJSONPathCoercion bool
+}
+
 // Apply applies filters in order to v. A nil result means the last filter
 // produced no value; a filter that receives no value fails. inAssert marks
 // errors raised while evaluating an assert.
 func Apply(items []*syntax.FilterItem, v value.Value, env *template.Env, inAssert bool) (value.Value, error) {
+	return ApplyOptions(items, v, env, Options{InAssert: inAssert})
+}
+
+// ApplyOptions is Apply with every option.
+func ApplyOptions(items []*syntax.FilterItem, v value.Value, env *template.Env, opts Options) (value.Value, error) {
 	for _, it := range items {
 		if v == nil {
-			return nil, runerr.New(it.Filter.Span, runerr.FilterMissingInput, inAssert)
+			return nil, runerr.New(it.Filter.Span, runerr.FilterMissingInput, opts.InAssert)
 		}
 		var err error
-		if v, err = Eval(it.Filter, v, env, inAssert); err != nil {
+		if v, err = EvalOptions(it.Filter, v, env, opts); err != nil {
 			return nil, err
 		}
 	}
@@ -30,7 +44,12 @@ func Apply(items []*syntax.FilterItem, v value.Value, env *template.Env, inAsser
 
 // Eval applies one filter to v (non-nil).
 func Eval(f *syntax.Filter, v value.Value, env *template.Env, inAssert bool) (value.Value, error) {
-	c := call{f: f, env: env, assert: inAssert}
+	return EvalOptions(f, v, env, Options{InAssert: inAssert})
+}
+
+// EvalOptions is Eval with every option.
+func EvalOptions(f *syntax.Filter, v value.Value, env *template.Env, opts Options) (value.Value, error) {
+	c := call{f: f, env: env, assert: opts.InAssert, noCoercion: opts.NoJSONPathCoercion}
 	switch f.Kind {
 	case syntax.FilterBase64Decode:
 		return c.base64Decode(v)
@@ -100,9 +119,10 @@ func Eval(f *syntax.Filter, v value.Value, env *template.Env, inAssert bool) (va
 
 // call is one filter application.
 type call struct {
-	f      *syntax.Filter
-	env    *template.Env
-	assert bool
+	f          *syntax.Filter
+	env        *template.Env
+	assert     bool
+	noCoercion bool
 }
 
 // typeError reports an input of the wrong kind.

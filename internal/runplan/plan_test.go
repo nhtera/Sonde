@@ -316,20 +316,73 @@ func TestConfigFileSecretsAndVariables(t *testing.T) {
 	}
 }
 
-// TestConfigFileLaterFeatures checks that an option sonde does not have
-// yet is an unsupported-option error, not ignored.
+// TestConfigFileLaterFeatures checks that --http1.0, which sonde does not
+// have yet, is an unsupported-option error, not ignored.
 func TestConfigFileLaterFeatures(t *testing.T) {
-	for _, line := range []string{"--fail-with-body", "--no-header Accept", "--no-jsonpath-coercion", "--proxy-header A:b", "--http1.0"} {
-		_, env := writeConfig(t, line+"\n")
-		var ue *UnsupportedError
-		if _, err := New(&Invocation{}, env, "test"); !errors.As(err, &ue) {
-			t.Errorf("%s: %v, want an unsupported-option error", line, err)
-		}
+	_, env := writeConfig(t, "--http1.0\n")
+	var ue *UnsupportedError
+	if _, err := New(&Invocation{}, env, "test"); !errors.As(err, &ue) {
+		t.Errorf("--http1.0: %v, want an unsupported-option error", err)
 	}
 	// A flag choosing another version replaces the file's --http1.0.
-	_, env := writeConfig(t, "--http1.0\n")
 	if _, err := New(&Invocation{HTTP2: true, Set: set("http2")}, env, "test"); err != nil {
 		t.Error(err)
+	}
+}
+
+// TestNewOptions checks the options added by the reference's 8.1.0 from
+// each source: the config file, the environment (lists separated by
+// "|") and the flags, which add to the lists and replace the rest.
+func TestNewOptions(t *testing.T) {
+	path, env := writeConfig(t, "--fail-with-body\n--no-header Accept\n--no-jsonpath-coercion\n--proxy-header A:b\n")
+	p := mustNew(t, &Invocation{}, env)
+	h := p.Options.HTTP
+	if !p.Options.FailWithBody || !p.Options.NoJSONPathCoercion ||
+		!reflect.DeepEqual(h.NoHeaders, []string{"Accept"}) || !reflect.DeepEqual(h.ProxyHeaders, []string{"A:b"}) {
+		t.Errorf("config file: %+v", p.Options)
+	}
+	if want := []Source{
+		{"--fail-with-body", path}, {"--no-header", path}, {"--no-jsonpath-coercion", path}, {"--proxy-header", path},
+	}; !reflect.DeepEqual(p.Provenance, want) {
+		t.Errorf("provenance %v", p.Provenance)
+	}
+
+	env["HURL_FAIL_WITH_BODY"] = "false"
+	env["HURL_NO_HEADER"] = "User-Agent | Cookie"
+	env["HURL_PROXY_HEADER"] = "C: d|E:f"
+	env["HURL_HTTP2_PRIOR_KNOWLEDGE"] = "1"
+	p = mustNew(t, &Invocation{NoHeader: []string{" X "}, ProxyHeader: []string{"G:h"}, NoJSONPathCoercion: false, Set: set("no-jsonpath-coercion")}, env)
+	h = p.Options.HTTP
+	if p.Options.FailWithBody || p.Options.NoJSONPathCoercion {
+		t.Errorf("env/flag booleans: %+v", p.Options)
+	}
+	if want := []string{"Accept", "User-Agent", "Cookie", "X"}; !reflect.DeepEqual(h.NoHeaders, want) {
+		t.Errorf("no-headers %q, want %q", h.NoHeaders, want)
+	}
+	if want := []string{"A:b", "C: d", "E:f", "G:h"}; !reflect.DeepEqual(h.ProxyHeaders, want) {
+		t.Errorf("proxy headers %q, want %q", h.ProxyHeaders, want)
+	}
+	if h.HTTPVersion != engine.HTTP2PriorKnowledge {
+		t.Errorf("version %v", h.HTTPVersion)
+	}
+
+	for _, tt := range []struct {
+		inv  *Invocation
+		env  config.Env
+		want string
+	}{
+		{&Invocation{NoHeader: []string{"foo", ""}}, config.Env{}, "Missing header name"},
+		{&Invocation{}, config.Env{"HURL_NO_HEADER": "foo|"}, "Missing header name (HURL_NO_HEADER environment variable)"},
+		{&Invocation{ProxyHeader: []string{"nocolon"}}, config.Env{}, "Invalid proxy header <nocolon>, missing `:`"},
+		{&Invocation{}, config.Env{"HURL_PROXY_HEADER": "a:b|c"}, "Invalid proxy header <c>, missing `:` (HURL_PROXY_HEADER environment variable)"},
+	} {
+		if _, err := New(tt.inv, tt.env, "test"); err == nil || err.Error() != tt.want {
+			t.Errorf("%+v %v: error %v, want %q", tt.inv, tt.env, err, tt.want)
+		}
+	}
+	p = mustNew(t, &Invocation{HTTP2Prior: true, Set: set("http2-prior-knowledge")}, config.Env{"HURL_HTTP2": "1"})
+	if p.Options.HTTP.HTTPVersion != engine.HTTP2PriorKnowledge {
+		t.Errorf("flag version %v", p.Options.HTTP.HTTPVersion)
 	}
 }
 

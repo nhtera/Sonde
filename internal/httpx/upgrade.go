@@ -75,13 +75,14 @@ func (t *upgradeTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return resp, nil
 }
 
-// Upgrade prepares the WebSocket handshake of spec. The http2 and http3
-// options are ignored, with a warning: an upgrade needs HTTP/1.1.
+// Upgrade prepares the WebSocket handshake of spec. The http2,
+// http2-prior-knowledge and http3 options are ignored, with a warning: an
+// upgrade needs HTTP/1.1.
 func (c *Client) Upgrade(ctx context.Context, spec *RequestSpec, opts *Options) (*Upgrade, error) {
 	o := *opts
 	switch o.HTTPVersion {
-	case HTTP2, HTTP3:
-		c.warnOnce("the WebSocket handshake uses HTTP/1.1: the http2 and http3 options are ignored")
+	case HTTP2, HTTP2PriorKnowledge, HTTP3:
+		c.warnOnce("the WebSocket handshake uses HTTP/1.1: the http2, http2-prior-knowledge and http3 options are ignored")
 	}
 	o.HTTPVersion = HTTP11
 	if err := checkSupported(&o); err != nil {

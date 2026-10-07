@@ -2,8 +2,8 @@
 # Copyright 2026 The Sonde Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Extracts every CLI flag, environment variable and config-file key that a
-# Hurl 8.0.1 source checkout defines, plus the request [Options] section
+# Extracts every CLI flag, environment variable and config-file key that an
+# upstream source checkout (8.0.1 by default) defines, plus the request [Options] section
 # keys (again, this time with usage counts), and writes
 # internal/docs/testdata/cli-inventory.tsv as
 # "kind<TAB>name<TAB>short<TAB>arg<TAB>usage":
@@ -21,32 +21,41 @@
 # Flags and the request-option key list come from Hurl's own option
 # definitions (packages/hurl/src/cli/options/commands.rs,
 # packages/hurl_core/src/parser/option.rs); env vars come from
-# packages/hurl/src/cli/options/context.rs.
+# packages/hurl/src/cli/options/env_vars.rs (context.rs up to 8.0.1).
 #
-# Usage: scripts/gen-cli-inventory.sh [HURL_SRC_DIR]
-# With no argument, sparse-clones tag 8.0.1 into a temp dir cleaned on exit.
+# Usage: scripts/gen-cli-inventory.sh [--ref next] [HURL_SRC_DIR]
+# The default ref is tag 8.0.1, counted against the vendored corpus and
+# written to cli-inventory.tsv. `--ref next` reads the commit pinned in
+# internal/conformance/manifest-next.yaml, counts usage in the snapshot
+# `make conformance-next` syncs to the user cache (or $SONDE_NEXT_CORPUS)
+# and writes cli-inventory-next.tsv. With no HURL_SRC_DIR, the ref is
+# sparse-fetched into a temp dir cleaned on exit.
 set -euo pipefail
 export LC_ALL=C
 
 root="$(git rev-parse --show-toplevel)"
-out="$root/internal/docs/testdata/cli-inventory.tsv"
-corpus_dir="$root/testdata/conformance/hurl"
+. "$root/scripts/inventory-ref.sh"
+parse_inventory_ref "$@"
+out="$root/internal/docs/testdata/cli-inventory${inventory_suffix}.tsv"
+corpus_dir="$inventory_corpus"
 
-src="${1:-}"
+src="$inventory_src"
+work=""
 if [ -z "$src" ]; then
-  tag="8.0.1"
-  repo="https://github.com/Orange-OpenSource/hurl.git"
   work="$(mktemp -d)"
   trap 'rm -rf "$work"' EXIT
-  git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
-    --filter=blob:none --sparse "$repo" "$work/hurl" >&2
-  git -C "$work/hurl" sparse-checkout set --no-cone \
-    '/packages/hurl/src/cli/options/' '/packages/hurl_core/src/parser/option.rs' >&2
+  fetch_inventory_ref "$work/hurl" \
+    '/packages/hurl/src/cli/options/' '/packages/hurl_core/src/parser/option.rs'
   src="$work/hurl"
 fi
 
 commands_rs="$src/packages/hurl/src/cli/options/commands.rs"
+# The file that declares the HURL_* names: context.rs up to 8.0.1, then
+# env_vars.rs.
 context_rs="$src/packages/hurl/src/cli/options/context.rs"
+if ! grep -q 'const HURL_' "$context_rs" 2>/dev/null; then
+  context_rs="$src/packages/hurl/src/cli/options/env_vars.rs"
+fi
 config_rs="$src/packages/hurl/src/cli/options/config_file/mod.rs"
 option_rs="$src/packages/hurl_core/src/parser/option.rs"
 for f in "$commands_rs" "$context_rs" "$config_rs" "$option_rs"; do
@@ -57,7 +66,7 @@ for f in "$commands_rs" "$context_rs" "$config_rs" "$option_rs"; do
 done
 
 work2="$(mktemp -d)"
-trap 'rm -rf "$work2"' EXIT
+trap 'rm -rf "$work2" ${work:+"$work"}' EXIT
 
 # --- flags: one function per clap::Arg in commands.rs. Join each function's
 # body onto a single line, then pull long/short/value_name/boolean out of it.
@@ -78,15 +87,16 @@ done < <(awk '
   END { if (block!="") print block }
 ' "$commands_rs")
 
-# --- env: named HURL_* consts (pub const HURL_X: &str = "HURL_Y";), the two
+# --- env: named HURL_* consts (const HURL_X: &str = "HURL_Y";), the two
 # HURL_SECRET_/HURL_VARIABLE_ prefixes (as the literal patterns
 # "HURL_SECRET_name" / "HURL_VARIABLE_name"), and the non-HURL_-prefixed vars
 # Hurl reads directly (NO_COLOR, CI, TF_BUILD, XDG_CONFIG_HOME) — asserted
 # present in context.rs so source drift fails loudly instead of silently
-# dropping an entry.
+# dropping an entry. (8.0.1 declares them in context.rs, later versions in
+# env_vars.rs.)
 env_raw="$work2/env-raw.tsv"
 : > "$env_raw"
-grep -oE 'pub const HURL_[A-Z0-9_]+: &str = "[A-Z0-9_]+";' "$context_rs" \
+grep -oE '^(pub )?const HURL_[A-Z0-9_]+: &str = "[A-Z0-9_]+";' "$context_rs" \
   | sed -E 's/.*= "([A-Z0-9_]+)";/\1/' \
   | grep -v -E '_$' \
   >> "$env_raw.names" || true
@@ -96,17 +106,18 @@ grep -oE 'pub const HURL_[A-Z0-9_]+: &str = "[A-Z0-9_]+";' "$context_rs" \
 } >> "$env_raw.names"
 for extra in NO_COLOR CI TF_BUILD XDG_CONFIG_HOME; do
   if ! grep -q "\"$extra\"" "$context_rs"; then
-    echo "gen-cli-inventory: expected context.rs to reference \"$extra\"" >&2
+    echo "gen-cli-inventory: expected ${context_rs##*/} to reference \"$extra\"" >&2
     exit 1
   fi
   echo "$extra" >> "$env_raw.names"
 done
 sort -u "$env_raw.names" | sed 's/^/env\t/' | awk -F'\t' '{print $0"\t\t"}' > "$env_raw"
 
-# --- config: top-level match arms in config_file/mod.rs, e.g. `"verbose" => {`.
+# --- config: top-level match arms in config_file/mod.rs, e.g. `"verbose" => {`
+# (8.0.1) or `"verbose" => parse_option_verbose(reader, options),`.
 config_raw="$work2/config-raw.tsv"
-grep -oE '^        "[a-z0-9-]+" => \{$' "$config_rs" \
-  | sed -E 's/^ *"([a-z0-9-]+)".*/config\t\1\t\t/' | sort -u > "$config_raw"
+grep -oE '^        "[a-z0-9.-]+" => (\{$|parse_option_)' "$config_rs" \
+  | sed -E 's/^ *"([a-z0-9.-]+)".*/config\t\1\t\t/' | sort -u > "$config_raw"
 
 # --- options: request [Options] section keys, same extraction as
 # gen-grammar-inventory.sh's "options" kind (kept independent so this script

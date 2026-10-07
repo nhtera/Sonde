@@ -138,8 +138,19 @@ func TestNoCompletionCommand(t *testing.T) {
 	}
 }
 
+// superseded810 rewrites 8.0.1 parser-error oracles into what the
+// reference prints since 8.1.0, which sonde follows.
+var superseded810 = map[string]func(string) string{
+	// 8.1.0 lists two more option names.
+	"tests_error_parser/invalid_option.err": strings.NewReplacer(
+		"http2, http3", "http2, http2-prior-knowledge, http3",
+		"variable, verbose", "variable, variables-file, verbose",
+	).Replace,
+}
+
 // TestCheckMatchesOracle runs `check` on the parser-error suite from the
-// suite directory; stderr must equal the oracle's .err file exactly.
+// suite directory; stderr must equal the oracle's .err file exactly (as
+// 8.1.0 changed it, see superseded810).
 func TestCheckMatchesOracle(t *testing.T) {
 	dir, err := filepath.Abs("../../testdata/conformance/hurl")
 	if err != nil {
@@ -153,6 +164,9 @@ func TestCheckMatchesOracle(t *testing.T) {
 		want, err := os.ReadFile(errFile)
 		if _, statErr := os.Stat(hurlFile); err != nil || statErr != nil {
 			continue // multi-file scenarios are covered by the syntax tests
+		}
+		if rewrite, ok := superseded810[filepath.ToSlash(errFile)]; ok {
+			want = []byte(rewrite(string(want)))
 		}
 		code, _, errOut := runArgs(t, "check", hurlFile)
 		if code != ExitParse {

@@ -21,12 +21,14 @@ const (
 var optionShapes = map[string]int{
 	"aws-sigv4": optString, "cacert": optFilename, "cert": optFilenamePassword,
 	"compressed": optBoolean, "connect-to": optString, "connect-timeout": optDuration,
-	"delay": optDuration, "digest": optBoolean, "insecure": optBoolean, "header": optString,
+	"delay": optDuration, "digest": optBoolean, "fail-with-body": optBoolean, "insecure": optBoolean,
+	"header": optString, "http2-prior-knowledge": optBoolean,
 	"http1.0": optBoolean, "http1.1": optBoolean, "http2": optBoolean, "http3": optBoolean,
 	"ipv4": optBoolean, "ipv6": optBoolean, "key": optFilename, "limit-rate": optNatural,
 	"location": optBoolean, "location-trusted": optBoolean, "max-redirs": optCount,
 	"max-time": optDuration, "negotiate": optBoolean, "netrc": optBoolean,
-	"netrc-file": optString, "netrc-optional": optBoolean, "ntlm": optBoolean,
+	"netrc-file": optString, "netrc-optional": optBoolean, "no-header": optString,
+	"no-jsonpath-coercion": optBoolean, "ntlm": optBoolean,
 	"output": optFilename, "path-as-is": optBoolean, "pinnedpubkey": optString,
 	"proxy": optString, "repeat": optCount, "resolve": optString, "retry": optCount,
 	"retry-interval": optDuration, "skip": optBoolean, "unix-socket": optString,
@@ -161,9 +163,9 @@ func variableDefinition(r *reader) (*VariableDefinition, *Error) {
 	}
 	space1, _ := zeroOrMoreSpaces(r)
 	value, err := choice(r,
-		func(r *reader) (Node, *Error) { return asNode(null(r)) },
-		func(r *reader) (Node, *Error) { return asNode(boolean(r)) },
-		func(r *reader) (Node, *Error) { return asNode(number(r)) },
+		func(r *reader) (Node, *Error) { return wholeValue(r)(asNode(null(r))) },
+		func(r *reader) (Node, *Error) { return wholeValue(r)(asNode(boolean(r))) },
+		func(r *reader) (Node, *Error) { return wholeValue(r)(asNode(number(r))) },
 		func(r *reader) (Node, *Error) { return asNode(quotedTemplate(r)) },
 		func(r *reader) (Node, *Error) { return asNode(unquotedTemplate(r)) },
 	)
@@ -172,4 +174,21 @@ func variableDefinition(r *reader) (*VariableDefinition, *Error) {
 	}
 	return &VariableDefinition{Span: Span{start, r.pos}, Name: name, Space0: space0,
 		Space1: space1, Value: value}, nil
+}
+
+// wholeValue keeps a null, boolean or number variable value only when it
+// spans the whole value: when more characters follow (`11aa`,
+// `true_is_true`), it is the start of an unquoted string, so the error is
+// recoverable and the next alternative is tried.
+func wholeValue(r *reader) func(Node, *Error) (Node, *Error) {
+	return func(n Node, err *Error) (Node, *Error) {
+		if err != nil {
+			return nil, err
+		}
+		switch c, ok := r.peek(); {
+		case !ok, c == ' ', c == '\t', c == '\r', c == '\n', c == '#':
+			return n, nil
+		}
+		return nil, expecting(r.pos, true, "variable value")
+	}
 }

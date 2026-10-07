@@ -23,12 +23,13 @@ func (c call) jsonPath(v value.Value) (value.Value, error) {
 		e.Reason = "value is not a valid JSON"
 		return nil, e
 	}
-	return EvalJSONPath(doc, c.f.Arg.(*syntax.Template), c.env)
+	return EvalJSONPath(doc, c.f.Arg.(*syntax.Template), c.env, !c.noCoercion)
 }
 
-// EvalJSONPath evaluates a JSONPath template on a document. No match gives
-// nil, one match its value, several matches a list.
-func EvalJSONPath(doc value.Value, expr *syntax.Template, env *template.Env) (value.Value, error) {
+// EvalJSONPath evaluates a JSONPath template on a document. With coerce, no
+// match gives nil, one match its value and several matches a list; without,
+// the result is always the list of matches.
+func EvalJSONPath(doc value.Value, expr *syntax.Template, env *template.Env, coerce bool) (value.Value, error) {
 	src, err := env.Render(expr)
 	if err != nil {
 		return nil, err
@@ -39,7 +40,11 @@ func EvalJSONPath(doc value.Value, expr *syntax.Template, env *template.Env) (va
 		e.Value = src
 		return nil, e
 	}
-	v, _ := jsonpath.Unwrap(q.Eval(doc))
+	nodes := q.Eval(doc)
+	if !coerce {
+		return value.List(append([]value.Value{}, nodes...)), nil
+	}
+	v, _ := jsonpath.Unwrap(nodes)
 	return v, nil
 }
 

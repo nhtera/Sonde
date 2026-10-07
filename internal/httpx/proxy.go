@@ -49,6 +49,26 @@ func proxyFunc(proxyURL *url.URL, noProxy string) func(*http.Request) (*url.URL,
 	}
 }
 
+// httpProxyFor returns the HTTP proxy that receives a request to u itself
+// (not a tunnel), nil for none: --proxy or the environment's proxy for u,
+// when its scheme is http or https.
+func httpProxyFor(opts *Options, u *url.URL) *url.URL {
+	var p *url.URL
+	if opts.Proxy != "" {
+		parsed, err := parseProxyURL(opts.Proxy)
+		if err != nil || (opts.NoProxy != "" && noProxyMatch(u.Hostname(), opts.NoProxy)) {
+			return nil
+		}
+		p = parsed
+	} else {
+		p = environmentProxy(u, opts.NoProxy)
+	}
+	if p == nil || (p.Scheme != "http" && p.Scheme != "https") {
+		return nil
+	}
+	return p
+}
+
 // environmentProxy returns the proxy the http_proxy, https_proxy and
 // no_proxy environment variables (or their uppercase forms) give for u,
 // nil for none; hosts matching noProxy are never proxied.

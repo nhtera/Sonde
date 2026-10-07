@@ -104,7 +104,7 @@ Request `[Options]` section keys.
 | Option | Status | Phase | Description |
 |---|---|---|---|
 {{ range .Options -}}
-| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }}{{ if .Since }} (new in {{ .Since }}){{ end }} |
 {{ end }}
 ## Sonde extensions
 
@@ -140,7 +140,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | Flag | Short | Status | Phase | Hurl test usage | Description |
 |---|---|---|---|---|---|
 {{ range .Flags -}}
-| `{{ .Name }}` | {{ if .Short }}`{{ .Short }}`{{ end }} | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+| `{{ .Name }}` | {{ if .Short }}`{{ .Short }}`{{ end }} | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }}{{ if .Since }} (new in {{ .Since }}){{ end }} |
 {{ end }}
 ## Environment variables
 
@@ -150,7 +150,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | Variable | Status | Phase | Hurl test usage | Description |
 |---|---|---|---|---|
 {{ range .Env -}}
-| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }}{{ if .Since }} (new in {{ .Since }}){{ end }} |
 {{ end }}
 ## Config file
 
@@ -166,5 +166,5 @@ app read the same file.
 | Key | Status | Phase | Description |
 |---|---|---|---|
 {{ range .Config -}}
-| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }}{{ if .Since }} (new in {{ .Since }}){{ end }} |
 {{ end }}

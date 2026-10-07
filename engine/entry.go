@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -109,6 +110,7 @@ func (u *unit) runEntry(ctx context.Context, e *syntax.Entry, index int, eo *ent
 		}
 	}
 	qctx := query.NewContext(responses, u.env)
+	qctx.NoJSONPathCoercion = eo.noJSONPathCoercion
 	if resp != nil {
 		caps, secret, err := u.captures(resp, qctx)
 		res.Captures = caps
@@ -200,7 +202,7 @@ func (u *unit) captures(r *syntax.Response, qctx *query.Context) (caps []Capture
 			return caps, secret, runerr.New(c.Query.Span, runerr.NoQueryResult, false)
 		}
 		if len(c.Filters) > 0 {
-			if v, err = filter.Apply(c.Filters, v, u.env, false); err != nil {
+			if v, err = filter.ApplyOptions(c.Filters, v, u.env, filter.Options{NoJSONPathCoercion: qctx.NoJSONPathCoercion}); err != nil {
 				return caps, secret, asRunErr(err, c.Query.Span)
 			}
 			if v == nil {
@@ -255,7 +257,7 @@ func (u *unit) explicitAssert(a *syntax.Assert, qctx *query.Context) error {
 		if v == nil {
 			return runerr.New(a.Filters[0].Filter.Span, runerr.FilterMissingInput, true)
 		}
-		if v, err = filter.Apply(a.Filters, v, u.env, true); err != nil {
+		if v, err = filter.ApplyOptions(a.Filters, v, u.env, filter.Options{InAssert: true, NoJSONPathCoercion: qctx.NoJSONPathCoercion}); err != nil {
 			return err
 		}
 	}
@@ -496,7 +498,7 @@ func (u *unit) logResponses(calls []Call) {
 			u.log(LogRequest, h.Name+": "+h.Value)
 		}
 		u.log(LogRequest, "")
-		u.debugImportant(fmt.Sprintf("Response: (received %d bytes in %d ms)", len(c.Response.Body), c.Timings.Total.Milliseconds()))
+		u.debugImportant("Response:")
 		u.debug("")
 		status := fmt.Sprintf("%s %d", c.Response.Version, c.Response.Status)
 		if c.Response.Reason != "" {
@@ -507,6 +509,7 @@ func (u *unit) logResponses(calls []Call) {
 			u.log(LogResponse, h.Name+": "+h.Value)
 		}
 		u.log(LogResponse, "")
+		u.debug(fmt.Sprintf("Received %d bytes in %d ms", len(c.Response.Body), c.Timings.Total.Milliseconds()))
 	}
 }
 
@@ -520,48 +523,69 @@ func (u *unit) logCaptures(caps []Capture) {
 	}
 }
 
-// writeOutput writes the last response of a successful entry to its
-// `output` target.
-func (u *unit) writeOutput(res *EntryResult, eo *entryOptions) {
+// writeFailedBody writes the body of a failed entry (fail-with-body) to
+// its `output`, else standard output, which then gets a final newline
+// (unless the body ends with one) so that the errors start on their own
+// line.
+func (u *unit) writeFailedBody(res *EntryResult, eo *entryOptions) {
+	out := eo.output
+	if out == nil {
+		out = &outputTarget{name: "-"}
+	}
+	_ = u.writeOutput(res, out, true) // an error is added to res, which the caller logs
+}
+
+// writeOutput writes the final response body of res to out; failed adds
+// the final newline of writeFailedBody. An error is added to res and
+// returned, for the caller to log.
+func (u *unit) writeOutput(res *EntryResult, out *outputTarget, failed bool) *runerr.Error {
 	if len(res.Calls) == 0 {
-		return
+		return nil
 	}
 	resp := res.Calls[len(res.Calls)-1].Response
+	newline := failed && out.name == "-" && !bytes.HasSuffix(resp.Body, []byte("\n"))
 	body := resp.Body
 	if res.Compressed {
 		var err error
 		if body, err = resp.DecodedBody(); err != nil {
-			re := runerr.New(eo.output.span, runerr.HTTP, false)
+			re := runerr.New(out.span, runerr.HTTP, false)
 			var be *exchange.BodyError
 			if errors.As(err, &be) {
 				re.Value, re.Reason = be.Description(), be.Message()
 			}
 			res.Errors = append(res.Errors, &Error{run: re})
-			u.logError(LogError, re, res.Line)
-			return
+			if newline && u.io.stdout != nil {
+				_, _ = u.io.stdout.Write([]byte("\n"))
+			}
+			return re
 		}
 	}
-	if eo.output.name == "-" {
+	if out.name == "-" {
 		if u.io.stdout != nil {
 			if render := u.runner.opt.StdoutBody; render != nil {
 				body = render(resp, body)
 			}
+			if newline {
+				// One write, so that a shared stdout keeps them together.
+				body = append(body[:len(body):len(body)], '\n')
+			}
 			_, _ = u.io.stdout.Write(body)
 		}
-		return
+		return nil
 	}
-	if err := u.root.WriteFile(eo.output.name, body); err != nil {
+	if err := u.root.WriteFile(out.name, body); err != nil {
 		kind := runerr.FileWriteAccess
 		if errors.Is(err, sandbox.ErrDenied) {
 			kind = runerr.UnauthorizedFileAccess
 		}
-		re := runerr.New(eo.output.span, kind, false)
-		re.Value, re.Reason = eo.output.name, err.Error()
+		re := runerr.New(out.span, kind, false)
+		re.Value, re.Reason = out.name, err.Error()
 		var pe *fs.PathError
 		if kind == runerr.FileWriteAccess && errors.As(err, &pe) {
-			re.Value, re.Reason = u.resolvedPath(eo.output.name), pe.Err.Error()
+			re.Value, re.Reason = u.resolvedPath(out.name), pe.Err.Error()
 		}
 		res.Errors = append(res.Errors, &Error{run: re})
-		u.logError(LogError, re, res.Line)
+		return re
 	}
+	return nil
 }

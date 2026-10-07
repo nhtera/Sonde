@@ -202,7 +202,8 @@ hurl/tests_failed/assert_template/assert_template_variable_not_found.sh:
   expect: pass
 hurl/tests_failed/assert_value_error/assert_value_error.sh:
   lane: blocking
-  expect: pass
+  expect: fail
+  reason: 'superseded by 8.1.0: a failed != reads ''expected: not <value>'' (covered by internal/predicate TestEquality)'
 hurl/tests_failed/assert_variable/assert_variable.sh:
   lane: blocking
   expect: pass

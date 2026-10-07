@@ -245,7 +245,8 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 	}
 	headers = append(headers, custom...)
 	multipartType := ""
-	if !hasHeader(custom, "Content-Type") && strings.HasPrefix(body.contentType, "multipart/") {
+	if !hasHeader(custom, "Content-Type") && strings.HasPrefix(body.contentType, "multipart/") &&
+		len(filterHeaders([]exchange.Header{{Name: "Content-Type"}}, opts.NoHeaders...)) > 0 {
 		// Sent after Content-Length, as curl does for its own form bodies.
 		multipartType, body.contentType = body.contentType, ""
 	}
@@ -272,6 +273,8 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 	if opts.Compressed && !hasHeader(custom, "Accept-Encoding") {
 		headers = append(headers, exchange.Header{Name: "Accept-Encoding", Value: "gzip, deflate, br"})
 	}
+	// no-header drops any header of that name, an implicit one included.
+	headers = filterHeaders(headers, opts.NoHeaders...)
 
 	method := spec.Method
 	if method == "" {
@@ -292,6 +295,10 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 	}
 	for _, h := range headers {
 		req.Header.Add(h.Name, h.Value)
+	}
+	if !hasHeader(headers, "User-Agent") {
+		// A present but empty entry stops net/http from sending its own.
+		req.Header["User-Agent"] = nil
 	}
 	if v := req.Header.Get("Host"); v != "" {
 		req.Host = v

@@ -110,7 +110,12 @@ func TestEquality(t *testing.T) {
 		{"== 123456789012345678901234567890", nil, false, "none", "number <123456789012345678901234567890>", false},
 		{"== {{list}}", value.List{value.Float(1)}, true, "", "", false},
 		{"!= 10", value.Int(1), true, "", "", false},
-		{"!= 10", value.Int(10), false, "integer <10>", "integer <10>", false},
+		// `!=` and `not` each negate; the expected value says "not"
+		// when exactly one applies.
+		{"!= 10", value.Int(10), false, "integer <10>", "not integer <10>", false},
+		{"not == 1", value.Int(1), false, "integer <1>", "not integer <1>", false},
+		{"not != 0", value.Int(1), false, "integer <1>", "integer <0>", false},
+		{`not != "Hello"`, value.Int(1), false, "integer <1>", "string <Hello>", false},
 		{"not == 10", value.Int(10), false, "integer <10>", "not integer <10>", false},
 		{"not == 10", value.Int(1), true, "", "", false},
 		{"not == 10", nil, true, "", "", false},

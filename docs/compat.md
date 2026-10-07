@@ -32,7 +32,6 @@ Differences on inputs outside the test tree:
 | XML body with DTD-declared entities | accepted (libxml2) | rejected: `invalid XML` |
 | XML body with text or a comment before the root element | rejected | accepted |
 | XML error position | character where libxml2 failed | last character read by Go's `encoding/xml` (same in all test files) |
-| JSON nested deeper than 1000 levels | stack overflow | rejected: `nesting is deeper than 1000 levels` |
 | File larger than 64 MiB | accepted | rejected: `Issue reading from FILE: file is larger than 64 MiB` |
 
 Accepted as Hurl does: text after a placeholder's variable inside a string,
@@ -216,10 +215,12 @@ Request `[Options]` section keys.
 | `connect-to` | supported |  | redirects connections for HOST1:PORT1 to HOST2:PORT2 |
 | `delay` | supported |  | sleep before sending this entry's request |
 | `digest` | unsupported |  | uses HTTP Digest authentication (HTTP Digest authentication not implemented (low conformance weight)) |
+| `fail-with-body` | supported |  | writes the response body of the entry when it fails, before its errors (new in 8.1.0) |
 | `header` | supported |  | adds a custom header to the request |
 | `http1.0` | unsupported |  | forces HTTP/1.0 (Go's net/http cannot send a literal HTTP/1.0 request (Request.Proto is ignored)) |
 | `http1.1` | supported |  | forces HTTP/1.1 |
 | `http2` | supported |  | forces HTTP/2 |
+| `http2-prior-knowledge` | supported |  | uses HTTP/2 without an HTTP/1.1 upgrade (cleartext HTTP/2 for http://) (new in 8.1.0) |
 | `http3` | unsupported |  | forces HTTP/3 (HTTP/3 transport not implemented yet) |
 | `insecure` | supported |  | skips TLS certificate verification |
 | `ipv4` | supported |  | resolves hostnames to IPv4 addresses only |
@@ -234,6 +235,8 @@ Request `[Options]` section keys.
 | `netrc` | supported |  | reads credentials from ~/.netrc, failing if absent |
 | `netrc-file` | supported |  | reads credentials from the given netrc-format file |
 | `netrc-optional` | supported |  | reads credentials from ~/.netrc if present, else the URL |
+| `no-header` | supported |  | removes a header sent to the server, a default one included (repeatable) (new in 8.1.0) |
+| `no-jsonpath-coercion` | supported |  | keeps jsonpath results a list of matches (new in 8.1.0) |
 | `ntlm` | unsupported |  | uses NTLM authentication (NTLM authentication not implemented (low conformance weight)) |
 | `output` | supported |  | writes the response body to a file instead of stdout |
 | `path-as-is` | supported |  | sends the URL path without normalizing /../ or /./ |
@@ -297,6 +300,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--delay` |  | supported |  | 2 | sleep before each request |
 | `--digest` |  | unsupported |  | 1 | uses HTTP Digest authentication (HTTP Digest authentication not implemented (low conformance weight)) |
 | `--error-format` |  | supported |  | 3 | controls how error messages are rendered (short or long) |
+| `--fail-with-body` |  | supported |  | 5 | writes the response body of a failed entry before its errors (new in 8.1.0) |
 | `--file-root` |  | supported |  | 5 | sets the root directory used to resolve file paths |
 | `--from-entry` |  | supported |  | 2 | starts execution at the given entry number |
 | `--glob` |  | supported | 5 | 6 | adds input files matching the given glob pattern |
@@ -304,6 +308,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--http1.0` | `-0` | unsupported |  | 1 | forces HTTP/1.0 (Go's net/http cannot send a literal HTTP/1.0 request (Request.Proto is ignored)) |
 | `--http1.1` |  | supported |  | 1 | forces HTTP/1.1 |
 | `--http2` |  | supported |  | 0 | forces HTTP/2 |
+| `--http2-prior-knowledge` |  | supported |  | 0 | uses HTTP/2 without an HTTP/1.1 upgrade (cleartext HTTP/2 for http://) (new in 8.1.0) |
 | `--http3` |  | unsupported |  | 1 | forces HTTP/3 (HTTP/3 transport not implemented yet) |
 | `--include` | `-i` | supported |  | 6 | includes the response headers in the output |
 | `--insecure` | `-k` | supported |  | 1 | skips TLS certificate verification |
@@ -325,6 +330,8 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--no-assert` |  | supported |  | 1 | ignores asserts defined in the file |
 | `--no-color` |  | supported |  | 8 | disables colorized output |
 | `--no-cookie-store` |  | supported |  | 2 | disables the cookie store between requests |
+| `--no-header` |  | supported |  | 4 | removes a header sent to the server, a default one included (repeatable) (new in 8.1.0) |
+| `--no-jsonpath-coercion` |  | supported |  | 1 | keeps jsonpath results a list of matches (new in 8.1.0) |
 | `--no-output` |  | supported |  | 18 | suppresses the default last-response-body output |
 | `--no-pretty` |  | supported |  | 1 | disables pretty-printing of response output |
 | `--no-proxy` |  | supported |  | 0 | lists hosts that bypass the proxy |
@@ -336,6 +343,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--pretty` |  | supported |  | 4 | pretty-prints JSON response output |
 | `--progress-bar` |  | supported | 5 | 2 | shows a progress bar in test mode |
 | `--proxy` | `-x` | supported |  | 4 | routes the request through the given proxy |
+| `--proxy-header` |  | supported |  | 2 | adds a header sent to the proxy only (repeatable) (new in 8.1.0) |
 | `--repeat` |  | supported |  | 4 | repeats the input file sequence N times, -1 for infinite |
 | `--report-html` |  | supported | 5 | 6 | writes an HTML report to DIR |
 | `--report-json` |  | supported | 5 | 5 | writes a JSON report to DIR |
@@ -372,10 +380,12 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `HURL_CONTINUE_ON_ERROR` | supported |  | 1 | same as --continue-on-error |
 | `HURL_DELAY` | supported |  | 2 | same as --delay |
 | `HURL_ERROR_FORMAT` | supported |  | 1 | same as --error-format |
+| `HURL_FAIL_WITH_BODY` | supported |  | 1 | same as --fail-with-body (new in 8.1.0) |
 | `HURL_HEADER` | supported |  | 1 | adds one or more `|`-separated custom headers |
 | `HURL_HTTP10` | unsupported |  | 1 | same as --http1.0 (mirrors --http1.0; Go's net/http cannot send a literal HTTP/1.0 request) |
 | `HURL_HTTP11` | supported |  | 1 | same as --http1.1 |
 | `HURL_HTTP2` | supported |  | 0 | same as --http2 |
+| `HURL_HTTP2_PRIOR_KNOWLEDGE` | supported |  | 0 | same as --http2-prior-knowledge when truthy, --http1.1 when falsy (new in 8.1.0) |
 | `HURL_HTTP3` | unsupported |  | 0 | same as --http3 (HTTP/3 transport not implemented yet) |
 | `HURL_INSECURE` | supported |  | 1 | same as --insecure |
 | `HURL_IPV4` | supported |  | 1 | same as --ipv4 |
@@ -390,9 +400,14 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `HURL_NO_ASSERT` | supported |  | 1 | same as --no-assert |
 | `HURL_NO_COLOR` | supported |  | 6 | same as --no-color |
 | `HURL_NO_COOKIE_STORE` | supported |  | 1 | same as --no-cookie-store |
+| `HURL_NO_HEADER` | supported |  | 2 | same as --no-header; several names separated by a vertical bar (new in 8.1.0) |
+| `HURL_NO_JSONPATH_COERCION` | supported |  | 1 | same as --no-jsonpath-coercion (new in 8.1.0) |
 | `HURL_NO_OUTPUT` | supported |  | 1 | same as --no-output |
 | `HURL_NO_PRETTY` | supported |  | 0 | same as --no-pretty |
+| `HURL_PARALLEL` | supported |  | 0 | same as --parallel (new in 8.1.0) |
 | `HURL_PRETTY` | supported |  | 1 | same as --pretty |
+| `HURL_PROGRESS_BAR` | supported |  | 0 | same as --progress-bar when truthy; falsy never shows the bar (new in 8.1.0) |
+| `HURL_PROXY_HEADER` | supported |  | 4 | same as --proxy-header; several headers separated by a vertical bar (new in 8.1.0) |
 | `HURL_RETRY` | supported |  | 1 | same as --retry |
 | `HURL_RETRY_INTERVAL` | supported |  | 1 | same as --retry-interval |
 | `HURL_SECRET_name` | supported |  | 3 | defines a secret variable named `name` from its value |
@@ -426,7 +441,7 @@ app read the same file.
 | `continue-on-error` | supported |  | keeps running remaining files after a failure |
 | `delay` | supported |  | sleep before each request (milliseconds when no unit is given) |
 | `error-format` | supported |  | controls how error messages are rendered (short or long) |
-| `fail-with-body` | unsupported |  | writes the response body of a failed entry (the option itself is not implemented yet; the key is read and the run stops with an unsupported-option error) |
+| `fail-with-body` | supported |  | writes the response body of a failed entry |
 | `header` | supported |  | adds a custom header to every request (repeatable) |
 | `http1.0` | unsupported |  | forces HTTP/1.0 (Go's net/http cannot send a literal HTTP/1.0 request; a run that resolves to it stops with an unsupported-option error) |
 | `http1.1` | supported |  | forces HTTP/1.1 |
@@ -444,15 +459,15 @@ app read the same file.
 | `no-assert` | supported |  | ignores asserts defined in the file |
 | `no-color` | supported |  | disables colorized output |
 | `no-cookie-store` | supported |  | disables the cookie store between requests |
-| `no-header` | unsupported |  | removes a header from every request (repeatable) (the option itself is not implemented yet; the key is read and the run stops with an unsupported-option error) |
-| `no-jsonpath-coercion` | unsupported |  | keeps JSONPath results uncoerced (the option itself is not implemented yet; the key is read and the run stops with an unsupported-option error) |
+| `no-header` | supported |  | removes a header from every request (repeatable) |
+| `no-jsonpath-coercion` | supported |  | keeps JSONPath results uncoerced |
 | `no-output` | supported |  | suppresses the default last-response-body output |
 | `no-pretty` | supported |  | disables pretty-printing of response output |
 | `no-progress-bar` | supported |  | never shows the test progress bar |
 | `no-proxy` | supported |  | lists hosts that bypass the proxy |
 | `pretty` | supported |  | pretty-prints JSON response output |
 | `proxy` | supported |  | routes the request through the given proxy |
-| `proxy-header` | unsupported |  | adds a header sent to the proxy only (repeatable) (the option itself is not implemented yet; the key is read and the run stops with an unsupported-option error) |
+| `proxy-header` | supported |  | adds a header sent to the proxy only (repeatable) |
 | `retry` | supported |  | maximum retries on entry error, -1 for unlimited |
 | `retry-interval` | supported |  | delay between retries (milliseconds when no unit is given) |
 | `secret` | supported |  | defines a secret (NAME=VALUE); the name cannot be given again by another source |

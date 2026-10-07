@@ -5,6 +5,7 @@ package syntax
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -271,6 +272,20 @@ very-verbose: false`
 			t.Errorf("verbosity %+v", v)
 		}
 	})
+	t.Run("variable values with a literal prefix", func(t *testing.T) {
+		// null, a boolean or a number is a typed value only when it is the
+		// whole value; `11aa` is a string.
+		for src, want := range map[string]string{
+			"11aa": "*syntax.Template", "0.5x": "*syntax.Template", "true_is_true": "*syntax.Template",
+			"nullable": "*syntax.Template", "12": "*syntax.Number", "true # c": "*syntax.Boolean", "null": "*syntax.Null",
+		} {
+			f := mustParse(t, "GET http://a\n[Options]\nvariable: a="+src+"\n")
+			v := f.Entries[0].Request.Sections[0].Options[0].Value.(*VariableDefinition).Value
+			if got := fmt.Sprintf("%T", v); got != want {
+				t.Errorf("a=%s: %s, want %s", src, got, want)
+			}
+		}
+	})
 	t.Run("bodies", func(t *testing.T) {
 		for _, body := range []string{
 			`{"a": [1, -2.5e+3, true, null, {{v}}, "s{{w}}", "\u00e9\ud83d\ude00\"\\\/\b\f\n\r\t"], "e": {}, "l": [ ]}`,
@@ -369,7 +384,8 @@ func TestParseErrors(t *testing.T) {
 		{"POST http://a\n```\nunterminated\n", ErrExpecting, 4, 1},
 		{"GET http://a\nHTTP 200\nnot a header\n", ErrMethod, 3, 1},
 		{"GET http://a\n\xff\n", ErrInvalidUTF8, 2, 1},
-		{"GET http://a\n" + strings.Repeat("[", maxJSONDepth+1), ErrNestingTooDeep, 2, maxJSONDepth + 2},
+		{"GET http://a\n" + strings.Repeat("[", maxJSONDepth+1), ErrNestingTooDeep, 2, maxJSONDepth + 1},
+		{"GET http://a\n" + strings.Repeat(`{"a":`, maxJSONDepth) + "{", ErrNestingTooDeep, 2, 5*maxJSONDepth + 1},
 	}
 	for _, tt := range tests {
 		_, err := Parse("t.hurl", []byte(tt.src), DialectHurl)

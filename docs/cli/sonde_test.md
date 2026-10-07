@@ -28,6 +28,7 @@ sonde test [options] FILE|DIR...
       --digest                       uses HTTP Digest authentication (not supported by sonde)
       --env string                   selects a sonde.yaml environment by name
       --error-format string          controls how error messages are rendered (short or long)
+      --fail-with-body               writes the response body of a failed entry before its errors
       --file-root string             sets the root directory used to resolve file paths
       --from-entry int               starts execution at the given entry number
       --glob stringArray             adds input files matching the given glob pattern
@@ -35,6 +36,7 @@ sonde test [options] FILE|DIR...
   -0, --http1.0                      forces HTTP/1.0 (not supported by sonde)
       --http1.1                      forces HTTP/1.1
       --http2                        forces HTTP/2
+      --http2-prior-knowledge        uses HTTP/2 without an HTTP/1.1 upgrade
       --http3                        forces HTTP/3
   -i, --include                      includes the response headers in the output
   -k, --insecure                     skips TLS certificate verification
@@ -55,6 +57,8 @@ sonde test [options] FILE|DIR...
       --netrc-optional               reads credentials from ~/.netrc if present, else the URL
       --no-assert                    ignores asserts defined in the file
       --no-cookie-store              disables the cookie store between requests
+      --no-header stringArray        removes a header sent to the server, a default one included
+      --no-jsonpath-coercion         keeps jsonpath results a list of matches
       --no-output                    suppresses the default last-response-body output
       --no-pretty                    disables pretty-printing of response output
       --no-proxy string              lists hosts that bypass the proxy
@@ -70,6 +74,7 @@ sonde test [options] FILE|DIR...
       --pretty                       pretty-prints JSON response output
       --progress-bar                 shows a progress bar in test mode
   -x, --proxy string                 routes the request through the given proxy
+      --proxy-header stringArray     adds a header sent to the proxy only
       --repeat string                repeats the input file sequence N times, -1 for infinite
       --report-html string           writes an HTML report to DIR
       --report-json string           writes a JSON report to DIR

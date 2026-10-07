@@ -142,6 +142,8 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 	}
 	noAssert := ResolveBoolOr(inv, "no-assert", "NO_ASSERT", inv.NoAssert, env, fileCfg.NoAssert)
 	continueOnError := ResolveBoolOr(inv, "continue-on-error", "CONTINUE_ON_ERROR", inv.ContinueOnError, env, fileCfg.ContinueOnError)
+	failWithBody := ResolveBoolOr(inv, "fail-with-body", "FAIL_WITH_BODY", inv.FailWithBody, env, fileCfg.FailWithBody)
+	noCoercion := ResolveBoolOr(inv, "no-jsonpath-coercion", "NO_JSONPATH_COERCION", inv.NoJSONPathCoercion, env, fileCfg.NoJSONPathCoercion)
 	noCookieStore := ResolveBoolOr(inv, "no-cookie-store", "NO_COOKIE_STORE", inv.NoCookieStore, env, fileCfg.NoCookieStore)
 
 	p.Repeat, err = resolveCount(inv, "repeat", "REPEAT", inv.Repeat, env, 1, "NUM")
@@ -159,11 +161,6 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 		{"negotiate", inv.Negotiate},
 		{"ntlm", inv.NTLM},
 		{"ssl-no-revoke", inv.SSLNoRevoke},
-		// Config file options whose feature sonde does not have yet.
-		{"fail-with-body", fileCfg.FailWithBody},
-		{"no-header", len(fileCfg.NoHeaders) > 0},
-		{"no-jsonpath-coercion", fileCfg.NoJSONPathCoercion},
-		{"proxy-header", len(fileCfg.ProxyHeaders) > 0},
 	} {
 		if unsupported.enabled {
 			return nil, &UnsupportedError{Name: unsupported.name}
@@ -171,20 +168,22 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 	}
 
 	p.Options = engine.Options{
-		Variables:       engineVars,
-		Secrets:         secrets,
-		FileRoot:        inv.FileRoot,
-		HTTP:            http,
-		CookieFile:      inv.Cookie,
-		NoCookieStore:   noCookieStore,
-		Retry:           retry,
-		RetryInterval:   retryInterval,
-		Delay:           delay,
-		FromEntry:       inv.FromEntry,
-		ToEntry:         inv.ToEntry,
-		NoAssert:        noAssert,
-		ContinueOnError: continueOnError,
-		Verbosity:       verbosity,
+		Variables:          engineVars,
+		Secrets:            secrets,
+		FileRoot:           inv.FileRoot,
+		HTTP:               http,
+		CookieFile:         inv.Cookie,
+		NoCookieStore:      noCookieStore,
+		Retry:              retry,
+		RetryInterval:      retryInterval,
+		Delay:              delay,
+		FromEntry:          inv.FromEntry,
+		ToEntry:            inv.ToEntry,
+		NoAssert:           noAssert,
+		ContinueOnError:    continueOnError,
+		FailWithBody:       failWithBody,
+		NoJSONPathCoercion: noCoercion,
+		Verbosity:          verbosity,
 		// The default User-Agent; SONDE_DEFAULT_USER_AGENT replaces it
 		// (the conformance shim presents the reference tool's default).
 		// -A and user-agent still win.
@@ -304,6 +303,13 @@ func buildHTTPOptions(inv *Invocation, env config.Env, fileCfg config.FileOption
 		return h, err
 	}
 	h.Headers = append(h.Headers, inv.Header...)
+	var err error
+	if h.NoHeaders, err = resolveNoHeaders(inv, env, fileCfg); err != nil {
+		return h, err
+	}
+	if h.ProxyHeaders, err = resolveProxyHeaders(inv, env, fileCfg); err != nil {
+		return h, err
+	}
 
 	location, locationTrusted, err := resolveFollowLocation(inv, env, fileCfg)
 	if err != nil {
@@ -339,6 +345,43 @@ func buildHTTPOptions(inv *Invocation, env config.Env, fileCfg config.FileOption
 		return h, err
 	}
 	return h, nil
+}
+
+// resolveNoHeaders adds up the header names to remove from the config
+// file, the environment and --no-header; each is trimmed and must not be
+// empty.
+func resolveNoHeaders(inv *Invocation, env config.Env, fileCfg config.FileOptions) ([]string, error) {
+	names := slices.Clone(fileCfg.NoHeaders)
+	envNames, _, err := env.NoHeaders()
+	if err != nil {
+		return nil, err
+	}
+	names = append(names, envNames...)
+	for _, name := range inv.NoHeader {
+		if name = strings.TrimSpace(name); name == "" {
+			return nil, errors.New("Missing header name") //nolint:staticcheck,revive // kept for CLI message-format compatibility
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
+// resolveProxyHeaders adds up the proxy headers from the config file, the
+// environment and --proxy-header.
+func resolveProxyHeaders(inv *Invocation, env config.Env, fileCfg config.FileOptions) ([]string, error) {
+	headers := slices.Clone(fileCfg.ProxyHeaders)
+	envHeaders, _, err := env.ProxyHeaders()
+	if err != nil {
+		return nil, err
+	}
+	headers = append(headers, envHeaders...)
+	headers = append(headers, inv.ProxyHeader...)
+	for _, h := range headers {
+		if !strings.Contains(h, ":") {
+			return nil, fmt.Errorf("Invalid proxy header <%s>, missing `:`", h) //nolint:staticcheck,revive // kept for CLI message-format compatibility
+		}
+	}
+	return headers, nil
 }
 
 func resolveFollowLocation(inv *Invocation, env config.Env, fileCfg config.FileOptions) (location, locationTrusted bool, err error) {
@@ -384,6 +427,8 @@ func resolveHTTPVersion(inv *Invocation, env config.Env, fileVersion string) (en
 	switch {
 	case inv.Changed("http3") && inv.HTTP3:
 		return engine.HTTP3, nil
+	case inv.Changed("http2-prior-knowledge") && inv.HTTP2Prior:
+		return engine.HTTP2PriorKnowledge, nil
 	case inv.Changed("http2") && inv.HTTP2:
 		return engine.HTTP2, nil
 	case inv.Changed("http1.1") && inv.HTTP11:
@@ -398,6 +443,8 @@ func resolveHTTPVersion(inv *Invocation, env config.Env, fileVersion string) (en
 	switch v {
 	case "3":
 		return engine.HTTP3, nil
+	case "2-prior-knowledge":
+		return engine.HTTP2PriorKnowledge, nil
 	case "2":
 		return engine.HTTP2, nil
 	case "1.1":
@@ -438,7 +485,8 @@ var envSettings = []struct{ flag, env string }{
 	{"connect-timeout", "CONNECT_TIMEOUT"}, {"max-time", "MAX_TIME"}, {"max-redirs", "MAX_REDIRS"},
 	{"max-filesize", "MAX_FILESIZE"}, {"limit-rate", "LIMIT_RATE"},
 	{"ipv4", "IPV4"}, {"ipv6", "IPV6"},
-	{"http1.0", "HTTP10"}, {"http1.1", "HTTP11"}, {"http2", "HTTP2"}, {"http3", "HTTP3"},
+	{"http1.0", "HTTP10"}, {"http1.1", "HTTP11"}, {"http2", "HTTP2"}, {"http2-prior-knowledge", "HTTP2_PRIOR_KNOWLEDGE"},
+	{"http3", "HTTP3"}, {"fail-with-body", "FAIL_WITH_BODY"}, {"no-jsonpath-coercion", "NO_JSONPATH_COERCION"},
 	{"verbosity", "VERBOSITY"}, {"delay", "DELAY"}, {"retry", "RETRY"}, {"retry-interval", "RETRY_INTERVAL"},
 	{"no-assert", "NO_ASSERT"}, {"continue-on-error", "CONTINUE_ON_ERROR"}, {"no-cookie-store", "NO_COOKIE_STORE"},
 	{"repeat", "REPEAT"}, {"parallel", "PARALLEL"}, {"test", "TEST"}, {"jobs", "JOBS"},
@@ -456,8 +504,10 @@ func provenance(inv *Invocation, env config.Env, fileCfg config.FileOptions) []S
 			out = append(out, Source{Setting: "--" + s.flag, Origin: key})
 		}
 	}
-	if _, key, ok := env.Lookup("HEADER"); ok {
-		out = append(out, Source{Setting: "--header", Origin: key})
+	for _, list := range []struct{ flag, env string }{{"header", "HEADER"}, {"no-header", "NO_HEADER"}, {"proxy-header", "PROXY_HEADER"}} {
+		if _, key, ok := env.Lookup(list.env); ok {
+			out = append(out, Source{Setting: "--" + list.flag, Origin: key})
+		}
 	}
 	out = append(out, fileProvenance(inv, env, fileCfg)...)
 	// A variable or secret the environment defines, unless a variables
@@ -494,8 +544,8 @@ var fileOverrides = map[string]struct{ flags, envs []string }{
 var (
 	verbosityFlags   = []string{"verbose", "very-verbose", "verbosity"}
 	verbosityEnvs    = []string{"VERBOSE", "VERY_VERBOSE", "VERBOSITY"}
-	httpVersionFlags = []string{"http1.0", "http1.1", "http2", "http3"}
-	httpVersionEnvs  = []string{"HTTP10", "HTTP11", "HTTP2", "HTTP3"}
+	httpVersionFlags = []string{"http1.0", "http1.1", "http2", "http2-prior-knowledge", "http3"}
+	httpVersionEnvs  = []string{"HTTP10", "HTTP11", "HTTP2", "HTTP2_PRIOR_KNOWLEDGE", "HTTP3"}
 )
 
 // fileProvenance lists the settings the config file sets that no flag or
@@ -604,6 +654,7 @@ var fileFlags = map[string]bool{
 	"color": true, "compressed": true, "continue-on-error": true, "insecure": true,
 	"location": true, "location-trusted": true, "no-assert": true, "no-color": true,
 	"no-cookie-store": true, "no-pretty": true, "pretty": true, "test": true,
+	"fail-with-body": true, "no-jsonpath-coercion": true,
 }
 
 // prefixed lists the names of vars (from HURL_<infix>*/SONDE_<infix>*)

@@ -1,0 +1,173 @@
+env	CI			4
+env	HURL_COLOR			7
+env	HURL_COMPRESSED			1
+env	HURL_CONNECT_TIMEOUT			1
+env	HURL_CONTINUE_ON_ERROR			1
+env	HURL_DELAY			2
+env	HURL_ERROR_FORMAT			1
+env	HURL_FAIL_WITH_BODY			1
+env	HURL_HEADER			1
+env	HURL_HTTP10			1
+env	HURL_HTTP11			1
+env	HURL_HTTP2			0
+env	HURL_HTTP2_PRIOR_KNOWLEDGE			0
+env	HURL_HTTP3			0
+env	HURL_INSECURE			1
+env	HURL_IPV4			1
+env	HURL_IPV6			1
+env	HURL_JOBS			1
+env	HURL_LIMIT_RATE			1
+env	HURL_LOCATION			1
+env	HURL_LOCATION_TRUSTED			1
+env	HURL_MAX_FILESIZE			1
+env	HURL_MAX_REDIRS			2
+env	HURL_MAX_TIME			3
+env	HURL_NO_ASSERT			1
+env	HURL_NO_COLOR			6
+env	HURL_NO_COOKIE_STORE			1
+env	HURL_NO_HEADER			2
+env	HURL_NO_JSONPATH_COERCION			1
+env	HURL_NO_OUTPUT			1
+env	HURL_NO_PRETTY			0
+env	HURL_PARALLEL			0
+env	HURL_PRETTY			1
+env	HURL_PROGRESS_BAR			0
+env	HURL_PROXY_HEADER			4
+env	HURL_RETRY			1
+env	HURL_RETRY_INTERVAL			1
+env	HURL_SECRET_name			3
+env	HURL_TEST			1
+env	HURL_USER			1
+env	HURL_USER_AGENT			1
+env	HURL_VARIABLE_name			1
+env	HURL_VERBOSE			4
+env	HURL_VERBOSITY			4
+env	HURL_VERY_VERBOSE			2
+env	NO_COLOR			3
+env	TF_BUILD			0
+env	XDG_CONFIG_HOME			97
+flags	--aws-sigv4		PROVIDER1[:PROVIDER2[:REGION[:SERVICE]]]	4
+flags	--cacert		FILE	11
+flags	--cert	-E	CERTIFICATE[:PASSWORD]	1
+flags	--color			17
+flags	--compressed			3
+flags	--connect-timeout		SECONDS	1
+flags	--connect-to		HOST1:PORT1:HOST2:PORT2	3
+flags	--continue-on-error			21
+flags	--cookie	-b	FILE	1
+flags	--cookie-jar	-c	FILE	5
+flags	--curl		FILE	6
+flags	--delay		MILLISECONDS	2
+flags	--digest			1
+flags	--error-format		FORMAT	3
+flags	--fail-with-body			5
+flags	--file-root		DIR	5
+flags	--from-entry		ENTRY_NUMBER	2
+flags	--glob		GLOB	7
+flags	--header	-H	NAME:VALUE	12
+flags	--http1.0	-0		1
+flags	--http1.1			1
+flags	--http2			0
+flags	--http2-prior-knowledge			0
+flags	--http3			1
+flags	--include	-i		7
+flags	--insecure	-k		1
+flags	--ipv4	-4		8
+flags	--ipv6	-6		1
+flags	--jobs		NUM	15
+flags	--json			17
+flags	--key		KEY	1
+flags	--limit-rate		SPEED	1
+flags	--location	-L		11
+flags	--location-trusted			0
+flags	--max-filesize		BYTES	1
+flags	--max-redirs		NUM	3
+flags	--max-time	-m	SECONDS	4
+flags	--negotiate			0
+flags	--netrc	-n		0
+flags	--netrc-file		FILE	1
+flags	--netrc-optional			0
+flags	--no-assert			1
+flags	--no-color			14
+flags	--no-cookie-store			2
+flags	--no-header		NAME	4
+flags	--no-jsonpath-coercion			1
+flags	--no-output			21
+flags	--no-pretty			1
+flags	--no-proxy		HOST(S)	1
+flags	--ntlm			1
+flags	--output	-o	FILE	14
+flags	--parallel			13
+flags	--path-as-is			1
+flags	--pinnedpubkey		HASHES	2
+flags	--pretty			15
+flags	--progress-bar			2
+flags	--proxy	-x	[PROTOCOL://]HOST[:PORT]	8
+flags	--proxy-header		HEADER	2
+flags	--repeat		NUM	4
+flags	--report-html		DIR	7
+flags	--report-json		DIR	5
+flags	--report-junit		FILE	4
+flags	--report-tap		FILE	6
+flags	--resolve		HOST:PORT:ADDR	3
+flags	--retry		NUM	3
+flags	--retry-interval		MILLISECONDS	3
+flags	--secret		NAME=VALUE	10
+flags	--secrets-file		FILE	1
+flags	--ssl-no-revoke			4
+flags	--test			22
+flags	--to-entry		ENTRY_NUMBER	2
+flags	--unix-socket		PATH	1
+flags	--user	-u	USER:PASSWORD	4
+flags	--user-agent	-A	NAME	1
+flags	--variable		NAME=VALUE	16
+flags	--variables-file		FILE	2
+flags	--verbose	-v		46
+flags	--verbosity		LEVEL	5
+flags	--very-verbose			6
+options	aws-sigv4			1
+options	cacert			5
+options	cert			2
+options	compressed			1
+options	connect-timeout			0
+options	connect-to			1
+options	delay			12
+options	digest			1
+options	fail-with-body			1
+options	header			4
+options	http1.0			1
+options	http1.1			2
+options	http2			2
+options	http2-prior-knowledge			1
+options	http3			1
+options	insecure			3
+options	ipv4			0
+options	ipv6			0
+options	key			2
+options	limit-rate			0
+options	location			10
+options	location-trusted			1
+options	max-redirs			4
+options	max-time			0
+options	negotiate			0
+options	netrc			0
+options	netrc-file			1
+options	netrc-optional			0
+options	no-header			1
+options	no-jsonpath-coercion			1
+options	ntlm			1
+options	output			12
+options	path-as-is			1
+options	pinnedpubkey			2
+options	proxy			3
+options	repeat			3
+options	resolve			2
+options	retry			6
+options	retry-interval			3
+options	skip			1
+options	unix-socket			0
+options	user			6
+options	variable			19
+options	verbose			6
+options	verbosity			2
+options	very-verbose			1

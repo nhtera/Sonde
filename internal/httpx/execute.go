@@ -194,6 +194,27 @@ func filterHeaders(headers []exchange.Header, drop ...string) []exchange.Header 
 	return out
 }
 
+// addProxyHeaders adds the proxy headers to an http:// request sent
+// through an HTTP proxy: the proxy receives the request itself. (An
+// https:// request sends them in its CONNECT request instead, see
+// buildTransport.)
+func addProxyHeaders(prep *preparedRequest, built *builtTransport, opts *Options) error {
+	if len(opts.ProxyHeaders) == 0 || built.proxy == nil || prep.req.URL.Scheme != "http" {
+		return nil
+	}
+	proxyURL, err := built.proxy(prep.req)
+	// A SOCKS proxy (from the environment) only tunnels: the request goes
+	// to the server, which must not get the proxy headers.
+	if err != nil || proxyURL == nil || (proxyURL.Scheme != "http" && proxyURL.Scheme != "https") {
+		return err
+	}
+	for _, h := range opts.ProxyHeaders {
+		prep.req.Header.Add(h.Name, h.Value)
+		prep.headers = append(prep.headers, h)
+	}
+	return nil
+}
+
 // executeOne performs exactly one HTTP exchange: build the request, run
 // it through the cached transport for opts, and turn the result into a
 // Call.
@@ -203,8 +224,26 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 	if err != nil {
 		return Call{}, err
 	}
-	built, err := c.transportFor(opts, prep.req.URL.Hostname())
+	topts := opts
+	if opts.HTTPVersion == HTTP2PriorKnowledge {
+		// Prior knowledge only changes cleartext requests to the server
+		// itself: over TLS, HTTP/2 is negotiated as with HTTP2, and an
+		// HTTP proxy receiving the request gets HTTP/1.1, as curl does.
+		o := *opts
+		switch {
+		case prep.req.URL.Scheme != "http":
+			o.HTTPVersion = HTTP2
+			topts = &o
+		case httpProxyFor(opts, prep.req.URL) != nil:
+			o.HTTPVersion = HTTP11
+			topts = &o
+		}
+	}
+	built, err := c.transportFor(topts, prep.req.URL.Hostname())
 	if err != nil {
+		return Call{}, err
+	}
+	if err := addProxyHeaders(prep, built, opts); err != nil {
 		return Call{}, err
 	}
 

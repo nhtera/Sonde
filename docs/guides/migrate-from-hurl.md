@@ -13,6 +13,12 @@ difference is in [compat.md](../compat.md).
   accepted but unsupported and fail with a clear error: `--aws-sigv4`,
   `--digest`, `--ntlm`, `--negotiate`, `--http1.0`, `--http3` and
   `--ssl-no-revoke`. See [compat.md](../compat.md#cli-flags).
+- **Options from Hurl 8.1.0.** `--fail-with-body`, `--no-header`,
+  `--no-jsonpath-coercion`, `--proxy-header` and `--http2-prior-knowledge`
+  work as flags, `[Options]` keys, `HURL_*` variables and config file keys,
+  wherever Hurl has them. Sonde also follows 8.1.0's messages: a failed
+  `!=` assert reads `expected: not <value>`, and a JSON body nested deeper
+  than 128 levels is a parse error.
 - **Environment variables.** `HURL_*` variables work, including
   `HURL_VARIABLE_name` and `HURL_SECRET_name`. Each also has a `SONDE_*`
   form, which wins when both are set.

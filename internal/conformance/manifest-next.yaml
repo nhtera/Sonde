@@ -81,8 +81,7 @@ hurl/tests_error_parser/json_list_trailing_comma.sh:
   expect: pass
 hurl/tests_error_parser/json_max_depth.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_error_parser/json_object_expecting_element.sh:
   lane: blocking
   expect: pass
@@ -230,8 +229,7 @@ hurl/tests_failed/assert_template/assert_template_variable_not_found.sh:
   expect: pass
 hurl/tests_failed/assert_value_error/assert_value_error.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/assert_variable/assert_variable.sh:
   lane: blocking
   expect: pass
@@ -302,32 +300,25 @@ hurl/tests_failed/error_format_long/error_format_long_env_var.sh:
   expect: pass
 hurl/tests_failed/fail_with_body/fail_with_body.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/fail_with_body/fail_with_body_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/fail_with_body/fail_with_body_env_var.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/fail_with_body/fail_with_body_option.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/fail_with_body/fail_with_body_test.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/fail_with_body/fail_with_body_test_retry.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/fail_with_body/fail_with_body_unauthorized.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/file/file_not_found.sh:
   lane: blocking
   expect: pass
@@ -443,8 +434,7 @@ hurl/tests_failed/no_header/no_header.sh:
   expect: pass
 hurl/tests_failed/no_header/no_header_env_var.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/options_template/options_template.sh:
   lane: blocking
   expect: pass
@@ -700,23 +690,23 @@ hurl/tests_ok/float/float.sh:
 hurl/tests_ok/follow_redirect/follow_redirect.sh:
   lane: blocking
   expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
 hurl/tests_ok/follow_redirect/follow_redirect_config_file.sh:
   lane: blocking
   expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
 hurl/tests_ok/follow_redirect/follow_redirect_env_var.sh:
   lane: blocking
   expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
 hurl/tests_ok/follow_redirect/follow_redirect_leak.sh:
   lane: blocking
   expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
 hurl/tests_ok/follow_redirect/follow_redirect_option.sh:
   lane: blocking
   expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
 hurl/tests_ok/follow_redirect/follow_redirect_trusted_config_file.sh:
   lane: blocking
   expect: pass
@@ -763,7 +753,7 @@ hurl/tests_ok/html/html.sh:
 hurl/tests_ok/html_report_injection/html_report_injection.sh:
   lane: blocking
   expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  reason: '8.1.0: the server sends a header name net/http refuses to parse (malformed MIME header line); the own HTTP/1 layer reads it (phase 8)'
 hurl/tests_ok/http_version/http_version_2_config_file.sh:
   lane: network
   expect: skip
@@ -787,7 +777,7 @@ hurl/tests_ok/http_version/http_version_10.sh:
 hurl/tests_ok/http_version/http_version_10_config_file.sh:
   lane: blocking
   expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  reason: '8.1.0: --http1.0 is not supported yet (phase 8)'
 hurl/tests_ok/http_version/http_version_10_env_var.sh:
   lane: blocking
   expect: fail
@@ -856,23 +846,19 @@ hurl/tests_ok/jsonpath/jsonpath_store.sh:
   expect: pass
 hurl/tests_ok/jsonpath/jsonpath_store_no_coercion.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/jsonpath/jsonpath_store_no_coercion_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/jsonpath/jsonpath_store_no_coercion_env_var.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/jsonpath/jsonpath_types.sh:
   lane: blocking
   expect: pass
 hurl/tests_ok/jsonpath/no_jsonpath_coercion_option.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/junit/junit.sh:
   lane: blocking
   expect: pass
@@ -938,20 +924,16 @@ hurl/tests_ok/no_entry/no_entry.sh:
   expect: pass
 hurl/tests_ok/no_header/no_header.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/no_header/no_header_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/no_header/no_header_env_var.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/no_header/no_header_option.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/no_output/no_output.sh:
   lane: blocking
   expect: pass
@@ -1051,8 +1033,7 @@ hurl/tests_ok/post/post_bytes_null.sh:
   expect: pass
 hurl/tests_ok/post/post_bytes_null_curl.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/post/post_file.sh:
   lane: blocking
   expect: pass
@@ -1283,8 +1264,7 @@ hurl/tests_pty/color/color.sh:
   expect: pass
 hurl/tests_pty/fail_with_body/fail_with_body.sh:
   lane: pty
-  expect: fail
-  reason: 8.1.0 option --fail-with-body (phase 6)
+  expect: pass
 hurl/tests_pty/help/help.sh:
   lane: pty
   expect: fail
@@ -1502,16 +1482,13 @@ hurlfmt/tests_export/no_entry.hurl#lint:
   expect: pass
 hurlfmt/tests_export/options.hurl#html:
   lane: hurlfmt
-  expect: fail
-  reason: export json/html not implemented (phase 4)
+  expect: pass
 hurlfmt/tests_export/options.hurl#json:
   lane: hurlfmt
-  expect: fail
-  reason: export json/html not implemented (phase 4)
+  expect: pass
 hurlfmt/tests_export/options.hurl#lint:
   lane: hurlfmt
-  expect: fail
-  reason: formatter differs from the reference lint (phase 3)
+  expect: pass
 hurlfmt/tests_export/predicate.hurl#html:
   lane: hurlfmt
   expect: pass

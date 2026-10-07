@@ -50,7 +50,15 @@ type Options struct {
 	ToEntry         int // 1-based, 0: last
 	NoAssert        bool
 	ContinueOnError bool
-	Verbosity       Verbosity
+	// FailWithBody writes the response body of an entry that fails (after
+	// its last retry) to its `output`, or Stdout, before its errors are
+	// reported.
+	FailWithBody bool
+	// NoJSONPathCoercion keeps the result of a jsonpath query or filter
+	// the list of its matches: no match is an empty list rather than no
+	// value, and a single match stays in a list.
+	NoJSONPathCoercion bool
+	Verbosity          Verbosity
 	// BufferedLogs tells that log events are held until their unit ends
 	// and then redacted with Runner.Redact, which allows `redact` captures
 	// in verbose mode.
@@ -105,16 +113,23 @@ type HTTPOptions struct {
 	NetrcFile         string
 	NetrcOptional     bool
 	NetrcAllowReroute bool
-	NoProxy           string
-	NTLM              bool
-	PathAsIs          bool
-	PinnedPublicKey   string
-	Proxy             string
-	Resolve           []string
-	Timeout           time.Duration
-	UnixSocket        string
-	User              string
-	UserAgent         string
+	// NoHeaders are the names of headers not sent: the entry's, the
+	// --header ones and the defaults (Accept, User-Agent, …).
+	NoHeaders       []string
+	NoProxy         string
+	NTLM            bool
+	PathAsIs        bool
+	PinnedPublicKey string
+	Proxy           string
+	// ProxyHeaders ("Name: value") are sent to an HTTP proxy only: in the
+	// CONNECT request of an https:// URL, with the request of an http://
+	// one. Without an HTTP proxy (none, or SOCKS) they are not sent.
+	ProxyHeaders []string
+	Resolve      []string
+	Timeout      time.Duration
+	UnixSocket   string
+	User         string
+	UserAgent    string
 }
 
 // HTTPVersion is the requested protocol.
@@ -127,6 +142,9 @@ const (
 	HTTP11
 	HTTP2
 	HTTP3
+	// HTTP2PriorKnowledge sends HTTP/2 without an upgrade to an http://
+	// URL (h2c); an https:// URL negotiates HTTP/2 as HTTP2 does.
+	HTTP2PriorKnowledge
 )
 
 // IPResolve restricts name resolution to one IP family.

@@ -23,6 +23,8 @@ import (
 type builtTransport struct {
 	rt       http.RoundTripper
 	insecure bool
+	// proxy returns the HTTP proxy a request goes through, if any.
+	proxy func(*http.Request) (*url.URL, error)
 }
 
 // transportCacheKey identifies the transport options that determine how a
@@ -36,6 +38,10 @@ func transportCacheKey(opts *Options) string {
 		opts.Proxy, opts.NoProxy, opts.UnixSocket,
 		strings.Join(opts.ConnectTo, ","), strings.Join(opts.Resolve, ","),
 		opts.IPResolve, opts.HTTPVersion, opts.ConnectTimeout, opts.GRPC)
+	// The CONNECT request of a pooled tunnel carries the proxy headers.
+	for _, h := range opts.ProxyHeaders {
+		fmt.Fprintf(&b, ";proxyheader=%q:%q", h.Name, h.Value)
+	}
 	return b.String()
 }
 
@@ -67,8 +73,14 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 		t.ForceAttemptHTTP2 = false
 	case HTTP2:
 		t.ForceAttemptHTTP2 = true
-		// There is no h2c: an http:// request asking for HTTP/2 is sent
-		// with HTTP/1.1, as a server refusing the upgrade would answer.
+		// There is no h2c upgrade: an http:// request asking for HTTP/2 is
+		// sent with HTTP/1.1, as a server refusing the upgrade would answer.
+	case HTTP2PriorKnowledge:
+		// Cleartext HTTP/2 without an upgrade (Execute uses HTTP2 for
+		// https:// URLs).
+		t.Protocols = new(http.Protocols)
+		t.Protocols.SetHTTP2(true)
+		t.Protocols.SetUnencryptedHTTP2(true)
 	default:
 		t.ForceAttemptHTTP2 = true
 	}
@@ -93,10 +105,16 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 		}
 	}
 
+	if len(opts.ProxyHeaders) > 0 {
+		t.ProxyConnectHeader = http.Header{}
+		for _, h := range opts.ProxyHeaders {
+			t.ProxyConnectHeader.Add(h.Name, h.Value)
+		}
+	}
 	if opts.GRPC {
 		grpcTransport(t)
 	}
-	return &builtTransport{rt: t, insecure: opts.Insecure}, nil
+	return &builtTransport{rt: t, insecure: opts.Insecure, proxy: t.Proxy}, nil
 }
 
 // grpcTransport restricts t to HTTP/2, with prior knowledge over

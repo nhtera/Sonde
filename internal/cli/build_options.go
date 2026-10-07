@@ -41,7 +41,7 @@ type runContext struct {
 	reportJUnit string
 	reportTAP   string
 	test        bool
-	progressBar bool
+	progressBar *bool // nil: shown on a terminal
 	glob        []string
 	repeat      int // 1: once (default), -1: infinite
 	// parallel is whether this run uses the parallel runner architecture
@@ -113,7 +113,7 @@ func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env
 	rc.reportTAP = inv.ReportTAP
 	rc.env = inv.Env
 	rc.configFile = inv.Config
-	rc.progressBar = inv.ProgressBar
+	rc.progressBar = resolveProgressBar(inv, env, file.NoProgressBar)
 	rc.pretty = resolvePretty(cmd, inv, env, rc.stdoutTTY, file.Pretty)
 	rc.output = inv.Output
 	rc.glob = inv.Glob

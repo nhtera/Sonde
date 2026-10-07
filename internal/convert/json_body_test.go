@@ -23,6 +23,9 @@ func TestJSONBody(t *testing.T) {
 		{`{"a": 1} {"b": 2}`, ``, false},
 		{`{"a": 1`, ``, false},
 		{strings.Repeat("[", 600) + strings.Repeat("]", 600), ``, false},
+		// The parser's limit: 128 levels.
+		{strings.Repeat("[", 128) + "1" + strings.Repeat("]", 128), strings.Repeat("[", 128) + "1" + strings.Repeat("]", 128), true},
+		{strings.Repeat("[", 129) + "1" + strings.Repeat("]", 129), ``, false},
 	}
 	for _, tt := range tests {
 		body, _, ok := JSONBody(tt.in)

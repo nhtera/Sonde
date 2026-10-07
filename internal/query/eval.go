@@ -28,6 +28,9 @@ type Context struct {
 	// Responses is the redirect chain; the last one is the final response.
 	Responses []*exchange.Response
 	Env       *template.Env
+	// NoJSONPathCoercion keeps a jsonpath result the list of matches,
+	// even for no match or a single one.
+	NoJSONPathCoercion bool
 
 	// Forms of the final response body, each computed at most once.
 	decoded   cached[[]byte]
@@ -83,7 +86,7 @@ func (c *Context) Eval(q *syntax.Query) (value.Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		return filter.EvalJSONPath(doc, q.Arg.(*syntax.Template), c.Env)
+		return filter.EvalJSONPath(doc, q.Arg.(*syntax.Template), c.Env, !c.NoJSONPathCoercion)
 	case syntax.QueryRegex:
 		s, err := c.text(q)
 		if err != nil {

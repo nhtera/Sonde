@@ -510,12 +510,20 @@ func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int,
 		res.Retried = again
 		switch {
 		case !hasError && eo.output != nil:
-			u.writeOutput(res, eo)
+			if re := u.writeOutput(res, eo.output, false); re != nil {
+				u.logError(LogError, re, res.Line)
+			}
 		case hasError && again:
-			for _, err := range res.Errors {
-				u.logError(LogDebugError, err.run, res.Line)
+			// The errors of an attempt that is retried are debug output.
+			if u.verbosity >= Verbose {
+				for _, err := range res.Errors {
+					u.logError(LogDebugError, err.run, res.Line)
+				}
 			}
 		case hasError:
+			if eo.failWithBody {
+				u.writeFailedBody(res, eo)
+			}
 			for _, err := range res.Errors {
 				u.logError(LogError, err.run, res.Line)
 			}
@@ -534,7 +542,15 @@ func (u *unit) runWithRetry(ctx context.Context, entry *syntax.Entry, index int,
 		u.debugImportant(fmt.Sprintf("Retry on entry %d (count: %d/%s, interval: %d ms)",
 			index, retry+1, limit, eo.retryInterval.Milliseconds()))
 		if !u.sleep(ctx, eo.retryInterval) {
-			res.Retried = false // the retry never happened: its error stands
+			// The retry never happened: the attempt's error stands, and is
+			// reported as a final one.
+			res.Retried = false
+			if eo.failWithBody {
+				u.writeFailedBody(res, eo)
+			}
+			for _, err := range res.Errors {
+				u.logError(LogError, err.run, res.Line)
+			}
 			return results
 		}
 		u.debugImportant("------------------------------------------------------------------------------")
