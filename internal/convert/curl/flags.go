@@ -125,6 +125,10 @@ type parsed struct {
 	resolve         []templatedString // --resolve, in order (repeatable)
 	connectTo       []templatedString // --connect-to, in order (repeatable)
 
+	verbose   bool   // -v/--verbose: the verbose option
+	haveRetry bool   // --retry: the retry option, retrying any 5xx response
+	retry     string // flattened: parsed as a count
+
 	haveAWSSigV4 bool
 	awsSigV4     templatedString // --aws-sigv4: mapped (S1, phase 8 checkpoint), but httpx rejects it at run time — see buildEntry's warnRuntimeUnsupported
 
@@ -189,7 +193,7 @@ var booleanFlags = map[string]bool{
 // p.urls. buildEntry's own scheme-preferring pick of p.urls[0] is a
 // second, independent safety net for anything still missing here.
 var ignoredValueFlags = map[string]bool{
-	"write-out": true, "retry": true,
+	"write-out":   true,
 	"retry-delay": true, "retry-max-time": true,
 	"max-filesize": true, "interface": true, "dns-servers": true,
 	"dns-interface": true, "local-port": true, "range": true,
@@ -236,7 +240,7 @@ var longValueFlags = map[string]bool{
 	"max-time": true, "cacert": true, "cert": true, "key": true, "url": true,
 	"unix-socket": true, "output": true, "pinnedpubkey": true,
 	"max-redirs": true, "limit-rate": true, "resolve": true, "connect-to": true,
-	"aws-sigv4": true,
+	"aws-sigv4": true, "retry": true,
 }
 
 // shortFlags maps a short option letter to its long name.
@@ -441,6 +445,12 @@ func (p *parsed) apply(name string, value templatedString, haveValue bool) {
 		}
 	case "insecure":
 		p.insecure = true
+	case "verbose":
+		p.verbose = true
+	case "retry":
+		if haveValue {
+			p.retry, p.haveRetry = value.text(), true
+		}
 	case "location":
 		p.location = true
 	case "location-trusted":

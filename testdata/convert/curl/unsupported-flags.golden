@@ -5,4 +5,7 @@ Referer: https://example.com/
 insecure: true
 location: true
 output: /dev/null
-warning unsupported-option: curl: --retry is not supported and was ignored
+retry: 3
+HTTP *
+[Asserts]
+status < 500

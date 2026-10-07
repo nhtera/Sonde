@@ -196,7 +196,7 @@ func Plan(dir string, out Output, opts Options) (*Result, []PlannedFile, error) 
 
 	var files []PlannedFile
 	for i, f := range out.Files {
-		files = append(files, PlannedFile{Path: planned[i], Data: syntax.Format(f.File), Perm: 0o644})
+		files = append(files, PlannedFile{Path: planned[i], Data: syntax.Lint(f.File), Perm: 0o644})
 	}
 	for _, i := range writeExtra {
 		perm := fs.FileMode(0o644)

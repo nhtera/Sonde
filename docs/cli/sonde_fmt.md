@@ -5,12 +5,14 @@
 Format request files canonically.
 
 ```
-sonde fmt FILE... [flags]
+sonde fmt [FILE...] [flags]
 ```
 
-Fmt prints files in canonical layout (whitespace only; nothing is reordered
-and bodies are untouched). --write rewrites files in place, --check lists
-files that are not formatted and exits with 1.
+Fmt prints files in canonical layout: whitespace normalized, sections in
+canonical order ([Options] first), and a unit (ms) added to unitless
+durations; bodies are untouched. With no FILE it reads standard input.
+--write rewrites files in place. --check lists files that are not
+formatted and exits with 1 (2 if a file cannot be read or parsed).
 
 ## Flags
 

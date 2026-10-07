@@ -6,6 +6,7 @@ package syntax
 import (
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // Print renders f back to source; for a parsed file the output is identical
@@ -32,6 +33,9 @@ func Format(f *File) []byte {
 type printer struct {
 	strings.Builder
 	canonical bool
+	// lint applies Lint's line rules on top of canonical: line endings
+	// kept, comment lines unindented.
+	lint bool
 }
 
 // ws writes w, or its canonical form in canonical mode.
@@ -104,14 +108,24 @@ func (p *printer) body(b *Body) {
 	p.lineTerminator(b.LineTerminator0)
 }
 
+// lineTerminators prints the blank or comment-only lines above an item.
 func (p *printer) lineTerminators(lts []*LineTerminator) {
 	for _, lt := range lts {
-		p.lineTerminator(lt)
+		if p.lint {
+			p.lintLineTerminator(lt, false)
+		} else {
+			p.lineTerminator(lt)
+		}
 	}
 }
 
+// lineTerminator prints the end of an item's line.
 func (p *printer) lineTerminator(lt *LineTerminator) {
 	if lt == nil {
+		return
+	}
+	if p.lint {
+		p.lintLineTerminator(lt, true)
 		return
 	}
 	if !p.canonical {
@@ -131,18 +145,44 @@ func (p *printer) lineTerminator(lt *LineTerminator) {
 	p.WriteByte('\n')
 }
 
-func (p *printer) keyValues(kvs []*KeyValue) {
-	for _, kv := range kvs {
-		p.keyValue(kv)
+// lintLineTerminator prints lt the way Lint does: a trailing comment keeps
+// the spaces before it, a comment line does not; the line ending is kept.
+func (p *printer) lintLineTerminator(lt *LineTerminator, trailing bool) {
+	if lt.Comment != nil {
+		if trailing {
+			p.WriteString(lt.Space0.Value)
+		}
+		p.WriteByte('#')
+		p.WriteString(strings.TrimRightFunc(lt.Comment.Value, unicode.IsSpace))
+	}
+	if lt.Newline.Value == "" {
+		p.WriteByte('\n')
+	} else {
+		p.WriteString(lt.Newline.Value)
 	}
 }
 
-func (p *printer) keyValue(kv *KeyValue) {
+func (p *printer) keyValues(kvs []*KeyValue) {
+	for _, kv := range kvs {
+		p.keyValue(kv, false)
+	}
+}
+
+// keyValue prints kv. In lint mode an empty value prints as `key:`, except
+// for a cookie (cookie), which keeps the space: `name: `.
+func (p *printer) keyValue(kv *KeyValue, cookie bool) {
 	p.lineTerminators(kv.LineTerminators)
 	p.ws(kv.Space0, "")
 	p.template(kv.Key)
 	p.ws(kv.Space1, "")
 	p.WriteByte(':')
+	if p.lint && kv.Value != nil && len(kv.Value.Elements) == 0 {
+		if cookie {
+			p.WriteByte(' ')
+		}
+		p.lineTerminator(kv.LineTerminator0)
+		return
+	}
 	p.ws(kv.Space2, spaceBefore(kv.Value))
 	p.template(kv.Value)
 	p.lineTerminator(kv.LineTerminator0)
@@ -154,11 +194,13 @@ func (p *printer) sections(sections []*Section) {
 		p.ws(s.Space0, "")
 		p.WriteString("[" + s.Name + "]")
 		p.lineTerminator(s.LineTerminator0)
-		p.keyValues(s.KeyValues)
+		for _, kv := range s.KeyValues {
+			p.keyValue(kv, s.Kind == SectionCookies)
+		}
 		for _, m := range s.Multipart {
 			switch m := m.(type) {
 			case *KeyValue:
-				p.keyValue(m)
+				p.keyValue(m, false)
 			case *FilenameParam:
 				p.filenameParam(m)
 			}
@@ -217,7 +259,11 @@ func (p *printer) option(o *Option) {
 	p.WriteString(o.Name)
 	p.ws(o.Space1, "")
 	p.WriteByte(':')
-	p.ws(o.Space2, spaceBefore(o.Value))
+	if p.lint {
+		p.WriteByte(' ') // even before an empty value
+	} else {
+		p.ws(o.Space2, spaceBefore(o.Value))
+	}
 	p.node(o.Value)
 	p.lineTerminator(o.LineTerminator0)
 }
@@ -416,7 +462,11 @@ func (p *printer) multiline(m *MultilineString) {
 	if m.Comma {
 		p.WriteByte(',')
 	}
-	p.ws(m.Space, "")
+	if p.lint {
+		p.WriteString(m.Space.Value)
+	} else {
+		p.ws(m.Space, "")
+	}
 	p.WriteString(m.Newline.Value)
 	p.template(m.Value)
 	if v := m.Variables; v != nil {

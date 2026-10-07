@@ -275,7 +275,7 @@ As of 2026-10-07, against the current sonde build, on macOS without squid
 | Lane | 8.0.1 (`make conformance`) | pinned snapshot (`make conformance-next`) |
 |---|---|---|
 | blocking | 289 of 297 ran pass (97.3% / 93.9%), 1 skipped | 297 of 350 ran pass (84.9% / 77.7%), 3 skipped |
-| hurlfmt | 24/70 (34.3% / 31.4%): lint 17/19, json 0/19, html 0/19, scripts 7/13 | same tree, same result |
+| hurlfmt | 29/70 (41.4%): lint 19/19, json 0/19, html 0/19 (export: a later phase), scripts 10/13 (`help.sh` identity, `html_standalone.sh` export, `import_curl.sh` documented curl-import differences) | 28/70 (40.0%) |
 | pty | 10/11 (90.9% / 63.6%); `help.sh` differs by identity | 10/14 (71.4% / 50.0%) |
 | extended | 14 of 16 ran pass (87.5%), 4 skipped | 14 of 16 ran pass (87.5%), 9 skipped |
 | timing | 22/22 (100% / 77.3%) | 22/27 (81.5% / 51.9%) |

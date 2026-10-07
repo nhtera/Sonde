@@ -285,6 +285,21 @@ func buildEntry(p *parsed) (syntax.EntrySpec, []convert.Warning, string) {
 		opts = append(opts, syntax.StringOption("connect-to", c.toText()))
 	}
 
+	// curl --retry retries transient errors, 5xx responses included; a
+	// failing `status < 500` assert makes the retry option do the same.
+	var response *syntax.ResponseSpec
+	if p.haveRetry {
+		if n, ok := parseRetry(p.retry); ok {
+			opts = append(opts, syntax.IntOption("retry", n))
+			response = &syntax.ResponseSpec{Status: "*", Asserts: []string{"status < 500"}}
+		} else {
+			warn(convert.WarnUnsupportedOption, "curl: --retry "+p.retry+" is not a valid count")
+		}
+	}
+	if p.verbose {
+		opts = append(opts, syntax.BoolOption("verbose", true))
+	}
+
 	for _, flag := range p.warnings {
 		warn(convert.WarnUnsupportedOption, "curl: "+flag+" is not supported and was ignored")
 	}
@@ -297,6 +312,7 @@ func buildEntry(p *parsed) (syntax.EntrySpec, []convert.Warning, string) {
 		Multipart: multipart,
 		Options:   opts,
 		Body:      body,
+		Response:  response,
 	}, warnings, ""
 }
 
@@ -439,6 +455,15 @@ func parseSeconds(s string) (time.Duration, bool) {
 func parseMaxRedirs(s string) (int64, bool) {
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil || n < -1 {
+		return 0, false
+	}
+	return n, true
+}
+
+// parseRetry parses curl's --retry argument, a non-negative count.
+func parseRetry(s string) (int64, bool) {
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || n < 0 {
 		return 0, false
 	}
 	return n, true

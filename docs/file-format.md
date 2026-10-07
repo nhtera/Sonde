@@ -74,9 +74,10 @@ See [architecture.md](architecture.md) §1 ("Sonde extras never change
 
 ## Canonical formatting
 
-`sonde fmt` rewrites horizontal whitespace and line endings only: it never
-reorders sections, never touches body content, and keeps blank lines and
-comments. A file already laid out by Hurl's own `hurlfmt` is left unchanged.
-`sonde fmt --check` lists files that are not in canonical form (exit `1`);
-`sonde fmt --write` rewrites them in place. See
-[cli/sonde_fmt.md](cli/sonde_fmt.md).
+`sonde fmt` lays files out exactly as Hurl's own `hurlfmt` does: whitespace
+normalized, sections in canonical order (`[Options]` first; comments move
+with the section below them), and `ms` added to unitless durations such as
+`delay: 1000`. Body content is never touched. Formatting an older file can
+therefore reorder its sections. `sonde fmt --check` lists files that are not
+in canonical form (exit `1`); `sonde fmt --write` rewrites them in place.
+Imports write canonical files. See [cli/sonde_fmt.md](cli/sonde_fmt.md).

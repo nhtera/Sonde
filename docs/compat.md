@@ -20,6 +20,10 @@ Differences on inputs outside the test tree:
 
 | Input | Hurl 8.0.1 | Sonde |
 |---|---|---|
+| Curl import of a `-d`/`--data` body | a ``` block, so the body gains a trailing newline | a ```raw block: the body bytes are kept exactly |
+| Curl import of `-H 'Name:'` (curl removes the header) | `Name:` header with an empty value | header removed, as curl does |
+| `[Query]` and `[QueryStringParams]` (or `[Form]`/`[FormParams]`, `[Multipart]`/`[MultipartFormData]`) in one request | only the first section is sent; `hurlfmt` drops the second | both are sent; `sonde fmt` keeps both |
+| Curl import of `-u user:pass` | `user: "user:pass"` (the quotes are then part of the user name) | `user: user:pass` |
 | Regex literal errors other than an invalid `{…}` repetition | Rust `regex` message | Go `regexp` message (same position) |
 | Regexes valid in only one engine, e.g. `a{,3}`, `\d{2}{2}`, `a{1001}`, `[]-Z]` | accepted | rejected |
 | … and the reverse, e.g. `[0-9[Query]` | rejected | accepted |
@@ -33,9 +37,12 @@ Accepted as Hurl does: text after a placeholder's variable inside a string,
 e.g. `{{a b}}` or `{{a}b}}`, is ignored (and kept by `sonde fmt`); XML
 declarations with any encoding or version.
 
-`sonde fmt` is not `hurlfmt`: it only normalizes horizontal whitespace and
-line endings (see `docs/architecture.md`, CLI commands) and never reorders
-sections. Files already formatted by `hurlfmt` are left unchanged.
+`sonde fmt` prints what `hurlfmt` prints (checked on its suite: every
+`tests_export` lint fixture and the formatter scripts): whitespace
+normalized, sections in canonical order, `ms` added to unitless durations,
+with `--color`, `--check` and `--write`. `--check` exits `1` when a file
+is not formatted (`hurlfmt`: `3`), keeping sonde's documented exit codes. Curl import differences
+are listed below.
 
 ## Evaluation (queries, filters, predicates, templates)
 

@@ -1,25 +1,25 @@
 == Digest
 # Digest
 GET {{base_url}}/digest
-[BasicAuth]
-user: {{digest_password}}
 [Options]
 digest: true
+[BasicAuth]
+user: {{digest_password}}
 == NTLM
 # NTLM
 GET {{base_url}}/ntlm
-[BasicAuth]
-domain\\user: {{ntlm_password}}
 [Options]
 ntlm: true
+[BasicAuth]
+domain\\user: {{ntlm_password}}
 == AWS SigV4
 # AWS SigV4
 GET {{base_url}}/aws
 X-Amz-Security-Token: {{aws_session_token}}
-[BasicAuth]
-AKIDEXAMPLE: {{aws_secret}}
 [Options]
 aws-sigv4: aws:amz:us-east-1:execute-api
+[BasicAuth]
+AKIDEXAMPLE: {{aws_secret}}
 == API key in query
 # API key in query
 GET {{base_url}}/apikey

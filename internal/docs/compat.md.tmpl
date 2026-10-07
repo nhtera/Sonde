@@ -29,9 +29,12 @@ Accepted as Hurl does: text after a placeholder's variable inside a string,
 e.g. `{{ "{{" }}a b{{ "}}" }}` or `{{ "{{" }}a{{ "}" }}b{{ "}}" }}`, is ignored (and kept by `sonde fmt`); XML
 declarations with any encoding or version.
 
-`sonde fmt` is not `hurlfmt`: it only normalizes horizontal whitespace and
-line endings (see `docs/architecture.md`, CLI commands) and never reorders
-sections. Files already formatted by `hurlfmt` are left unchanged.
+`sonde fmt` prints what `hurlfmt` prints (checked on its suite: every
+`tests_export` lint fixture and the formatter scripts): whitespace
+normalized, sections in canonical order, `ms` added to unitless durations,
+with `--color`, `--check` and `--write`. `--check` exits `1` when a file
+is not formatted (`hurlfmt`: `3`), keeping sonde's documented exit codes. Curl import differences
+are listed below.
 
 ## Evaluation (queries, filters, predicates, templates)
 

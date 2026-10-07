@@ -5,14 +5,14 @@ package lsp
 
 import "github.com/nhtera/sonde/internal/syntax"
 
-// format returns the edits that give d its canonical layout: none when it
-// is already formatted or does not parse (formatting a partial parse would
-// drop the broken entries).
+// format returns the edits that give d its canonical layout (syntax.Lint):
+// none when it is already formatted or does not parse (formatting a partial
+// parse would drop the broken entries).
 func (s *Server) format(d *document) []TextEdit {
 	if len(d.errs) > 0 {
 		return []TextEdit{}
 	}
-	out := string(syntax.Format(d.file))
+	out := string(syntax.Lint(d.file))
 	if out == d.text {
 		return []TextEdit{}
 	}

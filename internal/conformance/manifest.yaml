@@ -1292,8 +1292,7 @@ hurlfmt/tests_export/options.hurl#json:
   reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/options.hurl#lint:
   lane: hurlfmt
-  expect: fail
-  reason: formatter differs from the reference lint (phase 3)
+  expect: pass
 hurlfmt/tests_export/predicate.hurl#html:
   lane: hurlfmt
   expect: fail
@@ -1337,8 +1336,7 @@ hurlfmt/tests_export/sections.hurl#json:
   reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/sections.hurl#lint:
   lane: hurlfmt
-  expect: fail
-  reason: formatter differs from the reference lint (phase 3)
+  expect: pass
 hurlfmt/tests_export/trailing_space.hurl#html:
   lane: hurlfmt
   expect: fail
@@ -1363,8 +1361,7 @@ hurlfmt/tests_export/url.hurl#lint:
   expect: pass
 hurlfmt/tests_failed/check.sh:
   lane: hurlfmt
-  expect: fail
-  reason: formatter differs from the reference lint (phase 3)
+  expect: pass
 hurlfmt/tests_failed/in_place.sh:
   lane: hurlfmt
   expect: pass
@@ -1382,8 +1379,7 @@ hurlfmt/tests_ok/check.sh:
   expect: pass
 hurlfmt/tests_ok/format.sh:
   lane: hurlfmt
-  expect: fail
-  reason: formatter differs from the reference lint (phase 3)
+  expect: pass
 hurlfmt/tests_ok/help.sh:
   lane: hurlfmt
   expect: fail
@@ -1394,8 +1390,7 @@ hurlfmt/tests_ok/html_standalone.sh:
   reason: export html --standalone not implemented (phase 4)
 hurlfmt/tests_ok/hurlfmt.sh:
   lane: hurlfmt
-  expect: fail
-  reason: formatter differs from the reference lint (phase 3)
+  expect: pass
 hurlfmt/tests_ok/hurlfmt_multiple_input.sh:
   lane: hurlfmt
   expect: pass

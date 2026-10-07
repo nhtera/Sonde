@@ -601,9 +601,13 @@ func BytesBody(data []byte) *BodySpec {
 	return &BodySpec{src: "base64," + base64.StdEncoding.EncodeToString(data) + ";"}
 }
 
-// ResponseSpec is an entry's expected response: its status only (as digits,
-// or "*" for any status); assertions are not built here.
-type ResponseSpec struct{ Status string }
+// ResponseSpec is an entry's expected response: its status (as digits, or
+// "*" for any status) and optional assert lines, each written as given
+// under [Asserts] (e.g. "status < 500").
+type ResponseSpec struct {
+	Status  string
+	Asserts []string
+}
 
 // EntrySpec describes one request, and optionally its expected response, to
 // render with BuildFile.
@@ -665,19 +669,7 @@ func writeEntry(b *strings.Builder, e EntrySpec) {
 	for _, h := range e.Headers {
 		writeField(b, h)
 	}
-	writeSection(b, "Query", e.Query)
-	writeSection(b, "Form", e.Form)
-	writeSection(b, "Cookies", e.Cookies)
-	if len(e.Multipart) > 0 {
-		b.WriteString("[Multipart]\n")
-		for _, m := range e.Multipart {
-			writeMultipart(b, m)
-		}
-	}
-	if e.BasicAuth != nil {
-		b.WriteString("[BasicAuth]\n")
-		writeField(b, Field{Key: e.BasicAuth.User, Value: e.BasicAuth.Password})
-	}
+	// Sections in canonical (Lint) order.
 	if len(e.Options) > 0 {
 		b.WriteString("[Options]\n")
 		for _, o := range e.Options {
@@ -687,6 +679,19 @@ func writeEntry(b *strings.Builder, e EntrySpec) {
 			b.WriteByte('\n')
 		}
 	}
+	writeSection(b, "Query", e.Query)
+	if e.BasicAuth != nil {
+		b.WriteString("[BasicAuth]\n")
+		writeField(b, Field{Key: e.BasicAuth.User, Value: e.BasicAuth.Password})
+	}
+	writeSection(b, "Form", e.Form)
+	if len(e.Multipart) > 0 {
+		b.WriteString("[Multipart]\n")
+		for _, m := range e.Multipart {
+			writeMultipart(b, m)
+		}
+	}
+	writeSection(b, "Cookies", e.Cookies)
 	if e.Body != nil {
 		b.WriteString(e.Body.src)
 		b.WriteByte('\n')
@@ -695,5 +700,12 @@ func writeEntry(b *strings.Builder, e EntrySpec) {
 		b.WriteString("HTTP ")
 		b.WriteString(e.Response.Status)
 		b.WriteByte('\n')
+		if len(e.Response.Asserts) > 0 {
+			b.WriteString("[Asserts]\n")
+			for _, a := range e.Response.Asserts {
+				b.WriteString(a)
+				b.WriteByte('\n')
+			}
+		}
 	}
 }

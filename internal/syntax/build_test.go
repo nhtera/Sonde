@@ -261,13 +261,13 @@ func TestBuildMultipartAndAuth(t *testing.T) {
 	}
 	req0 := f.Entries[0].Request
 	if len(req0.Sections) != 2 {
-		t.Fatalf("want 2 sections (multipart, basic auth), got %d", len(req0.Sections))
+		t.Fatalf("want 2 sections (basic auth, multipart: canonical order), got %d", len(req0.Sections))
 	}
-	if req0.Sections[0].Kind != SectionMultipart || len(req0.Sections[0].Multipart) != 2 {
-		t.Fatalf("bad multipart section: %#v", req0.Sections[0])
+	if req0.Sections[0].Kind != SectionBasicAuth {
+		t.Fatalf("bad basic auth section: %#v", req0.Sections[0])
 	}
-	if req0.Sections[1].Kind != SectionBasicAuth {
-		t.Fatalf("bad basic auth section: %#v", req0.Sections[1])
+	if req0.Sections[1].Kind != SectionMultipart || len(req0.Sections[1].Multipart) != 2 {
+		t.Fatalf("bad multipart section: %#v", req0.Sections[1])
 	}
 
 	ms, ok := f.Entries[1].Request.Body.Value.(*MultilineString)
