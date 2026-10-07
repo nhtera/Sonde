@@ -227,8 +227,9 @@ func TestExecuteCredentialDropOnHostChange(t *testing.T) {
 		if _, err := c.Execute(context.Background(), spec, opts); err != nil {
 			t.Fatal(err)
 		}
-		if seenAuth != "" || seenCookie != "s=2" {
-			t.Errorf("%s: other host got Authorization %d bytes, Cookie %q; want none and the entry cookie only", name, len(seenAuth), seenCookie)
+		// The entry's [Cookies] stay with the original host too (8.1.0).
+		if seenAuth != "" || seenCookie != "" {
+			t.Errorf("%s: other host got Authorization %d bytes, Cookie %q; want neither", name, len(seenAuth), seenCookie)
 		}
 	}
 }

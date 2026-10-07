@@ -84,21 +84,29 @@ func (c *Client) Execute(ctx context.Context, spec *RequestSpec, opts *Options) 
 		}
 
 		newMethod := redirectMethod(status, curSpec.Method)
-		stripCreds := shouldStripCredentials(originalURL, redirectURL, opts.LocationTrusted)
-		// Explicit Authorization and Cookie headers stay with the original
-		// host; the entry's cookies follow the redirect, as curl's do.
-		headers := curSpec.Headers
+		// Credentials (Authorization and Cookie headers, --user, the
+		// entry's [Cookies]) only go to the original scheme, host and
+		// port: each hop starts again from the entry's own, so that a
+		// redirect back to the original host sends them again, as curl
+		// does. Stored cookies follow the jar's domain rules.
+		next := *curSpec
 		newOpts := curOpts
-		if stripCreds {
-			headers = filterHeaders(headers, "Authorization", "Cookie")
-			newOpts.Headers = filterHeaders(curOpts.Headers, "Authorization", "Cookie")
+		next.Headers, next.Cookies = spec.Headers, spec.Cookies
+		newOpts.Headers, newOpts.User = opts.Headers, opts.User
+		if shouldStripCredentials(originalURL, redirectURL, opts.LocationTrusted) {
+			next.Headers = filterHeaders(spec.Headers, "Authorization", "Cookie")
+			next.Cookies = nil
+			newOpts.Headers = filterHeaders(opts.Headers, "Authorization", "Cookie")
 			newOpts.User = ""
+		} else if redirectURL.User == nil && originalURL.User != nil {
+			// The credentials of the entry's URL go along too.
+			withUser := *redirectURL
+			withUser.User = originalURL.User
+			redirectURL = &withUser
 		}
 
-		next := *curSpec
 		next.URL = redirectURL.String()
 		next.Method = newMethod
-		next.Headers = headers
 		next.Query = nil
 		if newMethod != curSpec.Method {
 			next.Form = nil

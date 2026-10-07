@@ -606,13 +606,16 @@ hurl/tests_ok/float/float.sh:
   expect: pass
 hurl/tests_ok/follow_redirect/follow_redirect.sh:
   lane: blocking
-  expect: pass
+  expect: fail
+  reason: 'superseded by 8.1.0: CVE fix, cookies stripped cross-host (covered by internal/httpx TestRedirectCredentialMatrix)'
 hurl/tests_ok/follow_redirect/follow_redirect_env_var.sh:
   lane: blocking
-  expect: pass
+  expect: fail
+  reason: 'superseded by 8.1.0: CVE fix, cookies stripped cross-host (covered by internal/httpx TestRedirectCredentialMatrix)'
 hurl/tests_ok/follow_redirect/follow_redirect_option.sh:
   lane: blocking
-  expect: pass
+  expect: fail
+  reason: 'superseded by 8.1.0: CVE fix, cookies stripped cross-host (covered by internal/httpx TestRedirectCredentialMatrix)'
 hurl/tests_ok/follow_redirect/follow_redirect_trusted_env_var.sh:
   lane: blocking
   expect: pass

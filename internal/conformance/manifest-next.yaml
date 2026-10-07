@@ -689,24 +689,19 @@ hurl/tests_ok/float/float.sh:
   expect: pass
 hurl/tests_ok/follow_redirect/follow_redirect.sh:
   lane: blocking
-  expect: fail
-  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
+  expect: pass
 hurl/tests_ok/follow_redirect/follow_redirect_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
+  expect: pass
 hurl/tests_ok/follow_redirect/follow_redirect_env_var.sh:
   lane: blocking
-  expect: fail
-  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
+  expect: pass
 hurl/tests_ok/follow_redirect/follow_redirect_leak.sh:
   lane: blocking
-  expect: fail
-  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
+  expect: pass
 hurl/tests_ok/follow_redirect/follow_redirect_option.sh:
   lane: blocking
-  expect: fail
-  reason: '8.1.0: [Cookies] and --header credentials are dropped on a cross-host redirect (phase 7)'
+  expect: pass
 hurl/tests_ok/follow_redirect/follow_redirect_trusted_config_file.sh:
   lane: blocking
   expect: pass

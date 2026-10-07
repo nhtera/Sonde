@@ -18,7 +18,9 @@ difference is in [compat.md](../compat.md).
   work as flags, `[Options]` keys, `HURL_*` variables and config file keys,
   wherever Hurl has them. Sonde also follows 8.1.0's messages: a failed
   `!=` assert reads `expected: not <value>`, and a JSON body nested deeper
-  than 128 levels is a parse error.
+  than 128 levels is a parse error. As in 8.1.0, a redirect to another
+  host drops the `[Cookies]` cookies, like the `Authorization` and
+  `Cookie` headers (`--location-trusted` keeps them).
 - **Environment variables.** `HURL_*` variables work, including
   `HURL_VARIABLE_name` and `HURL_SECRET_name`. Each also has a `SONDE_*`
   form, which wins when both are set.
