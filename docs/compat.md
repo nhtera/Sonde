@@ -80,7 +80,7 @@ Measured with the conformance harness (`make conformance`, see
 | `http3` option or `--http3` | HTTP/3 when libcurl supports it | `Unsupported HTTP version` error |
 | Order of response headers with different names | as received | grouped by name, names sorted (values of one name keep their order) |
 | Default User-Agent | `hurl/<version>` | `sonde/<version>` (`SONDE_DEFAULT_USER_AGENT` replaces it) |
-| `--version` output | Hurl and libcurl versions and features | sonde version, commit, build date, Go version |
+| `--version` output | Hurl and libcurl versions and features | sonde version, commit, build date, Go version, then a `Features:` line listing the optional transport features this build implements (e.g. `HTTP2`) |
 | Request-file path escaping the file root through a symbolic link | allowed (lexical check) | denied |
 | `cacert`, `cert`, `key`, `pinnedpubkey`, `netrc-file` in `[Options]` | any path, relative to the working directory | relative to the working directory, confined to the file root (command line values are not confined) |
 | `unix-socket` in `[Options]` | any path | confined to the file root |

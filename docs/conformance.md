@@ -276,12 +276,13 @@ As of 2026-10-07, against the current sonde build, on macOS without squid
 |---|---|---|
 | blocking | 289 of 297 ran pass (97.3% / 93.9%), 1 skipped | 297 of 350 ran pass (84.9% / 77.7%), 3 skipped |
 | hurlfmt | 24/70 (34.3% / 31.4%): lint 17/19, json 0/19, html 0/19, scripts 7/13 | same tree, same result |
-| pty | 6/11 (54.5% / 36.4%) | 7/14 (50.0% / 35.7%) |
+| pty | 10/11 (90.9% / 63.6%); `help.sh` differs by identity | 10/14 (71.4% / 50.0%) |
 | extended | 14 of 16 ran pass (87.5%), 4 skipped | 14 of 16 ran pass (87.5%), 9 skipped |
 | timing | 22/22 (100% / 77.3%) | 22/27 (81.5% / 51.9%) |
 
-The pty figure is measured with the upstream two-pty runner; an earlier
-6/11 estimate came from a single merged stream and was not reliable.
+The pty figure is measured with the upstream two-pty runner (6/11 when the
+lane was added; an earlier estimate from a single merged stream was not
+reliable).
 
 The 8.0.1 numbers before the hurlfmt and pty lanes were added (2026-09-27):
 blocking 97.3% semantic / 93.9% full-oracle (297/298 ran, 1 skipped),

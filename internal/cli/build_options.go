@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/nhtera/sonde/engine"
+	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/datarow"
 	"github.com/nhtera/sonde/internal/runplan"
@@ -22,7 +22,12 @@ import (
 type runContext struct {
 	engine engine.Options
 
-	color       bool
+	// colorOut and colorErr are whether output to stdout (bodies, -i
+	// headers) and to stderr (logs, errors, progress, summaries) is
+	// coloured. Each defaults to whether its own stream is a terminal.
+	colorOut    bool
+	colorErr    bool
+	stdoutTTY   bool
 	include     bool
 	jsonOutput  bool
 	noOutput    bool
@@ -71,7 +76,7 @@ func (rc *runContext) hasReport() bool {
 // config file < env vars (HURL_*/SONDE_*) < command line flag. The run
 // itself (engine options, run control) is built by runplan; the output
 // settings are the CLI's.
-func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env, stdout io.Writer) (*runContext, error) {
+func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env, stdout, stderr io.Writer) (*runContext, error) {
 	// The config file is checked first, so a broken one is reported
 	// before any other setting.
 	if path, ok := env.FilePath(); ok {
@@ -81,16 +86,9 @@ func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env
 	}
 
 	rc := &runContext{}
-	rc.color = env.Color(isTerminalWriter(os.Stdout))
-	if changed(cmd, "color") {
-		rc.color = true
-	}
-	// --no-color is checked last so it always wins when both are given,
-	// matching the upstream CLI's own silent priority (no hard usage
-	// error for the combination).
-	if changed(cmd, "no-color") {
-		rc.color = false
-	}
+	rc.stdoutTTY = isTerminal(stdout)
+	rc.colorOut = resolveColor(cmd, env, rc.stdoutTTY)
+	rc.colorErr = resolveColor(cmd, env, isTerminal(stderr))
 	rc.include = runplan.ResolveBool(inv, "include", "INCLUDE", inv.Include, env)
 	rc.jsonOutput = runplan.ResolveBool(inv, "json", "JSON", inv.JSON, env)
 	noOutput := runplan.ResolveBool(inv, "no-output", "NO_OUTPUT", inv.NoOutput, env)
@@ -108,7 +106,7 @@ func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env
 	rc.env = inv.Env
 	rc.configFile = inv.Config
 	rc.progressBar = inv.ProgressBar
-	rc.pretty = resolvePretty(cmd, inv, env, isTerminalWriter(stdout))
+	rc.pretty = resolvePretty(cmd, inv, env, rc.stdoutTTY)
 	rc.output = inv.Output
 	rc.glob = inv.Glob
 
@@ -128,6 +126,13 @@ func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env
 	rc.data = plan.Data
 	rc.engine = plan.Options
 	rc.engine.Stdout = stdout
+	// `output: -` entries get the same rendering as the default output.
+	if rc.pretty {
+		colorOut := rc.colorOut
+		rc.engine.StdoutBody = func(resp *exchange.Response, body []byte) []byte {
+			return prettyBody(body, resp, colorOut)
+		}
+	}
 	return rc, nil
 }
 
@@ -173,16 +178,19 @@ func resolvePretty(cmd *cobra.Command, inv *runplan.Invocation, env config.Env, 
 	return stdoutTTY
 }
 
-// isTerminalWriter reports whether w is a character device (a terminal),
-// the stdlib-only approximation of isatty used to default --color/--pretty.
-func isTerminalWriter(w io.Writer) bool {
-	f, ok := w.(*os.File)
-	if !ok {
-		return false
+// resolveColor decides whether one stream is coloured: whether it is a
+// terminal (tty), overridden by NO_COLOR and HURL_COLOR/SONDE_COLOR, then
+// by --color, then by --no-color.
+func resolveColor(cmd *cobra.Command, env config.Env, tty bool) bool {
+	color := env.Color(tty)
+	if changed(cmd, "color") {
+		color = true
 	}
-	info, err := f.Stat()
-	if err != nil {
-		return false
+	// --no-color is checked last so it always wins when both are given,
+	// matching the upstream CLI's own silent priority (no hard usage
+	// error for the combination).
+	if changed(cmd, "no-color") {
+		color = false
 	}
-	return info.Mode()&os.ModeCharDevice != 0
+	return color
 }

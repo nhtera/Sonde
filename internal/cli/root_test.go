@@ -68,7 +68,7 @@ func TestVersionCommand(t *testing.T) {
 	if code != ExitOK {
 		t.Fatalf("exit code = %d, want %d", code, ExitOK)
 	}
-	for _, prefix := range []string{"sonde ", "commit: ", "built: ", "go: " + runtime.Version()} {
+	for _, prefix := range []string{"sonde ", "commit: ", "built: ", "go: " + runtime.Version(), "\nFeatures: HTTP2"} {
 		if !strings.Contains(out, prefix) {
 			t.Errorf("version output missing %q:\n%s", prefix, out)
 		}

@@ -70,7 +70,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
 
-	rc, err := buildRunContext(cmd, o.invocation(cmd, args, forceTest), env, stdout)
+	rc, err := buildRunContext(cmd, o.invocation(cmd, args, forceTest), env, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	// registry exists, redacted like any other stderr text even though
 	// they only ever name a path, never a secret value.
 	for _, w := range rc.plan.Warnings {
-		newEventLogger(stderr, rc.color, false).writePrefixedMessage(ansiYellowBold, "warning", runner.Redact(w))
+		newEventLogger(stderr, rc.colorErr, false).writePrefixedMessage(ansiYellowBold, "warning", runner.Redact(w))
 	}
 
 	ctx := cmd.Context()
@@ -160,15 +160,15 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	}
 	jobBufs := map[int]*jobBuffer{}
 
-	barMode := newProgressMode(rc.test, rc.progressBar, isTerminalWriter(stderr))
+	barMode := newProgressMode(rc.test, rc.progressBar, isTerminal(stderr))
 	units := len(files)
 	if rc.data != nil {
 		units *= rc.data.Rows()
 		if rc.data.Rows() == 0 {
-			newEventLogger(stderr, rc.color, false).writePrefixedMessage(ansiYellowBold, "warning", rc.data.Path()+": no data rows")
+			newEventLogger(stderr, rc.colorErr, false).writePrefixedMessage(ansiYellowBold, "warning", rc.data.Path()+": no data rows")
 		}
 	}
-	pb := newProgressBar(barMode, rc.color, progressMaxWidth(), newJobTotal(units, rc.repeat))
+	pb := newProgressBar(barMode, rc.colorErr, progressMaxWidth(), newJobTotal(units, rc.repeat))
 
 	opt := engine.RunAllOptions{
 		Parallel: rc.jobs,
@@ -177,11 +177,11 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			var handle func(engine.Event)
 			var out io.Writer
 			if !buffered {
-				logger := newEventLogger(stderr, rc.color, rc.errorFormat == "long").withProgress(pb)
+				logger := newEventLogger(stderr, rc.colorErr, rc.errorFormat == "long").withProgress(pb)
 				handle, out = logger.handle, stdout
 			} else {
 				jb := &jobBuffer{}
-				jb.logger = newEventLogger(&jb.stderr, rc.color, rc.errorFormat == "long")
+				jb.logger = newEventLogger(&jb.stderr, rc.colorErr, rc.errorFormat == "long")
 				jobBufs[seq] = jb
 				handle, out = jb.logger.handle, &jb.stdout
 			}
@@ -243,7 +243,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			redact := res.Redact
 			if res.ParseError != nil {
 				flushBuffer(stderr, jb, redact)
-				if rc.color {
+				if rc.colorErr {
 					writePrefixedError(stderr, res.ParseError.RenderColor(), true)
 				} else {
 					writePrefixedError(stderr, res.ParseError.Render(), false)
@@ -258,7 +258,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 				return false
 			}
 			if rc.errorFormat == "long" {
-				writeLongFormatErrors(errW, res, rc.color)
+				writeLongFormatErrors(errW, res, rc.colorErr)
 			}
 			if resultsBySeq != nil {
 				resultsBySeq[seq] = res
@@ -284,7 +284,11 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 				var oe *outputError
 				if errors.As(werr, &oe) {
 					flushJobOutput(stdout, sink, jb)
-					_, _ = fmt.Fprintf(stderr, "error: %s\n", oe.rendered)
+					if oe.color {
+						_, _ = fmt.Fprintf(stderr, "%serror%s: %s\n", ansiRedBold, ansiReset, oe.rendered)
+					} else {
+						_, _ = fmt.Fprintf(stderr, "error: %s\n", oe.rendered)
+					}
 					worst = worstCode(worst, ExitRuntime)
 				} else {
 					_, _ = fmt.Fprintf(stderr, "error: Issue writing to %s: %v\n\n", outputName(rc.output), werr) //nolint:staticcheck,revive // kept for CLI message-format compatibility
@@ -296,7 +300,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 			}
 
 			if rc.test {
-				_, _ = fmt.Fprint(stderr, testsummary.Line(res, rc.color))
+				_, _ = fmt.Fprint(stderr, testsummary.Line(res, rc.colorErr))
 			}
 			worst = worstCode(worst, classifyResult(res))
 			return true
@@ -304,7 +308,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 	}
 
 	if buffered && rc.engine.Verbosity >= engine.Verbose {
-		newEventLogger(stderr, rc.color, false).writeStar(fmt.Sprintf("Parallel run using %d workers", rc.jobs), false)
+		newEventLogger(stderr, rc.colorErr, false).writeStar(fmt.Sprintf("Parallel run using %d workers", rc.jobs), false)
 	}
 	var dataErr error
 	runner.RunAll(ctx, rc.plan.Jobs(stdinSrc, &dataErr), opt)
@@ -334,7 +338,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 		}
 	}
 	if resultsBySeq != nil {
-		if err := writeReports(stderr, rc.color, verbose, rc, orderedResults(resultsBySeq), runner.Redact); err != nil {
+		if err := writeReports(stderr, rc.colorErr, verbose, rc, orderedResults(resultsBySeq), runner.Redact); err != nil {
 			// The reference implementation's own report error (e.g. an
 			// existing report file that is not valid TAP/JUnit/JSON to
 			// merge into) is printed as-is, not wrapped in "Issue writing
@@ -343,7 +347,7 @@ func runMain(cmd *cobra.Command, o *runOptions, args []string, forceTest bool) e
 		}
 	}
 	if rc.cookieJar != "" {
-		logWriting(stderr, rc.color, verbose, "cookies", rc.cookieJar)
+		logWriting(stderr, rc.colorErr, verbose, "cookies", rc.cookieJar)
 		if err := writeCookieJar(rc.cookieJar, maxSeqFile, cookies.Cookies(), runner.Redact); err != nil {
 			return NewExitError(ExitUndefined, fmt.Errorf("Issue writing to %s: %v", rc.cookieJar, err)) //nolint:staticcheck,revive // kept for CLI message-format compatibility
 		}

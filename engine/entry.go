@@ -543,6 +543,9 @@ func (u *unit) writeOutput(res *EntryResult, eo *entryOptions) {
 	}
 	if eo.output.name == "-" {
 		if u.io.stdout != nil {
+			if render := u.runner.opt.StdoutBody; render != nil {
+				body = render(resp, body)
+			}
 			_, _ = u.io.stdout.Write(body)
 		}
 		return

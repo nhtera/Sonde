@@ -1299,19 +1299,18 @@ hurl/tests_ok_not_linted/empty_section.sh:
   expect: pass
 hurl/tests_pty/binary_output/binary_output.sh:
   lane: pty
-  expect: fail
-  reason: 'TTY output parity (phase 2)'
+  expect: pass
 hurl/tests_pty/color/color.out.sh:
   lane: pty
   expect: pass
 hurl/tests_pty/color/color.sh:
   lane: pty
   expect: fail
-  reason: 'TTY output parity (phase 2)'
+  reason: 'disabling colour from the config file (XDG_CONFIG_HOME) needs the 8.1.0 config file (phase 5)'
 hurl/tests_pty/fail_with_body/fail_with_body.sh:
   lane: pty
   expect: fail
-  reason: 'TTY output parity (phase 2)'
+  reason: 8.1.0 option --fail-with-body (phase 6)
 hurl/tests_pty/help/help.sh:
   lane: pty
   expect: fail
@@ -1321,15 +1320,14 @@ hurl/tests_pty/include/include.sh:
   expect: pass
 hurl/tests_pty/output/output_option_stdout.sh:
   lane: pty
-  expect: fail
-  reason: 'TTY output parity (phase 2)'
+  expect: pass
 hurl/tests_pty/output/output_option_stdout_no_pretty.sh:
   lane: pty
   expect: pass
 hurl/tests_pty/output/output_option_stdout_no_pretty_config_file.sh:
   lane: pty
   expect: fail
-  reason: 'TTY output parity (phase 2)'
+  reason: needs the 8.1.0 config file (phase 5)
 hurl/tests_pty/progress_bar/progress_bar.sh:
   lane: pty
   expect: pass
@@ -1344,8 +1342,7 @@ hurl/tests_pty/stderr/stderr_no_color.sh:
   expect: pass
 hurl/tests_pty/stderr/stderr_piped.sh:
   lane: pty
-  expect: fail
-  reason: 'TTY output parity (phase 2)'
+  expect: pass
 hurl/tests_ssl/cacert.sh:
   lane: extended
   expect: pass
@@ -1425,218 +1422,218 @@ hurl/tests_unix_socket/unix_socket.sh:
 hurlfmt/tests_export/body.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/body.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/body.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/capture.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/capture.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/capture.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/empty.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/empty.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/empty.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/filter.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/filter.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/filter.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/float.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/float.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/float.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/function.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/function.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/function.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/headers.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/headers.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/headers.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/http_version.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/http_version.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/http_version.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/injection.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/injection.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/injection.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/method.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/method.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/method.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/multilines.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/multilines.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/multilines.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/no_entry.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/no_entry.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/no_entry.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/options.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/options.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/options.hurl#lint:
   lane: hurlfmt
   expect: fail
-  reason: 'formatter differs from the reference lint (phase 3)'
+  reason: formatter differs from the reference lint (phase 3)
 hurlfmt/tests_export/predicate.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/predicate.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/predicate.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/predicate_value.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/predicate_value.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/predicate_value.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/query.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/query.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/query.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/sections.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/sections.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/sections.hurl#lint:
   lane: hurlfmt
   expect: fail
-  reason: 'formatter differs from the reference lint (phase 3)'
+  reason: formatter differs from the reference lint (phase 3)
 hurlfmt/tests_export/trailing_space.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/trailing_space.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/trailing_space.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_export/url.hurl#html:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/url.hurl#json:
   lane: hurlfmt
   expect: fail
-  reason: 'export json/html not implemented (phase 4)'
+  reason: export json/html not implemented (phase 4)
 hurlfmt/tests_export/url.hurl#lint:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_failed/check.sh:
   lane: hurlfmt
   expect: fail
-  reason: 'formatter differs from the reference lint (phase 3)'
+  reason: formatter differs from the reference lint (phase 3)
 hurlfmt/tests_failed/in_place.sh:
   lane: hurlfmt
   expect: pass
@@ -1655,7 +1652,7 @@ hurlfmt/tests_ok/check.sh:
 hurlfmt/tests_ok/format.sh:
   lane: hurlfmt
   expect: fail
-  reason: 'formatter differs from the reference lint (phase 3)'
+  reason: formatter differs from the reference lint (phase 3)
 hurlfmt/tests_ok/help.sh:
   lane: hurlfmt
   expect: fail
@@ -1663,18 +1660,18 @@ hurlfmt/tests_ok/help.sh:
 hurlfmt/tests_ok/html_standalone.sh:
   lane: hurlfmt
   expect: fail
-  reason: 'export html --standalone not implemented (phase 4)'
+  reason: export html --standalone not implemented (phase 4)
 hurlfmt/tests_ok/hurlfmt.sh:
   lane: hurlfmt
   expect: fail
-  reason: 'formatter differs from the reference lint (phase 3)'
+  reason: formatter differs from the reference lint (phase 3)
 hurlfmt/tests_ok/hurlfmt_multiple_input.sh:
   lane: hurlfmt
   expect: pass
 hurlfmt/tests_ok/import_curl.sh:
   lane: hurlfmt
   expect: fail
-  reason: 'formatter differs from the reference lint (phase 3)'
+  reason: formatter differs from the reference lint (phase 3)
 hurlfmt/tests_ok/in_place.sh:
   lane: hurlfmt
   expect: pass

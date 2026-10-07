@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/runerr"
 	"github.com/nhtera/sonde/internal/value"
 )
@@ -268,5 +269,21 @@ func TestRunFileAndVariables(t *testing.T) {
 	}
 	if _, err := NewRunner(Options{Variables: map[string]any{"x": struct{}{}}}).RunSource(context.Background(), path, []byte("GET http://a\n")); err == nil {
 		t.Error("unsupported variable type accepted")
+	}
+}
+
+func TestOutputStdoutBodyHook(t *testing.T) {
+	var out bytes.Buffer
+	var gotStatus int
+	res, _ := run(t, "GET {{base}}/hello\n[Options]\noutput: -\nHTTP 200\n", Options{
+		Stdout: &out,
+		StdoutBody: func(resp *exchange.Response, body []byte) []byte {
+			gotStatus = resp.Status
+			return append([]byte("<"), append(body, '>')...)
+		},
+	})
+	requireSuccess(t, res)
+	if gotStatus != 200 || !strings.HasPrefix(out.String(), "<") || !strings.HasSuffix(out.String(), ">") {
+		t.Errorf("stdout = %q, status seen = %d; want the hook's rendering of the 200 response", out.String(), gotStatus)
 	}
 }

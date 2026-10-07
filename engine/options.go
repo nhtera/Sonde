@@ -9,6 +9,8 @@ package engine
 import (
 	"io"
 	"time"
+
+	"github.com/nhtera/sonde/exchange"
 )
 
 // Verbosity is the level of debug information emitted as log events.
@@ -56,6 +58,12 @@ type Options struct {
 
 	// Stdout receives responses written with `output: -`. Nil: discarded.
 	Stdout io.Writer
+	// StdoutBody, when set, renders a response body written with
+	// `output: -` before it goes to Stdout (for example pretty-printing
+	// for a terminal). Nil: the body is written as received. It may be
+	// called concurrently (RunAll); it must not modify resp or body, nor
+	// keep either after it returns. Experimental: see docs/stability.md.
+	StdoutBody func(resp *exchange.Response, body []byte) []byte
 	// DefaultUserAgent replaces `sonde/<version>` (the version of this
 	// module) as the User-Agent sent when neither the entry nor the
 	// options set one.

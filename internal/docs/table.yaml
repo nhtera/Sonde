@@ -1191,7 +1191,7 @@ differences:
   - area: "HTTP"
     input: "`--version` output"
     hurl: "Hurl and libcurl versions and features"
-    sonde: "sonde version, commit, build date, Go version"
+    sonde: "sonde version, commit, build date, Go version, then a `Features:` line listing the optional transport features this build implements (e.g. `HTTP2`)"
   - area: "HTTP"
     input: "Request-file path escaping the file root through a symbolic link"
     hurl: "allowed (lexical check)"

@@ -8,8 +8,11 @@ import (
 	"io"
 	"runtime"
 	"runtime/debug"
+	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/nhtera/sonde/internal/httpx"
 )
 
 // Build metadata injected by release builds:
@@ -66,8 +69,12 @@ func resolveBuildInfo(ldVersion, ldCommit, ldDate string, info *debug.BuildInfo)
 	return bi
 }
 
+// writeVersion prints the version block. Its "Features:" line lists the
+// optional transport features this build implements (httpx.Features), so
+// scripts can probe for one with `--version | grep Features`.
 func writeVersion(w io.Writer, bi buildInfo) error {
-	_, err := fmt.Fprintf(w, "sonde %s\ncommit: %s\nbuilt: %s\ngo: %s\n", bi.Version, bi.Commit, bi.Date, bi.GoVersion)
+	_, err := fmt.Fprintf(w, "sonde %s\ncommit: %s\nbuilt: %s\ngo: %s\nFeatures: %s\n",
+		bi.Version, bi.Commit, bi.Date, bi.GoVersion, strings.Join(httpx.Features(), " "))
 	return err
 }
 

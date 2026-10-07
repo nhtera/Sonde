@@ -139,6 +139,9 @@ and stop reasons, and so may the set of `Event` types. Switch on them with a `de
 of `Error()`, `Message()`, `Render()` and log events is for people and may
 change in any release; match on `Kind()`, never on text.
 
+`Options.StdoutBody` is experimental: its signature may change in a minor
+release.
+
 ## Sonde Desktop
 
 [Sonde Desktop](desktop.md) is not covered by the v1 contract above. It is a
