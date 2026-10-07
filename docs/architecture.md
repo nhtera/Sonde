@@ -211,15 +211,18 @@ Canonical layout: `internal/syntax.Lint`, used by `fmt`, LSP formatting and ever
 
 ### Variable precedence (lowest → highest; Hurl-aligned)
 1. `sonde.yaml` environment: `variables`, then `variables_files`
-2. `HURL_VARIABLE_*`, then `SONDE_VARIABLE_*` env vars
-3. `--variables-file` (in order given)
-4. data row (`--data`; engine: `Job.Row` above `Options.Variables`, the CLI drops columns named by a `--variable`; built-in `data_row`)
-5. `--variable`
-6. entry `[Options] variable:` (entry-scoped)
-7. captures during the run (unit-scoped)
+2. user config file (`$XDG_CONFIG_HOME/hurl/config`) `--variable` lines
+3. `HURL_VARIABLE_*`, then `SONDE_VARIABLE_*` env vars
+4. `--variables-file` (in order given)
+5. data row (`--data`; engine: `Job.Row` above `Options.Variables`, the CLI drops columns named by a `--variable`; built-in `data_row`)
+6. `--variable`
+7. entry `[Options] variable:` (entry-scoped)
+8. captures during the run (unit-scoped)
+
+Every other option follows the same order: config file < `HURL_*`/`SONDE_*` < flag (`runplan`, shared by the CLI and the desktop app); list options (`--header`) add up instead.
 
 Environment selection: `--env` > `SONDE_ENV` > `defaults.env`.
-Secrets: `sonde.yaml` `secrets_files`, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secrets-file`, `--secret`, `--data-secret` columns, `redact` captures. Same secret name from two sources → error (Hurl message). Secret vs variable name clash → exit 1 (a data column named like a command line secret too). Secrets shorter than 4 chars → warning. An environment's `secrets:` lists the names it needs: its secrets file may then be missing (a fresh clone), and a listed name no source sets stops the run before any request (exit 1), naming where to set it.
+Secrets: `sonde.yaml` `secrets_files`, the user config file's `--secret` lines, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secrets-file`, `--secret`, `--data-secret` columns, `redact` captures. Same secret name from two sources → error (Hurl message). Secret vs variable name clash → exit 1 (a data column named like a command line secret too). Secrets shorter than 4 chars → warning. An environment's `secrets:` lists the names it needs: its secrets file may then be missing (a fresh clone), and a listed name no source sets stops the run before any request (exit 1), naming where to set it.
 
 Type inference for CLI/env/CSV values (Hurl-compatible): `true`/`false` → bool, `null` → null, integer → int, float → float, else string.
 

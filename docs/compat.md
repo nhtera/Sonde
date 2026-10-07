@@ -409,13 +409,58 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 
 ## Config file
 
-Hurl 8.0.1 reads `$XDG_CONFIG_HOME/hurl/config` (or `$HOME/config/hurl/config`
-as a fallback), a plain-text file of one `--option[ value]` per line.
+Sonde reads `$XDG_CONFIG_HOME/hurl/config` (or `$HOME/.config/hurl/config`
+when `XDG_CONFIG_HOME` is not set), a plain-text file of one
+`--option[ value]` per line, a value after spaces or `=`. It accepts the
+key set of the reference implementation after 8.0.1 (8.0.1 itself reads
+four keys and looks in `$HOME/config/hurl/config`). The environment and
+flags override the file; `--header` lines add to the other sources, and a
+`--secret` name it defines cannot be given again. The CLI and the desktop
+app read the same file.
 
 | Key | Status | Phase | Description |
 |---|---|---|---|
-| `header` | supported |  | adds a custom header to every request |
+| `color` | supported |  | forces colorized output |
+| `compressed` | supported |  | requests a compressed response and decodes it |
+| `connect-timeout` | supported |  | maximum time allowed to establish the connection (seconds when no unit is given) |
+| `continue-on-error` | supported |  | keeps running remaining files after a failure |
+| `delay` | supported |  | sleep before each request (milliseconds when no unit is given) |
+| `error-format` | supported |  | controls how error messages are rendered (short or long) |
+| `fail-with-body` | unsupported |  | writes the response body of a failed entry (the option itself is not implemented yet; the key is read and the run stops with an unsupported-option error) |
+| `header` | supported |  | adds a custom header to every request (repeatable) |
+| `http1.0` | unsupported |  | forces HTTP/1.0 (Go's net/http cannot send a literal HTTP/1.0 request; a run that resolves to it stops with an unsupported-option error) |
+| `http1.1` | supported |  | forces HTTP/1.1 |
+| `http2` | supported |  | forces HTTP/2 |
+| `http3` | unsupported |  | forces HTTP/3 (HTTP/3 transport not implemented yet) |
+| `insecure` | supported |  | skips TLS certificate verification |
+| `ipv6` | supported |  | resolves hostnames to IPv6 addresses only |
+| `jobs` | supported |  | maximum number of parallel jobs |
+| `limit-rate` | supported |  | caps the transfer rate in bytes per second |
+| `location` | supported |  | follows HTTP redirects |
+| `location-trusted` | supported |  | follows redirects and forwards credentials to every host |
+| `max-filesize` | supported |  | caps the size of a downloaded file |
 | `max-redirs` | supported |  | maximum number of redirects to follow, -1 for unlimited |
+| `max-time` | supported |  | maximum time allowed for the whole transfer (seconds when no unit is given) |
+| `no-assert` | supported |  | ignores asserts defined in the file |
+| `no-color` | supported |  | disables colorized output |
+| `no-cookie-store` | supported |  | disables the cookie store between requests |
+| `no-header` | unsupported |  | removes a header from every request (repeatable) (the option itself is not implemented yet; the key is read and the run stops with an unsupported-option error) |
+| `no-jsonpath-coercion` | unsupported |  | keeps JSONPath results uncoerced (the option itself is not implemented yet; the key is read and the run stops with an unsupported-option error) |
+| `no-output` | supported |  | suppresses the default last-response-body output |
+| `no-pretty` | supported |  | disables pretty-printing of response output |
+| `no-progress-bar` | supported |  | never shows the test progress bar |
+| `no-proxy` | supported |  | lists hosts that bypass the proxy |
+| `pretty` | supported |  | pretty-prints JSON response output |
+| `proxy` | supported |  | routes the request through the given proxy |
+| `proxy-header` | unsupported |  | adds a header sent to the proxy only (repeatable) (the option itself is not implemented yet; the key is read and the run stops with an unsupported-option error) |
+| `retry` | supported |  | maximum retries on entry error, -1 for unlimited |
+| `retry-interval` | supported |  | delay between retries (milliseconds when no unit is given) |
+| `secret` | supported |  | defines a secret (NAME=VALUE); the name cannot be given again by another source |
+| `test` | supported |  | activates test mode |
+| `user` | supported |  | adds Basic authentication with USER:PASSWORD |
 | `user-agent` | supported |  | sets the User-Agent header sent to the server |
+| `variable` | supported |  | defines a variable (NAME=VALUE); the environment and flags override it |
 | `verbose` | supported |  | same as --verbose |
+| `very-verbose` | supported |  | same as --very-verbose |
+| `verbosity` | supported |  | sets the verbosity level (brief, verbose or debug) |
 

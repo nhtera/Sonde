@@ -60,7 +60,7 @@ func newExportHTMLCmd() *cobra.Command {
 // reported and skipped; the exit code is then 2.
 func runExportAST(cmd *cobra.Command, o *exportASTOptions, args []string, render func(*syntax.File) string) error {
 	stdout, stderr := cmd.OutOrStdout(), cmd.ErrOrStderr()
-	color := resolveColor(cmd, config.FromOSEnviron(), isTerminal(stdout))
+	color := resolveColor(cmd, config.FromOSEnviron(), isTerminal(stdout), nil)
 	if len(args) == 0 {
 		args = []string{stdinName}
 	}

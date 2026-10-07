@@ -245,10 +245,12 @@ supplies (below).
 ### The CLI's configuration applies
 
 The app honors what the CLI honors: the user config file
-(`$XDG_CONFIG_HOME/hurl/config`, falling back to `$HOME/config/hurl/config`;
-see [compat.md](compat.md#config-file)) and the `HURL_*` and `SONDE_*`
+(`$XDG_CONFIG_HOME/hurl/config`, falling back to `$HOME/.config/hurl/config`;
+every key the CLI reads, see [compat.md](compat.md#config-file)) and the `HURL_*` and `SONDE_*`
 environment variables, with the same precedence ([architecture.md](architecture.md#variable-precedence-lowest--highest-hurl-aligned)).
-They show up in the overrides chip.
+They show up in the overrides chip, each setting with the file or the
+variable it came from (a secret by name only), so an `--insecure` or a
+`--proxy` from the config file is visible before a run.
 
 A program started from the Finder, the Dock, the Start menu or a desktop
 launcher does **not** inherit the environment of your shell. Variables you

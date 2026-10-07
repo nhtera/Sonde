@@ -154,11 +154,17 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 {{ end }}
 ## Config file
 
-Hurl 8.0.1 reads `$XDG_CONFIG_HOME/hurl/config` (or `$HOME/config/hurl/config`
-as a fallback), a plain-text file of one `--option[ value]` per line.
+Sonde reads `$XDG_CONFIG_HOME/hurl/config` (or `$HOME/.config/hurl/config`
+when `XDG_CONFIG_HOME` is not set), a plain-text file of one
+`--option[ value]` per line, a value after spaces or `=`. It accepts the
+key set of the reference implementation after 8.0.1 (8.0.1 itself reads
+four keys and looks in `$HOME/config/hurl/config`). The environment and
+flags override the file; `--header` lines add to the other sources, and a
+`--secret` name it defines cannot be given again. The CLI and the desktop
+app read the same file.
 
 | Key | Status | Phase | Description |
 |---|---|---|---|
 {{ range .Config -}}
-| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }} |
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
 {{ end }}

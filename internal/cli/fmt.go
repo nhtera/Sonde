@@ -43,7 +43,7 @@ func newFmtCmd() *cobra.Command {
 
 func runFmt(cmd *cobra.Command, opts *fmtOptions, args []string) error {
 	stdout, stderr := cmd.OutOrStdout(), cmd.ErrOrStderr()
-	color := resolveColor(cmd, config.FromOSEnviron(), isTerminal(stdout))
+	color := resolveColor(cmd, config.FromOSEnviron(), isTerminal(stdout), nil)
 	if len(args) == 0 {
 		args = []string{stdinName}
 	}

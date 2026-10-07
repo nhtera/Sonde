@@ -16,7 +16,9 @@ difference is in [compat.md](../compat.md).
 - **Environment variables.** `HURL_*` variables work, including
   `HURL_VARIABLE_name` and `HURL_SECRET_name`. Each also has a `SONDE_*`
   form, which wins when both are set.
-- **Config file.** Sonde reads `$XDG_CONFIG_HOME/hurl/config` like Hurl.
+- **Config file.** Sonde reads `$XDG_CONFIG_HOME/hurl/config` (or
+  `~/.config/hurl/config`) with every key of the reference implementation,
+  and so does the desktop app. See [compat.md](../compat.md#config-file).
 - **Exit codes.** They are the same, plus `130` when the run is interrupted
   with Ctrl-C.
 

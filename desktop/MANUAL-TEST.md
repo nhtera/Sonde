@@ -151,10 +151,12 @@ Tick each item, and write down the OS version and the build (version, commit).
 - [x] Open the app **from the Finder, the Dock and Spotlight**: the chip does
       not show it and `{{origin}}` is undefined. The request fails with the
       undefined-variable error, as expected. *(macOS 15.7.3, local build of `93c8a03`)* The Finder, and `open` with a clean environment (the Dock and Spotlight launch the same way).
-- [x] A config file at `$HOME/config/hurl/config` (the path used when
+- [ ] A config file at `$HOME/.config/hurl/config` (the path used when
       `XDG_CONFIG_HOME` is not set, as in a Finder launch) with
-      `--header "X-From: config"` applies from every launch method, and the
-      chip shows it. *(macOS 15.7.3, local build of `93c8a03`)*
+      `--header "X-From: config"` and `--insecure` applies from every launch
+      method, and the chip shows both. (Checked at `93c8a03` with the old
+      `$HOME/config/hurl/config` path and `--header` only; re-check after
+      the full config file.)
 
 ## 9. Responses in the native webview
 

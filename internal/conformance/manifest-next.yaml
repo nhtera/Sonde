@@ -266,8 +266,7 @@ hurl/tests_failed/connect_timeout/connect_timeout.sh:
   expect: pass
 hurl/tests_failed/connect_timeout/connect_timeout_config_file.sh:
   lane: timing
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/connect_timeout/connect_timeout_env_var.sh:
   lane: timing
   expect: pass
@@ -276,8 +275,7 @@ hurl/tests_failed/continue_on_error/continue_on_error.sh:
   expect: pass
 hurl/tests_failed/continue_on_error/continue_on_error_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/continue_on_error/continue_on_error_env_var.sh:
   lane: blocking
   expect: pass
@@ -298,8 +296,7 @@ hurl/tests_failed/error_format_long/error_format_long_color.sh:
   expect: pass
 hurl/tests_failed/error_format_long/error_format_long_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/error_format_long/error_format_long_env_var.sh:
   lane: blocking
   expect: pass
@@ -407,8 +404,7 @@ hurl/tests_failed/max_filesize/max_filesize.sh:
   expect: pass
 hurl/tests_failed/max_filesize/max_filesize_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/max_filesize/max_filesize_env_var.sh:
   lane: blocking
   expect: pass
@@ -525,8 +521,7 @@ hurl/tests_failed/timeout/timeout.sh:
   expect: pass
 hurl/tests_failed/timeout/timeout_config_file.sh:
   lane: timing
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_failed/timeout/timeout_env_var.sh:
   lane: timing
   expect: pass
@@ -575,8 +570,7 @@ hurl/tests_ok/basic_authentication/basic_authentication.sh:
   expect: pass
 hurl/tests_ok/basic_authentication/basic_authentication_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/basic_authentication/basic_authentication_env_var.sh:
   lane: blocking
   expect: pass
@@ -609,8 +603,7 @@ hurl/tests_ok/color/color.sh:
   expect: pass
 hurl/tests_ok/color/color_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/color/color_env_var.sh:
   lane: blocking
   expect: pass
@@ -623,8 +616,7 @@ hurl/tests_ok/compressed/compressed.sh:
   expect: pass
 hurl/tests_ok/compressed/compressed_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/compressed/compressed_env_var.sh:
   lane: blocking
   expect: pass
@@ -660,8 +652,7 @@ hurl/tests_ok/delay/delay.sh:
   expect: pass
 hurl/tests_ok/delay/delay_config_file.sh:
   lane: timing
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/delay/delay_env_var.sh:
   lane: timing
   expect: pass
@@ -728,8 +719,7 @@ hurl/tests_ok/follow_redirect/follow_redirect_option.sh:
   reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
 hurl/tests_ok/follow_redirect/follow_redirect_trusted_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/follow_redirect/follow_redirect_trusted_env_var.sh:
   lane: blocking
   expect: pass
@@ -807,8 +797,7 @@ hurl/tests_ok/http_version/http_version_11.sh:
   expect: pass
 hurl/tests_ok/http_version/http_version_11_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/http_version/http_version_11_env_var.sh:
   lane: blocking
   expect: pass
@@ -821,8 +810,7 @@ hurl/tests_ok/ignore_asserts/ignore_asserts.sh:
   expect: pass
 hurl/tests_ok/ignore_asserts/ignore_asserts_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/ignore_asserts/ignore_asserts_env_var.sh:
   lane: blocking
   expect: pass
@@ -837,8 +825,7 @@ hurl/tests_ok/input_dir/input_dir.sh:
   expect: pass
 hurl/tests_ok/insecure/insecure_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/insecure/insecure_option.sh:
   lane: blocking
   expect: pass
@@ -850,9 +837,8 @@ hurl/tests_ok/ipv6/ipv6.sh:
   lane: extended
   expect: pass
 hurl/tests_ok/ipv6/ipv6_config_file.sh:
-  lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  lane: extended
+  expect: pass
 hurl/tests_ok/ipv6/ipv6_env_var.sh:
   lane: extended
   expect: pass
@@ -898,8 +884,7 @@ hurl/tests_ok/limit_rate/limit_rate.sh:
   expect: pass
 hurl/tests_ok/limit_rate/limit_rate_config_file.sh:
   lane: timing
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/limit_rate/limit_rate_env_var.sh:
   lane: timing
   expect: pass
@@ -941,8 +926,7 @@ hurl/tests_ok/no_cookie_store/no_cookie_store.sh:
   expect: pass
 hurl/tests_ok/no_cookie_store/no_cookie_store_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/no_cookie_store/no_cookie_store_env_var.sh:
   lane: blocking
   expect: pass
@@ -973,8 +957,7 @@ hurl/tests_ok/no_output/no_output.sh:
   expect: pass
 hurl/tests_ok/no_output/no_output_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/no_output/no_output_env_var.sh:
   lane: blocking
   expect: pass
@@ -1035,8 +1018,7 @@ hurl/tests_ok/parallel/parallel_one_worker.sh:
   expect: pass
 hurl/tests_ok/parallel/parallel_one_worker_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/parallel/parallel_one_worker_test.sh:
   lane: blocking
   expect: pass
@@ -1100,8 +1082,7 @@ hurl/tests_ok/pretty/pretty_color.sh:
   expect: pass
 hurl/tests_ok/pretty/pretty_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/pretty/pretty_env_var.sh:
   lane: blocking
   expect: pass
@@ -1122,9 +1103,9 @@ hurl/tests_ok/proxy/proxy.sh:
   expect: skip
   reason: local proxy (squid) is not available on this host
 hurl/tests_ok/proxy/proxy_config_file.sh:
-  lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  lane: extended
+  expect: skip
+  reason: local proxy (squid) is not available on this host
 hurl/tests_ok/proxy/proxy_option.sh:
   lane: extended
   expect: skip
@@ -1177,8 +1158,7 @@ hurl/tests_ok/retry/retry.sh:
   expect: pass
 hurl/tests_ok/retry/retry_config_file.sh:
   lane: timing
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/retry/retry_env_var.sh:
   lane: timing
   expect: pass
@@ -1190,8 +1170,7 @@ hurl/tests_ok/retry/retry_until_200.sh:
   expect: pass
 hurl/tests_ok/secret/secret.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/secret/secret_from_env.sh:
   lane: blocking
   expect: pass
@@ -1224,8 +1203,7 @@ hurl/tests_ok/test/test.sh:
   expect: pass
 hurl/tests_ok/test/test_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/test/test_env_var.sh:
   lane: blocking
   expect: pass
@@ -1250,8 +1228,7 @@ hurl/tests_ok/utf8/utf8.sh:
   expect: pass
 hurl/tests_ok/variables/variables.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/verbose/verbose.sh:
   lane: blocking
   expect: pass
@@ -1269,8 +1246,7 @@ hurl/tests_ok/verbosity/verbosity_color.sh:
   expect: pass
 hurl/tests_ok/verbosity/verbosity_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok/verbosity/verbosity_env_var.sh:
   lane: blocking
   expect: pass
@@ -1286,8 +1262,7 @@ hurl/tests_ok/very_verbose/very_verbose.sh:
   expect: pass
 hurl/tests_ok/very_verbose/very_verbose_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: 'next snapshot (8.1.0): new or changed upstream script, triaged in phase 6'
+  expect: pass
 hurl/tests_ok_not_linted/bom.sh:
   lane: blocking
   expect: pass
@@ -1305,8 +1280,7 @@ hurl/tests_pty/color/color.out.sh:
   expect: pass
 hurl/tests_pty/color/color.sh:
   lane: pty
-  expect: fail
-  reason: disabling colour from the config file (XDG_CONFIG_HOME) needs the 8.1.0 config file (phase 5)
+  expect: pass
 hurl/tests_pty/fail_with_body/fail_with_body.sh:
   lane: pty
   expect: fail
@@ -1326,8 +1300,7 @@ hurl/tests_pty/output/output_option_stdout_no_pretty.sh:
   expect: pass
 hurl/tests_pty/output/output_option_stdout_no_pretty_config_file.sh:
   lane: pty
-  expect: fail
-  reason: needs the 8.1.0 config file (phase 5)
+  expect: pass
 hurl/tests_pty/progress_bar/progress_bar.sh:
   lane: pty
   expect: pass

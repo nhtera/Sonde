@@ -6,7 +6,11 @@ package runplan
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 
@@ -36,11 +40,14 @@ type Plan struct {
 	Repeat   int
 	// Data is the --data file, checked in full (nil: none).
 	Data *datarow.Run
+	// Config is the user config file's options (zero when there is none),
+	// for the CLI's output settings; the run's own are applied above.
+	Config config.FileOptions
 	// Provenance lists the settings that came from the environment or
 	// the config file rather than a flag.
 	Provenance []Source
-	// Warnings are sonde.yaml discovery warnings (Resolve); they only
-	// name paths.
+	// Warnings are a config file left at the old location (New) and
+	// sonde.yaml discovery warnings (Resolve); they only name paths.
 	Warnings []string
 
 	inv    *Invocation
@@ -75,8 +82,13 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &Plan{inv: inv, env: env}
-	p.Test = inv.Cmd == "test" || ResolveBool(inv, "test", "TEST", inv.Test, env)
+	p := &Plan{inv: inv, env: env, Config: fileCfg}
+	if old := env.LegacyFilePath(); fileCfg.Path == "" && old != "" {
+		if _, err := os.Stat(old); err == nil {
+			p.Warnings = append(p.Warnings, fmt.Sprintf("config file %s is not read: move it to %s", old, filepath.Join(env["HOME"], ".config", "hurl", "config")))
+		}
+	}
+	p.Test = inv.Cmd == "test" || ResolveBoolOr(inv, "test", "TEST", inv.Test, env, fileCfg.Test)
 	// --test implies --parallel, matching the upstream CLI; --jobs (or
 	// its env var) picks the worker count, defaulting to the number of
 	// CPUs. Sequential (1) otherwise, regardless of --jobs. Parallel is
@@ -87,13 +99,13 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 	// is what callers check for parallel-runner-only behavior (buffered
 	// per-job logs, the progress bar), not Workers > 1.
 	p.Parallel = p.Test || ResolveBool(inv, "parallel", "PARALLEL", inv.Parallel, env)
-	p.Workers = resolveJobs(inv, env, p.Parallel)
+	p.Workers = resolveJobs(inv, env, p.Parallel, fileCfg.Jobs)
 
-	variables, err := config.BuildVariables(env, inv.VariablesFiles, inv.Variables)
+	variables, err := config.BuildVariables(fileCfg, env, inv.VariablesFiles, inv.Variables)
 	if err != nil {
 		return nil, err
 	}
-	secrets, err := config.BuildSecrets(env, inv.SecretsFiles, inv.Secrets)
+	secrets, err := config.BuildSecrets(fileCfg, env, inv.SecretsFiles, inv.Secrets)
 	if err != nil {
 		return nil, err
 	}
@@ -116,21 +128,21 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	delay, err := resolveDuration(inv, "delay", "DELAY", inv.Delay, env, config.Millisecond, 0)
+	delay, err := resolveDuration(inv, "delay", "DELAY", inv.Delay, env, config.Millisecond, deref(fileCfg.Delay))
 	if err != nil {
 		return nil, err
 	}
-	retry, err := resolveCount(inv, "retry", "RETRY", inv.Retry, env, 0, "NUM")
+	retry, err := resolveCount(inv, "retry", "RETRY", inv.Retry, env, deref(fileCfg.Retry), "NUM")
 	if err != nil {
 		return nil, err
 	}
-	retryInterval, err := resolveDuration(inv, "retry-interval", "RETRY_INTERVAL", inv.RetryInterval, env, config.Millisecond, 0)
+	retryInterval, err := resolveDuration(inv, "retry-interval", "RETRY_INTERVAL", inv.RetryInterval, env, config.Millisecond, deref(fileCfg.RetryInterval))
 	if err != nil {
 		return nil, err
 	}
-	noAssert := ResolveBool(inv, "no-assert", "NO_ASSERT", inv.NoAssert, env)
-	continueOnError := ResolveBool(inv, "continue-on-error", "CONTINUE_ON_ERROR", inv.ContinueOnError, env)
-	noCookieStore := ResolveBool(inv, "no-cookie-store", "NO_COOKIE_STORE", inv.NoCookieStore, env)
+	noAssert := ResolveBoolOr(inv, "no-assert", "NO_ASSERT", inv.NoAssert, env, fileCfg.NoAssert)
+	continueOnError := ResolveBoolOr(inv, "continue-on-error", "CONTINUE_ON_ERROR", inv.ContinueOnError, env, fileCfg.ContinueOnError)
+	noCookieStore := ResolveBoolOr(inv, "no-cookie-store", "NO_COOKIE_STORE", inv.NoCookieStore, env, fileCfg.NoCookieStore)
 
 	p.Repeat, err = resolveCount(inv, "repeat", "REPEAT", inv.Repeat, env, 1, "NUM")
 	if err != nil {
@@ -147,6 +159,11 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 		{"negotiate", inv.Negotiate},
 		{"ntlm", inv.NTLM},
 		{"ssl-no-revoke", inv.SSLNoRevoke},
+		// Config file options whose feature sonde does not have yet.
+		{"fail-with-body", fileCfg.FailWithBody},
+		{"no-header", len(fileCfg.NoHeaders) > 0},
+		{"no-jsonpath-coercion", fileCfg.NoJSONPathCoercion},
+		{"proxy-header", len(fileCfg.ProxyHeaders) > 0},
 	} {
 		if unsupported.enabled {
 			return nil, &UnsupportedError{Name: unsupported.name}
@@ -197,11 +214,12 @@ func DefaultUserAgent(env config.Env, version string) string {
 }
 
 // resolveJobs returns how many files RunAll may run at once: 1 when the
-// run is not parallel, else --jobs (or HURL_JOBS/SONDE_JOBS) when it is a
-// positive number, else the number of CPUs — matching the upstream CLI's
-// own "--jobs default = available CPUs" rule. --jobs 1 (explicit) forces
-// sequential even when parallel/test mode was otherwise requested.
-func resolveJobs(inv *Invocation, env config.Env, parallel bool) int {
+// run is not parallel, else --jobs (or HURL_JOBS/SONDE_JOBS, or the config
+// file's) when it is a positive number, else the number of CPUs — matching
+// the upstream CLI's own "--jobs default = available CPUs" rule. --jobs 1
+// (explicit) forces sequential even when parallel/test mode was otherwise
+// requested.
+func resolveJobs(inv *Invocation, env config.Env, parallel bool, fileJobs *int) int {
 	if !parallel {
 		return 1
 	}
@@ -210,6 +228,9 @@ func resolveJobs(inv *Invocation, env config.Env, parallel bool) int {
 	}
 	if n, ok, err := env.Int("JOBS"); ok && err == nil && n > 0 {
 		return int(n)
+	}
+	if fileJobs != nil {
+		return *fileJobs
 	}
 	return runtime.NumCPU()
 }
@@ -230,8 +251,8 @@ func resolveVerbosity(inv *Invocation, env config.Env, fileCfg config.FileOption
 		}
 		return parseVerbosityLevel(v)
 	}
-	if fileCfg.Verbose {
-		return engine.Verbose, nil
+	if fileCfg.Verbosity != "" {
+		return parseVerbosityLevel(fileCfg.Verbosity)
 	}
 	return engine.Quiet, nil
 }
@@ -254,18 +275,15 @@ func buildHTTPOptions(inv *Invocation, env config.Env, fileCfg config.FileOption
 	h.CACert = inv.CACert
 	h.ClientCert = inv.Cert
 	h.ClientKey = inv.Key
-	h.Compressed = ResolveBool(inv, "compressed", "COMPRESSED", inv.Compressed, env)
-	h.Insecure = ResolveBool(inv, "insecure", "INSECURE", inv.Insecure, env)
+	h.Compressed = ResolveBoolOr(inv, "compressed", "COMPRESSED", inv.Compressed, env, fileCfg.Compressed)
+	h.Insecure = ResolveBoolOr(inv, "insecure", "INSECURE", inv.Insecure, env, fileCfg.Insecure)
 	h.PathAsIs = inv.PathAsIs
 	h.PinnedPublicKey = inv.PinnedPubKey
-	h.Proxy = inv.Proxy
-	h.NoProxy = inv.NoProxy
+	h.Proxy = fileString(inv, "proxy", inv.Proxy, fileCfg.Proxy)
+	h.NoProxy = fileString(inv, "no-proxy", inv.NoProxy, fileCfg.NoProxy)
 	h.UnixSocket = inv.UnixSocket
-	h.User = resolveString(inv, "user", "USER", inv.User, env, "")
-	h.UserAgent = resolveString(inv, "user-agent", "USER_AGENT", inv.UserAgent, env, "")
-	if h.UserAgent == "" && fileCfg.UserAgent != nil {
-		h.UserAgent = *fileCfg.UserAgent
-	}
+	h.User = resolveString(inv, "user", "USER", inv.User, env, deref(fileCfg.User))
+	h.UserAgent = resolveString(inv, "user-agent", "USER_AGENT", inv.UserAgent, env, deref(fileCfg.UserAgent))
 	h.ConnectTo = inv.ConnectTo
 	h.Resolve = inv.Resolve
 	h.Netrc = inv.Netrc
@@ -287,53 +305,44 @@ func buildHTTPOptions(inv *Invocation, env config.Env, fileCfg config.FileOption
 	}
 	h.Headers = append(h.Headers, inv.Header...)
 
-	location, locationTrusted, err := resolveFollowLocation(inv, env)
+	location, locationTrusted, err := resolveFollowLocation(inv, env, fileCfg)
 	if err != nil {
 		return h, err
 	}
 	h.FollowLocation = location
 	h.LocationTrusted = locationTrusted
 
-	h.ConnectTimeout, err = resolveDuration(inv, "connect-timeout", "CONNECT_TIMEOUT", inv.ConnectTimeout, env, config.Second, 0)
+	h.ConnectTimeout, err = resolveDuration(inv, "connect-timeout", "CONNECT_TIMEOUT", inv.ConnectTimeout, env, config.Second, deref(fileCfg.ConnectTimeout))
 	if err != nil {
 		return h, err
 	}
-	h.Timeout, err = resolveDuration(inv, "max-time", "MAX_TIME", inv.MaxTime, env, config.Second, 0)
+	h.Timeout, err = resolveDuration(inv, "max-time", "MAX_TIME", inv.MaxTime, env, config.Second, deref(fileCfg.MaxTime))
 	if err != nil {
 		return h, err
 	}
-	maxRedirects, err := resolveCount(inv, "max-redirs", "MAX_REDIRS", inv.MaxRedirs, env, 0, "NUM")
+	h.MaxRedirects, err = resolveCount(inv, "max-redirs", "MAX_REDIRS", inv.MaxRedirs, env, deref(fileCfg.MaxRedirs), "NUM")
 	if err != nil {
 		return h, err
 	}
-	if fileCfg.MaxRedirs != nil && !inv.Changed("max-redirs") {
-		if _, _, ok := env.Lookup("MAX_REDIRS"); !ok {
-			maxRedirects = *fileCfg.MaxRedirs
-		}
+	h.MaxFilesize, err = resolveInt64(inv, "max-filesize", "MAX_FILESIZE", inv.MaxFilesize, env, deref(fileCfg.MaxFilesize), "BYTES")
+	if err != nil {
+		return h, err
 	}
-	h.MaxRedirects = maxRedirects
+	h.LimitRate, err = resolveInt64(inv, "limit-rate", "LIMIT_RATE", inv.LimitRate, env, deref(fileCfg.LimitRate), "SPEED")
+	if err != nil {
+		return h, err
+	}
 
-	maxFilesize, err := resolveInt64(inv, "max-filesize", "MAX_FILESIZE", inv.MaxFilesize, env, 0, "BYTES")
-	if err != nil {
-		return h, err
-	}
-	h.MaxFilesize = maxFilesize
-	limitRate, err := resolveInt64(inv, "limit-rate", "LIMIT_RATE", inv.LimitRate, env, 0, "SPEED")
-	if err != nil {
-		return h, err
-	}
-	h.LimitRate = limitRate
-
-	h.IPResolve = resolveIPResolve(inv, env)
-	h.HTTPVersion, err = resolveHTTPVersion(inv, env)
+	h.IPResolve = resolveIPResolve(inv, env, fileCfg.IPv6)
+	h.HTTPVersion, err = resolveHTTPVersion(inv, env, fileCfg.HTTPVersion)
 	if err != nil {
 		return h, err
 	}
 	return h, nil
 }
 
-func resolveFollowLocation(inv *Invocation, env config.Env) (location, locationTrusted bool, err error) {
-	envLocation, err := env.FollowLocation(false)
+func resolveFollowLocation(inv *Invocation, env config.Env, fileCfg config.FileOptions) (location, locationTrusted bool, err error) {
+	envLocation, err := env.FollowLocation(fileCfg.Location)
 	if err != nil {
 		return false, false, err
 	}
@@ -341,14 +350,18 @@ func resolveFollowLocation(inv *Invocation, env config.Env) (location, locationT
 	if inv.Changed("location") && inv.Location {
 		location = true
 	}
-	locationTrusted = ResolveBool(inv, "location-trusted", "LOCATION_TRUSTED", inv.LocationTrusted, env)
-	if locationTrusted {
+	locationTrusted = ResolveBoolOr(inv, "location-trusted", "LOCATION_TRUSTED", inv.LocationTrusted, env, fileCfg.LocationTrusted)
+	// The flag implies --location; from the environment or the config
+	// file, location-trusted is already part of location above, so
+	// HURL_LOCATION=false still turns following off.
+	if inv.Changed("location-trusted") && inv.LocationTrusted {
 		location = true
 	}
+	locationTrusted = locationTrusted && location
 	return location, locationTrusted, nil
 }
 
-func resolveIPResolve(inv *Invocation, env config.Env) engine.IPResolve {
+func resolveIPResolve(inv *Invocation, env config.Env, fileIPv6 bool) engine.IPResolve {
 	switch {
 	case inv.Changed("ipv6") && inv.IPv6:
 		return engine.IPv6
@@ -361,10 +374,13 @@ func resolveIPResolve(inv *Invocation, env config.Env) engine.IPResolve {
 		}
 		return engine.IPv4
 	}
+	if fileIPv6 {
+		return engine.IPv6
+	}
 	return engine.IPAny
 }
 
-func resolveHTTPVersion(inv *Invocation, env config.Env) (engine.HTTPVersion, error) {
+func resolveHTTPVersion(inv *Invocation, env config.Env, fileVersion string) (engine.HTTPVersion, error) {
 	switch {
 	case inv.Changed("http3") && inv.HTTP3:
 		return engine.HTTP3, nil
@@ -375,17 +391,19 @@ func resolveHTTPVersion(inv *Invocation, env config.Env) (engine.HTTPVersion, er
 	case inv.Changed("http1.0") && inv.HTTP10:
 		return 0, &UnsupportedError{Name: "http1.0"}
 	}
-	if v, ok := env.HTTPVersion(); ok {
-		switch v {
-		case "3":
-			return engine.HTTP3, nil
-		case "2":
-			return engine.HTTP2, nil
-		case "1.1":
-			return engine.HTTP11, nil
-		case "1.0":
-			return 0, &UnsupportedError{Name: "http1.0"}
-		}
+	v, ok := env.HTTPVersion()
+	if !ok {
+		v = fileVersion
+	}
+	switch v {
+	case "3":
+		return engine.HTTP3, nil
+	case "2":
+		return engine.HTTP2, nil
+	case "1.1":
+		return engine.HTTP11, nil
+	case "1.0":
+		return 0, &UnsupportedError{Name: "http1.0"}
 	}
 	return engine.HTTPDefault, nil
 }
@@ -441,33 +459,151 @@ func provenance(inv *Invocation, env config.Env, fileCfg config.FileOptions) []S
 	if _, key, ok := env.Lookup("HEADER"); ok {
 		out = append(out, Source{Setting: "--header", Origin: key})
 	}
-	if path, ok := env.FilePath(); ok {
-		_, _, envUA := env.Lookup("USER_AGENT")
-		_, _, envRedirs := env.Lookup("MAX_REDIRS")
-		_, _, envVerbosity := env.Lookup("VERBOSITY")
-		if fileCfg.UserAgent != nil && !inv.Changed("user-agent") && !envUA {
-			out = append(out, Source{Setting: "--user-agent", Origin: path})
-		}
-		if fileCfg.MaxRedirs != nil && !inv.Changed("max-redirs") && !envRedirs {
-			out = append(out, Source{Setting: "--max-redirs", Origin: path})
-		}
-		verboseFlag := inv.Changed("verbose") || inv.Changed("very-verbose") || inv.Changed("verbosity")
-		if fileCfg.Verbose && !verboseFlag && !envVerbosity {
-			out = append(out, Source{Setting: "--verbose", Origin: path})
-		}
-		if len(fileCfg.Headers) > 0 {
-			out = append(out, Source{Setting: "--header", Origin: path})
-		}
-	}
+	out = append(out, fileProvenance(inv, env, fileCfg)...)
 	// A variable or secret the environment defines, unless a variables
 	// file or a flag replaces it.
-	flagVars, errV := config.BuildVariables(config.Env{}, inv.VariablesFiles, inv.Variables)
-	flagSecrets, errS := config.BuildSecrets(config.Env{}, inv.SecretsFiles, inv.Secrets)
+	flagVars, errV := config.BuildVariables(config.FileOptions{}, config.Env{}, inv.VariablesFiles, inv.Variables)
+	flagSecrets, errS := config.BuildSecrets(config.FileOptions{}, config.Env{}, inv.SecretsFiles, inv.Secrets)
 	if errors.Join(errV, errS) == nil {
 		out = append(out, prefixed("variable", env.VariableEnvVars(), func(n string) bool { _, ok := flagVars[n]; return ok }, env, "VARIABLE_")...)
 		out = append(out, prefixed("secret", env.SecretEnvVars(), func(n string) bool { _, ok := flagSecrets[n]; return ok }, env, "SECRET_")...)
 	}
 	return out
+}
+
+// fileOverrides are the config file options a flag or an environment
+// variable other than the option's own (envSettings) replaces: the
+// options that set the same setting under another name.
+var fileOverrides = map[string]struct{ flags, envs []string }{
+	"color":        {[]string{"color", "no-color"}, []string{"COLOR", "NO_COLOR"}},
+	"no-color":     {[]string{"color", "no-color"}, []string{"COLOR", "NO_COLOR"}},
+	"pretty":       {[]string{"pretty", "no-pretty"}, []string{"PRETTY", "NO_PRETTY"}},
+	"no-pretty":    {[]string{"pretty", "no-pretty"}, []string{"PRETTY", "NO_PRETTY"}},
+	"verbose":      {verbosityFlags, verbosityEnvs},
+	"very-verbose": {verbosityFlags, verbosityEnvs},
+	"verbosity":    {verbosityFlags, verbosityEnvs},
+	"http1.0":      {httpVersionFlags, httpVersionEnvs},
+	"http1.1":      {httpVersionFlags, httpVersionEnvs},
+	"http2":        {httpVersionFlags, httpVersionEnvs},
+	"http3":        {httpVersionFlags, httpVersionEnvs},
+	"ipv6":         {[]string{"ipv4", "ipv6"}, []string{"IPV4", "IPV6"}},
+	"error-format": {[]string{"error-format"}, []string{"ERROR_FORMAT"}},
+	"no-output":    {[]string{"no-output"}, []string{"NO_OUTPUT"}},
+}
+
+var (
+	verbosityFlags   = []string{"verbose", "very-verbose", "verbosity"}
+	verbosityEnvs    = []string{"VERBOSE", "VERY_VERBOSE", "VERBOSITY"}
+	httpVersionFlags = []string{"http1.0", "http1.1", "http2", "http3"}
+	httpVersionEnvs  = []string{"HTTP10", "HTTP11", "HTTP2", "HTTP3"}
+)
+
+// fileProvenance lists the settings the config file sets that no flag or
+// environment variable replaces, in file order. Lists (--header, ...) add
+// to the other sources, so they are always listed; each variable and
+// secret is listed by name, unless another source replaces the variable.
+// Values are never listed.
+func fileProvenance(inv *Invocation, env config.Env, fileCfg config.FileOptions) []Source {
+	var out []Source
+	envVars := env.VariableEnvVars()
+	flagVars, _ := config.BuildVariables(config.FileOptions{}, config.Env{}, inv.VariablesFiles, inv.Variables)
+	for _, key := range fileCfg.Keys {
+		switch key {
+		case "variable":
+			seen := map[string]bool{}
+			for _, a := range fileCfg.Variables {
+				_, inEnv := envVars[a.Name]
+				_, inFlags := flagVars[a.Name]
+				if !seen[a.Name] && !inEnv && !inFlags {
+					out = append(out, Source{Setting: "variable " + a.Name, Origin: fileCfg.Path})
+				}
+				seen[a.Name] = true
+			}
+			continue
+		case "secret":
+			for _, name := range slices.Sorted(maps.Keys(fileCfg.Secrets)) {
+				out = append(out, Source{Setting: "secret " + name, Origin: fileCfg.Path})
+			}
+			continue
+		}
+		if fileOptionReplaced(inv, env, key) {
+			continue
+		}
+		out = append(out, Source{Setting: "--" + key, Origin: fileCfg.Path})
+	}
+	return out
+}
+
+// fileOptionReplaced reports whether a flag or an environment variable
+// sets what config file option key sets.
+func fileOptionReplaced(inv *Invocation, env config.Env, key string) bool {
+	flags, envs := []string{key}, []string(nil)
+	if o, ok := fileOverrides[key]; ok {
+		flags, envs = o.flags, o.envs
+	} else {
+		for _, s := range envSettings {
+			if s.flag == key {
+				envs = []string{s.env}
+			}
+		}
+	}
+	switch key {
+	case "header", "no-header", "proxy-header":
+		return false
+	case "color", "no-color":
+		if _, ok := env["NO_COLOR"]; ok {
+			return true
+		}
+	}
+	for _, f := range flags {
+		if inv.Changed(f) {
+			return true
+		}
+	}
+	return envReplaces(env, key, envs)
+}
+
+// envReplaces reports whether one of envs replaces config file option key
+// the way the run resolves it: a flag only by a value that parses, a
+// group (verbosity, HTTP version, IP family) by the value its accessor
+// resolves, anything else by being set.
+func envReplaces(env config.Env, key string, envs []string) bool {
+	switch {
+	case slices.Equal(envs, verbosityEnvs):
+		_, ok, err := env.Verbosity()
+		return ok && err == nil
+	case slices.Equal(envs, httpVersionEnvs):
+		_, ok := env.HTTPVersion()
+		return ok
+	case key == "ipv6":
+		_, ok := env.IPResolve()
+		return ok
+	case key == "jobs":
+		n, ok, err := env.Int("JOBS")
+		return ok && err == nil && n > 0
+	case key == "no-output":
+		v, ok := env.Bool("NO_OUTPUT")
+		return ok && v
+	}
+	_, isFlag := fileFlags[key]
+	for _, e := range envs {
+		if isFlag {
+			if _, ok := env.Bool(e); ok {
+				return true
+			}
+		} else if _, _, ok := env.Lookup(e); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// fileFlags are the config file options that take no value: an
+// environment variable replaces one only with a boolean it reads.
+var fileFlags = map[string]bool{
+	"color": true, "compressed": true, "continue-on-error": true, "insecure": true,
+	"location": true, "location-trusted": true, "no-assert": true, "no-color": true,
+	"no-cookie-store": true, "no-pretty": true, "pretty": true, "test": true,
 }
 
 // prefixed lists the names of vars (from HURL_<infix>*/SONDE_<infix>*)

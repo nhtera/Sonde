@@ -13,7 +13,7 @@ func TestEnvFilePath(t *testing.T) {
 	if got, ok := (Env{"XDG_CONFIG_HOME": "/xdg"}).FilePath(); !ok || got != filepath.Join("/xdg", "hurl", "config") {
 		t.Errorf("FilePath(XDG) = %q, %v", got, ok)
 	}
-	if got, ok := (Env{"HOME": "/home/u"}).FilePath(); !ok || got != filepath.Join("/home/u", "config", "hurl", "config") {
+	if got, ok := (Env{"HOME": "/home/u"}).FilePath(); !ok || got != filepath.Join("/home/u", ".config", "hurl", "config") {
 		t.Errorf("FilePath(HOME) = %q, %v", got, ok)
 	}
 	// XDG_CONFIG_HOME wins when both are set.
@@ -22,6 +22,13 @@ func TestEnvFilePath(t *testing.T) {
 	}
 	if _, ok := (Env{}).FilePath(); ok {
 		t.Error("FilePath(none) should report not set")
+	}
+	// An empty variable is unset: never ./hurl/config.
+	if got, ok := (Env{"XDG_CONFIG_HOME": "", "HOME": "/home/u"}).FilePath(); !ok || got != filepath.Join("/home/u", ".config", "hurl", "config") {
+		t.Errorf("FilePath(empty XDG) = %q, %v", got, ok)
+	}
+	if _, ok := (Env{"XDG_CONFIG_HOME": "", "HOME": ""}).FilePath(); ok {
+		t.Error("FilePath(both empty) should report not set")
 	}
 }
 
@@ -32,8 +39,8 @@ func TestParseFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !opts.Verbose {
-		t.Error("Verbose = false, want true")
+	if opts.Verbosity != "verbose" {
+		t.Errorf("Verbosity = %q, want verbose", opts.Verbosity)
 	}
 	if len(opts.Headers) != 2 || opts.Headers[0] != "header1:value1" || opts.Headers[1] != "user-agent2:value2" {
 		t.Errorf("Headers = %v", opts.Headers)
@@ -80,7 +87,7 @@ func TestParseFileErrors(t *testing.T) {
 }
 
 func isZeroFileOptions(o FileOptions) bool {
-	return !o.Verbose && o.Headers == nil && o.MaxRedirs == nil && o.UserAgent == nil
+	return o.Path == "" && o.Keys == nil
 }
 
 func TestLoadConfigFile(t *testing.T) {
@@ -99,8 +106,8 @@ func TestLoadConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !opts.Verbose {
-		t.Error("Verbose = false, want true")
+	if opts.Verbosity != "verbose" || opts.Path != path {
+		t.Errorf("LoadConfigFile = %+v, want verbose from %s", opts, path)
 	}
 }
 
@@ -122,5 +129,16 @@ func TestLoadConfigFileUnreadable(t *testing.T) {
 	}
 	if _, err := LoadConfigFile(sub); err == nil {
 		t.Fatal("expected an error reading a directory as a config file")
+	}
+}
+
+func TestLoadConfigFileNotUTF8(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config")
+	if err := os.WriteFile(path, []byte("--user-agent \xff\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadConfigFile(path)
+	if want := "Failed to read config file " + path + ": stream did not contain valid UTF-8"; err == nil || err.Error() != want {
+		t.Errorf("error %v, want %q", err, want)
 	}
 }

@@ -247,6 +247,13 @@ func classify(root, rel string) Script {
 			combined += "\n" + string(b)
 		}
 	}
+	// A config file the script selects sets options like a flag does.
+	for _, m := range configHomeRE.FindAllStringSubmatch(string(scriptBody), -1) {
+		path := filepath.Join(root, filepath.Dir(rel), filepath.FromSlash(m[1]), "hurl", "config")
+		if b, err := os.ReadFile(path); err == nil { //nolint:gosec // G304: vendored fixture tree.
+			combined += "\n" + string(b)
+		}
+	}
 
 	if host, ok := externalHost(combined); ok {
 		return Script{Path: rel, Lane: LaneNetwork, Reason: "references external host " + host}
@@ -266,6 +273,10 @@ func classify(root, rel string) Script {
 		return Script{Path: rel, Lane: LaneBlocking}
 	}
 }
+
+// configHomeRE matches a script setting XDG_CONFIG_HOME to a directory
+// next to itself; the group is that directory's path below the script's.
+var configHomeRE = regexp.MustCompile(`XDG_CONFIG_HOME=\$\(dirname "\$0"\)(/[^\s]*)?`)
 
 // referencedHurlFiles finds every .hurl file a script passes to the CLI,
 // resolving --glob "PATTERN" expressions as well as literal path tokens.

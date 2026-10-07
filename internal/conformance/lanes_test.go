@@ -116,6 +116,20 @@ func TestClassifyProxyNeedsProxyCapability(t *testing.T) {
 	}
 }
 
+// TestClassifyReadsSelectedConfigFile checks that the config file a
+// script selects with XDG_CONFIG_HOME counts like its flags.
+func TestClassifyReadsSelectedConfigFile(t *testing.T) {
+	root := t.TempDir()
+	writeScript(t, root, "tests_ok/proxy/proxy_config_file.sh", "XDG_CONFIG_HOME=$(dirname \"$0\")/config\nexport XDG_CONFIG_HOME\nhurl tests_ok/proxy/proxy.hurl\n")
+	writeScript(t, root, "tests_ok/proxy/config/hurl/config", "--proxy localhost:3128\n")
+	writeScript(t, root, "tests_ok/proxy/proxy.hurl", "GET http://127.0.0.1:8000/proxy\nHTTP 200\n")
+
+	got := classify(root, "tests_ok/proxy/proxy_config_file.sh")
+	if got.Lane != LaneExtended || !got.NeedsProxy {
+		t.Errorf("got %+v, want extended lane with NeedsProxy", got)
+	}
+}
+
 func TestClassifyGlobExpansion(t *testing.T) {
 	root := t.TempDir()
 	writeScript(t, root, "tests_ok/glob/glob.sh", `hurl --glob "tests_ok/glob/*.hurl"`+"\n")

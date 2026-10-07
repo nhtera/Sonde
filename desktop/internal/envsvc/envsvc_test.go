@@ -232,6 +232,42 @@ func TestOverrides(t *testing.T) {
 	}
 }
 
+// TestOverridesListConfigFile checks that every setting the user config
+// file applies to a run is listed, a secret by name only.
+func TestOverridesListConfigFile(t *testing.T) {
+	e, _, _ := project(t)
+	path := filepath.Join(e.env["XDG_CONFIG_HOME"], "hurl", "config")
+	write(t, filepath.Dir(path), "config", "--insecure\n--proxy http://p:1\n--location-trusted\n--user bob:pw\n--secret token=s3cret\n", 0o600)
+	var got []string
+	for _, o := range e.Overrides().Items {
+		if o.Source != "config file" || o.Origin != path {
+			t.Errorf("override %+v, want from %s", o, path)
+		}
+		got = append(got, o.Name)
+	}
+	want := []string{"--insecure", "--proxy", "--location-trusted", "--user", "secret token"}
+	if !slices.Equal(got, want) {
+		t.Errorf("overrides %v, want %v", got, want)
+	}
+	redactcheck.AssertNoSecret(t, "overrides", e.Overrides(), "s3cret", "bob:pw")
+
+	// A setting replaces the config file's value: listed once, as a
+	// setting.
+	e.settings = func(inv *runplan.Invocation) {
+		inv.Proxy = "http://other:2"
+		inv.Set = map[string]bool{"proxy": true}
+	}
+	var proxies []string
+	for _, o := range e.Overrides().Items {
+		if o.Flag == "--proxy" {
+			proxies = append(proxies, o.Source)
+		}
+	}
+	if !slices.Equal(proxies, []string{"settings"}) {
+		t.Errorf("--proxy listed from %v, want settings only", proxies)
+	}
+}
+
 // TestMarkSecretKill kills the app at each write point of Mark secret: the
 // next start finds the project wholly before or wholly after the edit.
 func TestMarkSecretKill(t *testing.T) {
