@@ -253,3 +253,119 @@ func TestNoHeaderMultipartContentType(t *testing.T) {
 		}
 	}
 }
+
+// TestWireLayer checks what the own HTTP/1.x layer adds over net/http: an
+// HTTP/1.0 request line, request headers in order and case with one Host,
+// response headers in wire order and case (an invalid name included),
+// and the legacy fallback.
+func TestWireLayer(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	heads := make(chan string, 4)
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				buf := make([]byte, 4096)
+				n, _ := conn.Read(buf)
+				heads <- string(buf[:n])
+				_, _ = io.WriteString(conn, "HTTP/1.0 200 OK\r\nzeta: 1\r\n<script>x</script>: 2\r\nAlpha: 3\r\nContent-Length: 2\r\n\r\nok")
+			}()
+		}
+	}()
+	c := newTestClient(t, ClientConfig{})
+	spec := &RequestSpec{Method: "GET", URL: "http://" + ln.Addr().String() + "/p", Headers: []exchange.Header{
+		{Name: "x-lower", Value: "a"}, {Name: "Host", Value: "virtual.test"},
+	}}
+	calls, err := c.Execute(t.Context(), spec, &Options{HTTPVersion: HTTP10, NoHeaders: []string{"User-Agent"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "GET /p HTTP/1.0\r\nHost: virtual.test\r\nAccept: */*\r\nx-lower: a\r\n\r\n"; <-heads != want {
+		t.Errorf("request head, want %q", want)
+	}
+	var names []string
+	for _, h := range calls[0].Response.Headers {
+		names = append(names, h.Name)
+	}
+	if strings.Join(names, ",") != "zeta,<script>x</script>,Alpha,Content-Length" || calls[0].Response.Version != "HTTP/1.0" {
+		t.Errorf("response %s headers %v", calls[0].Response.Version, names)
+	}
+	var recorded []string
+	for _, h := range calls[0].Request.Headers {
+		recorded = append(recorded, h.Name+": "+h.Value)
+	}
+	if strings.Join(recorded, "|") != "Host: virtual.test|Accept: */*|x-lower: a" {
+		t.Errorf("recorded request headers %q", recorded)
+	}
+
+	t.Setenv("SONDE_HTTP1_WIRE", "legacy")
+	legacy := newTestClient(t, ClientConfig{})
+	if _, err := legacy.Execute(t.Context(), spec, &Options{HTTPVersion: HTTP10}); err == nil {
+		t.Error("legacy: http1.0 accepted")
+	}
+	// net/http refuses the invalid header name the own layer reads.
+	if _, err := legacy.Execute(t.Context(), spec, &Options{}); err == nil || !strings.Contains(err.Error(), "malformed MIME header") {
+		t.Errorf("legacy: %v", err)
+	}
+	if head := <-heads; !strings.HasPrefix(head, "GET /p HTTP/1.1\r\n") {
+		t.Errorf("legacy request head %q", head)
+	}
+}
+
+// TestEntryFramingHeadersNotSent checks that Content-Length and
+// Transfer-Encoding headers of an entry do not reach the wire: the body is
+// framed by the length sonde computes, once.
+func TestEntryFramingHeadersNotSent(t *testing.T) {
+	var got http.Header
+	var body string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got = r.Header.Clone()
+		b, _ := io.ReadAll(r.Body)
+		body = string(b)
+	}))
+	defer srv.Close()
+	c := newTestClient(t, ClientConfig{})
+	spec := &RequestSpec{Method: "POST", URL: srv.URL, Body: Body{Kind: BodyText, Data: []byte("abc")},
+		Headers: []exchange.Header{{Name: "Content-Length", Value: "99"}, {Name: "Transfer-Encoding", Value: "chunked"}}}
+	calls, err := c.Execute(t.Context(), spec, &Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body != "abc" || got.Get("Transfer-Encoding") != "" {
+		t.Errorf("server read %q, headers %v", body, got)
+	}
+	n := 0
+	for _, h := range calls[0].Request.Headers {
+		if strings.EqualFold(h.Name, "Content-Length") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d Content-Length headers recorded", n)
+	}
+}
+
+// TestIDNHost checks that an internationalized host name goes on the
+// wire (Host header, recorded request) in its ASCII form.
+func TestIDNHost(t *testing.T) {
+	for in, want := range map[string]string{
+		"bücher.example":    "xn--bcher-kva.example",
+		"example.test":      "example.test",
+		"[::1]":             "[::1]",
+		"bücher.example:81": "xn--bcher-kva.example:81",
+	} {
+		req := httptest.NewRequest(http.MethodGet, "http://"+in+"/", nil)
+		req.Host = ""
+		if got := hostHeader(req); got != want {
+			t.Errorf("hostHeader(%s) = %s, want %s", in, got, want)
+		}
+	}
+}

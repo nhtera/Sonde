@@ -251,9 +251,10 @@ linters:
           files: ["**/internal/httpx/**", "!$test"]
           deny:
             - pkg: github.com/nhtera/sonde
-              desc: "internal/httpx may import only: exchange, internal/sandbox, internal/codec, internal/netpolicy (architecture §2)"
+              desc: "internal/httpx may import only: exchange, internal/httpx/h1wire, internal/sandbox, internal/codec, internal/netpolicy (architecture §2)"
           allow:
             - github.com/nhtera/sonde/exchange$
+            - github.com/nhtera/sonde/internal/httpx/h1wire$
             - github.com/nhtera/sonde/internal/sandbox$
             - github.com/nhtera/sonde/internal/codec$
             - github.com/nhtera/sonde/internal/netpolicy$

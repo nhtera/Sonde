@@ -384,3 +384,21 @@ func TestUpdateManifestTargetedDemotion(t *testing.T) {
 		t.Errorf("report = %+v, want one demoted and one kept", report)
 	}
 }
+
+// TestGateConformanceLegacyWire checks that a script only the own wire
+// layer passes is no regression with SONDE_HTTP1_WIRE=legacy, and still
+// is one otherwise.
+func TestGateConformanceLegacyWire(t *testing.T) {
+	path := "hurl/tests_ok/http_version/http_version_10.sh"
+	scripts := []Script{{Path: path, Lane: LaneBlocking}}
+	results := []ScriptResult{{Path: path, Lane: LaneBlocking, SemanticPass: false}}
+	manifest := Manifest{path: {Lane: LaneBlocking, Expect: ExpectPass}}
+	t.Setenv("SONDE_HTTP1_WIRE", "")
+	if r := gateConformance(scripts, results, manifest); len(r.Regressions) != 1 {
+		t.Errorf("default: regressions %v", r.Regressions)
+	}
+	t.Setenv("SONDE_HTTP1_WIRE", "legacy")
+	if r := gateConformance(scripts, results, manifest); len(r.Regressions) != 0 {
+		t.Errorf("legacy: regressions %v", r.Regressions)
+	}
+}

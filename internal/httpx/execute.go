@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"net/http/httptrace"
 	"net/url"
 	"slices"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/codec"
+	"github.com/nhtera/sonde/internal/httpx/h1wire"
 )
 
 // Execute sends a request, following redirects when opts ask for it, and
@@ -130,7 +130,7 @@ func checkSupported(opts *Options) error {
 		return unsupportedError("ntlm")
 	case opts.Negotiate:
 		return unsupportedError("negotiate")
-	case opts.HTTPVersion == HTTP10:
+	case opts.HTTPVersion == HTTP10 && legacyWire():
 		return unsupportedError("http1.0")
 	case opts.HTTPVersion == HTTP3:
 		return newError(ErrUnsupported, "Unsupported HTTP version", "HTTP/3 is not supported, check --version", nil)
@@ -217,10 +217,19 @@ func addProxyHeaders(prep *preparedRequest, built *builtTransport, opts *Options
 		return err
 	}
 	for _, h := range opts.ProxyHeaders {
+		if framingHeader(h.Name) {
+			continue // the request's own framing and Host stand
+		}
 		prep.req.Header.Add(h.Name, h.Value)
 		prep.headers = append(prep.headers, h)
 	}
 	return nil
+}
+
+// framingHeader reports whether name is Host, Content-Length or
+// Transfer-Encoding.
+func framingHeader(name string) bool {
+	return strings.EqualFold(name, "Host") || strings.EqualFold(name, "Content-Length") || strings.EqualFold(name, "Transfer-Encoding")
 }
 
 // executeOne performs exactly one HTTP exchange: build the request, run
@@ -307,10 +316,24 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 		GotFirstResponseByte: func() { do(func() { timings.mark(&timings.startTransfer) }) },
 	}
 	reqCtx = httptrace.WithClientTrace(reqCtx, trace)
+	// The wire layer writes the headers as recorded (order, case, one
+	// Host) and gives the response headers back as received.
+	wire := &h1wire.Wire{HTTP10: opts.HTTPVersion == HTTP10, RequestHeaders: prep.headers}
+	reqCtx = h1wire.WithWire(reqCtx, wire)
 	prep.req = prep.req.WithContext(reqCtx)
 
-	if opts.MaxSendSpeed > 0 && len(prep.body) > 0 {
-		prep.req.Body = io.NopCloser(newRateLimitedReader(reqCtx, prep.req.Body, opts.MaxSendSpeed))
+	if len(prep.body) > 0 {
+		// A body is sent again as is when a reused connection turns out
+		// to be closed.
+		body := prep.body
+		prep.req.GetBody = func() (io.ReadCloser, error) {
+			r := io.Reader(bytes.NewReader(body))
+			if opts.MaxSendSpeed > 0 {
+				r = newRateLimitedReader(reqCtx, r, opts.MaxSendSpeed)
+			}
+			return io.NopCloser(r), nil
+		}
+		prep.req.Body, _ = prep.req.GetBody()
 	}
 
 	if opts.OnSend != nil {
@@ -329,8 +352,12 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 	}
 	var respBody []byte
 	var streamErr error // a streamed body that failed: the call is still returned
+	headers := responseHeaders(resp.Header)
+	if wire.ResponseHeaders != nil {
+		headers = slices.Clone(wire.ResponseHeaders)
+	}
 	if opts.ReadStream != nil && !followsRedirect(opts, resp.StatusCode, resp.Header.Get("Location")) {
-		respBody, streamErr = readStream(resp, bodyReader, opts.ReadStream, stopStream)
+		respBody, streamErr = readStream(headers, bodyReader, opts.ReadStream, stopStream)
 		if streamErr != nil {
 			streamErr = classifyRoundTripError(prep.req.URL, streamErr)
 		}
@@ -355,7 +382,6 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 		cert = certInfo(*resp.TLS)
 	}
 
-	headers := responseHeaders(resp.Header)
 	if opts.GRPC { // the status of a gRPC call is in its trailers
 		headers = append(headers, responseHeaders(resp.Trailer)...)
 	}
@@ -402,11 +428,10 @@ func followsRedirect(opts *Options, status int, loc string) bool {
 	return opts.FollowLocation && !opts.GRPC && status >= 300 && status < 400 && loc != ""
 }
 
-// readStream runs read on the decoded body of a streamed response and
-// returns the bytes as received.
-func readStream(resp *http.Response, body io.Reader, read func(exchange.Headers, io.Reader, func()) error, stop func()) ([]byte, error) {
+// readStream runs read on the decoded body of a streamed response (with
+// headers header) and returns the bytes as received.
+func readStream(header exchange.Headers, body io.Reader, read func(exchange.Headers, io.Reader, func()) error, stop func()) ([]byte, error) {
 	var raw bytes.Buffer
-	header := responseHeaders(resp.Header)
 	d := &lazyDecoder{
 		codings: (&exchange.Response{Headers: header}).ContentEncodings(),
 		r:       io.TeeReader(body, &raw),
@@ -555,6 +580,18 @@ func classifyRoundTripError(u *url.URL, err error) error {
 	}
 	if errors.Is(err, context.Canceled) {
 		return newError(ErrOther, "Canceled", "the request was canceled", err)
+	}
+	var reqErr *h1wire.RequestError
+	if errors.As(err, &reqErr) {
+		return newError(ErrOther, "HTTP connection", "invalid request: "+reqErr.Msg, err)
+	}
+	var respErr *h1wire.ResponseError
+	if errors.As(err, &respErr) {
+		return newError(ErrOther, "HTTP connection", "(8) Weird server reply: "+respErr.Msg, err)
+	}
+	var proxyErr *h1wire.ProxyError
+	if errors.As(err, &proxyErr) {
+		return newError(ErrOther, "HTTP connection", "(56) "+proxyErr.Error(), err)
 	}
 	if isTLSError(err) {
 		return tlsError(err)

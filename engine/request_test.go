@@ -191,7 +191,6 @@ body contains "auth=Basic Ym9iOnB3"
 		{"limit-rate: {{zero}}", "Invalid expression type"},
 		{"delay: {{neg}}", "Invalid expression type"},
 		{"retry: {{missing}}", "Undefined variable"},
-		{"http1.0: true", "Unsupported option"},
 		{"ntlm: true", "Unsupported option"},
 	} {
 		src := "GET {{base}}/hello\n[Options]\n" + tt.option + "\nHTTP 200\n"
@@ -209,7 +208,7 @@ body contains "auth=Basic Ym9iOnB3"
 }
 
 func TestVersionOptions(t *testing.T) {
-	for _, o := range []string{"http2: false", "http2: true", "http3: false", "ipv6: false", "location-trusted: true", "netrc: false", "negotiate: false", "digest: false", "aws-sigv4: {{empty}}", "cacert: " + "", "proxy: {{empty}}", "pinnedpubkey: {{empty}}", "verbose: false", "output: -", "skip: false", "repeat: 1", "netrc-file: {{empty}}", "cert: {{empty}}", "key: {{empty}}"} {
+	for _, o := range []string{"http1.0: true", "http2: false", "http2: true", "http3: false", "ipv6: false", "location-trusted: true", "netrc: false", "negotiate: false", "digest: false", "aws-sigv4: {{empty}}", "cacert: " + "", "proxy: {{empty}}", "pinnedpubkey: {{empty}}", "verbose: false", "output: -", "skip: false", "repeat: 1", "netrc-file: {{empty}}", "cert: {{empty}}", "key: {{empty}}"} {
 		if strings.HasSuffix(o, ": ") {
 			continue
 		}

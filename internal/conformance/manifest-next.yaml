@@ -747,8 +747,7 @@ hurl/tests_ok/html/html.sh:
   reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
 hurl/tests_ok/html_report_injection/html_report_injection.sh:
   lane: blocking
-  expect: fail
-  reason: '8.1.0: the server sends a header name net/http refuses to parse (malformed MIME header line); the own HTTP/1 layer reads it (phase 8)'
+  expect: pass
 hurl/tests_ok/http_version/http_version_2_config_file.sh:
   lane: network
   expect: skip
@@ -767,16 +766,13 @@ hurl/tests_ok/http_version/http_version_3_option.sh:
   reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
 hurl/tests_ok/http_version/http_version_10.sh:
   lane: blocking
-  expect: fail
-  reason: 'http1.0 unsupported: Go''s net/http always writes the HTTP/1.1 request line regardless of Request.Proto, so a literal HTTP/1.0 wire request cannot be sent through it (see docs/compat.md)'
+  expect: pass
 hurl/tests_ok/http_version/http_version_10_config_file.sh:
   lane: blocking
-  expect: fail
-  reason: '8.1.0: --http1.0 is not supported yet (phase 8)'
+  expect: pass
 hurl/tests_ok/http_version/http_version_10_env_var.sh:
   lane: blocking
-  expect: fail
-  reason: 'http1.0 unsupported: Go''s net/http always writes the HTTP/1.1 request line regardless of Request.Proto, so a literal HTTP/1.0 wire request cannot be sent through it (see docs/compat.md)'
+  expect: pass
 hurl/tests_ok/http_version/http_version_11.sh:
   lane: blocking
   expect: pass
@@ -1307,8 +1303,7 @@ hurl/tests_ssl/cacert_selfsigned.sh:
   expect: pass
 hurl/tests_ssl/cacert_to_json.sh:
   lane: extended
-  expect: fail
-  reason: 'reports: --json lists response headers sorted, not in the order the server sent them (net/http does not keep wire order)'
+  expect: pass
 hurl/tests_ssl/cacert_with_proxy.sh:
   lane: extended
   expect: skip

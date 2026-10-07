@@ -301,7 +301,6 @@ func TestExecuteUnsupportedOptions(t *testing.T) {
 		{"digest", Options{Digest: true}},
 		{"ntlm", Options{NTLM: true}},
 		{"negotiate", Options{Negotiate: true}},
-		{"http1.0", Options{HTTPVersion: HTTP10}},
 		{"http3", Options{HTTPVersion: HTTP3}},
 	}
 	for _, tt := range tests {

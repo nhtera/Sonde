@@ -56,7 +56,7 @@ func addRunFlags(cmd *cobra.Command, o *runOptions) {
 	f.BoolVarP(&o.inv.Insecure, "insecure", "k", false, "skips TLS certificate verification")
 	f.BoolVarP(&o.inv.IPv4, "ipv4", "4", false, "resolves hostnames to IPv4 addresses only")
 	f.BoolVarP(&o.inv.IPv6, "ipv6", "6", false, "resolves hostnames to IPv6 addresses only")
-	f.BoolVarP(&o.inv.HTTP10, "http1.0", "0", false, "forces HTTP/1.0 (not supported by sonde)")
+	f.BoolVarP(&o.inv.HTTP10, "http1.0", "0", false, "forces HTTP/1.0")
 	f.BoolVar(&o.inv.HTTP11, "http1.1", false, "forces HTTP/1.1")
 	f.BoolVar(&o.inv.HTTP2, "http2", false, "forces HTTP/2")
 	f.BoolVar(&o.inv.HTTP2Prior, "http2-prior-knowledge", false, "uses HTTP/2 without an HTTP/1.1 upgrade")

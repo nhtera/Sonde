@@ -113,7 +113,7 @@ func (c *Client) Upgrade(ctx context.Context, spec *RequestSpec, opts *Options) 
 		start:   now,
 	}
 	u.Client = &http.Client{
-		Transport:     &upgradeTransport{rt: built.rt, u: u},
+		Transport:     &upgradeTransport{rt: built.std, u: u},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	return u, nil

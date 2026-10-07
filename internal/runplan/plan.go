@@ -157,7 +157,6 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 	}{
 		{"aws-sigv4", inv.AWSSigV4 != ""},
 		{"digest", inv.Digest},
-		{"http1.0", inv.HTTP10},
 		{"negotiate", inv.Negotiate},
 		{"ntlm", inv.NTLM},
 		{"ssl-no-revoke", inv.SSLNoRevoke},
@@ -434,7 +433,7 @@ func resolveHTTPVersion(inv *Invocation, env config.Env, fileVersion string) (en
 	case inv.Changed("http1.1") && inv.HTTP11:
 		return engine.HTTP11, nil
 	case inv.Changed("http1.0") && inv.HTTP10:
-		return 0, &UnsupportedError{Name: "http1.0"}
+		return engine.HTTP10, nil
 	}
 	v, ok := env.HTTPVersion()
 	if !ok {
@@ -450,7 +449,7 @@ func resolveHTTPVersion(inv *Invocation, env config.Env, fileVersion string) (en
 	case "1.1":
 		return engine.HTTP11, nil
 	case "1.0":
-		return 0, &UnsupportedError{Name: "http1.0"}
+		return engine.HTTP10, nil
 	}
 	return engine.HTTPDefault, nil
 }

@@ -160,3 +160,18 @@ func TestCurlCommandNewOptions(t *testing.T) {
 		t.Errorf("curl command\n%s\nwant prefix\nprintf '\\x00\\xff' | %s", curl, want)
 	}
 }
+
+// TestDisplaySafe checks the escaping of headers shown in the logs.
+func TestDisplaySafe(t *testing.T) {
+	for in, want := range map[string]string{
+		"X: plain\tvalue é":            "X: plain\tvalue é",
+		"X: \x1b]52;c;aGk=\x07":        `X: \x1b]52;c;aGk=\x07`,
+		"X: \u009b31m":                 `X: \u009b31m`,
+		"X: \xff\xfe":                  `X: \xff\xfe`,
+		"<script>alert(1)</script>: v": "<script>alert(1)</script>: v",
+	} {
+		if got := displaySafe(in); got != want {
+			t.Errorf("displaySafe(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

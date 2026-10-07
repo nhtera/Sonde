@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/filter"
@@ -495,7 +496,7 @@ func (u *unit) logResponses(calls []Call) {
 		}
 		u.log(LogRequestLine, fmt.Sprintf("%s %s %s", c.Request.Method, target, c.Response.Version))
 		for _, h := range c.Request.Headers {
-			u.log(LogRequest, h.Name+": "+h.Value)
+			u.log(LogRequest, displaySafe(h.Name+": "+h.Value))
 		}
 		u.log(LogRequest, "")
 		u.debugImportant("Response:")
@@ -504,9 +505,9 @@ func (u *unit) logResponses(calls []Call) {
 		if c.Response.Reason != "" {
 			status += " " + c.Response.Reason
 		}
-		u.log(LogResponseLine, status)
+		u.log(LogResponseLine, displaySafe(status))
 		for _, h := range c.Response.Headers {
-			u.log(LogResponse, h.Name+": "+h.Value)
+			u.log(LogResponse, displaySafe(h.Name+": "+h.Value))
 		}
 		u.log(LogResponse, "")
 		u.debug(fmt.Sprintf("Received %d bytes in %d ms", len(c.Response.Body), c.Timings.Total.Milliseconds()))
@@ -588,4 +589,37 @@ func (u *unit) writeOutput(res *EntryResult, out *outputTarget, failed bool) *ru
 		return re
 	}
 	return nil
+}
+
+// displaySafe escapes what a terminal would interpret in a header shown
+// in the logs: control characters other than a tab (C0, DEL and C1) as
+// \xHH or \u00HH, and bytes that are not UTF-8 as \xHH. A server can no
+// longer move the cursor or set the clipboard through a header.
+func displaySafe(s string) string {
+	safe := true
+	for _, r := range s {
+		if r == utf8.RuneError || (r < 0x20 && r != '\t') || (r >= 0x7f && r < 0xa0) {
+			safe = false
+			break
+		}
+	}
+	if safe {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		switch {
+		case r == utf8.RuneError && size <= 1:
+			fmt.Fprintf(&b, "\\x%02x", s[i])
+		case (r < 0x20 && r != '\t') || r == 0x7f:
+			fmt.Fprintf(&b, "\\x%02x", r)
+		case r >= 0x80 && r < 0xa0:
+			fmt.Fprintf(&b, "\\u%04x", r)
+		default:
+			b.WriteString(s[i : i+size])
+		}
+		i += size
+	}
+	return b.String()
 }

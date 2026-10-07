@@ -6,6 +6,7 @@ package conformance
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 )
@@ -35,7 +36,20 @@ type gateReport struct {
 // docs/conformance.md: blocking, hurlfmt and pty gate; extended is
 // report-only, network is skipped unless opted in, timing is quarantined)
 // while still surfacing newly-passing scripts across every lane.
+// wireOnly lists the scripts only sonde's own HTTP/1.x layer passes: with
+// SONDE_HTTP1_WIRE=legacy (net/http for HTTP/1.x), the fallback kept for
+// one minor release, they are not regressions.
+var wireOnly = map[string]bool{
+	"hurl/tests_ok/http_version/http_version_10.sh":         true,
+	"hurl/tests_ok/http_version/http_version_10_env_var.sh": true,
+	"hurl/tests_ssl/cacert_to_json.sh":                      true,
+	// next snapshot
+	"hurl/tests_ok/http_version/http_version_10_config_file.sh":    true,
+	"hurl/tests_ok/html_report_injection/html_report_injection.sh": true,
+}
+
 func gateConformance(scripts []Script, results []ScriptResult, manifest Manifest) gateReport {
+	legacy := os.Getenv("SONDE_HTTP1_WIRE") == "legacy"
 	resultByPath := make(map[string]ScriptResult, len(results))
 	discovered := make(map[string]bool, len(scripts))
 	for _, r := range results {
@@ -74,7 +88,7 @@ func gateConformance(scripts []Script, results []ScriptResult, manifest Manifest
 		// exiting 255, the reference runner's own "unmet prerequisite"
 		// signal) — is a regression: the manifest promised a clean pass,
 		// and "it didn't even run" is not a lesser claim than "it failed".
-		if gatingLanes[s.Lane] && entry.Expect == ExpectPass && !r.SemanticPass {
+		if gatingLanes[s.Lane] && entry.Expect == ExpectPass && !r.SemanticPass && (!legacy || !wireOnly[s.Path]) {
 			report.Regressions = append(report.Regressions, fmt.Sprintf("%s: %s", s.Path, semanticOutcome(r)))
 		}
 		if entry.Expect != ExpectPass && !r.Skipped && r.SemanticPass {

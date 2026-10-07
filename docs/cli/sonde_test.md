@@ -33,7 +33,7 @@ sonde test [options] FILE|DIR...
       --from-entry int               starts execution at the given entry number
       --glob stringArray             adds input files matching the given glob pattern
   -H, --header stringArray           adds a custom header to every request
-  -0, --http1.0                      forces HTTP/1.0 (not supported by sonde)
+  -0, --http1.0                      forces HTTP/1.0
       --http1.1                      forces HTTP/1.1
       --http2                        forces HTTP/2
       --http2-prior-knowledge        uses HTTP/2 without an HTTP/1.1 upgrade

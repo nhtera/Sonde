@@ -5,7 +5,6 @@ package httpx
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 )
@@ -130,9 +129,7 @@ func (c *Client) ClearCookies() {
 // Close releases idle connections.
 func (c *Client) Close() error {
 	for _, t := range c.transports {
-		if ht, ok := t.rt.(*http.Transport); ok {
-			ht.CloseIdleConnections()
-		}
+		t.closeIdle()
 	}
 	return nil
 }

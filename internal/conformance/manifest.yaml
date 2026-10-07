@@ -666,12 +666,10 @@ hurl/tests_ok/http_version/http_version_3_option.sh:
   reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
 hurl/tests_ok/http_version/http_version_10.sh:
   lane: blocking
-  expect: fail
-  reason: 'http1.0 unsupported: Go''s net/http always writes the HTTP/1.1 request line regardless of Request.Proto, so a literal HTTP/1.0 wire request cannot be sent through it (see docs/compat.md)'
+  expect: pass
 hurl/tests_ok/http_version/http_version_10_env_var.sh:
   lane: blocking
-  expect: fail
-  reason: 'http1.0 unsupported: Go''s net/http always writes the HTTP/1.1 request line regardless of Request.Proto, so a literal HTTP/1.0 wire request cannot be sent through it (see docs/compat.md)'
+  expect: pass
 hurl/tests_ok/http_version/http_version_11.sh:
   lane: blocking
   expect: pass
@@ -1106,8 +1104,7 @@ hurl/tests_ssl/cacert_selfsigned.sh:
   expect: pass
 hurl/tests_ssl/cacert_to_json.sh:
   lane: extended
-  expect: fail
-  reason: 'reports: --json lists response headers sorted, not in the order the server sent them (net/http does not keep wire order)'
+  expect: pass
 hurl/tests_ssl/client_authentication.sh:
   lane: extended
   expect: pass

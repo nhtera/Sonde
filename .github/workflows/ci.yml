@@ -436,6 +436,13 @@ jobs:
       - run: make conformance
         env:
           SONDE_CONFORMANCE_RESULTS: ${{ github.workspace }}/conformance-results.json
+      # The net/http fallback for HTTP/1.x (kept for one minor release
+      # after the own wire layer) still passes the gate, apart from the
+      # scripts only the wire layer passes (wireOnly in gate.go).
+      - run: make conformance
+        env:
+          SONDE_HTTP1_WIRE: legacy
+          SONDE_CONFORMANCE_RESULTS: ${{ github.workspace }}/conformance-legacy-wire-results.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

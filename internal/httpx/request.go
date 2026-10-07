@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -304,7 +305,12 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 		req.Host = v
 		req.Header.Del("Host")
 	}
-	sent := append([]exchange.Header{{Name: "Host", Value: hostHeader(req)}}, headers...)
+	// One Host, first: a Host header of the entry replaces the default
+	// (its value is req.Host). The body is framed by the Content-Length
+	// below only: framing headers of the entry are not sent, as net/http
+	// never sent them.
+	sent := append([]exchange.Header{{Name: "Host", Value: hostHeader(req)}},
+		filterHeaders(headers, "Host", "Content-Length", "Transfer-Encoding")...)
 	if req.ContentLength > 0 {
 		sent = append(sent, exchange.Header{Name: "Content-Length", Value: fmt.Sprint(req.ContentLength)})
 	}
@@ -315,12 +321,21 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 	return &preparedRequest{req: req, headers: sent, body: body.data}, nil
 }
 
-// hostHeader returns the Host header value a request will be sent with.
+// hostHeader returns the Host header value a request will be sent with:
+// the URL's host with an internationalized name in ASCII, unless the entry
+// sets Host.
 func hostHeader(req *http.Request) string {
 	if req.Host != "" {
 		return req.Host
 	}
-	return req.URL.Host
+	if port := req.URL.Port(); port != "" {
+		return net.JoinHostPort(asciiHost(req.URL.Hostname()), port)
+	}
+	host := asciiHost(req.URL.Hostname())
+	if strings.Contains(host, ":") { // an IPv6 address
+		return "[" + host + "]"
+	}
+	return host
 }
 
 // buildCookieHeader returns the jar's cookies for u followed by the

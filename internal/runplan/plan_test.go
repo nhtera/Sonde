@@ -316,17 +316,15 @@ func TestConfigFileSecretsAndVariables(t *testing.T) {
 	}
 }
 
-// TestConfigFileLaterFeatures checks that --http1.0, which sonde does not
-// have yet, is an unsupported-option error, not ignored.
-func TestConfigFileLaterFeatures(t *testing.T) {
+// TestConfigFileHTTP10 checks the config file's --http1.0, and that a
+// flag choosing another version replaces it.
+func TestConfigFileHTTP10(t *testing.T) {
 	_, env := writeConfig(t, "--http1.0\n")
-	var ue *UnsupportedError
-	if _, err := New(&Invocation{}, env, "test"); !errors.As(err, &ue) {
-		t.Errorf("--http1.0: %v, want an unsupported-option error", err)
+	if p := mustNew(t, &Invocation{}, env); p.Options.HTTP.HTTPVersion != engine.HTTP10 {
+		t.Errorf("version %v", p.Options.HTTP.HTTPVersion)
 	}
-	// A flag choosing another version replaces the file's --http1.0.
-	if _, err := New(&Invocation{HTTP2: true, Set: set("http2")}, env, "test"); err != nil {
-		t.Error(err)
+	if p := mustNew(t, &Invocation{HTTP2: true, Set: set("http2")}, env); p.Options.HTTP.HTTPVersion != engine.HTTP2 {
+		t.Errorf("flag: version %v", p.Options.HTTP.HTTPVersion)
 	}
 }
 
@@ -409,7 +407,7 @@ func TestErrors(t *testing.T) {
 	if _, err := New(&Invocation{NTLM: true}, nil, "t"); !errors.As(err, &ue) || err.Error() != `option "ntlm" is not supported by sonde yet` {
 		t.Errorf("ntlm: %v", err)
 	}
-	if _, err := New(&Invocation{HTTP10: true, Set: set("http1.0")}, nil, "t"); !errors.As(err, &ue) {
+	if p, err := New(&Invocation{HTTP10: true, Set: set("http1.0")}, nil, "t"); err != nil || p.Options.HTTP.HTTPVersion != engine.HTTP10 {
 		t.Errorf("http1.0: %v", err)
 	}
 	_, err := New(&Invocation{MaxTime: "abc", Set: set("max-time")}, nil, "t")

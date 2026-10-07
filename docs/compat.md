@@ -87,7 +87,8 @@ Measured with the conformance harness (`make conformance`, see
 |---|---|---|
 | `http2` option on an `http://` URL | tries an h2c upgrade | HTTP/1.1 |
 | `http3` option or `--http3` | HTTP/3 when libcurl supports it | `Unsupported HTTP version` error |
-| Order of response headers with different names | as received | grouped by name, names sorted (values of one name keep their order) |
+| Order and case of response headers over HTTP/2, or through a proxy to an `https://` URL without `--http1.1` | as received | names lower-case (HTTP/2) or canonical, grouped by name and sorted (values of one name keep their order); HTTP/1.x responses otherwise keep wire order and case |
+| `SONDE_HTTP1_WIRE=legacy` | not applicable | sends HTTP/1.x through Go's net/http as sonde did before its own wire layer: `--http1.0` is unsupported, response headers are sorted, and header names net/http refuses fail the request (kept for one minor release) |
 | Default User-Agent | `hurl/<version>` | `sonde/<version>` (`SONDE_DEFAULT_USER_AGENT` replaces it) |
 | `--version` output | Hurl and libcurl versions and features | sonde version, commit, build date, Go version, then a `Features:` line listing the optional transport features this build implements (e.g. `HTTP2`) |
 | Request-file path escaping the file root through a symbolic link | allowed (lexical check) | denied |
@@ -217,7 +218,7 @@ Request `[Options]` section keys.
 | `digest` | unsupported |  | uses HTTP Digest authentication (HTTP Digest authentication not implemented (low conformance weight)) |
 | `fail-with-body` | supported |  | writes the response body of the entry when it fails, before its errors (new in 8.1.0) |
 | `header` | supported |  | adds a custom header to the request |
-| `http1.0` | unsupported |  | forces HTTP/1.0 (Go's net/http cannot send a literal HTTP/1.0 request (Request.Proto is ignored)) |
+| `http1.0` | supported |  | forces HTTP/1.0 |
 | `http1.1` | supported |  | forces HTTP/1.1 |
 | `http2` | supported |  | forces HTTP/2 |
 | `http2-prior-knowledge` | supported |  | uses HTTP/2 without an HTTP/1.1 upgrade (cleartext HTTP/2 for http://) (new in 8.1.0) |
@@ -305,7 +306,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--from-entry` |  | supported |  | 2 | starts execution at the given entry number |
 | `--glob` |  | supported | 5 | 6 | adds input files matching the given glob pattern |
 | `--header` | `-H` | supported |  | 7 | adds a custom header to every request |
-| `--http1.0` | `-0` | unsupported |  | 1 | forces HTTP/1.0 (Go's net/http cannot send a literal HTTP/1.0 request (Request.Proto is ignored)) |
+| `--http1.0` | `-0` | supported |  | 1 | forces HTTP/1.0 |
 | `--http1.1` |  | supported |  | 1 | forces HTTP/1.1 |
 | `--http2` |  | supported |  | 0 | forces HTTP/2 |
 | `--http2-prior-knowledge` |  | supported |  | 0 | uses HTTP/2 without an HTTP/1.1 upgrade (cleartext HTTP/2 for http://) (new in 8.1.0) |
@@ -382,7 +383,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `HURL_ERROR_FORMAT` | supported |  | 1 | same as --error-format |
 | `HURL_FAIL_WITH_BODY` | supported |  | 1 | same as --fail-with-body (new in 8.1.0) |
 | `HURL_HEADER` | supported |  | 1 | adds one or more `|`-separated custom headers |
-| `HURL_HTTP10` | unsupported |  | 1 | same as --http1.0 (mirrors --http1.0; Go's net/http cannot send a literal HTTP/1.0 request) |
+| `HURL_HTTP10` | supported |  | 1 | same as --http1.0 |
 | `HURL_HTTP11` | supported |  | 1 | same as --http1.1 |
 | `HURL_HTTP2` | supported |  | 0 | same as --http2 |
 | `HURL_HTTP2_PRIOR_KNOWLEDGE` | supported |  | 0 | same as --http2-prior-knowledge when truthy, --http1.1 when falsy (new in 8.1.0) |
@@ -443,7 +444,7 @@ app read the same file.
 | `error-format` | supported |  | controls how error messages are rendered (short or long) |
 | `fail-with-body` | supported |  | writes the response body of a failed entry |
 | `header` | supported |  | adds a custom header to every request (repeatable) |
-| `http1.0` | unsupported |  | forces HTTP/1.0 (Go's net/http cannot send a literal HTTP/1.0 request; a run that resolves to it stops with an unsupported-option error) |
+| `http1.0` | supported |  | forces HTTP/1.0 |
 | `http1.1` | supported |  | forces HTTP/1.1 |
 | `http2` | supported |  | forces HTTP/2 |
 | `http3` | unsupported |  | forces HTTP/3 (HTTP/3 transport not implemented yet) |

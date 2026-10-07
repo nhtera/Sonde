@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/nhtera/sonde/internal/httpx/h1wire"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -25,6 +26,16 @@ type builtTransport struct {
 	insecure bool
 	// proxy returns the HTTP proxy a request goes through, if any.
 	proxy func(*http.Request) (*url.URL, error)
+	// std is net/http's transport (rt itself, or behind the dispatcher):
+	// the WebSocket handshake uses it.
+	std *http.Transport
+}
+
+// closeIdle closes the idle connections of the transport.
+func (b *builtTransport) closeIdle() {
+	if c, ok := b.rt.(interface{ CloseIdleConnections() }); ok {
+		c.CloseIdleConnections()
+	}
 }
 
 // transportCacheKey identifies the transport options that determine how a
@@ -68,7 +79,7 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 	}
 
 	switch opts.HTTPVersion {
-	case HTTP11:
+	case HTTP10, HTTP11:
 		t.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
 		t.ForceAttemptHTTP2 = false
 	case HTTP2:
@@ -111,10 +122,37 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 			t.ProxyConnectHeader.Add(h.Name, h.Value)
 		}
 	}
-	if opts.GRPC {
+	built := &builtTransport{rt: t, insecure: opts.Insecure, proxy: t.Proxy, std: t}
+	switch {
+	case opts.GRPC:
 		grpcTransport(t)
+	case opts.HTTPVersion != HTTP2PriorKnowledge && !legacyWire():
+		built.rt = newDispatcher(t, opts, tlsConfig)
 	}
-	return &builtTransport{rt: t, insecure: opts.Insecure, proxy: t.Proxy}, nil
+	return built, nil
+}
+
+// newDispatcher puts h1wire in front of t for HTTP/1.x.
+func newDispatcher(t *http.Transport, opts *Options, tlsConfig *tls.Config) *dispatcher {
+	forced := opts.HTTPVersion == HTTP10 || opts.HTTPVersion == HTTP11
+	d := &dispatcher{
+		std:    t,
+		forced: forced,
+		proxy:  t.Proxy,
+		h1: &h1wire.Transport{
+			Dial:         t.DialContext,
+			TLSConfig:    tlsConfig,
+			Proxy:        t.Proxy,
+			ProxyHeaders: opts.ProxyHeaders,
+			OfferH2:      !forced,
+		},
+		h2Addrs: map[string]bool{},
+		handoff: map[string][]*tls.Conn{},
+	}
+	if !forced {
+		t.DialTLSContext = d.dialTLS(t.DialContext, tlsConfig)
+	}
+	return d
 }
 
 // grpcTransport restricts t to HTTP/2, with prior knowledge over
