@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nhtera/sonde/exchange"
 )
@@ -367,5 +368,51 @@ func TestIDNHost(t *testing.T) {
 		if got := hostHeader(req); got != want {
 			t.Errorf("hostHeader(%s) = %s, want %s", in, got, want)
 		}
+	}
+}
+
+// TestAllProxy checks that ALL_PROXY is used when no scheme-specific
+// proxy variable is set, and that NO_PROXY still applies.
+func TestAllProxy(t *testing.T) {
+	proxy := newForwardProxy(t)
+	for _, name := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY", "all_proxy"} {
+		t.Setenv(name, "")
+	}
+	t.Setenv("ALL_PROXY", proxy.URL)
+	c := newTestClient(t, ClientConfig{})
+	calls := get(t, c, "http://example.test/", &Options{})
+	if string(calls[0].Response.Body) != "from proxy" {
+		t.Errorf("ALL_PROXY not used: %q", calls[0].Response.Body)
+	}
+	t.Setenv("NO_PROXY", "example.test")
+	c = newTestClient(t, ClientConfig{})
+	if _, err := c.Execute(t.Context(), &RequestSpec{Method: "GET", URL: "http://example.test/"}, &Options{ConnectTimeout: time.Second}); err == nil {
+		t.Error("NO_PROXY ignored: the request went through the proxy")
+	}
+}
+
+// TestEnvironmentProxyRefused checks that a proxy from the environment
+// with a scheme sonde cannot speak is an error, not a plain-HTTP request
+// that would send its credentials in clear; and that http_proxy wins over
+// ALL_PROXY.
+func TestEnvironmentProxyRefused(t *testing.T) {
+	for _, name := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY", "all_proxy", "ALL_PROXY"} {
+		t.Setenv(name, "")
+	}
+	for _, value := range []string{"socks4://u:p@127.0.0.1:1080", "socks4a://127.0.0.1:1080"} {
+		t.Setenv("ALL_PROXY", value)
+		c := newTestClient(t, ClientConfig{})
+		_, err := c.Execute(t.Context(), &RequestSpec{Method: "GET", URL: "http://example.test/"}, &Options{})
+		var herr *Error
+		if !asError(err, &herr) || herr.Kind != ErrInvalidURL {
+			t.Errorf("ALL_PROXY=%s: %v", value, err)
+		}
+	}
+	proxy := newForwardProxy(t)
+	t.Setenv("ALL_PROXY", "socks4://127.0.0.1:1")
+	t.Setenv("http_proxy", proxy.URL)
+	c := newTestClient(t, ClientConfig{})
+	if calls := get(t, c, "http://example.test/", &Options{}); string(calls[0].Response.Body) != "from proxy" {
+		t.Error("http_proxy does not win over ALL_PROXY")
 	}
 }

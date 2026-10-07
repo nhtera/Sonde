@@ -75,7 +75,7 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 		TLSClientConfig:    tlsConfig,
 		DisableCompression: true,
 		Proxy: func(r *http.Request) (*url.URL, error) {
-			return environmentProxy(r.URL, opts.NoProxy), nil
+			return environmentProxyErr(r.URL, opts.NoProxy)
 		},
 	}
 

@@ -6,6 +6,7 @@ package docs
 import (
 	"bytes"
 	"sort"
+	"strings"
 	"testing"
 
 	yaml "go.yaml.in/yaml/v3"
@@ -151,5 +152,19 @@ func TestDecodeRejectsUnknownFields(t *testing.T) {
 	var tbl Table
 	if err := dec.Decode(&tbl); err == nil {
 		t.Fatal("decode: expected an error for an unknown field")
+	}
+}
+
+// TestDifferencesGiveAReason checks that every difference row says why
+// sonde differs, ending its sonde text with "(why: …)".
+func TestDifferencesGiveAReason(t *testing.T) {
+	tbl, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range tbl.Differences {
+		if !strings.Contains(d.Sonde, "(why: ") || !strings.HasSuffix(d.Sonde, ")") {
+			t.Errorf("%s / %s: no (why: …) reason", d.Area, d.Input)
+		}
 	}
 }

@@ -20,19 +20,19 @@ Differences on inputs outside the test tree:
 
 | Input | Hurl 8.0.1 | Sonde |
 |---|---|---|
-| `fmt` and `export` of rare spellings: a status with leading zeros (`HTTP 000200`), an upper-case JSON exponent (`1.0E+2`), spaces inside a placeholder in a JSON body (`{{ x }}`), a count of `-0` | normalized (`200`, `1.0e+2`, `{{x}}`, `0`) | kept as written |
-| `export json` of a value that is not valid JSON: `nth {{i}}`, a float too large for a double, a number JSON rejects (`0e`) | written as is (invalid JSON) | written as a string, so the document stays valid JSON |
-| Curl import of a `-d`/`--data` body | a ``` block, so the body gains a trailing newline | a ```raw block: the body bytes are kept exactly |
-| Curl import of `-H 'Name:'` (curl removes the header) | `Name:` header with an empty value | header removed, as curl does |
-| `[Query]` and `[QueryStringParams]` (or `[Form]`/`[FormParams]`, `[Multipart]`/`[MultipartFormData]`) in one request | only the first section is sent; `hurlfmt` drops the second | both are sent; `sonde fmt` keeps both |
-| Curl import of `-u user:pass` | `user: "user:pass"` (the quotes are then part of the user name) | `user: user:pass` |
-| Regex literal errors other than an invalid `{…}` repetition | Rust `regex` message | Go `regexp` message (same position) |
-| Regexes valid in only one engine, e.g. `a{,3}`, `\d{2}{2}`, `a{1001}`, `[]-Z]` | accepted | rejected |
-| … and the reverse, e.g. `[0-9[Query]` | rejected | accepted |
-| XML body with DTD-declared entities | accepted (libxml2) | rejected: `invalid XML` |
-| XML body with text or a comment before the root element | rejected | accepted |
-| XML error position | character where libxml2 failed | last character read by Go's `encoding/xml` (same in all test files) |
-| File larger than 64 MiB | accepted | rejected: `Issue reading from FILE: file is larger than 64 MiB` |
+| `fmt` and `export` of rare spellings: a status with leading zeros (`HTTP 000200`), an upper-case JSON exponent (`1.0E+2`), spaces inside a placeholder in a JSON body (`{{ x }}`), a count of `-0` | normalized (`200`, `1.0e+2`, `{{x}}`, `0`) | kept as written (why: normalizing them was judged not worth a rewrite of the value; kept byte for byte) |
+| `export json` of a value that is not valid JSON: `nth {{i}}`, a float too large for a double, a number JSON rejects (`0e`) | written as is (invalid JSON) | written as a string, so the document stays valid JSON (why: upstream bug: invalid JSON) |
+| Curl import of a `-d`/`--data` body | a ``` block, so the body gains a trailing newline | a ```raw block: the body bytes are kept exactly (why: exact bytes: a JSON body would be reformatted) |
+| Curl import of `-H 'Name:'` (curl removes the header) | `Name:` header with an empty value | header removed, as curl does (why: what curl sends) |
+| `[Query]` and `[QueryStringParams]` (or `[Form]`/`[FormParams]`, `[Multipart]`/`[MultipartFormData]`) in one request | only the first section is sent; `hurlfmt` drops the second | both are sent; `sonde fmt` keeps both (why: pending decision: match the reference, which sends only the first section, or keep both) |
+| Curl import of `-u user:pass` | `user: "user:pass"` (the quotes are then part of the user name) | `user: user:pass` (why: same request; the option keeps the credentials on one line) |
+| Regex literal errors other than an invalid `{…}` repetition | Rust `regex` message | Go `regexp` message (same position) (why: engine: Go regexp) |
+| Regexes valid in only one engine, e.g. `a{,3}`, `\d{2}{2}`, `a{1001}`, `[]-Z]` | accepted | rejected (why: engine: Go regexp (RE2)) |
+| … and the reverse, e.g. `[0-9[Query]` | rejected | accepted (why: engine: Go regexp (RE2)) |
+| XML body with DTD-declared entities | accepted (libxml2) | rejected: `invalid XML` (why: engine: Go encoding/xml; no entity expansion) |
+| XML body with text or a comment before the root element | rejected | accepted (why: engine: Go encoding/xml) |
+| XML error position | character where libxml2 failed | last character read by Go's `encoding/xml` (same in all test files) (why: engine: Go encoding/xml) |
+| File larger than 64 MiB | accepted | rejected: `Issue reading from FILE: file is larger than 64 MiB` (why: security limit) |
 
 Accepted as Hurl does: text after a placeholder's variable inside a string,
 e.g. `{{a b}}` or `{{a}b}}`, is ignored (and kept by `sonde fmt`); XML
@@ -57,22 +57,22 @@ also accepted or rejected as Hurl does.
 
 | Input | Hurl 8.0.1 | Sonde |
 |---|---|---|
-| Integers beyond 64 bits in comparisons, e.g. `123456789012345678901234567890 > 9223372036854775807` | compared as digit strings: false | compared numerically: true |
-| Rendering of a float whose fraction is negative or below 2.2e-16, e.g. `toString` of `-1.5` or `1e-300` | `-1.5.0`, `0.000…1.0` | `-1.5`, `0.000…1` |
-| Negative JSONPath number literal with a fraction, e.g. `$[?@ == -1.5]` | read as `-0.5` | read as `-1.5` |
-| NaN (e.g. from XPath `number()` on text) compared with a number | equal to every number | equal to nothing, never less or greater |
-| Unprefixed XPath name on an XML document with a default namespace, e.g. `count(//title)` | matches nothing (use `_:title`) | also matches the namespaced elements |
-| Malformed XML response body for `xpath`, or XML using entities declared in a DTD | libxml2 recovers what it can, expands the entities | `Invalid XML` error |
-| HTML response for `xpath` | libxml2 HTML parser | HTML5 parser: `html`, `head` and `body` always exist |
-| `\b` in regexes, and `\W`/`\S` inside a bracket class | Unicode | ASCII |
-| Response with several content codings, e.g. `Content-Encoding: gzip, br` | decoded in listed order | decoded in reverse order (last applied first) |
-| `Content-Encoding: zstd` | `compression zstd is not supported` | decoded |
-| Decoded (decompressed) body larger than 512 MiB | decoded | `Decompression error` |
-| JSON response nested deeper than 128 levels, or with a lone surrogate escape (`\ud800`) | `Invalid JSON` | accepted (the surrogate reads as U+FFFD) |
-| `urlQueryParam` on a malformed or unusual URL, e.g. `http:///x` | parsed by the Rust `url` crate (WHATWG rules) | parsed by Go's `net/url`: `http:///x` is `empty host`, other messages differ |
-| Nested numbers compared by JSONPath `==`, e.g. `$[?@.a == [1]]` on `{"a": [1.0]}` | compared as written: not equal | compared by value: equal |
-| Date string with a leap second, e.g. `toDate` of `23:59:60` | keeps the instant at 23:59:59.999999999 | rolls over to the next minute |
-| Regex syntax outside the common subset: `(?x)`, `\u{…}`, repetitions over 1000, class set operations `&&` `--`; `\Q…\E` | first group accepted, `\Q…\E` rejected | first group rejected (`Invalid regex`), `\Q…\E` accepted |
+| Integers beyond 64 bits in comparisons, e.g. `123456789012345678901234567890 > 9223372036854775807` | compared as digit strings: false | compared numerically: true (why: upstream bug: digit strings compared) |
+| Rendering of a float whose fraction is negative or below 2.2e-16, e.g. `toString` of `-1.5` or `1e-300` | `-1.5.0`, `0.000…1.0` | `-1.5`, `0.000…1` (why: upstream bug) |
+| Negative JSONPath number literal with a fraction, e.g. `$[?@ == -1.5]` | read as `-0.5` | read as `-1.5` (why: upstream bug) |
+| NaN (e.g. from XPath `number()` on text) compared with a number | equal to every number | equal to nothing, never less or greater (why: upstream bug: NaN equal to everything) |
+| Unprefixed XPath name on an XML document with a default namespace, e.g. `count(//title)` | matches nothing (use `_:title`) | also matches the namespaced elements (why: engine: XPath library) |
+| Malformed XML response body for `xpath`, or XML using entities declared in a DTD | libxml2 recovers what it can, expands the entities | `Invalid XML` error (why: engine: Go encoding/xml) |
+| HTML response for `xpath` | libxml2 HTML parser | HTML5 parser: `html`, `head` and `body` always exist (why: engine: HTML5 parser) |
+| `\b` in regexes, and `\W`/`\S` inside a bracket class | Unicode | ASCII (why: engine: Go regexp (RE2)) |
+| Response with several content codings, e.g. `Content-Encoding: gzip, br` | decoded in listed order | decoded in reverse order (last applied first) (why: upstream bug: RFC 9110 order) |
+| `Content-Encoding: zstd` | `compression zstd is not supported` | decoded (why: superset) |
+| Decoded (decompressed) body larger than 512 MiB | decoded | `Decompression error` (why: security limit) |
+| JSON response nested deeper than 128 levels, or with a lone surrogate escape (`\ud800`) | `Invalid JSON` | accepted (the surrogate reads as U+FFFD) (why: engine: Go encoding/json) |
+| `urlQueryParam` on a malformed or unusual URL, e.g. `http:///x` | parsed by the Rust `url` crate (WHATWG rules) | parsed by Go's `net/url`: `http:///x` is `empty host`, other messages differ (why: engine: Go net/url) |
+| Nested numbers compared by JSONPath `==`, e.g. `$[?@.a == [1]]` on `{"a": [1.0]}` | compared as written: not equal | compared by value: equal (why: upstream bug) |
+| Date string with a leap second, e.g. `toDate` of `23:59:60` | keeps the instant at 23:59:59.999999999 | rolls over to the next minute (why: engine: Go time) |
+| Regex syntax outside the common subset: `(?x)`, `\u{…}`, repetitions over 1000, class set operations `&&` `--`; `\Q…\E` | first group accepted, `\Q…\E` rejected | first group rejected (`Invalid regex`), `\Q…\E` accepted (why: engine: Go regexp (RE2)) |
 
 Regexes (`matches`, `regex`, `replaceRegex`, JSONPath `match`/`search`) run
 on Go's RE2 engine with `\d`, `\w` and `\s` translated to their Unicode
@@ -85,27 +85,26 @@ Measured with the conformance harness (`make conformance`, see
 
 | Input | Hurl 8.0.1 | Sonde |
 |---|---|---|
-| `http2` option on an `http://` URL | tries an h2c upgrade | HTTP/1.1 |
-| `http3` option or `--http3` | HTTP/3, racing TCP (libcurl) | QUIC first (handshake bounded by half of `--connect-timeout`, at most 2 s), then TCP within the rest of the connect timeout when it cannot connect; never through a proxy; a host denied by `sonde mcp --allow-host` is refused, not retried over TCP |
-| `--ssl-no-revoke` | turns off certificate revocation checks (Windows Schannel) | accepted, no effect: sonde checks no revocation on any platform |
-| Order and case of response headers over HTTP/2, or through a proxy to an `https://` URL without `--http1.1` | as received | names lower-case (HTTP/2) or canonical, grouped by name and sorted (values of one name keep their order); HTTP/1.x responses otherwise keep wire order and case |
-| `SONDE_HTTP1_WIRE=legacy` | not applicable | sends HTTP/1.x through Go's net/http as sonde did before its own wire layer: `--http1.0` is unsupported, response headers are sorted, and header names net/http refuses fail the request (kept for one minor release) |
-| `--digest`, `--ntlm` or `--negotiate` answering a 401 challenge | the verbose log shows both exchanges | only the final exchange is logged and reported (the challenge is answered within the call, as libcurl does) |
-| `--negotiate` credential cache | any GSS-API cache (libcurl) | a Kerberos file cache: `KRB5CCNAME` (`FILE:` caches) or `/tmp/krb5cc_<uid>`, configuration from `KRB5_CONFIG` or `/etc/krb5.conf` |
-| The `Authorization` value a scheme computes (Digest response, NTLM and Negotiate tokens, AWS signature) | printed in verbose output | recorded as `***`: never shown in logs, `--json` or reports (sent as computed) |
-| Default User-Agent | `hurl/<version>` | `sonde/<version>` (`SONDE_DEFAULT_USER_AGENT` replaces it) |
-| `--version` output | Hurl and libcurl versions and features | sonde version, commit, build date, Go version, then a `Features:` line listing the optional transport features this build implements (e.g. `HTTP2`) |
-| Request-file path escaping the file root through a symbolic link | allowed (lexical check) | denied |
-| `cacert`, `cert`, `key`, `pinnedpubkey`, `netrc-file` in `[Options]` | any path, relative to the working directory | relative to the working directory, confined to the file root (command line values are not confined) |
-| `unix-socket` in `[Options]` | any path | confined to the file root |
-| A failing `repeat` iteration followed by a passing one (`--continue-on-error`) | file reported as successful | file fails; only retried attempts are discounted |
-| Proxy environment variables | `http_proxy`, `https_proxy`, `no_proxy`, `ALL_PROXY` (libcurl) | `http_proxy`, `https_proxy`, `no_proxy` (and uppercase forms); `ALL_PROXY` ignored; netrc credentials are not sent through an environment proxy unless `--netrc-allow-reroute` |
-| Response body size without `--max-filesize` | unlimited | 512 MiB (raw and decoded) |
-| Cookie domain matching | suffix match (`evilexample.com` matches a cookie of `example.com`) | dot-boundary match |
-| `--very-verbose` and verbose connection lines (`* Connected to…`, `** …`) | libcurl debug lines | not printed |
-| `--cookie-jar` file header | `# This file was generated by Hurl` | `# This file was generated by sonde` |
-| Secrets in `--json` output | printed as is | redacted (`***`), as in every other output |
-| HTML report (`--report-html`) | per-file pages with source, timeline and waterfall | same directory layout; per-file pages with source, calls and bodies, no timeline; no JavaScript, strict CSP |
+| `http2` option on an `http://` URL | tries an h2c upgrade | HTTP/1.1 (why: no h2c upgrade: no test needs it) |
+| `http3` option or `--http3` | HTTP/3, racing TCP (libcurl) | QUIC first (handshake bounded by half of `--connect-timeout`, at most 2 s), then TCP within the rest of the connect timeout when it cannot connect; never through a proxy; a host denied by `sonde mcp --allow-host` is refused, not retried over TCP (why: QUIC and TCP are tried in turn, not raced) |
+| `--ssl-no-revoke` | turns off certificate revocation checks (Windows Schannel) | accepted, no effect: sonde checks no revocation on any platform (why: Go checks no revocation) |
+| Order and case of response headers over HTTP/2, or through a proxy to an `https://` URL without `--http1.1` | as received | names lower-case (HTTP/2) or canonical, grouped by name and sorted (values of one name keep their order); HTTP/1.x responses otherwise keep wire order and case (why: net/http keeps HTTP/2) |
+| `SONDE_HTTP1_WIRE=legacy` | not applicable | sends HTTP/1.x through Go's net/http as sonde did before its own wire layer: `--http1.0` is unsupported, response headers are sorted, and header names net/http refuses fail the request (kept for one minor release) (why: rollback for one minor release) |
+| `--digest`, `--ntlm` or `--negotiate` answering a 401 challenge | the verbose log shows both exchanges | only the final exchange is logged and reported (the challenge is answered within the call, as libcurl does) (why: one call per entry, as libcurl reports it) |
+| `--negotiate` credential cache | any GSS-API cache (libcurl) | a Kerberos file cache: `KRB5CCNAME` (`FILE:` caches) or `/tmp/krb5cc_<uid>`, configuration from `KRB5_CONFIG` or `/etc/krb5.conf` (why: Kerberos library) |
+| The `Authorization` value a scheme computes (Digest response, NTLM and Negotiate tokens, AWS signature) | printed in verbose output | recorded as `***`: never shown in logs, `--json` or reports (sent as computed) (why: security hardening) |
+| Default User-Agent | `hurl/<version>` | `sonde/<version>` (`SONDE_DEFAULT_USER_AGENT` replaces it) (why: identity) |
+| `--version` output | Hurl and libcurl versions and features | sonde version, commit, build date, Go version, then a `Features:` line listing the optional transport features this build implements (e.g. `HTTP2`) (why: identity) |
+| Request-file path escaping the file root through a symbolic link | allowed (lexical check) | denied (why: security hardening) |
+| `cacert`, `cert`, `key`, `pinnedpubkey`, `netrc-file` in `[Options]` | any path, relative to the working directory | relative to the working directory, confined to the file root (command line values are not confined) (why: security hardening) |
+| `unix-socket` in `[Options]` | any path | confined to the file root (why: security hardening) |
+| Proxy environment variables | `http_proxy`, `https_proxy`, `no_proxy`, `ALL_PROXY` (libcurl) | the same, `ALL_PROXY` included, except: uppercase `HTTP_PROXY` is also read and `localhost`/loopback are never proxied (Go's convention); a SOCKS proxy from the environment goes through Go's net/http (no own HTTP/1.x layer); netrc credentials are not sent through an environment proxy unless `--netrc-allow-reroute` (why: Go's proxy rules; netrc: security hardening) |
+| Response body size without `--max-filesize` | unlimited | 512 MiB (raw and decoded) (why: security limit) |
+| Cookie domain matching | suffix match (`evilexample.com` matches a cookie of `example.com`) | dot-boundary match (why: security hardening) |
+| `--very-verbose` connection lines (`* Connected to…`, `** …`) | libcurl debug lines | `* Connected to HOST (IP) port N` and the TLS version line only; no `**` libcurl lines (why: no libcurl) |
+| `--cookie-jar` file header | `# This file was generated by Hurl` | `# This file was generated by sonde` (why: identity) |
+| Secrets in `--json` output | printed as is | redacted (`***`), as in every other output (why: security hardening) |
+| HTML report (`--report-html`) | per-file pages with source, timeline and waterfall | same directory layout; per-file pages with source, a timeline (each call's DNS, TCP, SSL, wait, transfer and total) with an SVG waterfall, then calls and bodies; drawn differently, no JavaScript, strict CSP (why: own report) |
 
 ## Queries
 

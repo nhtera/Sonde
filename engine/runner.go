@@ -469,11 +469,12 @@ func (u *unit) skipped(index int, reason string) {
 	}
 }
 
-// success reports whether every attempt that was not retried has no
-// error.
+// success reports whether a file passed, as the reference decides it: a
+// result with errors fails the file unless the next result is of the same
+// entry (a retry, or another repeat of it), and the last result counts.
 func success(entries []*EntryResult) bool {
-	for _, e := range entries {
-		if !e.Retried && len(e.Errors) > 0 {
+	for i, e := range entries {
+		if decisive(entries, i) && len(e.Errors) > 0 {
 			return false
 		}
 	}
