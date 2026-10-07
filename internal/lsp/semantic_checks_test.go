@@ -142,7 +142,7 @@ func TestDeprecatedFilterAndPredicateDiagnostics(t *testing.T) {
 // send yet is warned about, ranged on the option name.
 func TestUnsupportedOptionDiagnostic(t *testing.T) {
 	src := "GET http://a/\n[Options]\nhttp3: true\nHTTP 200\n"
-	c := newTestClient(t, nil)
+	c := newTestClientTable(t, nil, unsupportedTable(t))
 	c.initialize(false, "", nil)
 	diags := c.open("file:///w/a.hurl", src)
 

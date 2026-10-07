@@ -151,16 +151,8 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 		return nil, err
 	}
 
-	for _, unsupported := range []struct {
-		name    string
-		enabled bool
-	}{
-		{"ssl-no-revoke", inv.SSLNoRevoke},
-	} {
-		if unsupported.enabled {
-			return nil, &UnsupportedError{Name: unsupported.name}
-		}
-	}
+	// --ssl-no-revoke is accepted as is: Go's certificate verifier checks
+	// no revocation on any platform, so there is nothing to turn off.
 
 	p.Options = engine.Options{
 		Variables:          engineVars,

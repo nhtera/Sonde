@@ -10,12 +10,14 @@ import (
 	"io"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/nhtera/sonde/internal/config"
+	"github.com/nhtera/sonde/internal/docs"
 )
 
 // testClient drives a Server over in-memory pipes, the way an editor does.
@@ -33,9 +35,38 @@ type testClient struct {
 // down when the test ends.
 func newTestClient(t *testing.T, environ config.Env) *testClient {
 	t.Helper()
+	return newTestClientTable(t, environ, nil)
+}
+
+// unsupportedTable is the docs table with the "http3" option marked
+// unsupported: every option is supported now, and the unsupported-option
+// paths still need an example.
+func unsupportedTable(t *testing.T) *docs.Table {
+	t.Helper()
+	table, err := docs.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	copied := *table
+	copied.Options = slices.Clone(table.Options)
+	for i, e := range copied.Options {
+		if e.Name == "http3" {
+			copied.Options[i].Status, copied.Options[i].Reason = docs.StatusUnsupported, "not available in this test"
+		}
+	}
+	return &copied
+}
+
+// newTestClientTable is newTestClient with the server's docs table
+// replaced (nil: the real one).
+func newTestClientTable(t *testing.T, environ config.Env, table *docs.Table) *testClient {
+	t.Helper()
 	s, err := NewServer(Options{Version: "test", Environ: environ})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if table != nil {
+		s.table = table
 	}
 	clientIn, serverOut := io.Pipe()
 	serverIn, clientOut := io.Pipe()

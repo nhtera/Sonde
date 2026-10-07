@@ -227,7 +227,7 @@ func TestCompletionCapture(t *testing.T) {
 }
 
 func TestCompletionOptionNameAndValue(t *testing.T) {
-	c := newTestClient(t, nil)
+	c := newTestClientTable(t, nil, unsupportedTable(t))
 	c.initialize(true, "", nil)
 	uri := "file:///w/a.hurl"
 

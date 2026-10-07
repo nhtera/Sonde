@@ -9,9 +9,9 @@ difference is in [compat.md](../compat.md).
 
 - **Files.** `.hurl` files run unchanged, and `sonde fmt` keeps them valid
   for Hurl. `.sonde` files use the same syntax in v1.
-- **Flags.** Every Hurl flag has the same name and meaning. `--http3` and
-  `--ssl-no-revoke` are accepted but unsupported and fail with a clear
-  error. See [compat.md](../compat.md#cli-flags).
+- **Flags.** Every Hurl flag has the same name and meaning.
+  `--ssl-no-revoke` is accepted and has no effect (sonde checks no
+  certificate revocation). See [compat.md](../compat.md#cli-flags).
 - **Options from Hurl 8.1.0.** `--fail-with-body`, `--no-header`,
   `--no-jsonpath-coercion`, `--proxy-header` and `--http2-prior-knowledge`
   work as flags, `[Options]` keys, `HURL_*` variables and config file keys,
@@ -55,7 +55,7 @@ The table below lists the differences you are most likely to notice.
 | File paths in `[Options]` (`cacert`, `cert`, `key`, …) | any path | confined to the file root |
 | A symbolic link leaving the file root | followed | denied |
 | Response body without `--max-filesize` | unlimited | 512 MiB |
-| HTTP/3 | when libcurl supports it | not supported |
+| `--http3` | HTTP/3, racing TCP | QUIC first, then TCP if it cannot connect (never through a proxy) |
 | Tokens of `--digest`, `--ntlm`, `--negotiate`, `--aws-sigv4` | printed in verbose output | redacted |
 
 ## What Sonde adds

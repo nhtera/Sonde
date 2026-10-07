@@ -58,7 +58,7 @@ func TestHoverQueryFilterPredicate(t *testing.T) {
 }
 
 func TestHoverOption(t *testing.T) {
-	c := newTestClient(t, nil)
+	c := newTestClientTable(t, nil, unsupportedTable(t))
 	c.initialize(true, "", nil)
 	uri := "file:///w/a.hurl"
 	c.open(uri, "GET http://a/\n[Options]\nhttp3: true\n")

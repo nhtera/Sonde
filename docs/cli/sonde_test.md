@@ -37,7 +37,7 @@ sonde test [options] FILE|DIR...
       --http1.1                      forces HTTP/1.1
       --http2                        forces HTTP/2
       --http2-prior-knowledge        uses HTTP/2 without an HTTP/1.1 upgrade
-      --http3                        forces HTTP/3
+      --http3                        uses HTTP/3 (QUIC) for https://, falling back to TCP when it cannot connect
   -i, --include                      includes the response headers in the output
   -k, --insecure                     skips TLS certificate verification
   -4, --ipv4                         resolves hostnames to IPv4 addresses only
@@ -85,7 +85,7 @@ sonde test [options] FILE|DIR...
       --retry-interval string        delay between retries
       --secret stringArray           defines a variable whose value is treated as a secret
       --secrets-file stringArray     defines secrets from a file
-      --ssl-no-revoke                disables certificate revocation checks (not supported by sonde)
+      --ssl-no-revoke                accepted for compatibility: sonde checks no certificate revocation
       --test                         activates test mode (parallel execution, test-style output)
       --to-entry int                 stops execution at the given entry number
       --unix-socket string           connects through a Unix domain socket instead of the network

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/nhtera/sonde/internal/httpx/h1wire"
 	"github.com/nhtera/sonde/internal/sandbox"
@@ -127,7 +128,16 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 	case opts.GRPC:
 		grpcTransport(t)
 	case opts.HTTPVersion != HTTP2PriorKnowledge && !legacyWire():
-		built.rt = newDispatcher(t, opts, tlsConfig)
+		d := newDispatcher(t, opts, tlsConfig)
+		if opts.HTTPVersion == HTTP3 {
+			d.h3, d.h3Failed, d.connectTimeout = newH3Transport(dialOpts, tlsConfig), map[string]time.Time{}, dialOpts.connectTimeout
+		}
+		built.rt = d
+	case opts.HTTPVersion == HTTP3:
+		// Legacy wire: net/http for TCP, still QUIC first.
+		d := &dispatcher{std: t, proxy: t.Proxy, legacy: true, h3: newH3Transport(dialOpts, tlsConfig),
+			h3Failed: map[string]time.Time{}, connectTimeout: dialOpts.connectTimeout}
+		built.rt = d
 	}
 	return built, nil
 }

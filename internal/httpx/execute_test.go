@@ -291,25 +291,6 @@ func TestExecuteCredentialKeptOnSameHost(t *testing.T) {
 	}
 }
 
-func TestExecuteUnsupportedOptions(t *testing.T) {
-	c := newTestClient(t, ClientConfig{})
-	tests := []struct {
-		name string
-		opts Options
-	}{
-		{"http3", Options{HTTPVersion: HTTP3}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := c.Execute(context.Background(), &RequestSpec{Method: "GET", URL: "http://example.invalid/"}, &tt.opts)
-			var herr *Error
-			if !asError(err, &herr) || herr.Kind != ErrUnsupported {
-				t.Fatalf("err = %v", err)
-			}
-		})
-	}
-}
-
 // asError is a small errors.As wrapper kept local to avoid an extra import
 // line in every test that needs it.
 func asError(err error, target **Error) bool {

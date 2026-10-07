@@ -404,7 +404,7 @@ func TestVariablesAndSecrets(t *testing.T) {
 
 func TestErrors(t *testing.T) {
 	var ue *UnsupportedError
-	if _, err := New(&Invocation{SSLNoRevoke: true}, nil, "t"); !errors.As(err, &ue) || err.Error() != `option "ssl-no-revoke" is not supported by sonde yet` {
+	if _, err := New(&Invocation{SSLNoRevoke: true, Set: set("ssl-no-revoke")}, nil, "t"); err != nil {
 		t.Errorf("ssl-no-revoke: %v", err)
 	}
 	p, err := New(&Invocation{NTLM: true, Digest: true, Negotiate: true, AWSSigV4: "aws:amz:r:s"}, nil, "t")

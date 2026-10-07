@@ -358,7 +358,8 @@ hurl/tests_failed/http_connection/http_connection.sh:
   reason: network lane disabled; set SONDE_CONFORMANCE_NETWORK=1
 hurl/tests_failed/http_version_not_supported/http_version_not_supported.sh:
   lane: blocking
-  expect: pass
+  expect: skip
+  reason: 'superseded: HTTP/3 supported (the script skips when --version lists HTTP3, as the reference built with HTTP/3 does)'
 hurl/tests_failed/invalid_jsonpath/invalid_jsonpath.sh:
   lane: blocking
   expect: pass

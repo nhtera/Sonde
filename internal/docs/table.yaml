@@ -321,8 +321,7 @@ options:
     since: "8.1.0"
     usage: 1
   - name: "http3"
-    status: "unsupported"
-    reason: "HTTP/3 transport not implemented yet"
+    status: "supported"
     doc: "forces HTTP/3"
     usage: 1
   - name: "insecure"
@@ -579,8 +578,7 @@ flags:
     usage: 0
   - name: "--http3"
     arg: ""
-    status: "unsupported"
-    reason: "HTTP/3 transport not implemented yet"
+    status: "supported"
     doc: "forces HTTP/3"
     usage: 1
   - name: "--include"
@@ -824,9 +822,8 @@ flags:
     usage: 1
   - name: "--ssl-no-revoke"
     arg: ""
-    status: "unsupported"
+    status: "supported"
     doc: "(Windows) disables certificate revocation checks"
-    reason: "Windows-specific certificate revocation control; no equivalent in Go's crypto/tls"
     usage: 4
   - name: "--test"
     arg: ""
@@ -939,8 +936,7 @@ env:
     since: "8.1.0"
     usage: 0
   - name: "HURL_HTTP3"
-    status: "unsupported"
-    reason: "HTTP/3 transport not implemented yet"
+    status: "supported"
     doc: "same as --http3"
     usage: 0
   - name: "HURL_INSECURE"
@@ -1122,8 +1118,7 @@ config:
     status: "supported"
     doc: "forces HTTP/2"
   - name: "http3"
-    status: "unsupported"
-    reason: "HTTP/3 transport not implemented yet"
+    status: "supported"
     doc: "forces HTTP/3"
   - name: "insecure"
     status: "supported"
@@ -1402,8 +1397,12 @@ differences:
     sonde: "HTTP/1.1"
   - area: "HTTP"
     input: "`http3` option or `--http3`"
-    hurl: "HTTP/3 when libcurl supports it"
-    sonde: "`Unsupported HTTP version` error"
+    hurl: "HTTP/3, racing TCP (libcurl)"
+    sonde: "QUIC first (handshake bounded by half of `--connect-timeout`, at most 2 s), then TCP within the rest of the connect timeout when it cannot connect; never through a proxy; a host denied by `sonde mcp --allow-host` is refused, not retried over TCP"
+  - area: "HTTP"
+    input: "`--ssl-no-revoke`"
+    hurl: "turns off certificate revocation checks (Windows Schannel)"
+    sonde: "accepted, no effect: sonde checks no revocation on any platform"
   - area: "HTTP"
     input: "Order and case of response headers over HTTP/2, or through a proxy to an `https://` URL without `--http1.1`"
     hurl: "as received"

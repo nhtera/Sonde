@@ -139,8 +139,6 @@ func checkSupported(opts *Options) error {
 		return unsupportedError("negotiate")
 	case opts.HTTPVersion == HTTP10 && legacyWire():
 		return unsupportedError("http1.0")
-	case opts.HTTPVersion == HTTP3:
-		return newError(ErrUnsupported, "Unsupported HTTP version", "HTTP/3 is not supported, check --version", nil)
 	case opts.GRPC && opts.HTTPVersion == HTTP11:
 		return newError(ErrUnsupported, "Unsupported HTTP version", "a gRPC call uses HTTP/2: the http1.1 option does not apply", nil)
 	}

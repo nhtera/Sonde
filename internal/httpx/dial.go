@@ -130,6 +130,11 @@ func newDialOptions(opts *Options, box *sandbox.Root, hosts *netpolicy.Policy) (
 func (d dialOptions) dialContext() func(ctx context.Context, network, addr string) (net.Conn, error) {
 	nd := &net.Dialer{Timeout: d.connectTimeout}
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if deadline, ok := ctx.Value(connectDeadlineKey{}).(time.Time); ok {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithDeadline(ctx, deadline)
+			defer cancel()
+		}
 		if d.unixSocket != "" {
 			if d.hosts != nil {
 				return nil, hostDeniedError(fmt.Errorf("unix socket %s: %w", d.unixSocket, netpolicy.ErrDenied))
@@ -174,6 +179,14 @@ func (d dialOptions) dialContext() func(ctx context.Context, network, addr strin
 		}
 		return conn, nil
 	}
+}
+
+type connectDeadlineKey struct{}
+
+// withConnectDeadline bounds the connection of a request by deadline as
+// well as by the connect timeout: what is left after a QUIC attempt.
+func withConnectDeadline(ctx context.Context, deadline time.Time) context.Context {
+	return context.WithValue(ctx, connectDeadlineKey{}, deadline)
 }
 
 // classifyDialErr turns a dial failure into a resolveError (DNS lookup

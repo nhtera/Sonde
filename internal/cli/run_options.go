@@ -60,7 +60,7 @@ func addRunFlags(cmd *cobra.Command, o *runOptions) {
 	f.BoolVar(&o.inv.HTTP11, "http1.1", false, "forces HTTP/1.1")
 	f.BoolVar(&o.inv.HTTP2, "http2", false, "forces HTTP/2")
 	f.BoolVar(&o.inv.HTTP2Prior, "http2-prior-knowledge", false, "uses HTTP/2 without an HTTP/1.1 upgrade")
-	f.BoolVar(&o.inv.HTTP3, "http3", false, "forces HTTP/3")
+	f.BoolVar(&o.inv.HTTP3, "http3", false, "uses HTTP/3 (QUIC) for https://, falling back to TCP when it cannot connect")
 	f.StringVar(&o.inv.LimitRate, "limit-rate", "", "caps the transfer rate in bytes per second")
 	f.BoolVarP(&o.inv.Location, "location", "L", false, "follows HTTP redirects")
 	f.BoolVar(&o.inv.LocationTrusted, "location-trusted", false, "follows redirects and forwards credentials to every host")
@@ -84,7 +84,7 @@ func addRunFlags(cmd *cobra.Command, o *runOptions) {
 	f.BoolVar(&o.inv.Digest, "digest", false, "uses HTTP Digest authentication")
 	f.BoolVar(&o.inv.Negotiate, "negotiate", false, "uses SPNEGO (Negotiate) authentication from the Kerberos credential cache")
 	f.BoolVar(&o.inv.NTLM, "ntlm", false, "uses NTLM authentication")
-	f.BoolVar(&o.inv.SSLNoRevoke, "ssl-no-revoke", false, "disables certificate revocation checks (not supported by sonde)")
+	f.BoolVar(&o.inv.SSLNoRevoke, "ssl-no-revoke", false, "accepted for compatibility: sonde checks no certificate revocation")
 	f.StringVar(&o.inv.AWSSigV4, "aws-sigv4", "", "signs the request with AWS Signature Version 4")
 
 	f.StringVarP(&o.inv.Cookie, "cookie", "b", "", "reads cookies from a Netscape-format FILE")

@@ -86,7 +86,8 @@ Measured with the conformance harness (`make conformance`, see
 | Input | Hurl 8.0.1 | Sonde |
 |---|---|---|
 | `http2` option on an `http://` URL | tries an h2c upgrade | HTTP/1.1 |
-| `http3` option or `--http3` | HTTP/3 when libcurl supports it | `Unsupported HTTP version` error |
+| `http3` option or `--http3` | HTTP/3, racing TCP (libcurl) | QUIC first (handshake bounded by half of `--connect-timeout`, at most 2 s), then TCP within the rest of the connect timeout when it cannot connect; never through a proxy; a host denied by `sonde mcp --allow-host` is refused, not retried over TCP |
+| `--ssl-no-revoke` | turns off certificate revocation checks (Windows Schannel) | accepted, no effect: sonde checks no revocation on any platform |
 | Order and case of response headers over HTTP/2, or through a proxy to an `https://` URL without `--http1.1` | as received | names lower-case (HTTP/2) or canonical, grouped by name and sorted (values of one name keep their order); HTTP/1.x responses otherwise keep wire order and case |
 | `SONDE_HTTP1_WIRE=legacy` | not applicable | sends HTTP/1.x through Go's net/http as sonde did before its own wire layer: `--http1.0` is unsupported, response headers are sorted, and header names net/http refuses fail the request (kept for one minor release) |
 | `--digest`, `--ntlm` or `--negotiate` answering a 401 challenge | the verbose log shows both exchanges | only the final exchange is logged and reported (the challenge is answered within the call, as libcurl does) |
@@ -225,7 +226,7 @@ Request `[Options]` section keys.
 | `http1.1` | supported |  | forces HTTP/1.1 |
 | `http2` | supported |  | forces HTTP/2 |
 | `http2-prior-knowledge` | supported |  | uses HTTP/2 without an HTTP/1.1 upgrade (cleartext HTTP/2 for http://) (new in 8.1.0) |
-| `http3` | unsupported |  | forces HTTP/3 (HTTP/3 transport not implemented yet) |
+| `http3` | supported |  | forces HTTP/3 |
 | `insecure` | supported |  | skips TLS certificate verification |
 | `ipv4` | supported |  | resolves hostnames to IPv4 addresses only |
 | `ipv6` | supported |  | resolves hostnames to IPv6 addresses only |
@@ -313,7 +314,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--http1.1` |  | supported |  | 1 | forces HTTP/1.1 |
 | `--http2` |  | supported |  | 0 | forces HTTP/2 |
 | `--http2-prior-knowledge` |  | supported |  | 0 | uses HTTP/2 without an HTTP/1.1 upgrade (cleartext HTTP/2 for http://) (new in 8.1.0) |
-| `--http3` |  | unsupported |  | 1 | forces HTTP/3 (HTTP/3 transport not implemented yet) |
+| `--http3` |  | supported |  | 1 | forces HTTP/3 |
 | `--include` | `-i` | supported |  | 6 | includes the response headers in the output |
 | `--insecure` | `-k` | supported |  | 1 | skips TLS certificate verification |
 | `--ipv4` | `-4` | supported |  | 7 | resolves hostnames to IPv4 addresses only |
@@ -358,7 +359,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--retry-interval` |  | supported |  | 2 | delay between retries |
 | `--secret` |  | supported |  | 11 | defines a variable whose value is treated as a secret |
 | `--secrets-file` |  | supported |  | 1 | defines secrets from a file |
-| `--ssl-no-revoke` |  | unsupported |  | 4 | (Windows) disables certificate revocation checks (Windows-specific certificate revocation control; no equivalent in Go's crypto/tls) |
+| `--ssl-no-revoke` |  | supported |  | 4 | (Windows) disables certificate revocation checks |
 | `--test` |  | supported | 5 | 20 | activates test mode (parallel execution, test-style output) |
 | `--to-entry` |  | supported |  | 2 | stops execution at the given entry number |
 | `--unix-socket` |  | supported |  | 1 | connects through a Unix domain socket instead of the network |
@@ -390,7 +391,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `HURL_HTTP11` | supported |  | 1 | same as --http1.1 |
 | `HURL_HTTP2` | supported |  | 0 | same as --http2 |
 | `HURL_HTTP2_PRIOR_KNOWLEDGE` | supported |  | 0 | same as --http2-prior-knowledge when truthy, --http1.1 when falsy (new in 8.1.0) |
-| `HURL_HTTP3` | unsupported |  | 0 | same as --http3 (HTTP/3 transport not implemented yet) |
+| `HURL_HTTP3` | supported |  | 0 | same as --http3 |
 | `HURL_INSECURE` | supported |  | 1 | same as --insecure |
 | `HURL_IPV4` | supported |  | 1 | same as --ipv4 |
 | `HURL_IPV6` | supported |  | 1 | same as --ipv6 |
@@ -450,7 +451,7 @@ app read the same file.
 | `http1.0` | supported |  | forces HTTP/1.0 |
 | `http1.1` | supported |  | forces HTTP/1.1 |
 | `http2` | supported |  | forces HTTP/2 |
-| `http3` | unsupported |  | forces HTTP/3 (HTTP/3 transport not implemented yet) |
+| `http3` | supported |  | forces HTTP/3 |
 | `insecure` | supported |  | skips TLS certificate verification |
 | `ipv6` | supported |  | resolves hostnames to IPv6 addresses only |
 | `jobs` | supported |  | maximum number of parallel jobs |
