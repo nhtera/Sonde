@@ -43,10 +43,11 @@ type ManifestEntry struct {
 	Reason string `yaml:"reason,omitempty"`
 }
 
-// Manifest maps a script path (relative to testdata/conformance/hurl,
-// forward-slash separated, e.g. "tests_ok/hello/hello.sh") to its recorded
-// expectation. It is committed at internal/conformance/manifest.yaml — never
-// inside the vendored testdata/conformance/hurl tree.
+// Manifest maps a script key (the tree name, then the path inside that
+// tree, forward-slash separated, e.g. "hurl/tests_ok/hello/hello.sh"; see
+// Script.Path) to its recorded expectation. It is committed at
+// internal/conformance/manifest.yaml (manifest-next.yaml for the pinned
+// upstream snapshot) — never inside a vendored tree.
 type Manifest map[string]ManifestEntry
 
 // Validate checks manifest invariants: Expect must be one of
@@ -100,25 +101,67 @@ func LoadManifest(path string) (Manifest, error) {
 // file understands what it is and how it is maintained without reading this
 // package's source.
 const manifestHeader = `# Conformance manifest: the expected outcome for every classified script in
-# the vendored Hurl integration-test corpus (testdata/conformance/hurl).
+# the vendored integration-test trees (testdata/conformance/{hurl,hurlfmt}),
+# keyed by tree.
 #
 # Generated and gated by internal/conformance; see docs/conformance.md. Do not
 # hand-edit lane/expect for large swaths at once — run
 # ` + "`make conformance-update`" + ` and let it promote newly passing scripts,
 # then hand-edit reasons for anything still failing. Demoting an expect:
-# pass entry requires CONFORMANCE_ALLOW_DEMOTE=1, so a regression always
-# fails ` + "`make conformance`" + ` first rather than being silently absorbed.
+# pass entry requires naming it in CONFORMANCE_DEMOTE_ONLY with a
+# CONFORMANCE_DEMOTE_REASON, so a regression always fails
+# ` + "`make conformance`" + ` first rather than being silently absorbed.
 `
 
-// WriteManifest writes m to path as YAML, sorted by script path for a
-// stable, diffable file.
+// pinnedCommitPrefix starts the header line of manifest-next.yaml that
+// records the upstream commit the snapshot is pinned to.
+const pinnedCommitPrefix = "# upstream-commit: "
+
+// nextManifestHeader is manifest-next.yaml's header. Re-pinning means
+// editing the commit line, then running `make conformance-next-update`.
+func nextManifestHeader(commit string) string {
+	return `# Conformance manifest for the pinned upstream snapshot (make conformance-next):
+# the expected outcome for every script in the upstream trees at the commit
+# below, synced into the user cache directory, never vendored.
+#
+` + pinnedCommitPrefix + commit + `
+#
+# Maintained like manifest.yaml (see docs/conformance.md), with
+# ` + "`make conformance-next-update`" + `.
+`
+}
+
+// readPinnedCommit returns the commit recorded in a manifest header, or ""
+// when the file has none.
+func readPinnedCommit(path string) (string, error) {
+	b, err := os.ReadFile(path) //nolint:gosec // G304: fixed, repo-relative manifest location.
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if !strings.HasPrefix(line, "#") {
+			break
+		}
+		if c, ok := strings.CutPrefix(line, pinnedCommitPrefix); ok {
+			return strings.TrimSpace(c), nil
+		}
+	}
+	return "", nil
+}
+
+// WriteManifest writes m to path as YAML under the standard header, sorted
+// by script path for a stable, diffable file.
 func WriteManifest(path string, m Manifest) error {
+	return writeManifest(path, manifestHeader, m)
+}
+
+func writeManifest(path, header string, m Manifest) error {
 	if err := m.Validate(); err != nil {
 		return err
 	}
 
 	var buf bytes.Buffer
-	buf.WriteString(manifestHeader)
+	buf.WriteString(header)
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
 	if err := enc.Encode(m); err != nil {
@@ -134,4 +177,9 @@ func WriteManifest(path string, m Manifest) error {
 // manifest given the repository root.
 func manifestPath(root string) string {
 	return filepath.Join(root, "internal", "conformance", "manifest.yaml")
+}
+
+// nextManifestPath is manifestPath for the pinned upstream snapshot.
+func nextManifestPath(root string) string {
+	return filepath.Join(root, "internal", "conformance", "manifest-next.yaml")
 }

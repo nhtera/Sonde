@@ -1,8 +1,18 @@
 # Conformance harness
 
-`internal/conformance` runs Hurl's own integration test scripts
-(`testdata/conformance/hurl`, vendored at tag 8.0.1 — see its `SOURCE` file)
-against a binary under test through a `hurl` → sonde shim
+`internal/conformance` runs Hurl's own integration test suites against a
+binary under test, all vendored at tag 8.0.1 (see each tree's `SOURCE` file)
+by `scripts/sync-hurl-conformance.sh`:
+
+| Tree | What it is | Shim |
+|---|---|---|
+| `testdata/conformance/hurl` | the CLI suite, `tests_pty` included | `internal/conformance/shim/hurl` |
+| `testdata/conformance/hurlfmt` | the formatter suite: scripts plus `tests_export` fixtures | `internal/conformance/shim/hurlfmt` |
+| `testdata/conformance/integration` | the upstream runner (`test_script.py`, `term.py`, `test_pattern.py`) | — |
+
+The `hurlfmt` shim only maps the formatter's flags onto sonde commands
+(`fmt`, `fmt --check`, `fmt -w`, `import curl`, `export json|html`); every
+behaviour lives in sonde. The CLI suite runs through a `hurl` → sonde shim
 (`internal/conformance/shim/hurl`; it also sets `SONDE_DEFAULT_USER_AGENT` to a
 `hurl/8.0.1` value because many oracles match the default User-Agent — an
 explicit `-A` in a script still wins). The stdout oracle also reads the
@@ -37,11 +47,17 @@ SONDE_CONFORMANCE_BIN=/path/to/hurl make conformance
 |---|---|---|
 | `SONDE_CONFORMANCE` | unset | `1` runs the suite; anything else, `go test ./...` only runs the fast unit tests. |
 | `SONDE_CONFORMANCE_BIN` | unset | Path to the `hurl`-compatible binary under test. Unset: builds `./cmd/sonde` into a temp dir once per run. |
-| `SONDE_CONFORMANCE_RESULTS` | `$TMPDIR/sonde-conformance-results.json` | Where the full per-script report is written. Deliberately outside `testdata/conformance/hurl`, which is vendored and unchanged from upstream. |
+| `SONDE_CONFORMANCE_RESULTS` | `$TMPDIR/sonde-conformance-results.json` (`…-next-results.json` for the snapshot) | Where the full per-script report is written. Deliberately outside the vendored trees, which are unchanged from upstream. |
+| `SONDE_CONFORMANCE_ROOT` | `testdata/conformance` (snapshot: `os.UserCacheDir()/sonde-conformance/next`) | The directory holding the `hurl/`, `hurlfmt/` and `integration/` trees. |
+| `SONDE_CONFORMANCE_NEXT` | unset | `1` (set by `make conformance-next`) runs the pinned upstream snapshot against `manifest-next.yaml`; see Next snapshot. |
+| `SONDE_CONFORMANCE_ONLY` | unset | Comma-separated manifest-key prefixes (e.g. `hurl/tests_pty/,hurlfmt/`): run and gate only those entries. Refused together with `SONDE_CONFORMANCE_UPDATE`. |
 | `SONDE_CONFORMANCE_NETWORK` | unset | `1` also runs the `network` lane (scripts that reach real internet hosts, e.g. `google.com`, `hurl.dev`). Off by default so the suite works offline and CI stays hermetic. |
 | `SONDE_CONFORMANCE_MIN_SEMANTIC` | unset | A percentage (e.g. `95`). If set, the test additionally fails when the blocking lane's overall semantic pass rate drops below it. This is a coarse floor on top of the manifest gate below; unset by default. |
 | `SONDE_CONFORMANCE_UPDATE` | unset | `1` (set by `make conformance-update`) skips the gate and instead rewrites `internal/conformance/manifest.yaml` from this run's results. |
-| `CONFORMANCE_ALLOW_DEMOTE` | unset | `1`, combined with `SONDE_CONFORMANCE_UPDATE=1`, lets the manifest update demote an `expect: pass` script to `fail`/`skip`. Without it, a regressed script keeps its `pass` expectation in the manifest (so the next gated run fails loudly) instead of being silently downgraded. |
+| `CONFORMANCE_DEMOTE_ONLY` | unset | Comma-separated manifest keys that a manifest update may demote from `expect: pass`. Requires `CONFORMANCE_DEMOTE_REASON`, which is recorded on each demoted entry; an unknown key is an error. Without it, a regressed script keeps its `pass` expectation (so the next gated run fails loudly) instead of being silently downgraded. |
+| `CONFORMANCE_DEMOTE_REASON` | unset | The reason recorded with a targeted demotion. |
+| `CONFORMANCE_ALLOW_DEMOTE` | unset | Emergency only: `1` lets an update demote **any** script. Not used for planned work; use `CONFORMANCE_DEMOTE_ONLY`. |
+| `CI` | set by CI | `true` makes a missing squid proxy a setup failure instead of skipping the proxy scripts. |
 
 ## What it measures
 
@@ -65,11 +81,26 @@ Hurl repository, which the harness's oracle logic (`internal/conformance/oracle.
 Scripts are classified into lanes (`internal/conformance/lanes.go`) by what
 environment they need, combining a small explicit table with heuristics
 over the script and the `.hurl` files it feeds to `hurl` (including
-`--glob` expansion):
+`--glob` expansion). Three lanes **gate** (blocking, hurlfmt, pty); the
+rest only report:
 
 - **blocking** — needs only the plain HTTP server on `:8000`. This is the
-  lane that should be at or near 100% pass rate; it is the one the manifest
-  gate (below) watches for regressions.
+  lane that should be at or near 100% pass rate.
+- **hurlfmt** — the formatter tree: its `tests_ok`/`tests_failed` scripts,
+  plus three comparisons per `tests_export/*.hurl` fixture, mirroring
+  upstream `integration/hurlfmt/test_format.py`: `hurlfmt --out hurl|json|html`
+  stdout against `foo.lint.hurl`, `foo.json` and `foo.html` (only stdout is
+  compared, as upstream does). Each comparison is a synthetic manifest key,
+  `hurlfmt/tests_export/foo.hurl#lint|json|html`. The tree runs from a
+  scratch copy, so a script that rewrites its input (`--in-place`) never
+  touches a vendored file.
+- **pty** — `hurl/tests_pty`: scripts that need a terminal. Each runs
+  through the vendored upstream `term.py` `PseudoTerm` (via
+  `internal/conformance/pty-capture.py`): stdout and stderr each get their own
+  raw-mode pty, 24 rows × 100 columns, exactly as upstream
+  `integration/hurl/integration.py` runs them, and are never merged. The
+  captured streams are then scored by the same Go oracle as every other
+  script. Skipped on Windows (no POSIX pty).
 - **extended** — also needs the TLS servers (`:8001`–`:8003`), the
   Unix-socket server, an IPv6 listener (`::1:8004`), or the local squid
   proxy (`:3128`). The proxy is optional: if `squid` is not on `PATH`, the
@@ -87,55 +118,55 @@ over the script and the `.hurl` files it feeds to `hurl` (including
   CI runner cannot make the headline number flaky; still run and reported.
 - **unsupported** — needs tooling or files the harness does not provide.
   Currently just `tests_ok/completion/completion_bash.sh`, which sources
-  `../../completions/hurl.bash` — outside the vendored tree
-  (`scripts/sync-hurl-conformance.sh` only pulls `integration/hurl/`,
-  `bin/requirements-frozen.txt` and `LICENSE` from upstream). There is no
-  `hurlfmt` shim either, for the same reason; as of the vendored 8.0.1 tag
-  no test script needs one.
-- `tests_pty` is not vendored/run at all yet — those scripts need a real
-  pseudo-terminal, which is a later phase.
+  `../../completions/hurl.bash` — outside the vendored trees
+  (`scripts/sync-hurl-conformance.sh` pulls `integration/hurl/`,
+  `integration/hurlfmt/`, the upstream runner, `bin/requirements-frozen.txt`
+  and `LICENSE`).
 
 ## Manifest and gate
 
 `internal/conformance/manifest.yaml` (loaded and validated by
 `internal/conformance/manifest.go`) records the outcome the suite currently
-expects for every classified script, keyed by its path relative to
-`testdata/conformance/hurl`:
+expects for every classified script, keyed by its tree name and its path
+inside that tree:
 
 ```yaml
-tests_ok/hello/hello.sh:
+hurl/tests_ok/hello/hello.sh:
   lane: blocking
   expect: pass
-tests_error_parser/base64.sh:
+hurl/tests_error_parser/base64.sh:
   lane: blocking
   expect: fail
   reason: "reports: not implemented yet"
+hurlfmt/tests_export/body.hurl#json:
+  lane: hurlfmt
+  expect: pass
 ```
 
 `expect` is `pass`, `fail`, or `skip`; `fail` and `skip` entries must carry a
 `reason` (validated on load and on write). `lane` mirrors what `lanes.go`
 classified the script as at manifest-generation time — it is informational
 (a drift signal if the heuristic later reclassifies the script), not the
-authoritative lane, which is always recomputed by `DiscoverScripts` at run
+authoritative lane, which is always recomputed by `Discover` at run
 time. The manifest is committed at `internal/conformance/manifest.yaml`, never
-inside the vendored `testdata/conformance/hurl` tree.
+inside a vendored tree.
 
 `TestConformance` (`internal/conformance/gate.go`) checks every run against it:
 
-- **Regression (fails the test)**: a **blocking**-lane script the manifest
-  marks `expect: pass` that does not semantically pass this run —
+- **Regression (fails the test)**: a script in a **gating** lane (blocking,
+  hurlfmt, pty) the manifest marks `expect: pass` that does not semantically pass this run —
   including one that merely stops running (e.g. it starts exiting 255, the
   reference runner's own "unmet prerequisite" signal). A skip is not a
   lesser claim than a failure: the manifest promised a clean pass either
   way. Listed explicitly in the test output and in `t.Error`.
-- **Stale entry (fails the test)**: a manifest entry whose script the
-  current corpus no longer discovers at all — a rename, a removed fixture,
+- **Stale entry (fails the test)**: a manifest entry whose script no tree
+  of the current corpus discovers at all — a rename, a removed fixture,
   or a typo. Left unflagged, it could never be checked again and would
   hide whatever it used to guard indefinitely.
 - **Newly passing (reported, non-fatal)**: any script not marked
   `expect: pass` (including one the manifest has no entry for at all) that
   semantically passes this run. Run `make conformance-update` to promote it.
-- **Unclassified (reported, non-fatal)**: a blocking-lane script with no
+- **Unclassified (reported, non-fatal)**: a gating-lane script with no
   manifest entry at all.
 - The extended lane is report-only (never gates), the network lane is
   skipped by default, and the timing lane is quarantined (run and reported,
@@ -151,10 +182,41 @@ scripts that now pass are promoted to `expect: pass`; scripts that still
 fail or are skipped keep their existing `reason` (a brand-new script gets a
 placeholder reason flagging it as not yet triaged); a script recorded as
 `expect: pass` that fails **or is skipped** this run **keeps its `pass`
-expectation** unless `CONFORMANCE_ALLOW_DEMOTE=1` is also set — a
+expectation** unless it is named in `CONFORMANCE_DEMOTE_ONLY` — a
 regression is never silently absorbed into the manifest as `fail` or
 `skip`, it either fails a subsequent `make conformance`
-or requires an explicit demotion.
+or requires an explicit, per-path demotion:
+
+```sh
+make conformance-update \
+  CONFORMANCE_DEMOTE_ONLY=hurl/tests_ok/follow_redirect/follow_redirect.sh \
+  CONFORMANCE_DEMOTE_REASON="next-version oracle: [Cookies] stripped cross-host"
+```
+
+Each demotion records its reason on the entry, and every demoted script
+must be covered by a sonde-owned test until it is resolved. The blanket
+`CONFORMANCE_ALLOW_DEMOTE=1` exists for emergencies only.
+
+## Next snapshot
+
+`make conformance-next` runs the same harness against an unreleased
+upstream commit, so features of the next upstream version can be built
+before it is tagged, without vendoring a moving target:
+
+- The commit is pinned in the `# upstream-commit:` header line of
+  `internal/conformance/manifest-next.yaml`, the manifest this mode gates on.
+- The trees are synced (with the same script, by sha, which is checked
+  against the fetched HEAD) into `os.UserCacheDir()/sonde-conformance/next`
+  — kept short because the Unix-socket server binds a path under it — and
+  re-synced whenever their `SOURCE` commit differs from the pin.
+- `make conformance-next-update` rewrites `manifest-next.yaml` (promoting
+  newly passing scripts, keeping the header).
+- Re-pinning is a deliberate commit: edit the header line, then run
+  `make conformance-next-update` and review the diff.
+
+Both targets bind the same ports, so the Makefile takes a lock directory
+(`$TMPDIR/sonde-conformance.lock`) and refuses a second concurrent run.
+Each target has its own default results file and its own venv (see below).
 
 ## Servers
 
@@ -162,7 +224,9 @@ or requires an explicit demotion.
 does (see `bin/test/test_prerequisites.sh` in the Hurl repository): plain
 HTTP on `127.0.0.1:8000`, HTTP on `[::1]:8004`, three TLS servers on
 `8001`–`8003` (self-signed, CA-signed, client-cert-auth), the Unix-socket
-server, and squid if available. Each server's stdout/stderr goes to
+server, and squid if available (started as the current user, so with
+`pid_filename none`; with `CI=true` a missing squid fails setup rather than
+skipping the proxy scripts). Each server's stdout/stderr goes to
 `testdata/conformance/hurl/build/*.log` (gitignored; the vendored tree
 itself never changes). Before starting anything, the harness checks each
 port is free and reports the owning PID via `lsof -ti` if not, rather than
@@ -170,8 +234,8 @@ silently colliding with something else already listening. Every child
 process gets its own process group so teardown (`SIGTERM` then `SIGKILL`,
 including on `Ctrl-C` or a panic mid-run) can't leave orphans behind.
 
-Scripts run sequentially, under `bash`, with `cwd` set to
-`testdata/conformance/hurl` (several of the vendored Python servers assume
+Scripts run sequentially, under `bash`, with `cwd` set to the root of their
+tree, e.g. `testdata/conformance/hurl` (several of the vendored Python servers assume
 that as their own cwd too, e.g. `app.py` globs `tests_*/**/*.py` relative to
 it), stdin closed, and a 60-second per-script timeout that kills the whole
 process group, not just the immediate `bash`. Output is captured through
@@ -182,9 +246,11 @@ detects a non-terminal stdout, and temp files sidestep that entirely.
 ## The Python environment
 
 The harness creates (once) and reuses a virtualenv under
-`os.UserCacheDir()/sonde-conformance/venv` (e.g. `~/Library/Caches` on
-macOS, `~/.cache` on Linux), then installs
-`testdata/conformance/hurl/bin/requirements-frozen.txt` into it. That file
+`os.UserCacheDir()/sonde-conformance/venv-<hash12>` (e.g. `~/Library/Caches`
+on macOS, `~/.cache` on Linux), keyed by the first 12 hex digits of the
+SHA-256 of `hurl/bin/requirements-frozen.txt`, and installs that file into
+it. The vendored tree and the next snapshot therefore never reinstall over
+each other's venv. That file
 pins exact versions but ships no hashes to verify against
 (upstream doesn't publish a hash-locked variant), so this is version pinning
 for reproducibility, not a verified supply chain — it exists only to run
@@ -203,8 +269,22 @@ itself, not a harness bug.
 
 ## Current numbers
 
-As of 2026-09-27, against the current sonde
-build: blocking 97.3% semantic / 93.9% full-oracle (297/298 ran, 1 skipped),
+As of 2026-10-07, against the current sonde build, on macOS without squid
+(semantic / full-oracle):
+
+| Lane | 8.0.1 (`make conformance`) | pinned snapshot (`make conformance-next`) |
+|---|---|---|
+| blocking | 289 of 297 ran pass (97.3% / 93.9%), 1 skipped | 297 of 350 ran pass (84.9% / 77.7%), 3 skipped |
+| hurlfmt | 24/70 (34.3% / 31.4%): lint 17/19, json 0/19, html 0/19, scripts 7/13 | same tree, same result |
+| pty | 6/11 (54.5% / 36.4%) | 7/14 (50.0% / 35.7%) |
+| extended | 14 of 16 ran pass (87.5%), 4 skipped | 14 of 16 ran pass (87.5%), 9 skipped |
+| timing | 22/22 (100% / 77.3%) | 22/27 (81.5% / 51.9%) |
+
+The pty figure is measured with the upstream two-pty runner; an earlier
+6/11 estimate came from a single merged stream and was not reliable.
+
+The 8.0.1 numbers before the hurlfmt and pty lanes were added (2026-09-27):
+blocking 97.3% semantic / 93.9% full-oracle (297/298 ran, 1 skipped),
 extended 87.5% (16/20 ran, 4 skipped for missing `squid`/unmet
 prerequisites), timing 100% semantic / 77.3% full-oracle. The manifest's 10
 remaining `expect: fail` entries and 23 `expect: skip` entries are all
@@ -238,9 +318,16 @@ on with exit 255) or a permanent, by-design gap:
 ## CI
 
 `.github/workflows/ci.yml` runs the suite in a `conformance` job that
-blocks on the manifest gate described above: it fails if a blocking-lane
-script recorded as `expect: pass` stops passing semantically. The extended,
-network, and timing lanes never fail the job (see Manifest and gate). The
-job uploads `SONDE_CONFORMANCE_RESULTS` (`conformance-results.json`) as a
-build artifact so full per-script results are visible per run without
-re-running anything locally.
+blocks on the manifest gate described above: it fails if a gating-lane
+(blocking, hurlfmt, pty) script recorded as `expect: pass` stops passing
+semantically. The extended, network, and timing lanes never fail the job
+(see Manifest and gate). The job installs squid, stops its system service
+so the harness can bind `:3128` itself, and runs with `CI=true`, so the
+proxy scripts must run. It uploads `SONDE_CONFORMANCE_RESULTS`
+(`conformance-results.json`) as a build artifact so full per-script
+results are visible per run without re-running anything locally.
+
+A second job, `conformance-next`, runs `make conformance-next` against the
+pinned upstream snapshot. It is report-only (`continue-on-error`), has no
+token permissions and no secrets, and uploads
+`conformance-next-results.json`.
