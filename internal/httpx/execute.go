@@ -129,18 +129,32 @@ func (c *Client) Execute(ctx context.Context, spec *RequestSpec, opts *Options) 
 	}
 }
 
+// sentVersion is the version a request was sent with: the request line
+// the wire layer wrote, HTTP/1.1 on the legacy path (net/http writes no
+// other), else (HTTP/2, HTTP/3) the response's version.
+func sentVersion(wire *h1wire.Wire, responseVersion string) string {
+	switch {
+	case wire.Sent != "":
+		return wire.Sent
+	case legacyWire() && strings.HasPrefix(responseVersion, "HTTP/1"):
+		return "HTTP/1.1"
+	}
+	return responseVersion
+}
+
 // checkSupported rejects the options sonde does not implement (NTLM and
 // Negotiate need a connection of the own HTTP/1.x layer).
 func checkSupported(opts *Options) error {
 	switch {
+	case opts.GRPC && (opts.HTTPVersion == HTTP10 || opts.HTTPVersion == HTTP11 || opts.HTTPVersion == HTTP3):
+		name := map[HTTPVersion]string{HTTP10: "http1.0", HTTP11: "http1.1", HTTP3: "http3"}[opts.HTTPVersion]
+		return newError(ErrUnsupported, "Unsupported HTTP version", "a gRPC call uses HTTP/2: the "+name+" option does not apply", nil)
 	case opts.NTLM && legacyWire():
 		return unsupportedError("ntlm")
 	case opts.Negotiate && legacyWire():
 		return unsupportedError("negotiate")
 	case opts.HTTPVersion == HTTP10 && legacyWire():
 		return unsupportedError("http1.0")
-	case opts.GRPC && opts.HTTPVersion == HTTP11:
-		return newError(ErrUnsupported, "Unsupported HTTP version", "a gRPC call uses HTTP/2: the http1.1 option does not apply", nil)
 	}
 	return nil
 }
@@ -516,6 +530,7 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 			URL:     prep.req.URL.String(),
 			Headers: prep.recorded(),
 			Body:    prep.body,
+			Version: sentVersion(wire, version),
 		},
 		Response: response,
 		Timings:  response.Timings,

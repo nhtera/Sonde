@@ -157,11 +157,10 @@ Flags behave as in curl:
   - `-k`, `-L`, `--compressed`, `--http1.1`, `--http2`, `-x`,
     `--connect-timeout`, `-m`, `--cacert`, `--cert`, `--key`,
     `--resolve`, `--connect-to`, `--unix-socket`, `-o`, `--max-redirs`,
-    `--limit-rate`, `--pinnedpubkey`, `-4`, `-6`, `--path-as-is` and
-    `--location-trusted` map to the matching `[Options]`.
-  - `--digest`, `--ntlm`, `--negotiate`, `--aws-sigv4`, `--http1.0` and
-    `--http3` are kept as options with a warning: Sonde cannot send them
-    yet, so those requests fail until it can.
+    `--limit-rate`, `--pinnedpubkey`, `-4`, `-6`, `--path-as-is`,
+    `--location-trusted`, `--digest`, `--ntlm`, `--negotiate`,
+    `--aws-sigv4`, `--http1.0` and `--http3` map to the matching
+    `[Options]`.
   - `--retry N` becomes `retry: N` with `HTTP *` and a `status < 500`
     assert, so a 5xx response is retried as curl retries it; `-v` and
     `--verbose` become `verbose: true`.
@@ -178,10 +177,9 @@ reads a Collection v2.1 (or v2.0). See
 [migrate-from-postman.md](migrate-from-postman.md) for the full mapping.
 
 - **Auth:** inherited from the collection and its folders; `noauth` stops
-  the inheritance. Basic, bearer and API key are converted. Digest, NTLM
-  and AWS SigV4 are written as the matching `[Options]` with a warning:
-  Sonde cannot send them yet, so those requests fail until it can. Other
-  schemes are warned about and left out.
+  the inheritance. Basic, bearer, API key, Digest, NTLM and AWS SigV4 are
+  converted (the last three as the `user` option plus the matching
+  `[Options]`). Other schemes are warned about and left out.
 - **Bodies:** raw bodies, `[Form]`, `[Multipart]`, GraphQL (with its
   variables) and file bodies.
 - **Variables:** collection and folder variables become the `collection`

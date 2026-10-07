@@ -78,8 +78,7 @@ type RequestSpec struct {
 // HTTPVersion is the requested protocol version.
 type HTTPVersion int
 
-// Requested versions, in the order of engine.HTTPVersion. HTTP10 is not
-// supported.
+// Requested versions, in the order of engine.HTTPVersion.
 const (
 	HTTPDefault HTTPVersion = iota
 	HTTP10

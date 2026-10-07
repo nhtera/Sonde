@@ -30,6 +30,9 @@ type Wire struct {
 	// with the names as received.
 	ResponseHeaders []exchange.Header
 	Trailers        []exchange.Header
+	// Sent is set by RoundTrip to the version of the request line it
+	// wrote, "HTTP/1.0" or "HTTP/1.1".
+	Sent string
 	// Lease, when set, keeps the connection for the next request of the
 	// same lease instead of the shared pool (see Lease).
 	Lease *Lease

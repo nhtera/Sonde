@@ -38,7 +38,7 @@ difference is in [compat.md](../compat.md).
 | `hurlfmt --check FILE` | `sonde fmt --check FILE` (same output; exit 1, not 3, when a file is not formatted) |
 | `hurlfmt --in-place FILE` | `sonde fmt --write FILE` (same layout, section order included) |
 | (a syntax check) | `sonde check FILE` (exit 2 on a syntax error) |
-| `hurlfmt --in curl` | `sonde import curl INPUT -o DIR` (options Sonde cannot send yet, such as `--digest`, are kept with a warning) |
+| `hurlfmt --in curl` | `sonde import curl INPUT -o DIR` |
 | `hurlfmt --out curl FILE` | `sonde export curl FILE` |
 | `hurlfmt --out json` / `--out html [--standalone]` | `sonde export json FILE` / `sonde export html [--standalone] FILE` (same output, see [compat.md](../compat.md)) |
 | `hurl --curl FILE` | `sonde --curl FILE` (same format; secrets redacted) |

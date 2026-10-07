@@ -408,6 +408,7 @@ func (t *Transport) exchange(ctx context.Context, c *conn, req *http.Request, r 
 		TLS:           c.tls,
 	}
 	w.ResponseHeaders = head.headers
+	w.Sent = fmt.Sprintf("HTTP/1.%d", r.minor)
 	b := &body{ctx: ctx, t: t, c: c, w: w, resp: resp, reusable: reusable, stop: stop}
 	switch {
 	case head.framing == bodyNone, head.framing == bodyFixed && head.length == 0:

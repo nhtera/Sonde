@@ -269,38 +269,39 @@ itself, not a harness bug.
 
 ## Current numbers
 
-As of 2026-10-07, against the current sonde build, on macOS without squid
+As of 2026-10-08, against the current sonde build, on macOS without squid
 (semantic / full-oracle):
 
 | Lane | 8.0.1 (`make conformance`) | pinned snapshot (`make conformance-next`) |
 |---|---|---|
-| blocking | 289 of 297 ran pass (97.3% / 93.9%), 1 skipped | 297 of 350 ran pass (84.9% / 77.7%), 3 skipped |
-| hurlfmt | 68/70 (97.1%): lint, json and html 19/19 each, scripts 11/13 (`help.sh` identity, `import_curl.sh` documented curl-import differences) | 65/70 (92.9%) |
-| pty | 10/11 (90.9% / 63.6%); `help.sh` differs by identity | 10/14 (71.4% / 50.0%) |
-| extended | 14 of 16 ran pass (87.5%), 4 skipped | 14 of 16 ran pass (87.5%), 9 skipped |
-| timing | 22/22 (100% / 77.3%) | 22/27 (81.5% / 51.9%) |
+| blocking | 291 of 296 ran pass (98.3% / 90.5%), 2 skipped | 348 of 349 ran pass (99.7% / 96.8%), 2 skipped |
+| hurlfmt | 68/70 (97.1%): lint, json and html 19/19 each, scripts 11/13 (`help.sh` identity, `import_curl.sh` documented curl-import differences) | 68/70 (97.1%), same two scripts |
+| pty | 10/11 (90.9% / 63.6%); `help.sh` differs by identity | 13/14 (92.9% / 71.4%); `help.sh` |
+| extended | 15 of 16 ran pass (93.8%), 4 skipped | 16 of 17 ran pass (94.1%), 10 skipped |
+| timing | 22/22 (100% / 63.6%) | 27/27 (100% / 74.1%) |
 
 The pty figure is measured with the upstream two-pty runner (6/11 when the
 lane was added; an earlier estimate from a single merged stream was not
-reliable).
+reliable). Timing full-oracle figures move between runs: they compare
+measured durations.
 
-The 8.0.1 numbers before the hurlfmt and pty lanes were added (2026-09-27):
-blocking 97.3% semantic / 93.9% full-oracle (297/298 ran, 1 skipped),
-extended 87.5% (16/20 ran, 4 skipped for missing `squid`/unmet
-prerequisites), timing 100% semantic / 77.3% full-oracle. The manifest's 10
-remaining `expect: fail` entries and 23 `expect: skip` entries are all
-either environment-gated (network lane disabled by default, squid missing,
-an unmet reference-runner prerequisite the script itself detects and skips
-on with exit 255) or a permanent, by-design gap:
+The upstream version 8.1.0 is not tagged yet, so the gate stays on the
+vendored 8.0.1 trees. Where the snapshot's oracle replaced 8.0.1's
+behaviour and sonde follows the snapshot, the 8.0.1 script is demoted
+with a reason starting `superseded` and a sonde-owned test covering the
+behaviour; these resolve when 8.1.0 is vendored:
 
-- **AWS SigV4, HTTP Digest, NTLM** (`tests_ok/{aws_sigv4,digest,ntlm}/*`):
-  not implemented; see the `unsupported` rows in `docs/compat.md`.
-- **`--http1.0`** (`tests_ok/http_version/http_version_10*.sh`): Go's
-  `net/http` always writes the `HTTP/1.1` request line regardless of
-  `Request.Proto`/`ProtoMajor`/`ProtoMinor` (verified directly against both
-  `http.Transport.RoundTrip` and `Request.Write`), so a literal HTTP/1.0
-  wire request cannot be sent through it without replacing the transport
-  with a hand-rolled one; see `docs/compat.md`.
+- `tests_failed/assert_value_error/assert_value_error.sh`: a failed `!=`
+  reads `expected: not <value>` (`internal/predicate` `TestEquality`).
+- `tests_ok/follow_redirect/follow_redirect{,_env_var,_option}.sh`:
+  `[Cookies]`, `Cookie` and `Authorization` are not sent to another host
+  after a redirect (`internal/httpx` `TestRedirectCredentialMatrix`).
+- `tests_failed/http_version_not_supported/http_version_not_supported.sh`:
+  skips itself, as it does against a reference built with HTTP/3, because
+  `--version` lists `HTTP3`.
+
+What still differs in the gating lanes, in both trees:
+
 - **`tests_ok/version/version.sh`**: the reference tool's `--version`
   prints its own program name on line 1, then `Features (libcurl):` and
   `Features (built-in):` lines describing its libcurl backend. sonde is a
@@ -308,13 +309,27 @@ on with exit 255) or a permanent, by-design gap:
   reference tool's own name as sonde's program name would misrepresent
   which binary produced the output, so this exact 3-line shape is not
   reproduced. This is a fixture identity mismatch, not a missing feature.
-- **`tests_ssl/cacert_to_json.sh`**: the `--json` response object now has
-  its `certificate` field, matching the reference byte for byte, but the
-  response headers are listed sorted rather than in the order the server
-  sent them: Go's `net/http` does not keep the wire order of headers.
-- **`tests_unix_socket/unix_socket.sh`**: a platform/TLS-backend
-  difference in the fixture itself (see Reference-binary validation
-  above), not a sonde gap.
+- **`help.sh`** (pty, hurlfmt): the help text names sonde.
+- **`hurlfmt/tests_ok/import_curl.sh`**: the curl-import differences listed
+  in `docs/compat.md`.
+- **`tests_failed/aws_sigv4/aws_sigv4_option.sh`**: skipped by the script
+  itself (exit 255) on this machine; the other SigV4, Digest and NTLM
+  scripts pass.
+
+In the extended lane, the proxy scripts need squid (they run in CI),
+`tests_ssl/cacert_no_revoke*.sh` need a Windows reference, and
+`tests_unix_socket/unix_socket.sh` is a platform/TLS-backend difference in
+the fixture itself (see Reference-binary validation above), not a sonde gap.
+
+### HTTP/1.x wire layer
+
+sonde writes and reads HTTP/1.x itself (`internal/httpx/h1wire`): request
+lines, header order and case as written, `--http1.0`, and the response
+headers in the order the server sent them. `SONDE_HTTP1_WIRE=legacy` sends
+HTTP/1.x through Go's `net/http` instead, the fallback kept for one minor
+release. CI runs the 8.0.1 gate a second time with it; scripts that need
+the wire layer (the `wireOnly` list in `internal/conformance/gate.go`) do
+not fail that run.
 
 ## CI
 

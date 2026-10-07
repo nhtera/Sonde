@@ -635,3 +635,23 @@ func TestSuggest(t *testing.T) {
 		}
 	}
 }
+
+// TestDigestAuth: digest auth becomes the user option and digest: true,
+// not [BasicAuth] (a literal Basic header no challenge is answered with).
+func TestDigestAuth(t *testing.T) {
+	data := []byte(`items:
+  - info: {name: Digest, type: http}
+    http:
+      method: GET
+      url: "https://example.com"
+      auth: {type: digest, username: u, password: "{{pass}}"}
+`)
+	out, err := ImportFile(data, syntax.DialectHurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(syntax.Lint(out.Files[0].File))
+	if !strings.Contains(src, "[Options]\nuser: u:{{pass}}\ndigest: true\n") || strings.Contains(src, "[BasicAuth]") || len(out.Warnings) != 0 {
+		t.Errorf("digest:\n%s\n%v", src, out.Warnings)
+	}
+}

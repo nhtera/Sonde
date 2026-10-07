@@ -130,7 +130,7 @@ type parsed struct {
 	retry     string // flattened: parsed as a count
 
 	haveAWSSigV4 bool
-	awsSigV4     templatedString // --aws-sigv4: mapped (S1, phase 8 checkpoint), but httpx rejects it at run time — see buildEntry's warnRuntimeUnsupported
+	awsSigV4     templatedString // --aws-sigv4: the aws-sigv4 option
 
 	haveJSON            bool // --json used at least once: see buildEntry's implied Content-Type/Accept
 	suppressContentType bool // -H 'Content-Type:' (curl's "remove" form)
@@ -185,8 +185,7 @@ var booleanFlags = map[string]bool{
 // that does map to a real [Options] entry (netrc-file, ...) is still
 // listed if it wasn't worth the added surface for this pass — see the
 // phase report (aws-sigv4 used to be one of these too, but is now mapped:
-// see longValueFlags and buildEntry's warnRuntimeUnsupported, S1 in the
-// phase 8 checkpoint). This list is curated from curl's own option reference
+// see longValueFlags). This list is curated from curl's own option reference
 // (curl --help all) to be close to exhaustive for every flag that takes a
 // value (H3, phase 8 review): the goal is that no value-taking flag this
 // package doesn't otherwise recognize can ever leak its argument into

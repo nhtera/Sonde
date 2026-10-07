@@ -106,14 +106,14 @@ Basic, bearer and API key auth translate directly and work: bearer becomes
 an `Authorization: Bearer ...` header, API key becomes a header or a query
 parameter depending on its `in`.
 
-Digest, NTLM and AWS SigV4 map to `[BasicAuth]` plus the matching
-`[Options]` flag (`digest`, `ntlm`, `aws-sigv4`; an AWS session token
-becomes an `X-Amz-Security-Token` header) — but **Sonde cannot send any of
-the three yet**: the mapping is kept, for when it can, but the request
-fails at run time until then (a warning says so at import time too, so it
-is not a surprise later). Every other type — OAuth 1/2, Hawk, EdgeGrid,
-JWT, ASAP, or anything unrecognized — has no Sonde equivalent at all and is
-warned about by request name; add it by hand.
+Digest, NTLM and AWS SigV4 map to the `user` option (`user:password`, or
+`accessKey:secretKey`) plus the matching option (`digest`, `ntlm`,
+`aws-sigv4`; an AWS session token becomes an `X-Amz-Security-Token`
+header, which is signed). Not `[BasicAuth]`: that sends a literal Basic
+header, which no scheme answers a challenge with or signs. Every other
+type — OAuth 1/2, Hawk, EdgeGrid, JWT, ASAP, or anything unrecognized — has
+no Sonde equivalent at all and is warned about by request name; add it by
+hand.
 
 Auth is inherited the way Postman inherits it: a request's own `auth`
 wins; failing that, its nearest enclosing folder's; failing that, the

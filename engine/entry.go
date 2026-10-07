@@ -494,7 +494,11 @@ func (u *unit) logResponses(calls []Call) {
 				target = "/"
 			}
 		}
-		u.log(LogRequestLine, fmt.Sprintf("%s %s %s", c.Request.Method, target, c.Response.Version))
+		version := c.Request.Version
+		if version == "" {
+			version = c.Response.Version
+		}
+		u.log(LogRequestLine, fmt.Sprintf("%s %s %s", c.Request.Method, target, version))
 		for _, h := range c.Request.Headers {
 			u.log(LogRequest, displaySafe(h.Name+": "+h.Value))
 		}

@@ -50,6 +50,10 @@ type Request struct {
 	URL     string
 	Headers Headers
 	Body    []byte
+	// Version is the protocol version the request was sent with:
+	// "HTTP/1.0", "HTTP/1.1", "HTTP/2" or "HTTP/3"; empty before it is
+	// sent.
+	Version string
 }
 
 // Response is a response as received. Body holds the bytes as transferred,

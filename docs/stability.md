@@ -6,7 +6,9 @@ for `2.0.0`.
 
 ## `.hurl` compatibility
 
-Sonde targets the Hurl 8.0.1 grammar and CLI behavior. [compat.md](compat.md)
+Sonde targets the Hurl 8.0.1 grammar and CLI behavior, plus the options
+and behavior changes of the next upstream version (8.1.0, not yet tagged;
+those rows say "new in 8.1.0"). [compat.md](compat.md)
 (generated from `internal/docs/table.yaml`, `make docs`) is the complete,
 maintained list of every known difference: parser edge cases, evaluation
 differences, unsupported options, and CLI/env var/config gaps. It is

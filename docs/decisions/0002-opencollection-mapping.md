@@ -183,7 +183,8 @@ inherit *from* at read time).
 | `bearer` | `Authorization: Bearer {{token}}`-shaped header, `token` through `ParseText` |
 | `apikey` | `placement: header` → a header named `key`; `placement: query` → a `[Query]` field named `key`; key and value through `ParseText` |
 | `none` | no auth section, no warning (an explicit override, not an unsupported scheme) |
-| `digest`, `ntlm`, `wsse`, `awsv4`, `oauth1`, `oauth2` (any flow) | `WarnUnsupportedAuth`, naming the scheme; the request is written without auth |
+| `digest` | the `user` option (`username:password`) and `digest: true` |
+| `ntlm`, `wsse`, `awsv4`, `oauth1`, `oauth2` (any flow) | `WarnUnsupportedAuth`, naming the scheme; the request is written without auth |
 | no `auth` anywhere in the chain | no auth section |
 
 ### Variables and environments

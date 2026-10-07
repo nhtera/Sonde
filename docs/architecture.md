@@ -239,7 +239,7 @@ Every path originating from a request file that is read or written — `file,` b
 Body queries (`body`, `bytes`, `sha256`, `jsonpath`, …) see decoded content; `rawbytes` sees raw; `compressed` only adds `Accept-Encoding` and decodes stdout. Redirects: manual loop, one RoundTrip per hop, per-hop timings, credentials (`Authorization`/`Cookie` headers, `--user`, `[Cookies]`) forwarded only to the original host + port + scheme unless `location-trusted`. Header names are canonicalized by Go (documented). `http2` on `http://` stays HTTP/1.1 (h2c upgrade unsupported). Decoded body cap 512 MiB default (`max-filesize` overrides).
 
 ### Unsupported features
-Parser accepts the **full** Hurl 8 grammar (parser-level differences: `docs/compat.md`). Anything the runtime does not implement → runtime error (exit 3) `option "aws-sigv4" is not supported by sonde yet`, tracked in `docs/compat.md`. Never silently ignore.
+Parser accepts the **full** Hurl 8 grammar (parser-level differences: `docs/compat.md`). Anything the runtime does not implement → runtime error (exit 3) `option "<name>" is not supported by sonde yet`, tracked in `docs/compat.md`. Never silently ignore.
 
 ### JSON result contract
 One schema for `--json` and `--report-json`: **Hurl-compatible base** (Hurl 8.0.1 JSON result shape, so Hurl's `--json` conformance tests and existing tooling work) with all Sonde-only data (contracts, iterations, streams, gRPC) under a top-level `sonde` key per object; additive changes only within a major version; documented in `docs/report-json.md`; covered by `docs/stability.md`. JUnit/TAP/HTML layouts follow Hurl's where its conformance tests compare them.

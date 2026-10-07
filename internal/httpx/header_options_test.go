@@ -306,6 +306,9 @@ func TestWireLayer(t *testing.T) {
 	if strings.Join(recorded, "|") != "Host: virtual.test|Accept: */*|x-lower: a" {
 		t.Errorf("recorded request headers %q", recorded)
 	}
+	if calls[0].Request.Version != "HTTP/1.0" {
+		t.Errorf("recorded request version %q", calls[0].Request.Version)
+	}
 
 	t.Setenv("SONDE_HTTP1_WIRE", "legacy")
 	legacy := newTestClient(t, ClientConfig{})
@@ -318,6 +321,59 @@ func TestWireLayer(t *testing.T) {
 	}
 	if head := <-heads; !strings.HasPrefix(head, "GET /p HTTP/1.1\r\n") {
 		t.Errorf("legacy request head %q", head)
+	}
+}
+
+// TestRequestVersionAsSent: the recorded request version is the one of
+// the request line, not the server's answer.
+func TestRequestVersionAsSent(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				_, _ = conn.Read(make([]byte, 4096))
+				_, _ = io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+			}()
+		}
+	}()
+	c := newTestClient(t, ClientConfig{})
+	for _, tc := range []struct {
+		version HTTPVersion
+		want    string
+	}{{HTTP10, "HTTP/1.0"}, {HTTP11, "HTTP/1.1"}, {HTTPDefault, "HTTP/1.1"}} {
+		calls, err := c.Execute(t.Context(), &RequestSpec{Method: "GET", URL: "http://" + ln.Addr().String() + "/"}, &Options{HTTPVersion: tc.version})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := calls[0].Request.Version; got != tc.want || calls[0].Response.Version != "HTTP/1.1" {
+			t.Errorf("%v: request %s, response %s", tc.version, got, calls[0].Response.Version)
+		}
+	}
+}
+
+// TestRequestVersionHTTP2: a request handed to HTTP/2 after ALPN records
+// HTTP/2.
+func TestRequestVersionHTTP2(t *testing.T) {
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	srv.EnableHTTP2 = true
+	srv.StartTLS()
+	defer srv.Close()
+	c := newTestClient(t, ClientConfig{})
+	calls, err := c.Execute(t.Context(), &RequestSpec{Method: "GET", URL: srv.URL}, &Options{Insecure: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls[0].Request.Version != "HTTP/2" || calls[0].Response.Version != "HTTP/2" {
+		t.Errorf("request %s, response %s", calls[0].Request.Version, calls[0].Response.Version)
 	}
 }
 

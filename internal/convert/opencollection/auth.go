@@ -68,9 +68,9 @@ func mergeHeaders(layers ...[]header) []header {
 	return out
 }
 
-// applyAuth resolves a onto e: [BasicAuth], a bearer/apikey header or
-// query field, or a WarnUnsupportedAuth for a scheme with no Sonde
-// equivalent (mapping doc, "Auth"). a may be nil.
+// applyAuth resolves a onto e: [BasicAuth], the user and digest options, a
+// bearer/apikey header or query field, or a WarnUnsupportedAuth for a
+// scheme it does not map (mapping doc, "Auth"). a may be nil.
 func applyAuth(name string, a *auth, e *syntax.EntrySpec) []convert.Warning {
 	if a == nil || a.isInherit() {
 		return nil
@@ -81,6 +81,12 @@ func applyAuth(name string, a *auth, e *syntax.EntrySpec) []convert.Warning {
 		user, w1 := convert.ParseText(a.Username)
 		pass, w2 := convert.ParseText(a.Password)
 		e.BasicAuth = &syntax.BasicAuth{User: user, Password: pass}
+		warns = append(append(warns, w1...), w2...)
+	case "digest":
+		user, w1 := convert.ParseText(a.Username)
+		pass, w2 := convert.ParseText(a.Password)
+		v := append(append(append(syntax.Text{}, user...), syntax.Lit(":")), pass...)
+		e.Options = append(e.Options, syntax.StringOption("user", v), syntax.BoolOption("digest", true))
 		warns = append(append(warns, w1...), w2...)
 	case "bearer":
 		token, w := convert.ParseText(a.Token)
@@ -99,7 +105,7 @@ func applyAuth(name string, a *auth, e *syntax.EntrySpec) []convert.Warning {
 		}
 	default:
 		warns = append(warns, convert.Warning{Kind: convert.WarnUnsupportedAuth,
-			Message: fmt.Sprintf("%s: auth type %q has no Sonde equivalent; the request is written without auth", name, a.Type)})
+			Message: fmt.Sprintf("%s: auth type %q is not imported; the request is written without auth", name, a.Type)})
 	}
 	return warns
 }

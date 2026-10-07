@@ -11,4 +11,3 @@ limit-rate: 2097152
 resolve: example.com:443:127.0.0.1
 resolve: api.example.com:443:127.0.0.2
 connect-to: a.example.com:443:b.example.com:443
-warning unsupported-option: sonde cannot send --digest yet; this request fails until it can

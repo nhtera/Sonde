@@ -189,6 +189,8 @@ func TestRunGRPCInvalidEntries(t *testing.T) {
 		{"bad timeout", "POST {{base}}/sonde.test.Greeter/SayHello\ngrpc-timeout: +5S\n[SondeGrpc]\nproto: protos/sonde/test/greeter.proto\n", "invalid grpc-timeout"},
 		{"h2c proxy", "POST {{base}}/sonde.test.Greeter/SayHello\n[Options]\nproxy: http://127.0.0.1:9\n[SondeGrpc]\nproto: protos/sonde/test/greeter.proto\nimport-path: protos\n", "cannot go through the HTTP proxy"},
 		{"http1.1", "POST {{base}}/sonde.test.Greeter/SayHello\n[Options]\nhttp1.1: true\n[SondeGrpc]\nproto: protos/sonde/test/greeter.proto\nimport-path: protos\n", "the http1.1 option does not apply"},
+		{"http1.0", "POST {{base}}/sonde.test.Greeter/SayHello\n[Options]\nhttp1.0: true\n[SondeGrpc]\nproto: protos/sonde/test/greeter.proto\nimport-path: protos\n", "the http1.0 option does not apply"},
+		{"http3", "POST {{base}}/sonde.test.Greeter/SayHello\n[Options]\nhttp3: true\n[SondeGrpc]\nproto: protos/sonde/test/greeter.proto\nimport-path: protos\n", "the http3 option does not apply"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			res, _ := runGRPC(t, srv, "", tc.src, Options{})
