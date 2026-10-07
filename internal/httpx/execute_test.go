@@ -297,10 +297,6 @@ func TestExecuteUnsupportedOptions(t *testing.T) {
 		name string
 		opts Options
 	}{
-		{"aws-sigv4", Options{AWSSigV4: "aws:amz:us-east-1:s3"}},
-		{"digest", Options{Digest: true}},
-		{"ntlm", Options{NTLM: true}},
-		{"negotiate", Options{Negotiate: true}},
 		{"http3", Options{HTTPVersion: HTTP3}},
 	}
 	for _, tt := range tests {

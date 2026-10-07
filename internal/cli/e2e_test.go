@@ -166,11 +166,11 @@ func TestE2EPretty(t *testing.T) {
 func TestE2EUnsupportedOption(t *testing.T) {
 	srv := testServer(t)
 	file := writeTemp(t, "ok.hurl", "GET "+srv.URL+"/hello\nHTTP 200\n")
-	code, _, errOut := runArgs(t, file, "--digest")
+	code, _, errOut := runArgs(t, file, "--ssl-no-revoke")
 	if code != ExitRuntime {
 		t.Errorf("exit code = %d, want %d", code, ExitRuntime)
 	}
-	if !strings.Contains(errOut, `option "digest" is not supported by sonde yet`) {
+	if !strings.Contains(errOut, `option "ssl-no-revoke" is not supported by sonde yet`) {
 		t.Errorf("stderr = %q", errOut)
 	}
 }

@@ -53,3 +53,9 @@ adapt the colors of these themes, contrast adjusted:
   (https://github.com/tokyo-night/tokyo-night-vscode-theme).
 - VS Code Light and Dark: MIT License, Copyright (c) 2015 - present
   Microsoft Corporation (https://github.com/microsoft/vscode).
+
+Third-party Go library under the Mozilla Public License 2.0, used
+unmodified; its source is available at its upstream repository:
+- github.com/hashicorp/go-uuid: MPL-2.0, Copyright © 2015 HashiCorp, Inc.
+  (https://github.com/hashicorp/go-uuid), a dependency of
+  github.com/jcmturner/gokrb5 (Kerberos for --negotiate).

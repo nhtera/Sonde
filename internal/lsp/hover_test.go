@@ -61,10 +61,10 @@ func TestHoverOption(t *testing.T) {
 	c := newTestClient(t, nil)
 	c.initialize(true, "", nil)
 	uri := "file:///w/a.hurl"
-	c.open(uri, "GET http://a/\n[Options]\ndigest: true\n")
+	c.open(uri, "GET http://a/\n[Options]\nhttp3: true\n")
 	h := c.hover(uri, Position{2, 2})
 	if h == nil || !strings.Contains(h.Contents.Value, "does not support this yet") {
-		t.Fatalf("digest hover = %+v", h)
+		t.Fatalf("http3 hover = %+v", h)
 	}
 }
 

@@ -11,7 +11,7 @@ sonde run [options] FILE...
 ## Flags
 
 ```
-      --aws-sigv4 string             signs the request with AWS Signature Version 4 (not supported by sonde)
+      --aws-sigv4 string             signs the request with AWS Signature Version 4
       --cacert string                CA certificate bundle used to verify the server (PEM)
   -E, --cert string                  client certificate file, optionally with :PASSWORD
       --compressed                   requests a compressed response and decodes it
@@ -25,7 +25,7 @@ sonde run [options] FILE...
       --data string                  runs each file once per row of a CSV or JSON data file
       --data-secret strings          marks data file columns as secrets (comma-separated, repeatable)
       --delay string                 sleep before each request
-      --digest                       uses HTTP Digest authentication (not supported by sonde)
+      --digest                       uses HTTP Digest authentication
       --env string                   selects a sonde.yaml environment by name
       --error-format string          controls how error messages are rendered (short or long)
       --fail-with-body               writes the response body of a failed entry before its errors
@@ -51,7 +51,7 @@ sonde run [options] FILE...
       --max-filesize string          caps the size of a downloaded file
       --max-redirs string            maximum number of redirects to follow, -1 for unlimited
   -m, --max-time string              maximum time allowed for the whole transfer
-      --negotiate                    uses SPNEGO authentication (not supported by sonde)
+      --negotiate                    uses SPNEGO (Negotiate) authentication from the Kerberos credential cache
   -n, --netrc                        reads credentials from ~/.netrc, failing if absent
       --netrc-file string            reads credentials from the given netrc-format file
       --netrc-optional               reads credentials from ~/.netrc if present, else the URL
@@ -62,7 +62,7 @@ sonde run [options] FILE...
       --no-output                    suppresses the default last-response-body output
       --no-pretty                    disables pretty-printing of response output
       --no-proxy string              lists hosts that bypass the proxy
-      --ntlm                         uses NTLM authentication (not supported by sonde)
+      --ntlm                         uses NTLM authentication
       --openapi string               validates every response against an OpenAPI spec (file, or URL with --openapi-allow-remote)
       --openapi-allow-remote         allows a remote spec and remote $ref targets
       --openapi-server string        base URL replacing the spec's servers when matching requests to operations

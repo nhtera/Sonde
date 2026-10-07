@@ -43,6 +43,10 @@ var wireOnly = map[string]bool{
 	"hurl/tests_ok/http_version/http_version_10.sh":         true,
 	"hurl/tests_ok/http_version/http_version_10_env_var.sh": true,
 	"hurl/tests_ssl/cacert_to_json.sh":                      true,
+	// NTLM needs a connection of the own layer (8.0.1's scripts do not
+	// probe Features first).
+	"hurl/tests_ok/ntlm/ntlm.sh":        true,
+	"hurl/tests_ok/ntlm/ntlm_option.sh": true,
 	// next snapshot
 	"hurl/tests_ok/http_version/http_version_10_config_file.sh":    true,
 	"hurl/tests_ok/html_report_injection/html_report_injection.sh": true,

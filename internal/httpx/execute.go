@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/http/httptrace"
 	"net/url"
 	"slices"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/codec"
+	"github.com/nhtera/sonde/internal/httpx/auth"
 	"github.com/nhtera/sonde/internal/httpx/h1wire"
 )
 
@@ -51,8 +53,13 @@ func (c *Client) Execute(ctx context.Context, spec *RequestSpec, opts *Options) 
 		maxRedirects = 50
 	}
 
+	if (opts.NTLM || opts.Negotiate) && opts.HTTPVersion != HTTP10 {
+		// The exchange is bound to one connection: HTTP/1.1, no h2.
+		curOpts.HTTPVersion = HTTP11
+	}
+
 	for {
-		call, err := c.executeOne(ctx, curSpec, &curOpts)
+		call, err := c.executeAuthed(ctx, curSpec, &curOpts)
 		if err != nil {
 			if call.Response != nil { // a stream that failed after its headers
 				calls = append(calls, call)
@@ -93,11 +100,14 @@ func (c *Client) Execute(ctx context.Context, spec *RequestSpec, opts *Options) 
 		newOpts := curOpts
 		next.Headers, next.Cookies = spec.Headers, spec.Cookies
 		newOpts.Headers, newOpts.User = opts.Headers, opts.User
+		newOpts.Digest, newOpts.NTLM, newOpts.Negotiate, newOpts.AWSSigV4 = opts.Digest, opts.NTLM, opts.Negotiate, opts.AWSSigV4
 		if shouldStripCredentials(originalURL, redirectURL, opts.LocationTrusted) {
 			next.Headers = filterHeaders(spec.Headers, "Authorization", "Cookie")
 			next.Cookies = nil
 			newOpts.Headers = filterHeaders(opts.Headers, "Authorization", "Cookie")
 			newOpts.User = ""
+			// No scheme authenticates to another host either.
+			newOpts.Digest, newOpts.NTLM, newOpts.Negotiate, newOpts.AWSSigV4 = false, false, false, ""
 		} else if redirectURL.User == nil && originalURL.User != nil {
 			// The credentials of the entry's URL go along too.
 			withUser := *redirectURL
@@ -119,16 +129,13 @@ func (c *Client) Execute(ctx context.Context, spec *RequestSpec, opts *Options) 
 	}
 }
 
-// checkSupported rejects the options sonde does not implement yet.
+// checkSupported rejects the options sonde does not implement (NTLM and
+// Negotiate need a connection of the own HTTP/1.x layer).
 func checkSupported(opts *Options) error {
 	switch {
-	case opts.AWSSigV4 != "":
-		return unsupportedError("aws-sigv4")
-	case opts.Digest:
-		return unsupportedError("digest")
-	case opts.NTLM:
+	case opts.NTLM && legacyWire():
 		return unsupportedError("ntlm")
-	case opts.Negotiate:
+	case opts.Negotiate && legacyWire():
 		return unsupportedError("negotiate")
 	case opts.HTTPVersion == HTTP10 && legacyWire():
 		return unsupportedError("http1.0")
@@ -232,12 +239,105 @@ func framingHeader(name string) bool {
 	return strings.EqualFold(name, "Host") || strings.EqualFold(name, "Content-Length") || strings.EqualFold(name, "Transfer-Encoding")
 }
 
+// attempt is what an authentication exchange changes in an exchange: the
+// Authorization value (or the Digest challenge to answer with the body as
+// sent), and the connection the exchange is bound to.
+type attempt struct {
+	authorization string
+	digest        *auth.Digest
+	user          string
+	password      string
+	lease         *h1wire.Lease
+	// challenge marks the attempt that may get the challenge: a 401 to
+	// it is not streamed.
+	challenge bool
+}
+
+// executeAuthed performs one exchange, answering an authentication
+// challenge (Digest, NTLM, Negotiate) once: a 401 offering the scheme is
+// answered on the same connection, and only the final exchange is
+// reported, as libcurl runs it within one transfer.
+func (c *Client) executeAuthed(ctx context.Context, spec *RequestSpec, opts *Options) (Call, error) {
+	if !opts.Digest && !opts.NTLM && !opts.Negotiate {
+		return c.executeOne(ctx, spec, opts, attempt{})
+	}
+	u, err := buildURL(spec, opts.PathAsIs)
+	if err != nil {
+		return Call{}, err
+	}
+	if opts.NTLM || opts.Negotiate {
+		if err := c.checkBoundAuth(u, opts); err != nil {
+			return Call{}, err
+		}
+	}
+	a := attempt{challenge: true}
+	if opts.NTLM || opts.Negotiate {
+		a.lease = &h1wire.Lease{}
+		// A connection authenticated as someone is never shared.
+		defer a.lease.Close() //nolint:errcheck // closing a finished connection
+	}
+	if opts.NTLM {
+		if a.authorization, err = auth.NTLMNegotiate(); err != nil {
+			return Call{}, otherError("NTLM: "+err.Error(), err)
+		}
+	}
+	call, err := c.executeOne(ctx, spec, opts, a)
+	if err != nil || call.Response.Status != http.StatusUnauthorized {
+		return call, err
+	}
+	challenges := call.Response.Headers.Values("WWW-Authenticate")
+	userPass, _, err := c.credentials(u, opts)
+	if err != nil {
+		return call, err
+	}
+	a.user, a.password, _ = strings.Cut(userPass, ":")
+	a.challenge, a.authorization = false, ""
+	switch {
+	case opts.Digest:
+		if a.digest, err = auth.ParseDigest(challenges); err != nil {
+			return call, nil // no usable challenge: the 401 is the answer
+		}
+	case opts.NTLM:
+		if a.authorization, err = auth.NTLMAuthenticate(challenges, a.user, a.password); err != nil {
+			return call, nil
+		}
+	default: // Negotiate
+		if !slices.ContainsFunc(challenges, func(v string) bool { return strings.EqualFold(strings.Fields(v + " x")[0], "Negotiate") }) {
+			return call, nil
+		}
+		if a.authorization, err = c.negotiateToken(ctx, asciiHost(u.Hostname())); err != nil {
+			return call, otherError(err.Error(), err)
+		}
+	}
+	return c.executeOne(ctx, spec, opts, a)
+}
+
+// checkBoundAuth refuses NTLM and Negotiate where their connection could
+// not be held: gRPC, and proxies other than http:// (net/http would pool
+// the authenticated connection).
+func (c *Client) checkBoundAuth(u *url.URL, opts *Options) error {
+	if opts.GRPC {
+		return newError(ErrUnsupported, "Unsupported option", "ntlm and negotiate are not supported for gRPC", nil)
+	}
+	p := environmentProxy(u, opts.NoProxy)
+	if opts.Proxy != "" {
+		p, _ = parseProxyURL(opts.Proxy)
+		if p != nil && opts.NoProxy != "" && noProxyMatch(u.Hostname(), opts.NoProxy) {
+			p = nil
+		}
+	}
+	if p != nil && p.Scheme != "http" {
+		return newError(ErrUnsupported, "Unsupported option", "ntlm and negotiate are supported through http:// proxies only", nil)
+	}
+	return nil
+}
+
 // executeOne performs exactly one HTTP exchange: build the request, run
 // it through the cached transport for opts, and turn the result into a
 // Call.
-func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Options) (Call, error) {
+func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Options, a attempt) (Call, error) {
 	now := time.Now()
-	prep, err := buildRequest(ctx, spec, opts, c.cfg, requestContext{client: c, now: now})
+	prep, err := buildRequest(ctx, spec, opts, c.cfg, requestContext{client: c, now: now, attempt: a})
 	if err != nil {
 		return Call{}, err
 	}
@@ -318,7 +418,7 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 	reqCtx = httptrace.WithClientTrace(reqCtx, trace)
 	// The wire layer writes the headers as recorded (order, case, one
 	// Host) and gives the response headers back as received.
-	wire := &h1wire.Wire{HTTP10: opts.HTTPVersion == HTTP10, RequestHeaders: prep.headers}
+	wire := &h1wire.Wire{HTTP10: opts.HTTPVersion == HTTP10, RequestHeaders: prep.headers, Lease: a.lease}
 	reqCtx = h1wire.WithWire(reqCtx, wire)
 	prep.req = prep.req.WithContext(reqCtx)
 
@@ -337,7 +437,7 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 	}
 
 	if opts.OnSend != nil {
-		opts.OnSend(exchange.Request{Method: prep.req.Method, URL: prep.req.URL.String(), Headers: prep.headers, Body: prep.body})
+		opts.OnSend(exchange.Request{Method: prep.req.Method, URL: prep.req.URL.String(), Headers: prep.recorded(), Body: prep.body})
 	}
 	resp, err := built.rt.RoundTrip(prep.req)
 	timings.stop()
@@ -356,7 +456,9 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 	if wire.ResponseHeaders != nil {
 		headers = slices.Clone(wire.ResponseHeaders)
 	}
-	if opts.ReadStream != nil && !followsRedirect(opts, resp.StatusCode, resp.Header.Get("Location")) {
+	streamed := opts.ReadStream != nil && !followsRedirect(opts, resp.StatusCode, resp.Header.Get("Location")) &&
+		(!a.challenge || resp.StatusCode != http.StatusUnauthorized) // a challenge is read whole, then answered
+	if streamed {
 		respBody, streamErr = readStream(headers, bodyReader, opts.ReadStream, stopStream)
 		if streamErr != nil {
 			streamErr = classifyRoundTripError(prep.req.URL, streamErr)
@@ -414,7 +516,7 @@ func (c *Client) executeOne(ctx context.Context, spec *RequestSpec, opts *Option
 		Request: exchange.Request{
 			Method:  prep.req.Method,
 			URL:     prep.req.URL.String(),
-			Headers: prep.headers,
+			Headers: prep.recorded(),
 			Body:    prep.body,
 		},
 		Response: response,

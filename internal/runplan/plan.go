@@ -155,10 +155,6 @@ func New(inv *Invocation, env config.Env, version string) (*Plan, error) {
 		name    string
 		enabled bool
 	}{
-		{"aws-sigv4", inv.AWSSigV4 != ""},
-		{"digest", inv.Digest},
-		{"negotiate", inv.Negotiate},
-		{"ntlm", inv.NTLM},
 		{"ssl-no-revoke", inv.SSLNoRevoke},
 	} {
 		if unsupported.enabled {
@@ -287,6 +283,10 @@ func buildHTTPOptions(inv *Invocation, env config.Env, fileCfg config.FileOption
 	h.Netrc = inv.Netrc
 	h.NetrcFile = inv.NetrcFile
 	h.NetrcOptional = inv.NetrcOptional
+	h.AWSSigV4 = inv.AWSSigV4
+	h.Digest = inv.Digest
+	h.NTLM = inv.NTLM
+	h.Negotiate = inv.Negotiate
 
 	if err := validateHeaders(fileCfg.Headers); err != nil {
 		return h, err

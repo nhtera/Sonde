@@ -89,6 +89,9 @@ Measured with the conformance harness (`make conformance`, see
 | `http3` option or `--http3` | HTTP/3 when libcurl supports it | `Unsupported HTTP version` error |
 | Order and case of response headers over HTTP/2, or through a proxy to an `https://` URL without `--http1.1` | as received | names lower-case (HTTP/2) or canonical, grouped by name and sorted (values of one name keep their order); HTTP/1.x responses otherwise keep wire order and case |
 | `SONDE_HTTP1_WIRE=legacy` | not applicable | sends HTTP/1.x through Go's net/http as sonde did before its own wire layer: `--http1.0` is unsupported, response headers are sorted, and header names net/http refuses fail the request (kept for one minor release) |
+| `--digest`, `--ntlm` or `--negotiate` answering a 401 challenge | the verbose log shows both exchanges | only the final exchange is logged and reported (the challenge is answered within the call, as libcurl does) |
+| `--negotiate` credential cache | any GSS-API cache (libcurl) | a Kerberos file cache: `KRB5CCNAME` (`FILE:` caches) or `/tmp/krb5cc_<uid>`, configuration from `KRB5_CONFIG` or `/etc/krb5.conf` |
+| The `Authorization` value a scheme computes (Digest response, NTLM and Negotiate tokens, AWS signature) | printed in verbose output | recorded as `***`: never shown in logs, `--json` or reports (sent as computed) |
 | Default User-Agent | `hurl/<version>` | `sonde/<version>` (`SONDE_DEFAULT_USER_AGENT` replaces it) |
 | `--version` output | Hurl and libcurl versions and features | sonde version, commit, build date, Go version, then a `Features:` line listing the optional transport features this build implements (e.g. `HTTP2`) |
 | Request-file path escaping the file root through a symbolic link | allowed (lexical check) | denied |
@@ -208,14 +211,14 @@ Request `[Options]` section keys.
 
 | Option | Status | Phase | Description |
 |---|---|---|---|
-| `aws-sigv4` | unsupported |  | signs the request with AWS Signature Version 4 (stretch goal; not scheduled (low conformance weight)) |
+| `aws-sigv4` | supported |  | signs the request with AWS Signature Version 4 |
 | `cacert` | supported |  | CA certificate bundle used to verify the server (PEM) |
 | `cert` | supported |  | client certificate file, optionally with :PASSWORD |
 | `compressed` | supported |  | requests a compressed response and decodes it |
 | `connect-timeout` | supported |  | maximum time allowed to establish the connection |
 | `connect-to` | supported |  | redirects connections for HOST1:PORT1 to HOST2:PORT2 |
 | `delay` | supported |  | sleep before sending this entry's request |
-| `digest` | unsupported |  | uses HTTP Digest authentication (HTTP Digest authentication not implemented (low conformance weight)) |
+| `digest` | supported |  | uses HTTP Digest authentication |
 | `fail-with-body` | supported |  | writes the response body of the entry when it fails, before its errors (new in 8.1.0) |
 | `header` | supported |  | adds a custom header to the request |
 | `http1.0` | supported |  | forces HTTP/1.0 |
@@ -232,13 +235,13 @@ Request `[Options]` section keys.
 | `location-trusted` | supported |  | follows redirects and forwards credentials to every host |
 | `max-redirs` | supported |  | maximum number of redirects to follow, -1 for unlimited |
 | `max-time` | supported |  | maximum time allowed for the whole transfer |
-| `negotiate` | unsupported |  | uses SPNEGO (Negotiate) authentication (SPNEGO authentication not implemented (low conformance weight)) |
+| `negotiate` | supported |  | uses SPNEGO (Negotiate) authentication |
 | `netrc` | supported |  | reads credentials from ~/.netrc, failing if absent |
 | `netrc-file` | supported |  | reads credentials from the given netrc-format file |
 | `netrc-optional` | supported |  | reads credentials from ~/.netrc if present, else the URL |
 | `no-header` | supported |  | removes a header sent to the server, a default one included (repeatable) (new in 8.1.0) |
 | `no-jsonpath-coercion` | supported |  | keeps jsonpath results a list of matches (new in 8.1.0) |
-| `ntlm` | unsupported |  | uses NTLM authentication (NTLM authentication not implemented (low conformance weight)) |
+| `ntlm` | supported |  | uses NTLM authentication |
 | `output` | supported |  | writes the response body to a file instead of stdout |
 | `path-as-is` | supported |  | sends the URL path without normalizing /../ or /./ |
 | `pinnedpubkey` | supported |  | verifies the server's public key against pinned hashes |
@@ -287,7 +290,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 
 | Flag | Short | Status | Phase | Hurl test usage | Description |
 |---|---|---|---|---|---|
-| `--aws-sigv4` |  | unsupported |  | 4 | signs the request with AWS Signature Version 4 (stretch goal; not scheduled (low conformance weight)) |
+| `--aws-sigv4` |  | supported |  | 4 | signs the request with AWS Signature Version 4 |
 | `--cacert` |  | supported |  | 8 | CA certificate bundle used to verify the server (PEM) |
 | `--cert` | `-E` | supported |  | 1 | client certificate file, optionally with :PASSWORD |
 | `--color` |  | supported |  | 12 | forces colorized output |
@@ -299,7 +302,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--cookie-jar` | `-c` | supported |  | 5 | writes cookies to FILE after the run |
 | `--curl` |  | supported | 8 | 5 | exports each request as a list of curl commands |
 | `--delay` |  | supported |  | 2 | sleep before each request |
-| `--digest` |  | unsupported |  | 1 | uses HTTP Digest authentication (HTTP Digest authentication not implemented (low conformance weight)) |
+| `--digest` |  | supported |  | 1 | uses HTTP Digest authentication |
 | `--error-format` |  | supported |  | 3 | controls how error messages are rendered (short or long) |
 | `--fail-with-body` |  | supported |  | 5 | writes the response body of a failed entry before its errors (new in 8.1.0) |
 | `--file-root` |  | supported |  | 5 | sets the root directory used to resolve file paths |
@@ -324,7 +327,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--max-filesize` |  | supported |  | 1 | caps the size of a downloaded file |
 | `--max-redirs` |  | supported |  | 3 | maximum number of redirects to follow, -1 for unlimited |
 | `--max-time` | `-m` | supported |  | 4 | maximum time allowed for the whole transfer |
-| `--negotiate` |  | unsupported |  | 0 | uses SPNEGO (Negotiate) authentication (SPNEGO authentication not implemented (low conformance weight)) |
+| `--negotiate` |  | supported |  | 0 | uses SPNEGO (Negotiate) authentication |
 | `--netrc` | `-n` | supported |  | 0 | reads credentials from ~/.netrc, failing if absent |
 | `--netrc-file` |  | supported |  | 1 | reads credentials from the given netrc-format file |
 | `--netrc-optional` |  | supported |  | 0 | reads credentials from ~/.netrc if present, else the URL |
@@ -336,7 +339,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | `--no-output` |  | supported |  | 18 | suppresses the default last-response-body output |
 | `--no-pretty` |  | supported |  | 1 | disables pretty-printing of response output |
 | `--no-proxy` |  | supported |  | 0 | lists hosts that bypass the proxy |
-| `--ntlm` |  | unsupported |  | 1 | uses NTLM authentication (NTLM authentication not implemented (low conformance weight)) |
+| `--ntlm` |  | supported |  | 1 | uses NTLM authentication |
 | `--output` | `-o` | supported |  | 14 | writes to FILE instead of stdout |
 | `--parallel` |  | supported | 5 | 12 | runs files in parallel (default in test mode) |
 | `--path-as-is` |  | supported |  | 1 | sends the URL path without normalizing /../ or /./ |

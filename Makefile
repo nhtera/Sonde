@@ -5,6 +5,9 @@ GOVULNCHECK_VERSION   := v1.8.0
 GO_LICENSES_VERSION   := v2.0.1
 APIDIFF_VERSION       := v0.0.0-20260908205506-85c1c2202aba
 ALLOWED_LICENSES      := Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC
+# Single libraries accepted under another license, used unmodified (see
+# NOTICE): go-uuid (MPL-2.0) comes with the Kerberos client for --negotiate.
+LICENSE_EXCEPTIONS    := --ignore github.com/hashicorp/go-uuid
 
 BIN      := $(CURDIR)/bin
 # Build tools with the repo toolchain (go.mod `toolchain`), not the tools' own minimum.
@@ -81,7 +84,7 @@ headers: ## Check SPDX headers (and self-test the checker)
 	scripts/check-license-headers.sh
 
 licenses: $(BIN)/go-licenses ## Check dependency licenses against the allowlist
-	$(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES)
+	$(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) $(LICENSE_EXCEPTIONS)
 
 docs: ## Regenerate docs/compat.md and docs/cli from the command tree
 	go test ./internal/docs -run TestCompatUpToDate -update
@@ -113,7 +116,7 @@ desktop-bindings: desktop-tools ## Generate the frontend's TypeScript bindings (
 
 desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses desktop-bindings ## Desktop module: tidy, licenses, vet, tests, lint; frontend: install (no scripts), licenses, version, lint, typecheck, unit tests
 	cd desktop && go mod tidy -diff
-	cd desktop && $(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) --ignore github.com/nhtera/sonde
+	cd desktop && $(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) --ignore github.com/nhtera/sonde $(LICENSE_EXCEPTIONS)
 	@test -f desktop/frontend/dist/index.html || { mkdir -p desktop/frontend/dist && echo '<!doctype html><title>Sonde</title>' > desktop/frontend/dist/index.html; }
 	cd desktop && for tags in $(DESKTOP_TAGS); do \
 	  CGO_ENABLED=0 go vet -tags $$tags ./... && CGO_ENABLED=0 go test -tags $$tags ./... && $(BIN)/golangci-lint run --build-tags $$tags ./... || exit 1; \

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/httpx/auth"
 	"github.com/nhtera/sonde/internal/netpolicy"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
@@ -104,14 +105,14 @@ const (
 // overridden by the entry's [Options] section. Paths come from the request
 // file and are read through ClientConfig.Sandbox, except where noted.
 type Options struct {
-	AWSSigV4       string // unsupported: a non-empty value is an error
+	AWSSigV4       string // provider1[:provider2[:region[:service]]]
 	CACert         string
 	ClientCert     string
 	ClientKey      string
 	Compressed     bool
 	ConnectTimeout time.Duration // zero: 300s
 	ConnectTo      []string      // HOST1:PORT1:HOST2:PORT2
-	Digest         bool          // unsupported
+	Digest         bool
 	FollowLocation bool
 	// LocationTrusted forwards credentials to every redirect host.
 	LocationTrusted bool
@@ -123,7 +124,7 @@ type Options struct {
 	MaxRecvSpeed    int64 // bytes per second, 0: no limit
 	MaxSendSpeed    int64 // bytes per second, 0: no limit
 	MaxRedirects    int   // -1: unlimited; default 50
-	Negotiate       bool  // unsupported
+	Negotiate       bool  // SPNEGO, from the Kerberos credential cache
 	Netrc           bool
 	NetrcFile       string
 	NetrcOptional   bool
@@ -227,6 +228,8 @@ type Client struct {
 	jar        *cookieJar
 	netrc      map[string]*netrcFile // by path, loaded when first needed
 	warned     map[string]bool
+	// kerberos is the Negotiate client, made at the first challenge.
+	kerberos *auth.Negotiator
 }
 
 // NewClient, Execute, Cookies, AddCookie, ClearCookies and Close are

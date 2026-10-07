@@ -88,6 +88,9 @@ func (c *Client) Upgrade(ctx context.Context, spec *RequestSpec, opts *Options) 
 	if err := checkSupported(&o); err != nil {
 		return nil, err
 	}
+	if o.Digest || o.NTLM || o.Negotiate {
+		return nil, newError(ErrUnsupported, "Unsupported option", "digest, ntlm and negotiate are not supported for the WebSocket handshake", nil)
+	}
 	s := *spec
 	s.URL = httpScheme(spec.URL)
 	now := time.Now()

@@ -553,8 +553,7 @@ hurl/tests_ok/assert/assert_xpath.sh:
   expect: pass
 hurl/tests_ok/aws_sigv4/aws_sigv4_option.sh:
   lane: blocking
-  expect: fail
-  reason: 'unsupported auth: AWS SigV4 signing not implemented'
+  expect: pass
 hurl/tests_ok/basic_authentication/basic_authentication.sh:
   lane: blocking
   expect: pass
@@ -654,12 +653,10 @@ hurl/tests_ok/deprecated/deprecated.sh:
   expect: pass
 hurl/tests_ok/digest/digest.sh:
   lane: blocking
-  expect: fail
-  reason: 'unsupported auth: Digest authentication not implemented'
+  expect: pass
 hurl/tests_ok/digest/digest_option.sh:
   lane: blocking
-  expect: fail
-  reason: 'unsupported auth: Digest authentication not implemented'
+  expect: pass
 hurl/tests_ok/empty/empty.sh:
   lane: blocking
   expect: pass
@@ -943,12 +940,10 @@ hurl/tests_ok/non_utf8/non_utf8.sh:
   expect: pass
 hurl/tests_ok/ntlm/ntlm.sh:
   lane: blocking
-  expect: skip
-  reason: script exited 255 (the reference runner's own skip signal, e.g. an unmet prerequisite)
+  expect: pass
 hurl/tests_ok/ntlm/ntlm_option.sh:
   lane: blocking
-  expect: skip
-  reason: script exited 255 (the reference runner's own skip signal, e.g. an unmet prerequisite)
+  expect: pass
 hurl/tests_ok/options_template/options_template.sh:
   lane: blocking
   expect: pass

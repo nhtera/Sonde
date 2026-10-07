@@ -4,9 +4,13 @@
 package httpx
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/nhtera/sonde/internal/httpx/auth"
 )
 
 // warnOnce forwards msg to cfg.Warn the first time it is sent for this
@@ -21,6 +25,38 @@ func (c *Client) warnOnce(msg string) {
 	c.warned[msg] = true
 	if c.cfg.Warn != nil {
 		c.cfg.Warn(msg)
+	}
+}
+
+// negotiateToken returns the Negotiate Authorization value for host,
+// from a Kerberos client made once per Client. The Kerberos library talks
+// to the KDC itself, outside the host allowlist, so Negotiate is refused
+// with one; the request's context bounds the wait.
+func (c *Client) negotiateToken(ctx context.Context, host string) (string, error) {
+	if c.cfg.Hosts != nil {
+		return "", errors.New("negotiate is not available with a host allowlist")
+	}
+	if c.kerberos == nil {
+		n, err := auth.NewNegotiator()
+		if err != nil {
+			return "", err
+		}
+		c.kerberos = n
+	}
+	type result struct {
+		token string
+		err   error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		token, err := c.kerberos.Token(host)
+		ch <- result{token, err}
+	}()
+	select {
+	case r := <-ch:
+		return r.token, r.err
+	case <-ctx.Done():
+		return "", fmt.Errorf("negotiate: %w", ctx.Err())
 	}
 }
 
@@ -130,6 +166,9 @@ func (c *Client) ClearCookies() {
 func (c *Client) Close() error {
 	for _, t := range c.transports {
 		t.closeIdle()
+	}
+	if c.kerberos != nil {
+		c.kerberos.Close()
 	}
 	return nil
 }

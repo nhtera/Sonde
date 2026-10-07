@@ -404,13 +404,17 @@ func TestVariablesAndSecrets(t *testing.T) {
 
 func TestErrors(t *testing.T) {
 	var ue *UnsupportedError
-	if _, err := New(&Invocation{NTLM: true}, nil, "t"); !errors.As(err, &ue) || err.Error() != `option "ntlm" is not supported by sonde yet` {
-		t.Errorf("ntlm: %v", err)
+	if _, err := New(&Invocation{SSLNoRevoke: true}, nil, "t"); !errors.As(err, &ue) || err.Error() != `option "ssl-no-revoke" is not supported by sonde yet` {
+		t.Errorf("ssl-no-revoke: %v", err)
+	}
+	p, err := New(&Invocation{NTLM: true, Digest: true, Negotiate: true, AWSSigV4: "aws:amz:r:s"}, nil, "t")
+	if h := p.Options.HTTP; err != nil || !h.NTLM || !h.Digest || !h.Negotiate || h.AWSSigV4 != "aws:amz:r:s" {
+		t.Errorf("auth schemes: %v", err)
 	}
 	if p, err := New(&Invocation{HTTP10: true, Set: set("http1.0")}, nil, "t"); err != nil || p.Options.HTTP.HTTPVersion != engine.HTTP10 {
 		t.Errorf("http1.0: %v", err)
 	}
-	_, err := New(&Invocation{MaxTime: "abc", Set: set("max-time")}, nil, "t")
+	_, err = New(&Invocation{MaxTime: "abc", Set: set("max-time")}, nil, "t")
 	if err == nil || !strings.HasPrefix(err.Error(), "invalid value 'abc' for '--max-time <SECONDS>'") {
 		t.Errorf("max-time: %v", err)
 	}

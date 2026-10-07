@@ -263,9 +263,8 @@ functions:
 
 options:
   - name: "aws-sigv4"
-    status: "unsupported"
+    status: "supported"
     doc: "signs the request with AWS Signature Version 4"
-    reason: "stretch goal; not scheduled (low conformance weight)"
     usage: 1
   - name: "cacert"
     status: "supported"
@@ -292,9 +291,8 @@ options:
     doc: "sleep before sending this entry's request"
     usage: 10
   - name: "digest"
-    status: "unsupported"
+    status: "supported"
     doc: "uses HTTP Digest authentication"
-    reason: "HTTP Digest authentication not implemented (low conformance weight)"
     usage: 1
   - name: "fail-with-body"
     status: "supported"
@@ -364,9 +362,8 @@ options:
     doc: "maximum time allowed for the whole transfer"
     usage: 0
   - name: "negotiate"
-    status: "unsupported"
+    status: "supported"
     doc: "uses SPNEGO (Negotiate) authentication"
-    reason: "SPNEGO authentication not implemented (low conformance weight)"
     usage: 0
   - name: "netrc"
     status: "supported"
@@ -391,9 +388,8 @@ options:
     since: "8.1.0"
     usage: 1
   - name: "ntlm"
-    status: "unsupported"
+    status: "supported"
     doc: "uses NTLM authentication"
-    reason: "NTLM authentication not implemented (low conformance weight)"
     usage: 1
   - name: "output"
     status: "supported"
@@ -459,9 +455,8 @@ options:
 flags:
   - name: "--aws-sigv4"
     arg: "PROVIDER1[:PROVIDER2[:REGION[:SERVICE]]]"
-    status: "unsupported"
+    status: "supported"
     doc: "signs the request with AWS Signature Version 4"
-    reason: "stretch goal; not scheduled (low conformance weight)"
     usage: 4
   - name: "--cacert"
     arg: "FILE"
@@ -524,9 +519,8 @@ flags:
     usage: 2
   - name: "--digest"
     arg: ""
-    status: "unsupported"
+    status: "supported"
     doc: "uses HTTP Digest authentication"
-    reason: "HTTP Digest authentication not implemented (low conformance weight)"
     usage: 1
   - name: "--error-format"
     arg: "FORMAT"
@@ -663,9 +657,8 @@ flags:
     usage: 4
   - name: "--negotiate"
     arg: ""
-    status: "unsupported"
+    status: "supported"
     doc: "uses SPNEGO (Negotiate) authentication"
-    reason: "SPNEGO authentication not implemented (low conformance weight)"
     usage: 0
   - name: "--netrc"
     short: "-n"
@@ -727,9 +720,8 @@ flags:
     usage: 0
   - name: "--ntlm"
     arg: ""
-    status: "unsupported"
+    status: "supported"
     doc: "uses NTLM authentication"
-    reason: "NTLM authentication not implemented (low conformance weight)"
     usage: 1
   - name: "--output"
     short: "-o"
@@ -1420,6 +1412,18 @@ differences:
     input: "`SONDE_HTTP1_WIRE=legacy`"
     hurl: "not applicable"
     sonde: "sends HTTP/1.x through Go's net/http as sonde did before its own wire layer: `--http1.0` is unsupported, response headers are sorted, and header names net/http refuses fail the request (kept for one minor release)"
+  - area: "HTTP"
+    input: "`--digest`, `--ntlm` or `--negotiate` answering a 401 challenge"
+    hurl: "the verbose log shows both exchanges"
+    sonde: "only the final exchange is logged and reported (the challenge is answered within the call, as libcurl does)"
+  - area: "HTTP"
+    input: "`--negotiate` credential cache"
+    hurl: "any GSS-API cache (libcurl)"
+    sonde: "a Kerberos file cache: `KRB5CCNAME` (`FILE:` caches) or `/tmp/krb5cc_<uid>`, configuration from `KRB5_CONFIG` or `/etc/krb5.conf`"
+  - area: "HTTP"
+    input: "The `Authorization` value a scheme computes (Digest response, NTLM and Negotiate tokens, AWS signature)"
+    hurl: "printed in verbose output"
+    sonde: "recorded as `***`: never shown in logs, `--json` or reports (sent as computed)"
   - area: "HTTP"
     input: "Default User-Agent"
     hurl: "`hurl/<version>`"

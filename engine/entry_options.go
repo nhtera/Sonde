@@ -283,6 +283,7 @@ func (u *unit) entryOptions(e *syntax.Entry) (*entryOptions, error) {
 // host the URL names, send stored netrc credentials, or write a file.
 var refusedOptions = map[string]bool{
 	"connect-to":     true,
+	"negotiate":      true, // the Kerberos library reaches the KDC itself
 	"netrc":          true,
 	"netrc-file":     true,
 	"netrc-optional": true,
