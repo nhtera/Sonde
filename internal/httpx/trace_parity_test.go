@@ -7,9 +7,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // TestTraceParity checks the connection details of a call on every
@@ -37,6 +39,10 @@ func TestTraceParity(t *testing.T) {
 		{"https without ALPN", tls1.URL, "HTTP/1.1", Options{}, true},
 		{"http/2", tls2.URL, "HTTP/2", Options{}, true},
 	}
+	minPhase := time.Nanosecond
+	if runtime.GOOS == "windows" {
+		minPhase = 0
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var mu sync.Mutex
@@ -56,10 +62,12 @@ func TestTraceParity(t *testing.T) {
 				if r.IP != "127.0.0.1" {
 					t.Errorf("call %d: IP %q", i, r.IP)
 				}
-				if tm.PreTransfer <= 0 || tm.StartTransfer < tm.PreTransfer || tm.Total < tm.StartTransfer {
+				// Windows' clock can read the same instant across a local
+				// call: a phase may last 0 there, never less.
+				if tm.PreTransfer < minPhase || tm.StartTransfer < tm.PreTransfer || tm.Total < tm.StartTransfer {
 					t.Errorf("call %d: timings %+v", i, tm)
 				}
-				if fresh && (tm.Connect <= 0 || (tt.tls && tm.AppConnect < tm.Connect)) {
+				if fresh && (tm.Connect < minPhase || (tt.tls && tm.AppConnect < tm.Connect)) {
 					t.Errorf("fresh call: connect %v, app connect %v", tm.Connect, tm.AppConnect)
 				}
 				if tt.tls && r.Certificate == nil {
