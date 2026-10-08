@@ -27,9 +27,11 @@ done
 
 code="$(status "$base/nope-$(date +%s)")"
 [ "$code" = 404 ] && check "/nope: 404" ok || check "/nope: status $code (want 404)" bad
-curl -sS --retry 5 "$base/nope" 2>/dev/null | grep -q "Page not found" && check "/nope: site 404 page" ok || check "/nope: not the site 404 page" bad
+curl -sS --retry 5 "$base/nope" 2>/dev/null | grep -aq "Page not found" && check "/nope: site 404 page" ok || check "/nope: not the site 404 page" bad
 
-asset="$(curl -fsS "$base/" | grep -o '/assets/[^"]*\.js' | head -n 1)"
+# -a: the prerendered page carries NUL bytes in its hydration data, after
+# which GNU grep prints "binary file matches" instead of the match.
+asset="$(curl -fsS "$base/" | grep -ao '/assets/[^"]*\.js' | head -n 1)"
 if [ -n "$asset" ] && headers "$base$asset" | grep -qi '^cache-control:.*immutable'; then check "$asset: immutable" ok; else check "${asset:-no asset found}: not immutable" bad; fi
 
 exit "$fail"
