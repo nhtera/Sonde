@@ -151,12 +151,13 @@ Tick each item, and write down the OS version and the build (version, commit).
 - [x] Open the app **from the Finder, the Dock and Spotlight**: the chip does
       not show it and `{{origin}}` is undefined. The request fails with the
       undefined-variable error, as expected. *(macOS 15.7.3, local build of `93c8a03`)* The Finder, and `open` with a clean environment (the Dock and Spotlight launch the same way).
-- [ ] A config file at `$HOME/.config/hurl/config` (the path used when
+- [x] A config file at `$HOME/.config/hurl/config` (the path used when
       `XDG_CONFIG_HOME` is not set, as in a Finder launch) with
       `--header "X-From: config"` and `--insecure` applies from every launch
-      method, and the chip shows both. (Checked at `93c8a03` with the old
-      `$HOME/config/hurl/config` path and `--header` only; re-check after
-      the full config file.)
+      method, and the chip shows both. *(macOS 15.7.3, local ad-hoc build of
+      0.3.0 at `88e5f5c`)* `open` (LaunchServices, clean environment) and the
+      binary run from the terminal: "2 overrides" lists both as config file,
+      and the server received `X-From: config` each time.
 
 ## 9. Responses in the native webview
 
@@ -197,7 +198,11 @@ the download size). It exits 1 if a measured budget is missed.
 - [x] Every budget is met, or each miss is explained and accepted.
       Keystroke to paint: 18.0 ms p95 against 16 ms, accepted for 0.1.0. The
       tour times to the next frame, 16.7 ms at 60 Hz, so 18 ms is the first
-      frame.
+      frame. 0.3.0 (local ad-hoc build at `88e5f5c`, MacBook Pro M4 Pro, macOS
+      15.7.3): cold start 680 ms, tree scroll 60 fps (longest frame 20 ms),
+      filter 15 ms, keystroke 18.0 ms (the same first frame), 50 MB JSON to
+      the tree 303 ms (longest frame 28 ms, through the own HTTP/1.x
+      layer), initial JS 378 KB gzip.
 - [x] **Paste the table into the release pull request**, with the machine
       (for example "MacBook Air M1, macOS 15.x"). MacBook Pro M4 Pro, macOS
       15.7.3, in #3.
