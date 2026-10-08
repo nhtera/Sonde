@@ -45,6 +45,7 @@ type Invocation struct {
 	HTTP10          bool
 	HTTP11          bool
 	HTTP2           bool
+	HTTP2Prior      bool // --http2-prior-knowledge
 	HTTP3           bool
 	LimitRate       string
 	Location        bool
@@ -55,10 +56,12 @@ type Invocation struct {
 	Netrc           bool
 	NetrcFile       string
 	NetrcOptional   bool
+	NoHeader        []string
 	NoProxy         string
 	PathAsIs        bool
 	PinnedPubKey    string
 	Proxy           string
+	ProxyHeader     []string
 	Resolve         []string
 	UnixSocket      string
 	User            string
@@ -76,24 +79,26 @@ type Invocation struct {
 	NoCookieStore bool
 
 	// Run control.
-	ContinueOnError bool
-	Delay           string
-	FromEntry       int
-	ToEntry         int
-	NoAssert        bool
-	Repeat          string
-	Retry           string
-	RetryInterval   string
-	FileRoot        string
-	Jobs            int
-	Parallel        bool
-	ProgressBar     bool
-	Test            bool
-	Env             string
-	Config          string
-	Data            string
-	DataSecrets     []string
-	OpenAPI         OpenAPI
+	ContinueOnError    bool
+	FailWithBody       bool
+	NoJSONPathCoercion bool
+	Delay              string
+	FromEntry          int
+	ToEntry            int
+	NoAssert           bool
+	Repeat             string
+	Retry              string
+	RetryInterval      string
+	FileRoot           string
+	Jobs               int
+	Parallel           bool
+	ProgressBar        bool
+	Test               bool
+	Env                string
+	Config             string
+	Data               string
+	DataSecrets        []string
+	OpenAPI            OpenAPI
 
 	// Output.
 	Include     bool

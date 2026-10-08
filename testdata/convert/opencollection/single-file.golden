@@ -8,11 +8,11 @@ query { users { id name } }
 == file Upload avatar
 POST {{base_url}}/upload
 X-Client: sonde-import
+[BasicAuth]
+admin: {{admin_password}}
 [Multipart]
 file: file,./avatar.png; image/png
 caption: hello
-[BasicAuth]
-admin: {{admin_password}}
 == file Users/Create user
 # opencollection after-response script:
 # console.log(res.status)
@@ -25,10 +25,10 @@ Authorization: Bearer {{token}}
 GET {{base_url}}/users/{{id}}
 X-Client: sonde-import
 Authorization: Bearer {{token}}
-[Query]
-active: true
 [Options]
 variable: id="1"
+[Query]
+active: true
 HTTP 200
 == extra secrets/local.secrets (keep=true)
 api_key=

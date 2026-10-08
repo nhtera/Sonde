@@ -11,7 +11,7 @@ sonde run [options] FILE...
 ## Flags
 
 ```
-      --aws-sigv4 string             signs the request with AWS Signature Version 4 (not supported by sonde)
+      --aws-sigv4 string             signs the request with AWS Signature Version 4
       --cacert string                CA certificate bundle used to verify the server (PEM)
   -E, --cert string                  client certificate file, optionally with :PASSWORD
       --compressed                   requests a compressed response and decodes it
@@ -25,17 +25,19 @@ sonde run [options] FILE...
       --data string                  runs each file once per row of a CSV or JSON data file
       --data-secret strings          marks data file columns as secrets (comma-separated, repeatable)
       --delay string                 sleep before each request
-      --digest                       uses HTTP Digest authentication (not supported by sonde)
+      --digest                       uses HTTP Digest authentication
       --env string                   selects a sonde.yaml environment by name
       --error-format string          controls how error messages are rendered (short or long)
+      --fail-with-body               writes the response body of a failed entry before its errors
       --file-root string             sets the root directory used to resolve file paths
       --from-entry int               starts execution at the given entry number
       --glob stringArray             adds input files matching the given glob pattern
   -H, --header stringArray           adds a custom header to every request
-  -0, --http1.0                      forces HTTP/1.0 (not supported by sonde)
+  -0, --http1.0                      forces HTTP/1.0
       --http1.1                      forces HTTP/1.1
       --http2                        forces HTTP/2
-      --http3                        forces HTTP/3
+      --http2-prior-knowledge        uses HTTP/2 without an HTTP/1.1 upgrade
+      --http3                        uses HTTP/3 (QUIC) for https://, falling back to TCP when it cannot connect
   -i, --include                      includes the response headers in the output
   -k, --insecure                     skips TLS certificate verification
   -4, --ipv4                         resolves hostnames to IPv4 addresses only
@@ -49,16 +51,18 @@ sonde run [options] FILE...
       --max-filesize string          caps the size of a downloaded file
       --max-redirs string            maximum number of redirects to follow, -1 for unlimited
   -m, --max-time string              maximum time allowed for the whole transfer
-      --negotiate                    uses SPNEGO authentication (not supported by sonde)
+      --negotiate                    uses SPNEGO (Negotiate) authentication from the Kerberos credential cache
   -n, --netrc                        reads credentials from ~/.netrc, failing if absent
       --netrc-file string            reads credentials from the given netrc-format file
       --netrc-optional               reads credentials from ~/.netrc if present, else the URL
       --no-assert                    ignores asserts defined in the file
       --no-cookie-store              disables the cookie store between requests
+      --no-header stringArray        removes a header sent to the server, a default one included
+      --no-jsonpath-coercion         keeps jsonpath results a list of matches
       --no-output                    suppresses the default last-response-body output
       --no-pretty                    disables pretty-printing of response output
       --no-proxy string              lists hosts that bypass the proxy
-      --ntlm                         uses NTLM authentication (not supported by sonde)
+      --ntlm                         uses NTLM authentication
       --openapi string               validates every response against an OpenAPI spec (file, or URL with --openapi-allow-remote)
       --openapi-allow-remote         allows a remote spec and remote $ref targets
       --openapi-server string        base URL replacing the spec's servers when matching requests to operations
@@ -70,6 +74,7 @@ sonde run [options] FILE...
       --pretty                       pretty-prints JSON response output
       --progress-bar                 shows a progress bar in test mode
   -x, --proxy string                 routes the request through the given proxy
+      --proxy-header stringArray     adds a header sent to the proxy only
       --repeat string                repeats the input file sequence N times, -1 for infinite
       --report-html string           writes an HTML report to DIR
       --report-json string           writes a JSON report to DIR
@@ -80,7 +85,7 @@ sonde run [options] FILE...
       --retry-interval string        delay between retries
       --secret stringArray           defines a variable whose value is treated as a secret
       --secrets-file stringArray     defines secrets from a file
-      --ssl-no-revoke                disables certificate revocation checks (not supported by sonde)
+      --ssl-no-revoke                accepted for compatibility: sonde checks no certificate revocation
       --test                         activates test mode (parallel execution, test-style output)
       --to-entry int                 stops execution at the given entry number
       --unix-socket string           connects through a Unix domain socket instead of the network

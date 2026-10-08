@@ -227,8 +227,9 @@ func TestExecuteCredentialDropOnHostChange(t *testing.T) {
 		if _, err := c.Execute(context.Background(), spec, opts); err != nil {
 			t.Fatal(err)
 		}
-		if seenAuth != "" || seenCookie != "s=2" {
-			t.Errorf("%s: other host got Authorization %d bytes, Cookie %q; want none and the entry cookie only", name, len(seenAuth), seenCookie)
+		// The entry's [Cookies] stay with the original host too (8.1.0).
+		if seenAuth != "" || seenCookie != "" {
+			t.Errorf("%s: other host got Authorization %d bytes, Cookie %q; want neither", name, len(seenAuth), seenCookie)
 		}
 	}
 }
@@ -287,30 +288,6 @@ func TestExecuteCredentialKeptOnSameHost(t *testing.T) {
 	}
 	if seenAuth == "" {
 		t.Error("Authorization dropped on same-host redirect")
-	}
-}
-
-func TestExecuteUnsupportedOptions(t *testing.T) {
-	c := newTestClient(t, ClientConfig{})
-	tests := []struct {
-		name string
-		opts Options
-	}{
-		{"aws-sigv4", Options{AWSSigV4: "aws:amz:us-east-1:s3"}},
-		{"digest", Options{Digest: true}},
-		{"ntlm", Options{NTLM: true}},
-		{"negotiate", Options{Negotiate: true}},
-		{"http1.0", Options{HTTPVersion: HTTP10}},
-		{"http3", Options{HTTPVersion: HTTP3}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := c.Execute(context.Background(), &RequestSpec{Method: "GET", URL: "http://example.invalid/"}, &tt.opts)
-			var herr *Error
-			if !asError(err, &herr) || herr.Kind != ErrUnsupported {
-				t.Fatalf("err = %v", err)
-			}
-		})
 	}
 }
 

@@ -9,14 +9,23 @@ difference is in [compat.md](../compat.md).
 
 - **Files.** `.hurl` files run unchanged, and `sonde fmt` keeps them valid
   for Hurl. `.sonde` files use the same syntax in v1.
-- **Flags.** Every Hurl flag has the same name and meaning. A few are
-  accepted but unsupported and fail with a clear error: `--aws-sigv4`,
-  `--digest`, `--ntlm`, `--negotiate`, `--http1.0`, `--http3` and
-  `--ssl-no-revoke`. See [compat.md](../compat.md#cli-flags).
+- **Flags.** Every Hurl flag has the same name and meaning.
+  `--ssl-no-revoke` is accepted and has no effect (sonde checks no
+  certificate revocation). See [compat.md](../compat.md#cli-flags).
+- **Options from Hurl 8.1.0.** `--fail-with-body`, `--no-header`,
+  `--no-jsonpath-coercion`, `--proxy-header` and `--http2-prior-knowledge`
+  work as flags, `[Options]` keys, `HURL_*` variables and config file keys,
+  wherever Hurl has them. Sonde also follows 8.1.0's messages: a failed
+  `!=` assert reads `expected: not <value>`, and a JSON body nested deeper
+  than 128 levels is a parse error. As in 8.1.0, a redirect to another
+  host drops the `[Cookies]` cookies, like the `Authorization` and
+  `Cookie` headers (`--location-trusted` keeps them).
 - **Environment variables.** `HURL_*` variables work, including
   `HURL_VARIABLE_name` and `HURL_SECRET_name`. Each also has a `SONDE_*`
   form, which wins when both are set.
-- **Config file.** Sonde reads `$XDG_CONFIG_HOME/hurl/config` like Hurl.
+- **Config file.** Sonde reads `$XDG_CONFIG_HOME/hurl/config` (or
+  `~/.config/hurl/config`) with every key of the reference implementation,
+  and so does the desktop app. See [compat.md](../compat.md#config-file).
 - **Exit codes.** They are the same, plus `130` when the run is interrupted
   with Ctrl-C.
 
@@ -26,12 +35,12 @@ difference is in [compat.md](../compat.md).
 |---|---|
 | `hurl FILE…` | `sonde FILE…` or `sonde run FILE…` |
 | `hurl --test FILE…` | `sonde --test FILE…` or `sonde test FILE…` |
-| `hurlfmt --check FILE` | `sonde fmt --check FILE` (exit 1 when a file is not formatted) |
-| `hurlfmt --in-place FILE` | `sonde fmt --write FILE` (whitespace and line endings only; no reordering) |
+| `hurlfmt --check FILE` | `sonde fmt --check FILE` (same output; exit 1, not 3, when a file is not formatted) |
+| `hurlfmt --in-place FILE` | `sonde fmt --write FILE` (same layout, section order included) |
 | (a syntax check) | `sonde check FILE` (exit 2 on a syntax error) |
-| `hurlfmt --in curl` | `sonde import curl INPUT -o DIR` (options Sonde cannot send yet, such as `--digest`, are kept with a warning) |
+| `hurlfmt --in curl` | `sonde import curl INPUT -o DIR` |
 | `hurlfmt --out curl FILE` | `sonde export curl FILE` |
-| `hurlfmt --out json` / `--out html` | Not provided |
+| `hurlfmt --out json` / `--out html [--standalone]` | `sonde export json FILE` / `sonde export html [--standalone] FILE` (same output, see [compat.md](../compat.md)) |
 | `hurl --curl FILE` | `sonde --curl FILE` (same format; secrets redacted) |
 
 ## What behaves differently
@@ -46,7 +55,8 @@ The table below lists the differences you are most likely to notice.
 | File paths in `[Options]` (`cacert`, `cert`, `key`, …) | any path | confined to the file root |
 | A symbolic link leaving the file root | followed | denied |
 | Response body without `--max-filesize` | unlimited | 512 MiB |
-| HTTP/3 | when libcurl supports it | not supported |
+| `--http3` | HTTP/3, racing TCP | QUIC first, then TCP if it cannot connect (never through a proxy) |
+| Tokens of `--digest`, `--ntlm`, `--negotiate`, `--aws-sigv4` | printed in verbose output | redacted |
 
 ## What Sonde adds
 

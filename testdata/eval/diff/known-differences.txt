@@ -8,3 +8,4 @@ negative.hurl:4 negative JSONPath number literals with a fraction keep their sig
 negative.hurl:5 negative JSONPath number literals with a fraction keep their sign (the reference reads -1.5 as -0.5)
 negative.hurl:6 negative JSONPath number literals with a fraction keep their sign (the reference reads -0.5 as 0.5)
 negative.hurl:7 negative JSONPath number literals with a fraction keep their sign (the reference reads -0.25 as 0.25)
+misc.hurl:58 superseded by 8.1.0: a failed != reads "expected: not <value>"

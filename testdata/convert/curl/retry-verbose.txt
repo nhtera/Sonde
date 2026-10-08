@@ -1,0 +1,2 @@
+curl -v --retry 2 https://example.com/a
+curl --verbose --retry abc https://example.com/b

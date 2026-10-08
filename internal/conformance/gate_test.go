@@ -165,7 +165,7 @@ func TestUpdateManifestPromotesNewlyPassing(t *testing.T) {
 	results := []ScriptResult{{Path: "a.sh", Lane: LaneBlocking, SemanticPass: true}}
 	existing := Manifest{"a.sh": {Lane: LaneBlocking, Expect: ExpectFail, Reason: "wip"}}
 
-	updated, report := updateManifest(existing, scripts, results, false)
+	updated, report := updateManifest(existing, scripts, results, demotePolicy{})
 	if updated["a.sh"].Expect != ExpectPass {
 		t.Errorf("updated[a.sh].Expect = %v, want pass", updated["a.sh"].Expect)
 	}
@@ -179,7 +179,7 @@ func TestUpdateManifestKeepsReasonForStillFailing(t *testing.T) {
 	results := []ScriptResult{{Path: "a.sh", Lane: LaneBlocking, SemanticPass: false}}
 	existing := Manifest{"a.sh": {Lane: LaneBlocking, Expect: ExpectFail, Reason: "reports: Phase 5 in progress"}}
 
-	updated, report := updateManifest(existing, scripts, results, false)
+	updated, report := updateManifest(existing, scripts, results, demotePolicy{})
 	if updated["a.sh"].Reason != "reports: Phase 5 in progress" {
 		t.Errorf("updated[a.sh].Reason = %q, want the original reason kept", updated["a.sh"].Reason)
 	}
@@ -193,7 +193,7 @@ func TestUpdateManifestNeverDemotesSilently(t *testing.T) {
 	results := []ScriptResult{{Path: "a.sh", Lane: LaneBlocking, SemanticPass: false}}
 	existing := Manifest{"a.sh": {Lane: LaneBlocking, Expect: ExpectPass}}
 
-	updated, report := updateManifest(existing, scripts, results, false)
+	updated, report := updateManifest(existing, scripts, results, demotePolicy{})
 	if updated["a.sh"].Expect != ExpectPass {
 		t.Errorf("updated[a.sh].Expect = %v, want pass kept (allowDemote=false)", updated["a.sh"].Expect)
 	}
@@ -210,7 +210,7 @@ func TestUpdateManifestDemotesWhenAllowed(t *testing.T) {
 	results := []ScriptResult{{Path: "a.sh", Lane: LaneBlocking, SemanticPass: false}}
 	existing := Manifest{"a.sh": {Lane: LaneBlocking, Expect: ExpectPass}}
 
-	updated, report := updateManifest(existing, scripts, results, true)
+	updated, report := updateManifest(existing, scripts, results, demotePolicy{All: true})
 	if updated["a.sh"].Expect != ExpectFail {
 		t.Errorf("updated[a.sh].Expect = %v, want fail (allowDemote=true)", updated["a.sh"].Expect)
 	}
@@ -230,7 +230,7 @@ func TestUpdateManifestNeverDemotesPassToSkipSilently(t *testing.T) {
 	results := []ScriptResult{{Path: "a.sh", Lane: LaneBlocking, Skipped: true, SkipReason: "script exited 255"}}
 	existing := Manifest{"a.sh": {Lane: LaneBlocking, Expect: ExpectPass}}
 
-	updated, report := updateManifest(existing, scripts, results, false)
+	updated, report := updateManifest(existing, scripts, results, demotePolicy{})
 	if updated["a.sh"].Expect != ExpectPass {
 		t.Errorf("updated[a.sh].Expect = %v, want pass kept (allowDemote=false)", updated["a.sh"].Expect)
 	}
@@ -249,7 +249,7 @@ func TestUpdateManifestDemotesPassToSkipWhenAllowed(t *testing.T) {
 	results := []ScriptResult{{Path: "a.sh", Lane: LaneBlocking, Skipped: true, SkipReason: "script exited 255"}}
 	existing := Manifest{"a.sh": {Lane: LaneBlocking, Expect: ExpectPass}}
 
-	updated, report := updateManifest(existing, scripts, results, true)
+	updated, report := updateManifest(existing, scripts, results, demotePolicy{All: true})
 	if updated["a.sh"].Expect != ExpectSkip {
 		t.Errorf("updated[a.sh].Expect = %v, want skip (allowDemote=true)", updated["a.sh"].Expect)
 	}
@@ -265,7 +265,7 @@ func TestUpdateManifestRecordsSkipReason(t *testing.T) {
 	scripts := []Script{{Path: "a.sh", Lane: LaneNetwork}}
 	results := []ScriptResult{{Path: "a.sh", Lane: LaneNetwork, Skipped: true, SkipReason: "network lane disabled"}}
 
-	updated, _ := updateManifest(Manifest{}, scripts, results, false)
+	updated, _ := updateManifest(Manifest{}, scripts, results, demotePolicy{})
 	if updated["a.sh"].Expect != ExpectSkip {
 		t.Errorf("updated[a.sh].Expect = %v, want skip", updated["a.sh"].Expect)
 	}
@@ -279,7 +279,7 @@ func TestUpdateManifestKeepsHandWrittenSkipReason(t *testing.T) {
 	results := []ScriptResult{{Path: "a.sh", Lane: LaneNetwork, Skipped: true, SkipReason: "network lane disabled; set SONDE_CONFORMANCE_NETWORK=1"}}
 	existing := Manifest{"a.sh": {Lane: LaneNetwork, Expect: ExpectSkip, Reason: "network"}}
 
-	updated, _ := updateManifest(existing, scripts, results, false)
+	updated, _ := updateManifest(existing, scripts, results, demotePolicy{})
 	if updated["a.sh"].Reason != "network" {
 		t.Errorf("updated[a.sh].Reason = %q, want the hand-written reason kept", updated["a.sh"].Reason)
 	}
@@ -289,7 +289,7 @@ func TestUpdateManifestNewScriptGetsPlaceholderReason(t *testing.T) {
 	scripts := []Script{{Path: "new.sh", Lane: LaneBlocking}}
 	results := []ScriptResult{{Path: "new.sh", Lane: LaneBlocking, SemanticPass: false}}
 
-	updated, _ := updateManifest(Manifest{}, scripts, results, false)
+	updated, _ := updateManifest(Manifest{}, scripts, results, demotePolicy{})
 	if updated["new.sh"].Expect != ExpectFail || updated["new.sh"].Reason == "" {
 		t.Errorf("updated[new.sh] = %+v, want expect: fail with a non-empty placeholder reason", updated["new.sh"])
 	}
@@ -306,8 +306,99 @@ func TestUpdateManifestOutputAlwaysValidates(t *testing.T) {
 		{Path: "b.sh", Lane: LaneBlocking, SemanticPass: false},
 		{Path: "c.sh", Lane: LaneNetwork, Skipped: true, SkipReason: "network"},
 	}
-	updated, _ := updateManifest(Manifest{}, scripts, results, false)
+	updated, _ := updateManifest(Manifest{}, scripts, results, demotePolicy{})
 	if err := updated.Validate(); err != nil {
 		t.Errorf("updateManifest produced an invalid manifest: %v", err)
+	}
+}
+
+// TestGateConformanceEveryGatingLaneFails is the "deliberately broken
+// fixture" check: an expect: pass entry that stops passing fails the run in
+// each gating lane, and only there.
+func TestGateConformanceEveryGatingLaneFails(t *testing.T) {
+	for _, tc := range []struct {
+		lane Lane
+		path string
+		gate bool
+	}{
+		{LaneBlocking, "hurl/tests_ok/hello/hello.sh", true},
+		{LaneHurlfmt, "hurlfmt/tests_ok/format.sh", true},
+		{LaneHurlfmt, "hurlfmt/tests_export/body.hurl#json", true},
+		{LanePTY, "hurl/tests_pty/color/color.sh", true},
+		{LaneExtended, "hurl/tests_ssl/cacert.sh", false},
+		{LaneTiming, "hurl/tests_ok/delay/delay.sh", false},
+		{LaneNetwork, "hurl/tests_ssl/live.sh", false},
+	} {
+		scripts := []Script{{Path: tc.path, Lane: tc.lane}}
+		results := []ScriptResult{{Path: tc.path, Lane: tc.lane, ActualExit: 1}}
+		manifest := Manifest{tc.path: {Lane: tc.lane, Expect: ExpectPass}}
+
+		got := gateConformance(scripts, results, manifest)
+		if gated := len(got.Regressions) == 1; gated != tc.gate {
+			t.Errorf("%s (%s): Regressions = %v, want gating = %v", tc.path, tc.lane, got.Regressions, tc.gate)
+		}
+	}
+}
+
+func TestParseDemotePolicy(t *testing.T) {
+	scripts := []Script{{Path: "hurl/a.sh"}, {Path: "hurl/b.sh"}}
+
+	if _, err := parseDemotePolicy("hurl/a.sh", "", false, scripts); err == nil {
+		t.Error("DEMOTE_ONLY without a reason: want an error")
+	}
+	if _, err := parseDemotePolicy("hurl/a.sh,hurl/typo.sh", "why", false, scripts); err == nil {
+		t.Error("DEMOTE_ONLY naming an unknown script: want an error")
+	}
+	p, err := parseDemotePolicy(" hurl/a.sh , ", "why", false, scripts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.allows("hurl/a.sh") || p.allows("hurl/b.sh") {
+		t.Errorf("policy %+v: want only hurl/a.sh allowed", p)
+	}
+	if p, _ := parseDemotePolicy("", "", true, scripts); !p.allows("hurl/b.sh") {
+		t.Error("blanket policy: want every path allowed")
+	}
+}
+
+func TestUpdateManifestTargetedDemotion(t *testing.T) {
+	scripts := []Script{{Path: "hurl/a.sh", Lane: LaneBlocking}, {Path: "hurl/b.sh", Lane: LaneBlocking}}
+	results := []ScriptResult{
+		{Path: "hurl/a.sh", Lane: LaneBlocking, ActualExit: 1},
+		{Path: "hurl/b.sh", Lane: LaneBlocking, ActualExit: 1},
+	}
+	existing := Manifest{
+		"hurl/a.sh": {Lane: LaneBlocking, Expect: ExpectPass},
+		"hurl/b.sh": {Lane: LaneBlocking, Expect: ExpectPass},
+	}
+	policy := demotePolicy{Only: map[string]bool{"hurl/a.sh": true}, Reason: "next-version oracle"}
+
+	updated, report := updateManifest(existing, scripts, results, policy)
+	if e := updated["hurl/a.sh"]; e.Expect != ExpectFail || e.Reason != "next-version oracle" {
+		t.Errorf("hurl/a.sh = %+v, want demoted with the policy reason", e)
+	}
+	if e := updated["hurl/b.sh"]; e.Expect != ExpectPass {
+		t.Errorf("hurl/b.sh = %+v, want kept at pass (not named)", e)
+	}
+	if len(report.Demoted) != 1 || len(report.KeptDespiteFailure) != 1 {
+		t.Errorf("report = %+v, want one demoted and one kept", report)
+	}
+}
+
+// TestGateConformanceLegacyWire checks that a script only the own wire
+// layer passes is no regression with SONDE_HTTP1_WIRE=legacy, and still
+// is one otherwise.
+func TestGateConformanceLegacyWire(t *testing.T) {
+	path := "hurl/tests_ok/http_version/http_version_10.sh"
+	scripts := []Script{{Path: path, Lane: LaneBlocking}}
+	results := []ScriptResult{{Path: path, Lane: LaneBlocking, SemanticPass: false}}
+	manifest := Manifest{path: {Lane: LaneBlocking, Expect: ExpectPass}}
+	t.Setenv("SONDE_HTTP1_WIRE", "")
+	if r := gateConformance(scripts, results, manifest); len(r.Regressions) != 1 {
+		t.Errorf("default: regressions %v", r.Regressions)
+	}
+	t.Setenv("SONDE_HTTP1_WIRE", "legacy")
+	if r := gateConformance(scripts, results, manifest); len(r.Regressions) != 0 {
+		t.Errorf("legacy: regressions %v", r.Regressions)
 	}
 }

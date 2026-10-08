@@ -8,6 +8,8 @@ Every `sonde` command, generated from its cobra definition (`internal/cli/cli_re
   - [sonde check](sonde_check.md) — Check request files for syntax errors
   - [sonde export](sonde_export.md) — Export request files to another format
     - [sonde export curl](sonde_export_curl.md) — Print each entry's equivalent curl command line, without sending it
+    - [sonde export html](sonde_export_html.md) — Print .hurl files as syntax-highlighted HTML
+    - [sonde export json](sonde_export_json.md) — Print the syntax tree of .hurl files as JSON
   - [sonde fmt](sonde_fmt.md) — Format request files canonically
   - [sonde import](sonde_import.md) — Import request files from another format
     - [sonde import curl](sonde_import_curl.md) — Convert curl command lines to a request file, one entry per command

@@ -7,6 +7,9 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/nhtera/sonde/internal/config"
+	"github.com/nhtera/sonde/internal/runplan"
 )
 
 // TestProgressBarGraphic checks progressBarGraphic against the reference
@@ -84,19 +87,51 @@ func TestProgressBarSequentialRun(t *testing.T) {
 }
 
 func TestProgressBarModeGating(t *testing.T) {
+	on, off := new(true), new(false)
 	tests := []struct {
-		test, flag, tty bool
-		want            progressMode
+		test bool
+		set  *bool
+		tty  bool
+		want progressMode
 	}{
-		{false, false, false, progressDefault},
-		{false, true, true, progressDefault},
-		{true, false, false, progressTestNoBar},
-		{true, false, true, progressTestWithBar},
-		{true, true, false, progressTestWithBar},
+		{false, nil, false, progressDefault},
+		{false, on, true, progressDefault},
+		{true, nil, false, progressTestNoBar},
+		{true, nil, true, progressTestWithBar},
+		{true, on, false, progressTestWithBar},
+		{true, off, true, progressTestNoBar},
 	}
 	for _, tt := range tests {
-		if got := newProgressMode(tt.test, tt.flag, tt.tty); got != tt.want {
-			t.Errorf("newProgressMode(%v, %v, %v) = %v, want %v", tt.test, tt.flag, tt.tty, got, tt.want)
+		if got := newProgressMode(tt.test, tt.set, tt.tty); got != tt.want {
+			t.Errorf("newProgressMode(%v, %v, %v) = %v, want %v", tt.test, tt.set, tt.tty, got, tt.want)
+		}
+	}
+}
+
+// TestResolveProgressBar checks the sources of the progress bar setting:
+// the flag, then HURL_PROGRESS_BAR, then the config file's
+// --no-progress-bar.
+func TestResolveProgressBar(t *testing.T) {
+	flag := &runplan.Invocation{ProgressBar: true, Set: map[string]bool{"progress-bar": true}}
+	tests := []struct {
+		inv     *runplan.Invocation
+		env     config.Env
+		fileOff bool
+		want    string
+	}{
+		{&runplan.Invocation{}, config.Env{}, false, "auto"},
+		{&runplan.Invocation{}, config.Env{}, true, "off"},
+		{&runplan.Invocation{}, config.Env{"HURL_PROGRESS_BAR": "1"}, true, "on"},
+		{&runplan.Invocation{}, config.Env{"HURL_PROGRESS_BAR": "false"}, false, "off"},
+		{flag, config.Env{"HURL_PROGRESS_BAR": "false"}, true, "on"},
+	}
+	for _, tt := range tests {
+		got := "auto"
+		if v := resolveProgressBar(tt.inv, tt.env, tt.fileOff); v != nil {
+			got = map[bool]string{true: "on", false: "off"}[*v]
+		}
+		if got != tt.want {
+			t.Errorf("%+v %v file-off=%v: %s, want %s", tt.inv, tt.env, tt.fileOff, got, tt.want)
 		}
 	}
 }

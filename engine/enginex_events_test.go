@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/enginex"
 )
 
@@ -93,7 +94,7 @@ func TestRequestSentRedirects(t *testing.T) {
 	}
 	calls := res.Entries[0].Calls
 	for i, s := range h.sent {
-		if !reflect.DeepEqual(s.req, calls[i].Request) {
+		if !reflect.DeepEqual(s.req, beforeSend(calls[i].Request)) {
 			t.Errorf("call %d: sent %+v, recorded %+v", i+1, s.req, calls[i].Request)
 		}
 	}
@@ -125,7 +126,7 @@ func TestRequestSentGRPCReflection(t *testing.T) {
 	if !reflect.DeepEqual(h.names, want) {
 		t.Fatalf("events %v, want %v", h.names, want)
 	}
-	if !reflect.DeepEqual(h.sent[0].req, res.Entries[0].Calls[0].Request) {
+	if !reflect.DeepEqual(h.sent[0].req, beforeSend(res.Entries[0].Calls[0].Request)) {
 		t.Errorf("sent %+v, recorded %+v", h.sent[0].req, res.Entries[0].Calls[0].Request)
 	}
 }
@@ -184,4 +185,11 @@ func TestNoHostEventsByDefault(t *testing.T) {
 			}
 		}
 	}
+}
+
+// beforeSend is a recorded request as the sent event has it: its version
+// is known once it is sent.
+func beforeSend(r exchange.Request) exchange.Request {
+	r.Version = ""
+	return r
 }

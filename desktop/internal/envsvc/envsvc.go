@@ -461,7 +461,18 @@ func (e *Envs) Overrides() Overrides {
 		items = append(items, Override{Name: n, Source: "session", Flag: "--variable " + n})
 	}
 	e.mu.Unlock()
-	if p, err := runplan.New(&runplan.Invocation{Cmd: "run", Set: map[string]bool{}}, e.env, e.version); err == nil {
+	// The settings replace what the config file and the environment set,
+	// as in a run; should they not plan (a bad environment value), the
+	// config file and the environment are still listed on their own.
+	inv.Cmd = "run"
+	if inv.Set == nil {
+		inv.Set = map[string]bool{}
+	}
+	p, err := runplan.New(&inv, e.env, e.version)
+	if err != nil {
+		p, err = runplan.New(&runplan.Invocation{Cmd: "run", Set: map[string]bool{}}, e.env, e.version)
+	}
+	if err == nil {
 		for _, src := range p.Provenance {
 			o := Override{Name: src.Setting, Origin: src.Origin, Flag: src.Setting, Source: "environment"}
 			if filepath.IsAbs(src.Origin) {

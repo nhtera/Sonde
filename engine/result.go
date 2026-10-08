@@ -76,15 +76,24 @@ func (u *UnitResult) HasSecrets() bool {
 }
 
 // Errors returns the errors that decided the outcome: those of every
-// attempt that was not retried. It does not include ParseError.
+// decisive result (see Decisive). It does not include ParseError.
 func (u *UnitResult) Errors() []*Error {
 	var errs []*Error
-	for _, e := range u.Entries {
-		if !e.Retried {
+	for i, e := range u.Entries {
+		if u.Decisive(i) {
 			errs = append(errs, e.Errors...)
 		}
 	}
 	return errs
+}
+
+// Decisive reports whether the errors of Entries[i] decide the outcome,
+// as the reference decides it: unless the next result is of the same
+// entry (a retry, or another repeat of it), and always for the last.
+func (u *UnitResult) Decisive(i int) bool { return decisive(u.Entries, i) }
+
+func decisive(entries []*EntryResult, i int) bool {
+	return i+1 >= len(entries) || entries[i+1].Index != entries[i].Index
 }
 
 // EntryResult is one attempt of an entry.

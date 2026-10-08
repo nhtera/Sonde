@@ -6,21 +6,24 @@ package conformance
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
+	"strings"
 )
 
 // gateReport is the outcome of comparing one conformance run against the
 // manifest's recorded expectations.
 type gateReport struct {
-	// Regressions lists blocking-lane scripts with expect: pass that did
-	// not semantically pass this run. Any entry here fails TestConformance.
+	// Regressions lists gating-lane scripts (blocking, hurlfmt, pty) with
+	// expect: pass that did not semantically pass this run. Any entry here
+	// fails TestConformance.
 	Regressions []string
 	// NewlyPassing lists scripts (any lane) not marked expect: pass that
 	// semantically passed this run. Reported, never fails the build; run
 	// `make conformance-update` to promote them.
 	NewlyPassing []string
-	// Unclassified lists blocking-lane scripts the manifest has no entry
-	// for at all. Reported, never fails the build.
+	// Unclassified lists gating-lane scripts the manifest has no entry for
+	// at all. Reported, never fails the build.
 	Unclassified []string
 	// Stale lists manifest entries whose script no longer exists in the
 	// discovered corpus (a rename, a removed fixture, or a typo). Any entry
@@ -29,11 +32,28 @@ type gateReport struct {
 	Stale []string
 }
 
-// gateConformance scopes the pass/fail gate to the blocking lane (per
-// docs/conformance.md: extended is report-only, network is skipped unless
-// opted in, timing is quarantined) while still surfacing newly-passing
-// scripts across every lane.
+// gateConformance scopes the pass/fail gate to the gating lanes (per
+// docs/conformance.md: blocking, hurlfmt and pty gate; extended is
+// report-only, network is skipped unless opted in, timing is quarantined)
+// while still surfacing newly-passing scripts across every lane.
+// wireOnly lists the scripts only sonde's own HTTP/1.x layer passes: with
+// SONDE_HTTP1_WIRE=legacy (net/http for HTTP/1.x), the fallback kept for
+// one minor release, they are not regressions.
+var wireOnly = map[string]bool{
+	"hurl/tests_ok/http_version/http_version_10.sh":         true,
+	"hurl/tests_ok/http_version/http_version_10_env_var.sh": true,
+	"hurl/tests_ssl/cacert_to_json.sh":                      true,
+	// NTLM needs a connection of the own layer (8.0.1's scripts do not
+	// probe Features first).
+	"hurl/tests_ok/ntlm/ntlm.sh":        true,
+	"hurl/tests_ok/ntlm/ntlm_option.sh": true,
+	// next snapshot
+	"hurl/tests_ok/http_version/http_version_10_config_file.sh":    true,
+	"hurl/tests_ok/html_report_injection/html_report_injection.sh": true,
+}
+
 func gateConformance(scripts []Script, results []ScriptResult, manifest Manifest) gateReport {
+	legacy := os.Getenv("SONDE_HTTP1_WIRE") == "legacy"
 	resultByPath := make(map[string]ScriptResult, len(results))
 	discovered := make(map[string]bool, len(scripts))
 	for _, r := range results {
@@ -58,7 +78,7 @@ func gateConformance(scripts []Script, results []ScriptResult, manifest Manifest
 
 		entry, known := manifest[s.Path]
 		if !known {
-			if s.Lane == LaneBlocking {
+			if gatingLanes[s.Lane] {
 				report.Unclassified = append(report.Unclassified, s.Path)
 			}
 			// Absence from the manifest is treated like expect: fail for
@@ -67,12 +87,12 @@ func gateConformance(scripts []Script, results []ScriptResult, manifest Manifest
 			entry = ManifestEntry{Expect: ExpectFail}
 		}
 
-		// A blocking script recorded as expect: pass that stops passing —
+		// A gating script recorded as expect: pass that stops passing —
 		// including one that now merely gets skipped (e.g. it starts
 		// exiting 255, the reference runner's own "unmet prerequisite"
 		// signal) — is a regression: the manifest promised a clean pass,
 		// and "it didn't even run" is not a lesser claim than "it failed".
-		if s.Lane == LaneBlocking && entry.Expect == ExpectPass && !r.SemanticPass {
+		if gatingLanes[s.Lane] && entry.Expect == ExpectPass && !r.SemanticPass && (!legacy || !wireOnly[s.Path]) {
 			report.Regressions = append(report.Regressions, fmt.Sprintf("%s: %s", s.Path, semanticOutcome(r)))
 		}
 		if entry.Expect != ExpectPass && !r.Skipped && r.SemanticPass {
@@ -109,7 +129,7 @@ func mismatchSuffix(info string) string {
 // logs are scannable without reading results.json.
 func printGateReport(w io.Writer, report gateReport) {
 	if len(report.Regressions) > 0 {
-		fmt.Fprintln(w, "conformance: BLOCKING regressions (manifest says expect: pass, run disagrees):")
+		fmt.Fprintln(w, "conformance: GATING regressions (manifest says expect: pass, run disagrees):")
 		for _, r := range report.Regressions {
 			fmt.Fprintln(w, "  -", r)
 		}
@@ -127,7 +147,7 @@ func printGateReport(w io.Writer, report gateReport) {
 		}
 	}
 	if len(report.Unclassified) > 0 {
-		fmt.Fprintln(w, "conformance: blocking-lane scripts with no manifest entry at all:")
+		fmt.Fprintln(w, "conformance: gating-lane scripts with no manifest entry at all:")
 		for _, p := range report.Unclassified {
 			fmt.Fprintln(w, "  -", p)
 		}
@@ -202,8 +222,57 @@ func printLaneRates(w io.Writer, rates []laneRates) {
 // updateReport summarizes what `make conformance-update` changed.
 type updateReport struct {
 	Promoted           []string // moved from fail/skip/unclassified to pass
-	Demoted            []string // moved from pass to fail/skip (only with allowDemote)
-	KeptDespiteFailure []string // still expect: pass in the manifest but failed this run (allowDemote was not set)
+	Demoted            []string // moved from pass to fail/skip (only where the demotePolicy allows it)
+	KeptDespiteFailure []string // still expect: pass in the manifest but failed this run (demotion not allowed)
+}
+
+// demotePolicy says which expect: pass entries a manifest update may
+// demote. Only names paths (CONFORMANCE_DEMOTE_ONLY) and must come with a
+// Reason (CONFORMANCE_DEMOTE_REASON), which is recorded on each demoted
+// entry. All (CONFORMANCE_ALLOW_DEMOTE) is the emergency blanket switch.
+type demotePolicy struct {
+	All    bool
+	Only   map[string]bool
+	Reason string
+}
+
+func (p demotePolicy) allows(path string) bool {
+	return p.All || p.Only[path]
+}
+
+// parseDemotePolicy builds the policy from the CONFORMANCE_DEMOTE_ONLY
+// value (comma-separated manifest keys), its required reason, and the
+// blanket switch. Every named path must be a discovered script, so a typo
+// cannot quietly demote nothing.
+func parseDemotePolicy(only, reason string, all bool, scripts []Script) (demotePolicy, error) {
+	p := demotePolicy{All: all, Reason: strings.TrimSpace(reason)}
+	if strings.TrimSpace(only) == "" {
+		return p, nil
+	}
+	if p.Reason == "" {
+		return p, fmt.Errorf("CONFORMANCE_DEMOTE_ONLY needs CONFORMANCE_DEMOTE_REASON")
+	}
+	known := make(map[string]bool, len(scripts))
+	for _, s := range scripts {
+		known[s.Path] = true
+	}
+	p.Only = map[string]bool{}
+	var unknown []string
+	for _, path := range strings.Split(only, ",") {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		if !known[path] {
+			unknown = append(unknown, path)
+		}
+		p.Only[path] = true
+	}
+	if len(unknown) > 0 {
+		sort.Strings(unknown)
+		return p, fmt.Errorf("CONFORMANCE_DEMOTE_ONLY names unknown scripts: %s", strings.Join(unknown, ", "))
+	}
+	return p, nil
 }
 
 func (r updateReport) empty() bool {
@@ -224,9 +293,10 @@ const updateManifestReasonFallback = "conformance-update: newly discovered, not 
 //     fail entry already, otherwise gets a placeholder reason to triage;
 //   - a script that regresses from expect: pass to either failing or being
 //     skipped keeps its pass expectation (and is reported in
-//     KeptDespiteFailure) unless allowDemote is set, so a regression is
-//     never silently absorbed into the manifest as fail or skip.
-func updateManifest(existing Manifest, scripts []Script, results []ScriptResult, allowDemote bool) (Manifest, updateReport) {
+//     KeptDespiteFailure) unless the demote policy allows that path, so a
+//     regression is never silently absorbed into the manifest as fail or
+//     skip. A targeted demotion records the policy's reason.
+func updateManifest(existing Manifest, scripts []Script, results []ScriptResult, demote demotePolicy) (Manifest, updateReport) {
 	resultByPath := make(map[string]ScriptResult, len(results))
 	for _, r := range results {
 		resultByPath[r.Path] = r
@@ -245,6 +315,11 @@ func updateManifest(existing Manifest, scripts []Script, results []ScriptResult,
 		}
 
 		wasPass := known && prev.Expect == ExpectPass
+		allowDemote := demote.allows(s.Path)
+		demoteReason := ""
+		if wasPass && allowDemote && demote.Only[s.Path] {
+			demoteReason = demote.Reason
+		}
 
 		switch {
 		case r.SemanticPass:
@@ -269,6 +344,9 @@ func updateManifest(existing Manifest, scripts []Script, results []ScriptResult,
 			if known && prev.Expect == ExpectSkip && prev.Reason != "" {
 				reason = prev.Reason
 			}
+			if demoteReason != "" {
+				reason = demoteReason
+			}
 			updated[s.Path] = ManifestEntry{Lane: s.Lane, Expect: ExpectSkip, Reason: reason}
 
 		default: // failed semantically
@@ -283,6 +361,9 @@ func updateManifest(existing Manifest, scripts []Script, results []ScriptResult,
 			reason := updateManifestReasonFallback
 			if known && prev.Reason != "" {
 				reason = prev.Reason
+			}
+			if demoteReason != "" {
+				reason = demoteReason
 			}
 			updated[s.Path] = ManifestEntry{Lane: s.Lane, Expect: ExpectFail, Reason: reason}
 		}
@@ -307,13 +388,13 @@ func printUpdateReport(w io.Writer, report updateReport) {
 		}
 	}
 	if len(report.Demoted) > 0 {
-		fmt.Fprintln(w, "conformance-update: demoted from expect: pass (CONFORMANCE_ALLOW_DEMOTE=1 was set):")
+		fmt.Fprintln(w, "conformance-update: demoted from expect: pass (allowed by CONFORMANCE_DEMOTE_ONLY or CONFORMANCE_ALLOW_DEMOTE):")
 		for _, p := range report.Demoted {
 			fmt.Fprintln(w, "  -", p)
 		}
 	}
 	if len(report.KeptDespiteFailure) > 0 {
-		fmt.Fprintln(w, "conformance-update: kept expect: pass despite a failing run (set CONFORMANCE_ALLOW_DEMOTE=1 to demote instead):")
+		fmt.Fprintln(w, "conformance-update: kept expect: pass despite a failing run (name it in CONFORMANCE_DEMOTE_ONLY with a CONFORMANCE_DEMOTE_REASON to demote):")
 		for _, p := range report.KeptDespiteFailure {
 			fmt.Fprintln(w, "  -", p)
 		}

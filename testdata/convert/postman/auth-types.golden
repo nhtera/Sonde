@@ -1,24 +1,21 @@
 == Digest
 # Digest
 GET {{base_url}}/digest
-[BasicAuth]
-user: {{digest_password}}
 [Options]
+user: user:{{digest_password}}
 digest: true
 == NTLM
 # NTLM
 GET {{base_url}}/ntlm
-[BasicAuth]
-domain\\user: {{ntlm_password}}
 [Options]
+user: domain\\user:{{ntlm_password}}
 ntlm: true
 == AWS SigV4
 # AWS SigV4
 GET {{base_url}}/aws
 X-Amz-Security-Token: {{aws_session_token}}
-[BasicAuth]
-AKIDEXAMPLE: {{aws_secret}}
 [Options]
+user: AKIDEXAMPLE:{{aws_secret}}
 aws-sigv4: aws:amz:us-east-1:execute-api
 == API key in query
 # API key in query
@@ -34,7 +31,4 @@ environments:
   collection: {}
 defaults:
   env: collection
-warning unsupported-auth: Digest: sonde cannot send digest auth yet; this request fails until it can
-warning unsupported-auth: NTLM: sonde cannot send ntlm auth yet; this request fails until it can
-warning unsupported-auth: AWS SigV4: sonde cannot send awsv4 auth yet; this request fails until it can
 warning unsupported-auth: OAuth2: auth type "oauth2" has no Sonde equivalent; add it by hand

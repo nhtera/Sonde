@@ -14,6 +14,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/nhtera/sonde/engine"
+	"github.com/nhtera/sonde/internal/syntax"
 	"github.com/nhtera/sonde/internal/syntaxedit"
 )
 
@@ -642,5 +643,45 @@ func TestAppendEntriesPreservesVariables(t *testing.T) {
 	}
 	if !strings.Contains(res.Text, "{{base_url}}") || !strings.Contains(res.Text, "{{user_name}}") {
 		t.Error("variables not preserved")
+	}
+}
+
+// TestOptionsAddedAsRawRows: options without a control are written as
+// raw rows (More options); each new key reads back as written and parses.
+func TestOptionsAddedAsRawRows(t *testing.T) {
+	e := svc()
+	b := Buffer{File: "t.hurl", Text: src, Version: 1}
+	rows := [][2]string{
+		{"fail-with-body", "true"},
+		{"no-header", "User-Agent"},
+		{"no-jsonpath-coercion", "true"},
+		{"http2-prior-knowledge", "true"},
+		{"digest", "true"},
+		{"ntlm", "true"},
+		{"negotiate", "true"},
+		{"aws-sigv4", "aws:amz:eu-west-1:s3"},
+	}
+	for _, r := range rows {
+		res, err := e.Apply(b, Op{Kind: AddRow, Entry: 1, Section: string(syntaxedit.Options), Key: r[0], Value: r[1]})
+		if err != nil {
+			t.Fatalf("addRow %s: %v", r[0], err)
+		}
+		b.Text = res.Text
+	}
+	if _, err := syntax.Parse("t.hurl", []byte(b.Text), syntax.DialectHurl); err != nil {
+		t.Fatalf("parse:\n%s\n%v", b.Text, err)
+	}
+	m, err := e.Model(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := m[0].Rows[syntaxedit.Options]
+	if len(got) != len(rows) {
+		t.Fatalf("rows %+v", got)
+	}
+	for i, r := range rows {
+		if got[i].Key != r[0] || got[i].Value != r[1] || got[i].Disabled {
+			t.Errorf("row %d: %+v, want %s: %s", i, got[i], r[0], r[1])
+		}
 	}
 }

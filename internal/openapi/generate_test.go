@@ -36,7 +36,7 @@ func TestGenerateGolden(t *testing.T) {
 			}
 			var b strings.Builder
 			for _, f := range gen.Files {
-				out := syntax.Format(f.File)
+				out := syntax.Lint(f.File)
 				if _, err := syntax.Parse(f.Path+".hurl", out, syntax.DialectHurl); err != nil {
 					t.Errorf("%s does not parse: %v", f.Path, err)
 				}
@@ -89,7 +89,7 @@ func TestGenerateOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gen.Variables["api"] == "" || !strings.Contains(string(syntax.Format(gen.Files[0].File)), "{{api}}/") {
+	if gen.Variables["api"] == "" || !strings.Contains(string(syntax.Lint(gen.Files[0].File)), "{{api}}/") {
 		t.Errorf("base URL variable not used: %v", gen.Variables)
 	}
 }
@@ -249,7 +249,7 @@ paths:
 	}
 	got := map[string]string{}
 	for _, f := range gen.Files {
-		for _, line := range strings.Split(string(syntax.Format(f.File)), "\n") {
+		for _, line := range strings.Split(string(syntax.Lint(f.File)), "\n") {
 			if !strings.HasPrefix(line, "#") {
 				got[f.Path] = line // the request line
 				break
@@ -261,7 +261,7 @@ paths:
 		t.Errorf("files %v, want %v", got, want)
 	}
 	for _, f := range gen.Files {
-		if src := string(syntax.Format(f.File)); f.Path == "delete-me" &&
+		if src := string(syntax.Lint(f.File)); f.Path == "delete-me" &&
 			(!strings.Contains(src, "Cookie: {{session-cookie}}") || !strings.Contains(src, `{"name": "{{name}} (copy)"}`)) {
 			t.Errorf("placeholders not kept:\n%s", src)
 		}

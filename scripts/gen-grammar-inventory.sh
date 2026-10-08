@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Extracts the names of every query, filter, predicate, template function and
-# request [Options] section key from a Hurl 8.0.1 source checkout, and writes
+# request [Options] section key from an upstream source checkout (8.0.1 by default), and writes
 # a sorted "kind<TAB>name" list to internal/docs/testdata/grammar-inventory.tsv.
 #
 # The parser source (packages/hurl_core/src/parser/*.rs) is the primary,
@@ -15,25 +15,25 @@
 # filter aliases, and documents a `charsetEncode` filter the parser does not
 # implement).
 #
-# Usage: scripts/gen-grammar-inventory.sh [HURL_SRC_DIR]
-# With no argument, sparse-clones tag 8.0.1 into a temp dir cleaned on exit.
+# Usage: scripts/gen-grammar-inventory.sh [--ref next] [HURL_SRC_DIR]
+# The default ref is tag 8.0.1, written to grammar-inventory.tsv; `--ref
+# next` reads the commit pinned in internal/conformance/manifest-next.yaml
+# and writes grammar-inventory-next.tsv. With no HURL_SRC_DIR, the ref is
+# sparse-fetched into a temp dir cleaned on exit.
 set -euo pipefail
 export LC_ALL=C
 
 root="$(git rev-parse --show-toplevel)"
-out="$root/internal/docs/testdata/grammar-inventory.tsv"
+. "$root/scripts/inventory-ref.sh"
+parse_inventory_ref "$@"
+out="$root/internal/docs/testdata/grammar-inventory${inventory_suffix}.tsv"
 
-src="${1:-}"
+src="$inventory_src"
 work=""
 if [ -z "$src" ]; then
-  tag="8.0.1"
-  repo="https://github.com/Orange-OpenSource/hurl.git"
   work="$(mktemp -d)"
   trap 'rm -rf "$work"' EXIT
-  git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
-    --filter=blob:none --sparse "$repo" "$work/hurl" >&2
-  git -C "$work/hurl" sparse-checkout set --no-cone \
-    '/docs/grammar.md' '/packages/hurl_core/src/parser/' >&2
+  fetch_inventory_ref "$work/hurl" '/docs/grammar.md' '/packages/hurl_core/src/parser/'
   src="$work/hurl"
 fi
 

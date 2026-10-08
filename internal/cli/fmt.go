@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/spf13/cobra"
 
+	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
@@ -22,12 +24,13 @@ type fmtOptions struct {
 func newFmtCmd() *cobra.Command {
 	opts := &fmtOptions{}
 	cmd := &cobra.Command{
-		Use:   "fmt FILE...",
+		Use:   "fmt [FILE...]",
 		Short: "Format request files canonically",
-		Long: "Fmt prints files in canonical layout (whitespace only; nothing is reordered\n" +
-			"and bodies are untouched). --write rewrites files in place, --check lists\n" +
-			"files that are not formatted and exits with 1.",
-		Args: cobra.MinimumNArgs(1),
+		Long: "Fmt prints files in canonical layout: whitespace normalized, sections in\n" +
+			"canonical order ([Options] first), and a unit (ms) added to unitless\n" +
+			"durations; bodies are untouched. With no FILE it reads standard input.\n" +
+			"--write rewrites files in place. --check lists files that are not\n" +
+			"formatted and exits with 1 (2 if a file cannot be read or parsed).",
 		RunE: typed(func(cmd *cobra.Command, args []string) error {
 			return runFmt(cmd, opts, args)
 		}),
@@ -40,41 +43,93 @@ func newFmtCmd() *cobra.Command {
 
 func runFmt(cmd *cobra.Command, opts *fmtOptions, args []string) error {
 	stdout, stderr := cmd.OutOrStdout(), cmd.ErrOrStderr()
-	code := ExitOK
+	color := resolveColor(cmd, config.FromOSEnviron(), isTerminal(stdout), nil)
+	if len(args) == 0 {
+		args = []string{stdinName}
+	}
+	if opts.write && slices.Contains(args, stdinName) {
+		writeErrorMessage(stderr, "Standard input can not be formatted in place", color)
+		return silentExit(ExitParse)
+	}
+
+	var out bytes.Buffer
+	invalid, writeFailed, unformatted := false, false, 0
 	for _, name := range args {
 		if err := cmd.Context().Err(); err != nil {
 			return err
 		}
-		in, c := readInput(stderr, name)
+		in, c := readInputColor(stderr, name, color, true)
 		if c != ExitOK {
-			code = max(code, c)
+			invalid = true
 			continue
 		}
-		out := syntax.Format(in.file)
+		linted := syntax.Lint(in.file)
 		switch {
 		case opts.check:
-			if !bytes.Equal(out, in.src) {
-				_, _ = fmt.Fprintln(stdout, name)
-				code = max(code, ExitUsage)
+			if !bytes.Equal(linted, bytes.TrimPrefix(in.src, []byte(utf8BOM))) {
+				fmt.Fprintf(&out, "would reformat: %s\n", name)
+				unformatted++
 			}
 		case opts.write:
-			if bytes.Equal(out, in.src) {
+			if bytes.Equal(linted, in.src) {
 				continue
 			}
-			if err := writeAtomic(name, out); err != nil {
+			if err := writeAtomic(name, linted); err != nil {
 				_, _ = fmt.Fprintf(stderr, "error: Issue writing to %s: %v\n", name, err)
-				code = max(code, ExitUndefined)
+				writeFailed = true
+			}
+		case color:
+			// The linted text parses: Lint is checked to round-trip.
+			if f, err := syntax.Parse(name, linted, syntax.DialectFor(name)); err == nil {
+				out.Write(syntax.HighlightANSI(f))
+			} else {
+				out.Write(linted)
 			}
 		default:
-			if _, err := stdout.Write(out); err != nil {
-				return NewExitError(ExitUndefined, err)
-			}
+			out.Write(linted)
 		}
 	}
-	if code != ExitOK {
-		return silentExit(code)
+
+	switch {
+	case opts.write:
+		if writeFailed {
+			return silentExit(ExitUndefined)
+		}
+		if invalid {
+			return silentExit(ExitParse)
+		}
+		return nil
+	case opts.check:
+		if !invalid && unformatted == 0 {
+			return nil
+		}
+		if unformatted > 0 {
+			fmt.Fprintf(&out, "%d file%s would be reformatted", unformatted, plural(unformatted))
+		}
+	}
+	// Like the reference formatter, the output always ends with a newline.
+	if !bytes.HasSuffix(out.Bytes(), []byte("\n")) {
+		out.WriteByte('\n')
+	}
+	if _, err := stdout.Write(out.Bytes()); err != nil {
+		return NewExitError(ExitUndefined, err)
+	}
+	switch {
+	case invalid:
+		return silentExit(ExitParse)
+	case opts.check:
+		// The reference formatter exits 3 here; sonde keeps its documented
+		// exit code (docs/stability.md).
+		return silentExit(ExitUsage)
 	}
 	return nil
+}
+
+func plural(n int) string {
+	if n > 1 {
+		return "s"
+	}
+	return ""
 }
 
 // writeAtomic replaces name with data via a synced temporary file in the

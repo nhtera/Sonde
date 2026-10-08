@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/nhtera/sonde/engine"
+	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/config"
 	"github.com/nhtera/sonde/internal/datarow"
 	"github.com/nhtera/sonde/internal/runplan"
@@ -22,7 +22,12 @@ import (
 type runContext struct {
 	engine engine.Options
 
-	color       bool
+	// colorOut and colorErr are whether output to stdout (bodies, -i
+	// headers) and to stderr (logs, errors, progress, summaries) is
+	// coloured. Each defaults to whether its own stream is a terminal.
+	colorOut    bool
+	colorErr    bool
+	stdoutTTY   bool
 	include     bool
 	jsonOutput  bool
 	noOutput    bool
@@ -36,7 +41,7 @@ type runContext struct {
 	reportJUnit string
 	reportTAP   string
 	test        bool
-	progressBar bool
+	progressBar *bool // nil: shown on a terminal
 	glob        []string
 	repeat      int // 1: once (default), -1: infinite
 	// parallel is whether this run uses the parallel runner architecture
@@ -71,31 +76,32 @@ func (rc *runContext) hasReport() bool {
 // config file < env vars (HURL_*/SONDE_*) < command line flag. The run
 // itself (engine options, run control) is built by runplan; the output
 // settings are the CLI's.
-func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env, stdout io.Writer) (*runContext, error) {
-	// The config file is checked first, so a broken one is reported
-	// before any other setting.
-	if path, ok := env.FilePath(); ok {
-		if _, err := config.LoadConfigFile(path); err != nil {
-			return nil, NewExitError(ExitUsage, err)
+func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env, stdout, stderr io.Writer) (*runContext, error) {
+	// A bad --error-format is reported first, as before the config file
+	// joined the run plan; the plan then reads the config file before
+	// any other setting.
+	if changed(cmd, "error-format") {
+		if _, err := resolveErrorFormat(cmd, inv, env, ""); err != nil {
+			return nil, err
 		}
 	}
+	plan, err := runplan.New(inv, env, currentBuildInfo().Version)
+	if err != nil {
+		return nil, planError(err)
+	}
+	file := plan.Config
 
 	rc := &runContext{}
-	rc.color = env.Color(isTerminalWriter(os.Stdout))
-	if changed(cmd, "color") {
-		rc.color = true
-	}
-	// --no-color is checked last so it always wins when both are given,
-	// matching the upstream CLI's own silent priority (no hard usage
-	// error for the combination).
-	if changed(cmd, "no-color") {
-		rc.color = false
-	}
+	rc.stdoutTTY = isTerminal(stdout)
+	rc.colorOut = resolveColor(cmd, env, rc.stdoutTTY, file.Color)
+	rc.colorErr = resolveColor(cmd, env, isTerminal(stderr), file.Color)
 	rc.include = runplan.ResolveBool(inv, "include", "INCLUDE", inv.Include, env)
 	rc.jsonOutput = runplan.ResolveBool(inv, "json", "JSON", inv.JSON, env)
-	noOutput := runplan.ResolveBool(inv, "no-output", "NO_OUTPUT", inv.NoOutput, env)
-	var err error
-	rc.errorFormat, err = resolveErrorFormat(cmd, inv, env)
+	// HURL_NO_OUTPUT=false leaves the config file's --no-output on, as
+	// upstream does.
+	noOutput := runplan.ResolveBool(inv, "no-output", "NO_OUTPUT", inv.NoOutput, env) ||
+		(!changed(cmd, "no-output") && file.NoOutput)
+	rc.errorFormat, err = resolveErrorFormat(cmd, inv, env, file.ErrorFormat)
 	if err != nil {
 		return nil, err
 	}
@@ -107,15 +113,10 @@ func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env
 	rc.reportTAP = inv.ReportTAP
 	rc.env = inv.Env
 	rc.configFile = inv.Config
-	rc.progressBar = inv.ProgressBar
-	rc.pretty = resolvePretty(cmd, inv, env, isTerminalWriter(stdout))
+	rc.progressBar = resolveProgressBar(inv, env, file.NoProgressBar)
+	rc.pretty = resolvePretty(cmd, inv, env, rc.stdoutTTY, file.Pretty)
 	rc.output = inv.Output
 	rc.glob = inv.Glob
-
-	plan, err := runplan.New(inv, env, currentBuildInfo().Version)
-	if err != nil {
-		return nil, planError(err)
-	}
 	rc.plan = plan
 	rc.test = plan.Test
 	if rc.test {
@@ -128,6 +129,13 @@ func buildRunContext(cmd *cobra.Command, inv *runplan.Invocation, env config.Env
 	rc.data = plan.Data
 	rc.engine = plan.Options
 	rc.engine.Stdout = stdout
+	// `output: -` entries get the same rendering as the default output.
+	if rc.pretty {
+		colorOut := rc.colorOut
+		rc.engine.StdoutBody = func(resp *exchange.Response, body []byte) []byte {
+			return prettyBody(body, resp, colorOut)
+		}
+	}
 	return rc, nil
 }
 
@@ -141,7 +149,10 @@ func planError(err error) error {
 	return NewExitError(ExitUsage, err)
 }
 
-func resolveErrorFormat(cmd *cobra.Command, inv *runplan.Invocation, env config.Env) (string, error) {
+// resolveErrorFormat resolves --error-format: the flag, then
+// HURL_ERROR_FORMAT, then the config file's (file, "" when unset), then
+// "short".
+func resolveErrorFormat(cmd *cobra.Command, inv *runplan.Invocation, env config.Env, file string) (string, error) {
 	if changed(cmd, "error-format") {
 		if inv.ErrorFormat != "short" && inv.ErrorFormat != "long" {
 			return "", NewExitError(ExitUsage, fmt.Errorf("invalid value '%s' for error-format [possible values: long, short]", inv.ErrorFormat))
@@ -154,35 +165,52 @@ func resolveErrorFormat(cmd *cobra.Command, inv *runplan.Invocation, env config.
 		}
 		return v, nil
 	}
+	if file != "" {
+		return file, nil
+	}
 	return "short", nil
 }
 
-func resolvePretty(cmd *cobra.Command, inv *runplan.Invocation, env config.Env, stdoutTTY bool) bool {
+// resolvePretty resolves --pretty/--no-pretty: the flags, then the
+// environment, then the config file's (file, nil when unset), then
+// whether stdout is a terminal.
+func resolvePretty(cmd *cobra.Command, inv *runplan.Invocation, env config.Env, stdoutTTY bool, file *bool) bool {
 	if changed(cmd, "pretty") && inv.Pretty {
 		return true
 	}
 	if changed(cmd, "no-pretty") && inv.NoPretty {
 		return false
 	}
-	if v, ok := env.Bool("PRETTY"); ok && v {
-		return true
+	if v, ok := env.Bool("PRETTY"); ok {
+		return v
 	}
-	if v, ok := env.Bool("NO_PRETTY"); ok && v {
-		return false
+	if v, ok := env.Bool("NO_PRETTY"); ok {
+		return !v
+	}
+	if file != nil {
+		return *file
 	}
 	return stdoutTTY
 }
 
-// isTerminalWriter reports whether w is a character device (a terminal),
-// the stdlib-only approximation of isatty used to default --color/--pretty.
-func isTerminalWriter(w io.Writer) bool {
-	f, ok := w.(*os.File)
-	if !ok {
-		return false
+// resolveColor decides whether one stream is coloured: whether it is a
+// terminal (tty), overridden by the config file's --color/--no-color
+// (file, nil when unset), then by NO_COLOR and HURL_COLOR/SONDE_COLOR,
+// then by --color, then by --no-color.
+func resolveColor(cmd *cobra.Command, env config.Env, tty bool, file *bool) bool {
+	base := tty
+	if file != nil {
+		base = *file
 	}
-	info, err := f.Stat()
-	if err != nil {
-		return false
+	color := env.Color(base)
+	if changed(cmd, "color") {
+		color = true
 	}
-	return info.Mode()&os.ModeCharDevice != 0
+	// --no-color is checked last so it always wins when both are given,
+	// matching the upstream CLI's own silent priority (no hard usage
+	// error for the combination).
+	if changed(cmd, "no-color") {
+		color = false
+	}
+	return color
 }

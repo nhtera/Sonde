@@ -227,7 +227,7 @@ func TestCompletionCapture(t *testing.T) {
 }
 
 func TestCompletionOptionNameAndValue(t *testing.T) {
-	c := newTestClient(t, nil)
+	c := newTestClientTable(t, nil, unsupportedTable(t))
 	c.initialize(true, "", nil)
 	uri := "file:///w/a.hurl"
 
@@ -237,9 +237,9 @@ func TestCompletionOptionNameAndValue(t *testing.T) {
 	if insecure.TextEdit.NewText != "insecure: " {
 		t.Errorf("insecure insert = %q", insecure.TextEdit.NewText)
 	}
-	digest := item(t, names, "digest")
+	digest := item(t, names, "http3")
 	if !strings.Contains(digest.Detail, "not supported yet") {
-		t.Errorf("digest detail = %q", digest.Detail)
+		t.Errorf("http3 detail = %q", digest.Detail)
 	}
 
 	c.open(uri, "GET http://a/\n[Options]\ninsecure: ")

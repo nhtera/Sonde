@@ -375,7 +375,7 @@ func (s *Service) CurlText(req Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(syntax.Format(p.out.Files[0].File)), nil
+	return string(syntax.Lint(p.out.Files[0].File)), nil
 }
 
 // SaveSecrets writes the values CurlText lifted, once its requests are in
@@ -604,7 +604,7 @@ func (s *Service) source(req Request) (name, path string, data []byte, err error
 // liftCurl offers the credentials of the converted command and lifts
 // those req picks.
 func (s *Service) liftCurl(req Request, d syntax.Dialect, p *plan) error {
-	src := syntax.Format(p.out.Files[0].File)
+	src := syntax.Lint(p.out.Files[0].File)
 	taken := map[string]bool{}
 	if req.Env != "" && s.secrets != nil {
 		taken = s.secrets.Names(req.Env)

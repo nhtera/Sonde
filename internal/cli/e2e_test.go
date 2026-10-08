@@ -5,6 +5,7 @@ package cli
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -163,15 +164,16 @@ func TestE2EPretty(t *testing.T) {
 	}
 }
 
-func TestE2EUnsupportedOption(t *testing.T) {
-	srv := testServer(t)
-	file := writeTemp(t, "ok.hurl", "GET "+srv.URL+"/hello\nHTTP 200\n")
-	code, _, errOut := runArgs(t, file, "--digest")
-	if code != ExitRuntime {
-		t.Errorf("exit code = %d, want %d", code, ExitRuntime)
-	}
-	if !strings.Contains(errOut, `option "digest" is not supported by sonde yet`) {
-		t.Errorf("stderr = %q", errOut)
+// TestE2ESSLNoRevoke checks that --ssl-no-revoke is accepted and the
+// HTTPS request made as without it (no revocation is checked anywhere).
+func TestE2ESSLNoRevoke(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "ok")
+	}))
+	defer srv.Close()
+	file := writeTemp(t, "ok.hurl", "GET "+srv.URL+"\nHTTP 200\n")
+	if code, out, errOut := runArgs(t, "--ssl-no-revoke", "--insecure", file); code != ExitOK || out != "ok" {
+		t.Errorf("exit %d, stdout %q, stderr %q", code, out, errOut)
 	}
 }
 

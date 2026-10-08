@@ -6,7 +6,9 @@ for `2.0.0`.
 
 ## `.hurl` compatibility
 
-Sonde targets the Hurl 8.0.1 grammar and CLI behavior. [compat.md](compat.md)
+Sonde targets the Hurl 8.0.1 grammar and CLI behavior, plus the options
+and behavior changes of the next upstream version (8.1.0, not yet tagged;
+those rows say "new in 8.1.0"). [compat.md](compat.md)
 (generated from `internal/docs/table.yaml`, `make docs`) is the complete,
 maintained list of every known difference: parser edge cases, evaluation
 differences, unsupported options, and CLI/env var/config gaps. It is
@@ -138,6 +140,9 @@ Enumerations may grow in a minor release: `ErrorKind`, `ValueKind`,
 and stop reasons, and so may the set of `Event` types. Switch on them with a `default` case. The text
 of `Error()`, `Message()`, `Render()` and log events is for people and may
 change in any release; match on `Kind()`, never on text.
+
+`Options.StdoutBody` is experimental: its signature may change in a minor
+release.
 
 ## Sonde Desktop
 

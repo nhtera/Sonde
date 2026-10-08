@@ -97,7 +97,7 @@ func (m *serverManager) HasCapability(capability string) bool {
 func (m *serverManager) start(s serverSpec) error {
 	if s.port != 0 {
 		if pid, busy := portOwner(s.host, s.port); busy {
-			return fmt.Errorf("port %d (%s) is already in use by pid %s; stop it before running the conformance suite", s.port, s.name, pid)
+			return fmt.Errorf("port %d (%s) is already in use by pid %s; stop it (or the other conformance run: make conformance and make conformance-next share these ports) before running the conformance suite", s.port, s.name, pid)
 		}
 	}
 
@@ -144,7 +144,9 @@ func (m *serverManager) startSquid(log func(string)) error {
 		return nil
 	}
 
-	conf := "cache deny all\ncache_log /dev/null\naccess_log /dev/null\nhttp_access allow all\n" +
+	// Upstream CI runs squid under sudo; the harness runs it as the current
+	// user, so it must not try to write the system pid file.
+	conf := "pid_filename none\ncache deny all\ncache_log /dev/null\naccess_log /dev/null\nhttp_access allow all\n" +
 		"http_port 127.0.0.1:3128\nrequest_header_add From-Proxy Hello\nreply_header_add From-Proxy Hello\n"
 
 	cmd := exec.Command(squid, "-d", "2", "-N", "-f", "/dev/stdin") //nolint:gosec // G204: fixed args, resolved from PATH.

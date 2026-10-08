@@ -5,8 +5,9 @@ package syntax
 
 import "strconv"
 
-// maxJSONDepth bounds JSON nesting so hostile input cannot exhaust the stack.
-const maxJSONDepth = 1000
+// maxJSONDepth bounds JSON nesting, as the reference does since 8.1.0
+// (which also keeps hostile input from exhausting the stack).
+const maxJSONDepth = 128
 
 // jsonParser carries the nesting depth through the recursive JSON rules.
 type jsonParser struct{ depth int }
@@ -181,19 +182,21 @@ func jsonNumber(r *reader) (*JSONNumber, *Error) {
 
 func isJSONWhitespace(c rune) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 
-func (p *jsonParser) enter(r *reader) *Error {
+// enter goes one level deeper, at the bracket that opens it.
+func (p *jsonParser) enter(open Pos) *Error {
 	p.depth++
 	if p.depth > maxJSONDepth {
-		return errAt(r.pos, false, ErrNestingTooDeep, strconv.Itoa(maxJSONDepth))
+		return errAt(open, false, ErrNestingTooDeep, strconv.Itoa(maxJSONDepth))
 	}
 	return nil
 }
 
 func (p *jsonParser) list(r *reader) (JSONValue, *Error) {
+	open := r.pos
 	if err := tryLiteral(r, "["); err != nil {
 		return nil, err
 	}
-	if err := p.enter(r); err != nil {
+	if err := p.enter(open); err != nil {
 		return nil, err
 	}
 	defer func() { p.depth-- }()
@@ -240,10 +243,11 @@ func jsonObject(r *reader) (*JSONObject, *Error) {
 }
 
 func (p *jsonParser) object(r *reader) (JSONValue, *Error) {
+	open := r.pos
 	if err := tryLiteral(r, "{"); err != nil {
 		return nil, err
 	}
-	if err := p.enter(r); err != nil {
+	if err := p.enter(open); err != nil {
 		return nil, err
 	}
 	defer func() { p.depth-- }()

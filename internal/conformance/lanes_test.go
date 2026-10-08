@@ -6,6 +6,7 @@ package conformance
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -115,6 +116,20 @@ func TestClassifyProxyNeedsProxyCapability(t *testing.T) {
 	}
 }
 
+// TestClassifyReadsSelectedConfigFile checks that the config file a
+// script selects with XDG_CONFIG_HOME counts like its flags.
+func TestClassifyReadsSelectedConfigFile(t *testing.T) {
+	root := t.TempDir()
+	writeScript(t, root, "tests_ok/proxy/proxy_config_file.sh", "XDG_CONFIG_HOME=$(dirname \"$0\")/config\nexport XDG_CONFIG_HOME\nhurl tests_ok/proxy/proxy.hurl\n")
+	writeScript(t, root, "tests_ok/proxy/config/hurl/config", "--proxy localhost:3128\n")
+	writeScript(t, root, "tests_ok/proxy/proxy.hurl", "GET http://127.0.0.1:8000/proxy\nHTTP 200\n")
+
+	got := classify(root, "tests_ok/proxy/proxy_config_file.sh")
+	if got.Lane != LaneExtended || !got.NeedsProxy {
+		t.Errorf("got %+v, want extended lane with NeedsProxy", got)
+	}
+}
+
 func TestClassifyGlobExpansion(t *testing.T) {
 	root := t.TempDir()
 	writeScript(t, root, "tests_ok/glob/glob.sh", `hurl --glob "tests_ok/glob/*.hurl"`+"\n")
@@ -182,4 +197,66 @@ func repoRootHurlDir(t *testing.T) string {
 	}
 	// This file lives at <root>/internal/conformance/lanes_test.go.
 	return filepath.Join(wd, "..", "..", "testdata", "conformance", "hurl")
+}
+
+func TestFilterScriptsByPrefix(t *testing.T) {
+	scripts := []Script{{Path: "hurl/tests_pty/a.sh"}, {Path: "hurl/tests_ok/b.sh"}, {Path: "hurlfmt/tests_ok/c.sh"}}
+	got := filterScripts(scripts, "hurl/tests_pty/, hurlfmt/")
+	if len(got) != 2 || got[0].Path != "hurl/tests_pty/a.sh" || got[1].Path != "hurlfmt/tests_ok/c.sh" {
+		t.Errorf("filterScripts = %+v", got)
+	}
+	m := Manifest{"hurl/tests_pty/a.sh": {Expect: ExpectPass}, "hurl/tests_ok/b.sh": {Expect: ExpectPass}}
+	if sub := manifestSubset(m, got); len(sub) != 1 {
+		t.Errorf("manifestSubset = %+v, want only the filtered script's entry", sub)
+	}
+}
+
+func TestClassifyPTYScript(t *testing.T) {
+	root := t.TempDir()
+	writeScript(t, root, "tests_pty/color/color.sh", "hurl tests_pty/color/color.hurl\n")
+	writeScript(t, root, "tests_pty/color/color.hurl", "GET http://localhost:8000/pty/color\n")
+
+	if got := classify(root, "tests_pty/color/color.sh"); got.Lane != LanePTY {
+		t.Errorf("Lane = %v, want %v", got.Lane, LanePTY)
+	}
+}
+
+func TestDiscoverKeysEveryTree(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range dirsInScope {
+		if err := os.MkdirAll(filepath.Join(root, TreeHurl, d.dir), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeScript(t, root, "hurl/tests_ok/hello/hello.sh", "hurl tests_ok/hello/hello.hurl\n")
+	writeScript(t, root, "hurl/tests_ok/hello/hello.hurl", "GET http://localhost:8000/hello\n")
+	writeScript(t, root, "hurlfmt/tests_ok/format.sh", "hurlfmt tests_ok/format.hurl\n")
+	writeScript(t, root, "hurlfmt/tests_failed/parse_ko.sh", "hurlfmt tests_failed/parse_ko.hurl\n")
+	writeScript(t, root, "hurlfmt/tests_export/body.hurl", "GET http://localhost:8000\n")
+	writeScript(t, root, "hurlfmt/tests_export/body.lint.hurl", "GET http://localhost:8000\n")
+	writeScript(t, root, "hurlfmt/tests_export/body.json", "{}\n")
+	writeScript(t, root, "hurlfmt/tests_export/skipped.1.hurl", "GET http://localhost:8000\n")
+	writeScript(t, root, "hurlfmt/tests_export/skipped.1.json", "{}\n")
+
+	scripts, err := Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, s := range scripts {
+		got = append(got, s.Path+" "+string(s.Lane)+" "+s.Export)
+	}
+	want := []string{
+		"hurl/tests_ok/hello/hello.sh blocking ",
+		"hurlfmt/tests_export/body.hurl#json hurlfmt json",
+		"hurlfmt/tests_export/body.hurl#lint hurlfmt hurl",
+		"hurlfmt/tests_failed/parse_ko.sh hurlfmt ",
+		"hurlfmt/tests_ok/format.sh hurlfmt ",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("Discover =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if s := scripts[0]; s.Tree != TreeHurl || s.Rel != "tests_ok/hello/hello.sh" {
+		t.Errorf("hurl script = %+v, want tree hurl and a tree-relative Rel", s)
+	}
 }

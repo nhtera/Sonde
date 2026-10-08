@@ -44,12 +44,15 @@ Module: `github.com/nhtera/sonde` · `go 1.26` directive (supports Go 1.26 + 1.2
 | `internal/query` | all Hurl queries over the responses of an entry (redirect chain), with a per-entry parsed-body cache | syntax, value, exchange, template, filter, runerr, xpath, datefmt |
 | `internal/filter` | all Hurl filters | syntax, value, jsonpath, template, runerr, xpath, datefmt, charset |
 | `internal/predicate` | all Hurl predicates | syntax, value, template, runerr, datefmt |
-| `internal/httpx` | client/transport builder, options, manual redirect loop, timings, cookie jar, decompression, streamed-body hook, WebSocket handshake, HTTP/2-only transport for gRPC (h2c, trailers) | exchange, sandbox, codec |
+| `internal/httpx` | client/transport builder, options, manual redirect loop, timings, cookie jar, decompression, streamed-body hook, WebSocket handshake, HTTP/2-only transport for gRPC (h2c, trailers); a dispatcher sends HTTP/1.x through `h1wire` and HTTP/2 through net/http | exchange, sandbox, codec, netpolicy, httpx/h1wire, httpx/auth |
+| `internal/httpx/auth` | Authorization values of AWS SigV4, Digest (RFC 7616), NTLM (go-ntlmssp) and Negotiate (gokrb5, file credential cache); `httpx` runs the challenge exchange on a leased connection | exchange |
+| `internal/httpx/h1wire` | own HTTP/1.x client: request writer (version, header order and case as given, one Host), lenient response reader with strict framing (wire order kept; a connection that saw an anomaly is never reused), pool with leases, stale-connection retry, CONNECT tunnels, h2 hand-off after ALPN | exchange |
 | `internal/report` | JSON result (shared by `--json` and `--report-json`), JUnit, TAP, HTML reports; redacted with the final secret union | engine, exchange |
 | `internal/config` | `sonde.yaml`, Hurl config file, variables/secrets files, env vars, precedence, `sonde.yaml`/variables emitter | value, sandbox |
 | `internal/dataset` | CSV / JSON-array rows for `--data` | value |
 | `internal/runplan` | a run's invocation (flags, `HURL_*`/`SONDE_*`, config file) turned into engine options and jobs, shared by the CLI and the desktop app; capture layering for reruns | engine, config, datarow, openapi, syntax |
 | `internal/runflags` | an invocation rendered back to `sonde` arguments or a shell command (POSIX, PowerShell, cmd), secrets as variable references | runplan |
+| `internal/syntaxexport` | a parsed `.hurl` file as the reference formatter's AST JSON and highlighted HTML (`sonde export json`/`html`) | syntax |
 | `internal/syntaxedit` | request files as an entry model (rows, disabled `# ` rows) and one-splice edits checked by reparsing, in UTF-16 offsets | syntax |
 | `internal/datarow` | a checked `--data` file as engine rows (secret columns, overrides, clashes) | engine, config, dataset, value |
 | `internal/testsummary` | run outcome classification, `--test` status lines and summary | engine |
@@ -189,7 +192,7 @@ API stability: from v1.0 `engine` + `exchange` follow semver, checked by `make a
 | 127 | undefined error (e.g. report cannot be written) — Hurl parity |
 | 130 | interrupted (Ctrl-C) — Sonde addition, documented |
 
-Multi-unit aggregation: 1 and 127 abort; otherwise the most severe of 2 > 3 > 4 > 0 (as Hurl's `main.rs`). Non-run subcommands: `fmt --check` → 1 if unformatted; `import` → 1 on unreadable input, 0 with warnings; `mock` → 1 unloadable spec, 3 bind failure, 0 on SIGTERM, 130 on Ctrl-C.
+Multi-unit aggregation: 1 and 127 abort; otherwise the most severe of 2 > 3 > 4 > 0 (as Hurl's `main.rs`). Non-run subcommands: `fmt --check` → 1 if unformatted (2 on a read or parse error); `import` → 1 on unreadable input, 0 with warnings; `mock` → 1 unloadable spec, 3 bind failure, 0 on SIGTERM, 130 on Ctrl-C.
 
 Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-command errors → 1; any other untyped error from a command body → 127 (`typed` wrapper); commands that print their own diagnostics end with a silent exit (code only, no extra `error:` line).
 
@@ -202,23 +205,26 @@ Error typing in `internal/cli`: flag errors and cobra's own argument/unknown-com
 | `sonde import curl\|postman\|opencollection\|http INPUT -o DIR` | request files, and for Postman, OpenCollection and `.http` environments a `sonde.yaml` skeleton plus secrets stubs (names only, 0600, never overwritten); scripts become comments, never run; files the input names are never read; input ≤ 64 MiB; see `docs/guides/import-export.md` | 0 (warnings included); 1 (unreadable input, bad flag, existing files without `--force`) |
 | `sonde export curl FILE... [--entry N]` | one curl command per entry on stdout, as `--curl` renders it, without sending; variables as for a run (`--variable`, `--secret`, files, `sonde.yaml`); an undefined variable stays `{{name}}` with a warning; secrets redacted | 0; 1 (usage, bad `--entry`); 2 (parse error); 3 (an entry could not be rendered) |
 | `sonde check FILE...` | parses every file; prints the first syntax error of each invalid file in Hurl's format (`error: Parsing …` snippet with caret) to stderr | 0, 2 (any invalid or unreadable file) |
-| `sonde fmt FILE...` | canonical layout to stdout; `-w/--write` rewrites in place atomically (temp file + rename, mode kept); `--check` lists unformatted files on stdout | 0; 1 (`--check` found unformatted files); 2 (parse/read error, wins over 1); 127 (write failed) |
+| `sonde fmt [FILE...]` | canonical layout to stdout (standard input with no FILE; `--color` highlights it); `-w/--write` rewrites in place atomically (temp file + rename, mode kept); `--check` prints `would reformat: FILE` per file, then `N file(s) would be reformatted` | 0; 1 (`--check` found unformatted files); 2 (parse/read error, wins over 1); 127 (write failed) |
 
-Unreadable input: `error: Issue reading from FILE: …` (invalid UTF-8 reported with the byte index). A UTF-8 BOM is skipped when parsing and kept by `fmt`. No `completion` command is generated (names stay free for the Hurl-style `sonde FILE...` form).
+Unreadable input (`fmt`, `check`, `export`): `error: Input file FILE can not be read - …` (invalid UTF-8 reported with the byte index); a run reports `error: Issue reading from FILE: …`. A UTF-8 BOM is skipped when parsing and dropped by `fmt`. No `completion` command is generated (names stay free for the Hurl-style `sonde FILE...` form).
 
-Canonical format (`internal/syntax.Format`): horizontal whitespace and line endings only — never reorders sections, never touches body content, keeps blank lines and comments; no indentation; `key: value`; single spaces between query, filters, predicate and value; trailing whitespace removed (blank lines emptied); LF line endings outside bodies; final newline. Files already in `hurlfmt` layout are left unchanged (checked on Hurl's linted test suites).
+Canonical layout: `internal/syntax.Lint`, used by `fmt`, LSP formatting and every importer (CLI and desktop), matches `hurlfmt` byte for byte (checked on its `tests_export` fixtures): no indentation; `key: value`; single spaces between query, filters, predicate and value; trailing whitespace removed (blank lines emptied); request sections reordered ([Options], [Query], [BasicAuth], [Form], [Multipart], [Cookies], then [SondeGrpc], [SondeMessages]) and response sections ([Captures], [Asserts]), comments moving with the section below them; `ms` added to a unitless `connect-timeout`, `delay`, `max-time` or `retry-interval`; line endings kept; final newline; body content untouched. `internal/syntax.Format` keeps the old whitespace-only layout (order kept, LF endings) for desktop form edits (`syntaxedit`), whose splices must stay minimal.
 
 ### Variable precedence (lowest → highest; Hurl-aligned)
 1. `sonde.yaml` environment: `variables`, then `variables_files`
-2. `HURL_VARIABLE_*`, then `SONDE_VARIABLE_*` env vars
-3. `--variables-file` (in order given)
-4. data row (`--data`; engine: `Job.Row` above `Options.Variables`, the CLI drops columns named by a `--variable`; built-in `data_row`)
-5. `--variable`
-6. entry `[Options] variable:` (entry-scoped)
-7. captures during the run (unit-scoped)
+2. user config file (`$XDG_CONFIG_HOME/hurl/config`) `--variable` lines
+3. `HURL_VARIABLE_*`, then `SONDE_VARIABLE_*` env vars
+4. `--variables-file` (in order given)
+5. data row (`--data`; engine: `Job.Row` above `Options.Variables`, the CLI drops columns named by a `--variable`; built-in `data_row`)
+6. `--variable`
+7. entry `[Options] variable:` (entry-scoped)
+8. captures during the run (unit-scoped)
+
+Every other option follows the same order: config file < `HURL_*`/`SONDE_*` < flag (`runplan`, shared by the CLI and the desktop app); list options (`--header`) add up instead.
 
 Environment selection: `--env` > `SONDE_ENV` > `defaults.env`.
-Secrets: `sonde.yaml` `secrets_files`, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secrets-file`, `--secret`, `--data-secret` columns, `redact` captures. Same secret name from two sources → error (Hurl message). Secret vs variable name clash → exit 1 (a data column named like a command line secret too). Secrets shorter than 4 chars → warning. An environment's `secrets:` lists the names it needs: its secrets file may then be missing (a fresh clone), and a listed name no source sets stops the run before any request (exit 1), naming where to set it.
+Secrets: `sonde.yaml` `secrets_files`, the user config file's `--secret` lines, `HURL_SECRET_*`/`SONDE_SECRET_*`, `--secrets-file`, `--secret`, `--data-secret` columns, `redact` captures. Same secret name from two sources → error (Hurl message). Secret vs variable name clash → exit 1 (a data column named like a command line secret too). Secrets shorter than 4 chars → warning. An environment's `secrets:` lists the names it needs: its secrets file may then be missing (a fresh clone), and a listed name no source sets stops the run before any request (exit 1), naming where to set it.
 
 Type inference for CLI/env/CSV values (Hurl-compatible): `true`/`false` → bool, `null` → null, integer → int, float → float, else string.
 
@@ -230,10 +236,10 @@ Data rows are the exception, so that rows never grow the run's registry: a row's
 Every path originating from a request file that is read or written — `file,` bodies/parts, `output`, `unix-socket`, cookie files, and the option files `cacert`, `cert`, `key`, `pinnedpubkey`, `netrc-file` — resolves through `internal/sandbox` (`os.Root`) and must stay under the file root. Body, part, output and socket paths are joined to the root and normalized (so `../root/x` stays allowed); option files are relative to the working directory, as curl reads them. Paths given on the command line are trusted and not confined. `--file-root` is CLI-only; `sonde.yaml` has no file-root key. `sonde.yaml` paths resolve relative to its directory and must stay inside it. The user's `~/.netrc` credentials are not sent when `connect-to`/`resolve`/`proxy` (including a proxy from the environment) reroutes the host (unless an explicit flag allows it).
 
 ### HTTP semantics
-Body queries (`body`, `bytes`, `sha256`, `jsonpath`, …) see decoded content; `rawbytes` sees raw; `compressed` only adds `Accept-Encoding` and decodes stdout. Redirects: manual loop, one RoundTrip per hop, per-hop timings, credentials forwarded only on same host + port + scheme unless `location-trusted`. Header names are canonicalized by Go (documented). `http2` on `http://` stays HTTP/1.1 (h2c upgrade unsupported). Decoded body cap 512 MiB default (`max-filesize` overrides).
+Body queries (`body`, `bytes`, `sha256`, `jsonpath`, …) see decoded content; `rawbytes` sees raw; `compressed` only adds `Accept-Encoding` and decodes stdout. Redirects: manual loop, one RoundTrip per hop, per-hop timings, credentials (`Authorization`/`Cookie` headers, `--user`, `[Cookies]`) forwarded only to the original host + port + scheme unless `location-trusted`. Header names are canonicalized by Go (documented). `http2` on `http://` stays HTTP/1.1 (h2c upgrade unsupported). Decoded body cap 512 MiB default (`max-filesize` overrides).
 
 ### Unsupported features
-Parser accepts the **full** Hurl 8 grammar (parser-level differences: `docs/compat.md`). Anything the runtime does not implement → runtime error (exit 3) `option "aws-sigv4" is not supported by sonde yet`, tracked in `docs/compat.md`. Never silently ignore.
+Parser accepts the **full** Hurl 8 grammar (parser-level differences: `docs/compat.md`). Anything the runtime does not implement → runtime error (exit 3) `option "<name>" is not supported by sonde yet`, tracked in `docs/compat.md`. Never silently ignore.
 
 ### JSON result contract
 One schema for `--json` and `--report-json`: **Hurl-compatible base** (Hurl 8.0.1 JSON result shape, so Hurl's `--json` conformance tests and existing tooling work) with all Sonde-only data (contracts, iterations, streams, gRPC) under a top-level `sonde` key per object; additive changes only within a major version; documented in `docs/report-json.md`; covered by `docs/stability.md`. JUnit/TAP/HTML layouts follow Hurl's where its conformance tests compare them.
@@ -304,7 +310,7 @@ Assets: secrets (tokens, passwords), local files, user's ambient credentials (`~
 |---|---|
 | Secret leakage (terminal, events, reports, `--curl`, `--cookie-jar`, LSP, MCP) | run-wide redact registry incl. dynamic captures and encoded variants; buffered events for `redact` entries; run-level sinks written after run; grep test over all sinks for CLI, env, data-row and dynamic secrets; data-row secrets (and a row run's captures and credentials) are unit-scoped, so one row's output is not scanned for another row's secrets |
 | Untrusted file reads/writes local files (`file,`, `output`, cert/key/netrc/socket paths) | `internal/sandbox` (`os.Root`) for all request-file paths; `--file-root` CLI-only; `sonde.yaml` cannot change file access, its own paths confined to its directory |
-| Ambient credential forwarding | no `~/.netrc` credentials on rerouted hosts (one warning when withheld); redirect credential rule = same host+port+scheme for `Authorization`/`Cookie` headers from any source (`[Cookies]` entries follow redirects, as with curl). Accepted gap: a request file may enable `netrc: true`, and a `default` stanza of the user's `~/.netrc` then applies to any host it calls |
+| Ambient credential forwarding | no `~/.netrc` credentials on rerouted hosts (one warning when withheld); redirect credential rule = same host+port+scheme for `Authorization`/`Cookie` headers from any source, `--user` and `[Cookies]` entries (as the reference does since 8.1.0); each hop starts from the entry's own credentials, so a redirect back to the original host sends them again. Accepted gap: a request file may enable `netrc: true`, and a `default` stanza of the user's `~/.netrc` then applies to any host it calls |
 | Env-var exfiltration via templates | no `getEnv` (not in Hurl 8); any future env access `.sonde`-only, allowlisted, auto-secret |
 | Malicious import input | parsers fuzzed; no code execution (scripts → comments); size limits; output confined to `-o DIR` |
 | Decompression bombs / huge bodies | decoded body cap (512 MiB default), stream limits |

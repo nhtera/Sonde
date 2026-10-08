@@ -42,7 +42,8 @@ func (p *Plan) Resolve(ctx context.Context, files []Input) error {
 	if err != nil {
 		return err
 	}
-	p.extras, p.Warnings = extras, warnings
+	p.extras = extras
+	p.Warnings = append(p.Warnings, warnings...)
 	if err := p.checkSecrets(); err != nil {
 		return err
 	}

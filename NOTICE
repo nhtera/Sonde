@@ -4,7 +4,13 @@ Copyright 2026 The Sonde Authors
 This product includes software derived from Hurl
 (https://github.com/Orange-OpenSource/hurl), Copyright Orange,
 licensed under the Apache License 2.0:
-- internal/syntax is a Go port of Hurl's hurl_core parser (8.0.1).
+- internal/syntax is a Go port of Hurl's hurl_core parser (8.0.1); its Lint
+  and highlighting port hurlfmt's linter and text formatter.
+- internal/syntaxexport ports hurlfmt's JSON exporter and hurl_core's HTML
+  formatter; internal/syntaxexport/hurl.css is Hurl's stylesheet,
+  unchanged.
+- testdata/conformance/hurlfmt and testdata/conformance/integration contain
+  Hurl's formatter tests and integration test runner, unchanged.
 - testdata/conformance/hurl contains Hurl's integration tests, unchanged.
 - internal/jsonpath is a Go port of Hurl's JSONPath module (8.0.1).
 
@@ -47,3 +53,9 @@ adapt the colors of these themes, contrast adjusted:
   (https://github.com/tokyo-night/tokyo-night-vscode-theme).
 - VS Code Light and Dark: MIT License, Copyright (c) 2015 - present
   Microsoft Corporation (https://github.com/microsoft/vscode).
+
+Third-party Go library under the Mozilla Public License 2.0, used
+unmodified; its source is available at its upstream repository:
+- github.com/hashicorp/go-uuid: MPL-2.0, Copyright © 2015 HashiCorp, Inc.
+  (https://github.com/hashicorp/go-uuid), a dependency of
+  github.com/jcmturner/gokrb5 (Kerberos for --negotiate).

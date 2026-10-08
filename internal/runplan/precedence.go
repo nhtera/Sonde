@@ -15,13 +15,37 @@ import (
 // "presence" boolean flag: one with no negating counterpart, true only
 // when the flag itself was given.
 func ResolveBool(inv *Invocation, flag, envName string, cliVal bool, env config.Env) bool {
+	return ResolveBoolOr(inv, flag, envName, cliVal, env, false)
+}
+
+// ResolveBoolOr is ResolveBool with a default (the config file's value).
+func ResolveBoolOr(inv *Invocation, flag, envName string, cliVal bool, env config.Env, def bool) bool {
 	if inv.Changed(flag) {
 		return cliVal
 	}
 	if v, ok := env.Bool(envName); ok {
 		return v
 	}
-	return false
+	return def
+}
+
+// fileString is a string flag no environment variable sets: the flag if
+// given, else the config file's value if it has one.
+func fileString(inv *Invocation, flag, cliVal string, fileVal *string) string {
+	if !inv.Changed(flag) && fileVal != nil {
+		return *fileVal
+	}
+	return cliVal
+}
+
+// deref is *p, or the zero value when p is nil (a config file option the
+// file does not set).
+func deref[T any](p *T) T {
+	if p == nil {
+		var zero T
+		return zero
+	}
+	return *p
 }
 
 // resolveString applies the same precedence for a plain string flag.

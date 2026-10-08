@@ -80,8 +80,8 @@ func buildRunOutput(res *engine.UnitResult, rf *requestFile, root, env string, t
 		out.Success = false
 		out.Error = "the run was canceled"
 	}
-	for _, e := range res.Entries {
-		if e.Retried || len(e.Errors) == 0 {
+	for i, e := range res.Entries {
+		if !res.Decisive(i) || len(e.Errors) == 0 {
 			continue
 		}
 		if len(out.Failures) == maxFailures {

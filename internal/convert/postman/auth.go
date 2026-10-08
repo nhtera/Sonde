@@ -95,11 +95,11 @@ func awsRegionService(region, service string) string {
 
 // applyAuth adds the effective auth of st to e: [BasicAuth] for basic, an
 // Authorization header for bearer, a header or query parameter for apikey.
-// digest, ntlm and awsv4 also get [BasicAuth] and the matching [Options]
-// flag, for whenever Sonde can send them — today it cannot (WarnUnsupportedAuth,
-// H3), so those three requests fail at run time until it does. Any other
-// type (oauth1, oauth2, hawk, edgegrid, jwt, asap, or an unrecognized one)
-// has no Sonde equivalent at all and is warned about by name.
+// digest, ntlm and awsv4 get the user option and the matching [Options]
+// flag ([BasicAuth] is a literal Basic header, which no scheme answers a
+// challenge with or signs). Any other type (oauth1, oauth2, hawk,
+// edgegrid, jwt, asap, or an unrecognized one) has no Sonde equivalent and
+// is warned about by name.
 func (w *walker) applyAuth(e *syntax.EntrySpec, st authState, name string) {
 	a := st.auth
 	if a == nil || a.Type == "" || a.Type == "noauth" {
@@ -127,34 +127,33 @@ func (w *walker) applyAuth(e *syntax.EntrySpec, st authState, name string) {
 			e.Headers = append(e.Headers, f)
 		}
 	case "digest":
-		e.BasicAuth = w.basicAuth(paramValue(a.Digest, "username"), paramValue(a.Digest, "password"))
-		e.Options = append(e.Options, syntax.BoolOption("digest", true))
-		w.warnAuthUnsent(name, a.Type)
+		e.Options = append(e.Options, w.userOption(paramValue(a.Digest, "username"), paramValue(a.Digest, "password")),
+			syntax.BoolOption("digest", true))
 	case "ntlm":
-		e.BasicAuth = w.basicAuth(paramValue(a.Ntlm, "username"), paramValue(a.Ntlm, "password"))
-		e.Options = append(e.Options, syntax.BoolOption("ntlm", true))
-		w.warnAuthUnsent(name, a.Type)
+		e.Options = append(e.Options, w.userOption(paramValue(a.Ntlm, "username"), paramValue(a.Ntlm, "password")),
+			syntax.BoolOption("ntlm", true))
 	case "awsv4":
-		e.BasicAuth = w.basicAuth(paramValue(a.Awsv4, "accessKey"), paramValue(a.Awsv4, "secretKey"))
 		sigv4 := awsRegionService(paramValue(a.Awsv4, "region"), paramValue(a.Awsv4, "service"))
-		e.Options = append(e.Options, syntax.StringOption("aws-sigv4", syntax.PlainText(sigv4)))
+		e.Options = append(e.Options, w.userOption(paramValue(a.Awsv4, "accessKey"), paramValue(a.Awsv4, "secretKey")),
+			syntax.StringOption("aws-sigv4", syntax.PlainText(sigv4)))
 		if tok := paramValue(a.Awsv4, "sessionToken"); tok != "" {
 			tt, ws := convert.ParseText(tok)
 			w.addWarnings(ws)
 			e.Headers = append(e.Headers, syntax.Field{Key: syntax.PlainText("X-Amz-Security-Token"), Value: tt})
 		}
-		w.warnAuthUnsent(name, a.Type)
 	default:
 		w.warn(convert.WarnUnsupportedAuth, fmt.Sprintf("%s: auth type %q has no Sonde equivalent; add it by hand", name, a.Type))
 	}
 }
 
-// warnAuthUnsent warns that scheme, though mapped to [BasicAuth] plus an
-// [Options] flag, has no runtime support yet: the request fails until it
-// does (internal/httpx rejects the option). Kept mapped rather than
-// dropped, since a later phase may add it.
-func (w *walker) warnAuthUnsent(name, scheme string) {
-	w.warn(convert.WarnUnsupportedAuth, fmt.Sprintf("%s: sonde cannot send %s auth yet; this request fails until it can", name, scheme))
+// userOption is the user option "user:pass" of a scheme other than Basic.
+func (w *walker) userOption(user, pass string) syntax.OptionField {
+	ut, uw := convert.ParseText(user)
+	pt, pw := convert.ParseText(pass)
+	w.addWarnings(uw)
+	w.addWarnings(pw)
+	v := append(append(append(syntax.Text{}, ut...), syntax.Lit(":")), pt...)
+	return syntax.StringOption("user", v)
 }
 
 func (w *walker) basicAuth(user, pass string) *syntax.BasicAuth {

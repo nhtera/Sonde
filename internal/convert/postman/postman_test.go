@@ -112,7 +112,7 @@ func TestFolderModeSkipsOnlyTheBadEntry(t *testing.T) {
 	if len(out.Files) != 1 {
 		t.Fatalf("files = %d, want 1", len(out.Files))
 	}
-	src := string(syntax.Format(out.Files[0].File))
+	src := string(syntax.Lint(out.Files[0].File))
 	if !strings.Contains(src, "/a") || !strings.Contains(src, "/b") {
 		t.Errorf("the good requests should still be chained:\n%s", src)
 	}
@@ -194,7 +194,7 @@ func TestPathVariableNameTakenByEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := string(syntax.Format(out.Files[0].File))
+	src := string(syntax.Lint(out.Files[0].File))
 	if !strings.Contains(src, "/orders/ord_1") {
 		t.Errorf("the path variable should keep its own value inline:\n%s", src)
 	}
@@ -208,7 +208,7 @@ func renderOutput(t *testing.T, out convert.Output) string {
 	t.Helper()
 	var b strings.Builder
 	for _, f := range out.Files {
-		src := syntax.Format(f.File)
+		src := syntax.Lint(f.File)
 		if _, err := syntax.Parse(f.Path, src, syntax.DialectHurl); err != nil {
 			t.Errorf("%s does not parse: %v", f.Path, err)
 		}

@@ -9,12 +9,15 @@ import (
 	"encoding/base64"
 	"fmt"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/httpx/auth"
 )
 
 // builtBody is the wire body of a request together with the Content-Type
@@ -197,6 +200,8 @@ func hasHeader(headers []exchange.Header, name string) bool {
 type requestContext struct {
 	client *Client
 	now    time.Time
+	// attempt is the authentication exchange's part of this request.
+	attempt attempt
 }
 
 // preparedRequest is an *http.Request together with the pieces Execute
@@ -205,6 +210,24 @@ type preparedRequest struct {
 	req     *http.Request
 	headers []exchange.Header // in the order they were added
 	body    []byte
+	// derived are the Authorization values an authentication scheme
+	// computed: sent as they are, recorded as "***".
+	derived []string
+}
+
+// recorded is the request headers as reported (OnSend, the Call): the
+// values a scheme derived are masked, so that no output shows them.
+func (p *preparedRequest) recorded() []exchange.Header {
+	if len(p.derived) == 0 {
+		return p.headers
+	}
+	out := slices.Clone(p.headers)
+	for i, h := range out {
+		if slices.Contains(p.derived, h.Value) {
+			out[i].Value = "***"
+		}
+	}
+	return out
 }
 
 // buildRequest turns spec into an *http.Request, applying implicit
@@ -228,13 +251,16 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 	custom = append(custom, spec.Headers...)
 	custom = append(custom, opts.Headers...)
 	var headers []exchange.Header
+	// The URL's credentials: Basic auth, or a scheme's credentials.
+	credURL := *u
 	if u.User != nil {
-		if !hasHeader(custom, "Authorization") {
+		if !hasHeader(custom, "Authorization") && !usesScheme(opts) {
 			password, _ := u.User.Password()
 			headers = append(headers, exchange.Header{Name: "Authorization", Value: basicAuth(u.User.Username() + ":" + password)})
 		}
 		u.User = nil
 	}
+	var derived []string
 	if !hasHeader(custom, "Accept") {
 		headers = append(headers, exchange.Header{Name: "Accept", Value: "*/*"})
 	}
@@ -245,7 +271,8 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 	}
 	headers = append(headers, custom...)
 	multipartType := ""
-	if !hasHeader(custom, "Content-Type") && strings.HasPrefix(body.contentType, "multipart/") {
+	if !hasHeader(custom, "Content-Type") && strings.HasPrefix(body.contentType, "multipart/") &&
+		len(filterHeaders([]exchange.Header{{Name: "Content-Type"}}, opts.NoHeaders...)) > 0 {
 		// Sent after Content-Length, as curl does for its own form bodies.
 		multipartType, body.contentType = body.contentType, ""
 	}
@@ -263,14 +290,41 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 		headers = append(headers, exchange.Header{Name: "User-Agent", Value: ua})
 	}
 	if !hasHeader(headers, "Authorization") {
-		if auth, ok, err := buildAuthorization(rc, u, opts); err != nil {
-			return nil, err
-		} else if ok {
-			headers = append(headers, exchange.Header{Name: "Authorization", Value: auth})
+		authorization := rc.attempt.authorization
+		if d := rc.attempt.digest; d != nil {
+			// auth-int hashes the body exactly as sent.
+			method := spec.Method
+			if method == "" {
+				method = http.MethodGet
+			}
+			authorization = d.Authorization(rc.attempt.user, rc.attempt.password, method, u.RequestURI(), body.data, auth.NewCnonce(), 1)
+		}
+		switch {
+		case authorization != "":
+			headers = append(headers, exchange.Header{Name: "Authorization", Value: authorization})
+			derived = append(derived, authorization)
+		case usesScheme(opts):
+			// Digest, NTLM and Negotiate answer a challenge (Execute);
+			// AWS SigV4 signs below.
+		default:
+			if auth, ok, err := buildAuthorization(rc, u, opts); err != nil {
+				return nil, err
+			} else if ok {
+				headers = append(headers, exchange.Header{Name: "Authorization", Value: auth})
+			}
 		}
 	}
 	if opts.Compressed && !hasHeader(custom, "Accept-Encoding") {
 		headers = append(headers, exchange.Header{Name: "Accept-Encoding", Value: "gzip, deflate, br"})
+	}
+	// no-header drops any header of that name, an implicit one included.
+	headers = filterHeaders(headers, opts.NoHeaders...)
+	if opts.AWSSigV4 != "" && !hasHeader(custom, "Authorization") {
+		var signature string
+		if headers, signature, err = signSigV4(rc, &credURL, u, spec.Method, headers, custom, body.data, opts); err != nil {
+			return nil, err
+		}
+		derived = append(derived, signature)
 	}
 
 	method := spec.Method
@@ -293,11 +347,20 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 	for _, h := range headers {
 		req.Header.Add(h.Name, h.Value)
 	}
+	if !hasHeader(headers, "User-Agent") {
+		// A present but empty entry stops net/http from sending its own.
+		req.Header["User-Agent"] = nil
+	}
 	if v := req.Header.Get("Host"); v != "" {
 		req.Host = v
 		req.Header.Del("Host")
 	}
-	sent := append([]exchange.Header{{Name: "Host", Value: hostHeader(req)}}, headers...)
+	// One Host, first: a Host header of the entry replaces the default
+	// (its value is req.Host). The body is framed by the Content-Length
+	// below only: framing headers of the entry are not sent, as net/http
+	// never sent them.
+	sent := append([]exchange.Header{{Name: "Host", Value: hostHeader(req)}},
+		filterHeaders(headers, "Host", "Content-Length", "Transfer-Encoding")...)
 	if req.ContentLength > 0 {
 		sent = append(sent, exchange.Header{Name: "Content-Length", Value: fmt.Sprint(req.ContentLength)})
 	}
@@ -305,15 +368,24 @@ func buildRequest(ctx context.Context, spec *RequestSpec, opts *Options, cfg Cli
 		req.Header.Set("Content-Type", multipartType)
 		sent = append(sent, exchange.Header{Name: "Content-Type", Value: multipartType})
 	}
-	return &preparedRequest{req: req, headers: sent, body: body.data}, nil
+	return &preparedRequest{req: req, headers: sent, body: body.data, derived: derived}, nil
 }
 
-// hostHeader returns the Host header value a request will be sent with.
+// hostHeader returns the Host header value a request will be sent with:
+// the URL's host with an internationalized name in ASCII, unless the entry
+// sets Host.
 func hostHeader(req *http.Request) string {
 	if req.Host != "" {
 		return req.Host
 	}
-	return req.URL.Host
+	if port := req.URL.Port(); port != "" {
+		return net.JoinHostPort(asciiHost(req.URL.Hostname()), port)
+	}
+	host := asciiHost(req.URL.Hostname())
+	if strings.Contains(host, ":") { // an IPv6 address
+		return "[" + host + "]"
+	}
+	return host
 }
 
 // buildCookieHeader returns the jar's cookies for u followed by the
@@ -326,13 +398,34 @@ func buildCookieHeader(rc requestContext, u *url.URL, extra []RequestCookie) str
 	return cookieHeader(cookies)
 }
 
-// buildAuthorization resolves the Authorization header from --user or
-// netrc; digest/ntlm/negotiate/aws-sigv4 are rejected earlier in Execute.
+// usesScheme reports whether an authentication scheme other than Basic
+// is set.
+func usesScheme(opts *Options) bool {
+	return opts.Digest || opts.NTLM || opts.Negotiate || opts.AWSSigV4 != ""
+}
+
+// buildAuthorization resolves the Basic Authorization header from --user
+// or netrc.
 func buildAuthorization(rc requestContext, u *url.URL, opts *Options) (string, bool, error) {
-	if opts.User != "" {
-		return basicAuth(opts.User), true, nil
+	userPass, ok, err := rc.client.credentials(u, opts)
+	if !ok || err != nil {
+		return "", false, err
 	}
-	f, err := rc.client.netrcFor(opts)
+	return basicAuth(userPass), true, nil
+}
+
+// credentials returns "user:password": the URL's (u.User), else --user,
+// else netrc for u's host (not when the connection is rerouted, unless
+// allowed).
+func (c *Client) credentials(u *url.URL, opts *Options) (string, bool, error) {
+	if u.User != nil {
+		password, _ := u.User.Password()
+		return u.User.Username() + ":" + password, true, nil
+	}
+	if opts.User != "" {
+		return opts.User, true, nil
+	}
+	f, err := c.netrcFor(opts)
 	if err != nil {
 		return "", false, err
 	}
@@ -344,11 +437,46 @@ func buildAuthorization(rc requestContext, u *url.URL, opts *Options) (string, b
 		return "", false, nil
 	}
 	if isRerouted(u, opts) && !opts.NetrcAllowReroute {
-		rc.client.warnOnce("netrc credentials for " + u.Hostname() +
+		c.warnOnce("netrc credentials for " + u.Hostname() +
 			" not sent: the connection is rerouted (resolve, connect-to or proxy); use --netrc-allow-reroute to send them")
 		return "", false, nil
 	}
-	return basicAuth(login + ":" + password), true, nil
+	return login + ":" + password, true, nil
+}
+
+// signSigV4 adds the AWS Signature Version 4 headers and returns the
+// Authorization value: the request's own headers are signed (not the
+// default Accept nor the stored cookies, as curl signs only the headers it
+// is given), with the Host sent and the date. The credentials,
+// ACCESS_KEY:SECRET_KEY, come from credURL's user, --user or netrc.
+func signSigV4(rc requestContext, credURL, u *url.URL, method string, headers, custom []exchange.Header, body []byte, opts *Options) ([]exchange.Header, string, error) {
+	s, err := auth.ParseSigV4(opts.AWSSigV4, u.Hostname())
+	if err != nil {
+		return nil, "", newError(ErrOther, "HTTP connection", err.Error(), err)
+	}
+	userPass, _, err := rc.client.credentials(credURL, opts)
+	if err != nil {
+		return nil, "", err
+	}
+	accessKey, secretKey, _ := strings.Cut(userPass, ":")
+	var signed []exchange.Header
+	for _, h := range headers {
+		if strings.EqualFold(h.Name, "Host") ||
+			(strings.EqualFold(h.Name, "Accept") || strings.EqualFold(h.Name, "Cookie")) && !hasHeader(custom, h.Name) {
+			continue
+		}
+		signed = append(signed, h)
+	}
+	if method == "" {
+		method = http.MethodGet
+	}
+	host := hostHeader(&http.Request{URL: u})
+	if v, ok := exchange.Headers(custom).Get("Host"); ok {
+		host = v
+	}
+	add := s.Sign(auth.SigV4Request{Method: method, URL: u, Host: host, Headers: signed, Body: body,
+		AccessKey: accessKey, SecretKey: secretKey, Time: rc.now})
+	return append(headers, add...), add[len(add)-1].Value, nil
 }
 
 // isRerouted reports whether the connection for u's host will actually go

@@ -81,6 +81,7 @@ type htmlCall struct {
 // errors, which the JSON schema does not carry.
 type htmlEntry struct {
 	Index         int
+	Anchor        string
 	Line          int
 	CurlCmd       string
 	Calls         []htmlCall
@@ -127,6 +128,7 @@ type htmlUnitData struct {
 	RunAt      string
 	ParseError string
 	Source     string
+	Timeline   []htmlTimelineRow
 	Entries    []htmlEntry
 }
 
@@ -189,6 +191,7 @@ func writeHTMLUnitPage(storeDir, id string, res *engine.UnitResult, redact func(
 		return err
 	}
 	entries := make([]htmlEntry, len(jr.Entries))
+	anchors := entryAnchors(res)
 	for i, je := range jr.Entries {
 		he := htmlEntry{
 			Index: je.Index, Line: je.Line, CurlCmd: je.CurlCmd,
@@ -214,6 +217,9 @@ func writeHTMLUnitPage(storeDir, id string, res *engine.UnitResult, redact func(
 		if je.Sonde != nil {
 			he.GRPC = je.Sonde.GRPC
 		}
+		if i < len(anchors) {
+			he.Anchor = anchors[i]
+		}
 		entries[i] = he
 	}
 
@@ -223,6 +229,7 @@ func writeHTMLUnitPage(storeDir, id string, res *engine.UnitResult, redact func(
 		TimeMS:   res.Duration.Milliseconds(),
 		RunAt:    formatRunAt(res.Timestamp),
 		Source:   redact(string(res.Source)),
+		Timeline: htmlTimeline(res, redact),
 		Entries:  entries,
 	}
 	if res.ParseError != nil {

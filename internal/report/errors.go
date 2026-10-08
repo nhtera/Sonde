@@ -5,14 +5,14 @@ package report
 
 import "github.com/nhtera/sonde/engine"
 
-// renderErrors renders every decisive error of res (those of every
-// attempt that was not retried; mirrors engine.UnitResult.Errors),
+// renderErrors renders every decisive error of res (see
+// engine.UnitResult.Decisive; mirrors engine.UnitResult.Errors),
 // redacting the result, and splits them into assert failures and runtime
 // errors — the grouping JUnit's <failure>/<error> children use.
 func renderErrors(res *engine.UnitResult, redact func(string) string) (failures, errs []string) {
 	redact = forResult(res, redact)
-	for _, e := range res.Entries {
-		if e.Retried {
+	for i, e := range res.Entries {
+		if !res.Decisive(i) {
 			continue
 		}
 		for _, err := range e.Errors {

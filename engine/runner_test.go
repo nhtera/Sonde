@@ -416,16 +416,21 @@ g: body
 	}
 }
 
-// A failed repeat iteration fails the file, even when a later iteration
-// passes; only retried attempts are discounted.
+// A failed repeat iteration followed by a passing one of the same entry
+// does not fail the file, as the reference decides (like a retry); a
+// failure followed by another entry, or last, does.
 func TestRunRepeatFailureCounts(t *testing.T) {
 	res, _ := run(t, `GET {{base}}/flaky
 [Options]
 repeat: 3
 HTTP 200
 `, Options{ContinueOnError: true})
-	if len(res.Entries) != 3 || res.Success || len(res.Errors()) != 2 {
-		t.Errorf("entries=%d success=%v errors=%d, want 3, false, 2", len(res.Entries), res.Success, len(res.Errors()))
+	if len(res.Entries) != 3 || !res.Success || len(res.Errors()) != 0 {
+		t.Errorf("entries=%d success=%v errors=%d, want 3, true, 0", len(res.Entries), res.Success, len(res.Errors()))
+	}
+	res, _ = run(t, "GET {{base}}/flaky\nHTTP 200\nGET {{base}}/hello\nHTTP 200\n", Options{ContinueOnError: true})
+	if res.Success {
+		t.Error("a failed entry followed by another entry passes the file")
 	}
 }
 

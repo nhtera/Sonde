@@ -49,7 +49,7 @@ func (p *plan) wrote() []Wrote {
 		}
 	}
 	for _, f := range p.out.Files {
-		for _, e := range writtenEntries(string(syntax.Format(f.File))) {
+		for _, e := range writtenEntries(string(syntax.Lint(f.File))) {
 			path := urlBaseRE.ReplaceAllString(e.url, "")
 			from := path
 			for _, v := range vars {

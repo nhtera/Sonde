@@ -72,7 +72,7 @@ func (p *plan) pathVariables() int {
 	n := 0
 	for _, name := range pathVariables(p.data) {
 		for _, f := range p.out.Files {
-			if strings.Contains(string(syntax.Format(f.File)), "/{{"+name+"}}") {
+			if strings.Contains(string(syntax.Lint(f.File)), "/{{"+name+"}}") {
 				n++
 				break
 			}

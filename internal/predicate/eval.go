@@ -37,15 +37,17 @@ func Eval(p *syntax.Predicate, actual value.Value, env *template.Env) error {
 		e.Actual, e.Expected, e.TypeMismatch = r.actual, expected, mismatch
 		return e
 	}
+	// The expected value reads "not ..." when the predicate is negated
+	// once: by `not`, or by `!=` (which negates equality), not both.
+	expected := r.expected
+	if p.Not != (p.Func.Kind == syntax.PredicateNotEqual) {
+		expected = "not " + expected
+	}
 	switch {
-	case r.typeMismatch && p.Not:
-		return fail("not "+r.expected, true)
 	case r.typeMismatch:
-		return fail(r.expected, true)
-	case p.Not && r.success:
-		return fail("not "+r.expected, false)
-	case !p.Not && !r.success:
-		return fail(r.expected, false)
+		return fail(expected, true)
+	case p.Not == r.success:
+		return fail(expected, false)
 	}
 	return nil
 }

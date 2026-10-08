@@ -6,18 +6,23 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 
 	"github.com/nhtera/sonde/internal/value"
 )
 
 // BuildVariables merges variable sources in the upstream precedence order
-// (lowest to highest): HURL_VARIABLE_*/SONDE_VARIABLE_* env vars, then
-// --variables-file files (in the order given, each read in full), then
-// --variable "name=value" assignments (in the order given). A name defined
-// by more than one source keeps the value of the last one.
-func BuildVariables(env Env, variablesFiles, variables []string) (map[string]value.Value, error) {
+// (lowest to highest): the config file's --variable lines, then
+// HURL_VARIABLE_*/SONDE_VARIABLE_* env vars, then --variables-file files
+// (in the order given, each read in full), then --variable "name=value"
+// assignments (in the order given). A name defined by more than one source
+// keeps the value of the last one.
+func BuildVariables(file FileOptions, env Env, variablesFiles, variables []string) (map[string]value.Value, error) {
 	vars := map[string]value.Value{}
+	for _, a := range file.Variables {
+		vars[a.Name] = a.Value
+	}
 	if err := env.ApplyVariableEnvVars(vars); err != nil {
 		return nil, err
 	}
@@ -45,11 +50,15 @@ func BuildVariables(env Env, variablesFiles, variables []string) (map[string]val
 }
 
 // BuildSecrets merges secret sources in the same order as BuildVariables:
-// HURL_SECRET_*/SONDE_SECRET_* env vars, then --secrets-file files, then
-// --secret assignments. Unlike a variable, a name defined by more than one
-// source is an error: a secret can never be reassigned.
-func BuildSecrets(env Env, secretsFiles, secrets []string) (map[string]string, error) {
-	out := map[string]string{}
+// the config file's --secret lines, then HURL_SECRET_*/SONDE_SECRET_* env
+// vars, then --secrets-file files, then --secret assignments. Unlike a
+// variable, a name defined by more than one source is an error: a secret
+// can never be reassigned, not even by the command line.
+func BuildSecrets(file FileOptions, env Env, secretsFiles, secrets []string) (map[string]string, error) {
+	out := maps.Clone(file.Secrets)
+	if out == nil {
+		out = map[string]string{}
+	}
 	if err := env.ApplySecretEnvVars(out); err != nil {
 		return nil, err
 	}

@@ -5,6 +5,9 @@ GOVULNCHECK_VERSION   := v1.8.0
 GO_LICENSES_VERSION   := v2.0.1
 APIDIFF_VERSION       := v0.0.0-20260908205506-85c1c2202aba
 ALLOWED_LICENSES      := Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC
+# Single libraries accepted under another license, used unmodified (see
+# NOTICE): go-uuid (MPL-2.0) comes with the Kerberos client for --negotiate.
+LICENSE_EXCEPTIONS    := --ignore github.com/hashicorp/go-uuid
 
 BIN      := $(CURDIR)/bin
 # Build tools with the repo toolchain (go.mod `toolchain`), not the tools' own minimum.
@@ -17,7 +20,7 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X $(PKG).version=$(VERSION) -X $(PKG).commit=$(COMMIT) -X $(PKG).date=$(DATE)
 FUZZTIME ?= 10s
 
-.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-bindings desktop-check desktop-record desktop-e2e desktop-vuln lint-desktop-native tag-guards site site-dev site-check site-screens
+.PHONY: apicheck bench verify-install build test race test-grpc-interop lint vuln fuzz-smoke conformance conformance-update conformance-next conformance-next-update snapshot license-check headers licenses docs tools clean desktop-tools desktop-bindings desktop-check desktop-record desktop-e2e desktop-vuln lint-desktop-native tag-guards site site-dev site-check site-screens
 
 build: ## Build bin/sonde (static, trimmed)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN)/sonde ./cmd/sonde
@@ -46,11 +49,30 @@ fuzz-smoke: ## Run every Fuzz target briefly (FUZZTIME=10s)
 	  done; \
 	done
 
-conformance: ## Run the Hurl conformance suite against SONDE_CONFORMANCE_BIN (default: build ./cmd/sonde)
-	SONDE_CONFORMANCE=1 go test ./internal/conformance -count=1 -v -timeout 60m
+# Both conformance targets bind the same ports (8000-8004, 3128), so a lock
+# directory refuses a second concurrent run instead of letting it collide.
+CONFORMANCE_LOCK = $${TMPDIR:-/tmp}/sonde-conformance.lock
+# Passed through the environment, never re-quoted in a recipe: a demotion
+# reason may hold backticks or $ that a shell would otherwise expand.
+export CONFORMANCE_DEMOTE_ONLY CONFORMANCE_DEMOTE_REASON CONFORMANCE_ALLOW_DEMOTE
+define conformance_run
+	@lock="$(CONFORMANCE_LOCK)"; \
+	mkdir "$$lock" 2>/dev/null || { echo "conformance: $$lock exists: another conformance run is using its ports (remove the directory if it is stale)" >&2; exit 1; }; \
+	trap 'rmdir "$$lock" 2>/dev/null' EXIT INT TERM; \
+	SONDE_CONFORMANCE=1 $(1) go test ./internal/conformance -count=1 -v -timeout 60m
+endef
 
-conformance-update: ## Rerun the conformance suite and rewrite internal/conformance/manifest.yaml (CONFORMANCE_ALLOW_DEMOTE=1 to allow demotions)
-	SONDE_CONFORMANCE=1 SONDE_CONFORMANCE_UPDATE=1 CONFORMANCE_ALLOW_DEMOTE=$(CONFORMANCE_ALLOW_DEMOTE) go test ./internal/conformance -count=1 -v -timeout 60m
+conformance: ## Run every conformance lane (hurl, hurlfmt, pty) against SONDE_CONFORMANCE_BIN (default: build ./cmd/sonde)
+	$(call conformance_run,)
+
+conformance-update: ## Rerun the suite and rewrite internal/conformance/manifest.yaml (demote with CONFORMANCE_DEMOTE_ONLY=paths CONFORMANCE_DEMOTE_REASON=why)
+	$(call conformance_run,SONDE_CONFORMANCE_UPDATE=1)
+
+conformance-next: ## Run the suite against the upstream commit pinned in internal/conformance/manifest-next.yaml (synced to the user cache)
+	$(call conformance_run,SONDE_CONFORMANCE_NEXT=1)
+
+conformance-next-update: ## Rerun the pinned snapshot and rewrite internal/conformance/manifest-next.yaml
+	$(call conformance_run,SONDE_CONFORMANCE_NEXT=1 SONDE_CONFORMANCE_UPDATE=1)
 
 snapshot: ## Local GoReleaser snapshot build into dist/ (sign/sbom need cosign/syft, installed only in CI's release job)
 	goreleaser release --snapshot --clean --skip=sign,sbom
@@ -62,7 +84,7 @@ headers: ## Check SPDX headers (and self-test the checker)
 	scripts/check-license-headers.sh
 
 licenses: $(BIN)/go-licenses ## Check dependency licenses against the allowlist
-	$(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES)
+	$(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) $(LICENSE_EXCEPTIONS)
 
 docs: ## Regenerate docs/compat.md and docs/cli from the command tree
 	go test ./internal/docs -run TestCompatUpToDate -update
@@ -94,7 +116,7 @@ desktop-bindings: desktop-tools ## Generate the frontend's TypeScript bindings (
 
 desktop-check: $(BIN)/golangci-lint $(BIN)/go-licenses desktop-bindings ## Desktop module: tidy, licenses, vet, tests, lint; frontend: install (no scripts), licenses, version, lint, typecheck, unit tests
 	cd desktop && go mod tidy -diff
-	cd desktop && $(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) --ignore github.com/nhtera/sonde
+	cd desktop && $(BIN)/go-licenses check ./... --allowed_licenses=$(ALLOWED_LICENSES) --ignore github.com/nhtera/sonde $(LICENSE_EXCEPTIONS)
 	@test -f desktop/frontend/dist/index.html || { mkdir -p desktop/frontend/dist && echo '<!doctype html><title>Sonde</title>' > desktop/frontend/dist/index.html; }
 	cd desktop && for tags in $(DESKTOP_TAGS); do \
 	  CGO_ENABLED=0 go vet -tags $$tags ./... && CGO_ENABLED=0 go test -tags $$tags ./... && $(BIN)/golangci-lint run --build-tags $$tags ./... || exit 1; \

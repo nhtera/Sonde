@@ -14,7 +14,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
+	"github.com/nhtera/sonde/internal/httpx/h1wire"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
 
@@ -23,6 +25,18 @@ import (
 type builtTransport struct {
 	rt       http.RoundTripper
 	insecure bool
+	// proxy returns the HTTP proxy a request goes through, if any.
+	proxy func(*http.Request) (*url.URL, error)
+	// std is net/http's transport (rt itself, or behind the dispatcher):
+	// the WebSocket handshake uses it.
+	std *http.Transport
+}
+
+// closeIdle closes the idle connections of the transport.
+func (b *builtTransport) closeIdle() {
+	if c, ok := b.rt.(interface{ CloseIdleConnections() }); ok {
+		c.CloseIdleConnections()
+	}
 }
 
 // transportCacheKey identifies the transport options that determine how a
@@ -36,6 +50,10 @@ func transportCacheKey(opts *Options) string {
 		opts.Proxy, opts.NoProxy, opts.UnixSocket,
 		strings.Join(opts.ConnectTo, ","), strings.Join(opts.Resolve, ","),
 		opts.IPResolve, opts.HTTPVersion, opts.ConnectTimeout, opts.GRPC)
+	// The CONNECT request of a pooled tunnel carries the proxy headers.
+	for _, h := range opts.ProxyHeaders {
+		fmt.Fprintf(&b, ";proxyheader=%q:%q", h.Name, h.Value)
+	}
 	return b.String()
 }
 
@@ -57,18 +75,24 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 		TLSClientConfig:    tlsConfig,
 		DisableCompression: true,
 		Proxy: func(r *http.Request) (*url.URL, error) {
-			return environmentProxy(r.URL, opts.NoProxy), nil
+			return environmentProxyErr(r.URL, opts.NoProxy)
 		},
 	}
 
 	switch opts.HTTPVersion {
-	case HTTP11:
+	case HTTP10, HTTP11:
 		t.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
 		t.ForceAttemptHTTP2 = false
 	case HTTP2:
 		t.ForceAttemptHTTP2 = true
-		// There is no h2c: an http:// request asking for HTTP/2 is sent
-		// with HTTP/1.1, as a server refusing the upgrade would answer.
+		// There is no h2c upgrade: an http:// request asking for HTTP/2 is
+		// sent with HTTP/1.1, as a server refusing the upgrade would answer.
+	case HTTP2PriorKnowledge:
+		// Cleartext HTTP/2 without an upgrade (Execute uses HTTP2 for
+		// https:// URLs).
+		t.Protocols = new(http.Protocols)
+		t.Protocols.SetHTTP2(true)
+		t.Protocols.SetUnencryptedHTTP2(true)
 	default:
 		t.ForceAttemptHTTP2 = true
 	}
@@ -93,10 +117,52 @@ func buildTransport(opts *Options, cfg ClientConfig, tlsHost string) (*builtTran
 		}
 	}
 
-	if opts.GRPC {
-		grpcTransport(t)
+	if len(opts.ProxyHeaders) > 0 {
+		t.ProxyConnectHeader = http.Header{}
+		for _, h := range opts.ProxyHeaders {
+			t.ProxyConnectHeader.Add(h.Name, h.Value)
+		}
 	}
-	return &builtTransport{rt: t, insecure: opts.Insecure}, nil
+	built := &builtTransport{rt: t, insecure: opts.Insecure, proxy: t.Proxy, std: t}
+	switch {
+	case opts.GRPC:
+		grpcTransport(t)
+	case opts.HTTPVersion != HTTP2PriorKnowledge && !legacyWire():
+		d := newDispatcher(t, opts, tlsConfig)
+		if opts.HTTPVersion == HTTP3 {
+			d.h3, d.h3Failed, d.connectTimeout = newH3Transport(dialOpts, tlsConfig), map[string]time.Time{}, dialOpts.connectTimeout
+		}
+		built.rt = d
+	case opts.HTTPVersion == HTTP3:
+		// Legacy wire: net/http for TCP, still QUIC first.
+		d := &dispatcher{std: t, proxy: t.Proxy, legacy: true, h3: newH3Transport(dialOpts, tlsConfig),
+			h3Failed: map[string]time.Time{}, connectTimeout: dialOpts.connectTimeout}
+		built.rt = d
+	}
+	return built, nil
+}
+
+// newDispatcher puts h1wire in front of t for HTTP/1.x.
+func newDispatcher(t *http.Transport, opts *Options, tlsConfig *tls.Config) *dispatcher {
+	forced := opts.HTTPVersion == HTTP10 || opts.HTTPVersion == HTTP11
+	d := &dispatcher{
+		std:    t,
+		forced: forced,
+		proxy:  t.Proxy,
+		h1: &h1wire.Transport{
+			Dial:         t.DialContext,
+			TLSConfig:    tlsConfig,
+			Proxy:        t.Proxy,
+			ProxyHeaders: opts.ProxyHeaders,
+			OfferH2:      !forced,
+		},
+		h2Addrs: map[string]bool{},
+		handoff: map[string][]*tls.Conn{},
+	}
+	if !forced {
+		t.DialTLSContext = d.dialTLS(t.DialContext, tlsConfig)
+	}
+	return d
 }
 
 // grpcTransport restricts t to HTTP/2, with prior knowledge over

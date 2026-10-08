@@ -29,9 +29,26 @@ const (
 	// retries, rate limits) and flaky under load; run, but reported
 	// separately from LaneBlocking.
 	LaneTiming Lane = "timing"
-	// LaneUnsupported scripts need tooling the harness does not provide
-	// (e.g. the upstream formatter binary). Not run.
+	// LaneUnsupported scripts need tooling the harness does not provide.
+	// Not run.
 	LaneUnsupported Lane = "unsupported"
+	// LaneHurlfmt holds the formatter tree: its scripts plus one synthetic
+	// entry per export fixture comparison (lint/json/html). Gating.
+	LaneHurlfmt Lane = "hurlfmt"
+	// LanePTY scripts need a terminal on stdout and stderr; they run
+	// through the upstream two-pty runner (integration/term.py). Gating.
+	LanePTY Lane = "pty"
+)
+
+// gatingLanes are the lanes whose expect: pass entries fail the run when
+// they stop passing. Every other lane is report-only.
+var gatingLanes = map[Lane]bool{LaneBlocking: true, LaneHurlfmt: true, LanePTY: true}
+
+// Tree names: the first segment of every manifest key, and the directory
+// under the conformance root that holds the vendored upstream tree.
+const (
+	TreeHurl    = "hurl"
+	TreeHurlfmt = "hurlfmt"
 )
 
 // dirsInScope lists the vendored directories the harness walks, and
@@ -39,7 +56,7 @@ const (
 // tests_failed nest one script per subdirectory) or directly inside the
 // directory. This mirrors integration/hurl/integration.py in the reference
 // repository, plus tests_unix_socket which that script omits but our plan
-// includes. tests_pty is intentionally excluded (Phase 5+).
+// includes.
 var dirsInScope = []struct {
 	dir       string
 	recursive bool
@@ -51,6 +68,7 @@ var dirsInScope = []struct {
 	{"tests_error_parser", false},
 	{"tests_ssl", false},
 	{"tests_unix_socket", false},
+	{"tests_pty", true},
 }
 
 // laneOverride is an explicit classification for a script whose lane
@@ -101,10 +119,20 @@ func buildExplicitLanes() map[string]laneOverride {
 
 // Script is one discovered, classified conformance test entry point.
 type Script struct {
-	// Path is relative to the vendored hurl root (testdata/conformance/hurl),
-	// forward-slash separated, e.g. "tests_ok/add_header/add_header.sh".
+	// Path is the manifest key: the tree name, then the path inside that
+	// tree, forward-slash separated, e.g.
+	// "hurl/tests_ok/add_header/add_header.sh". An export fixture
+	// comparison appends "#lint", "#json" or "#html" to its .hurl path.
+	// DiscoverScripts alone (one tree) leaves the tree prefix off.
 	Path string
-	Lane Lane
+	// Tree is TreeHurl or TreeHurlfmt; Rel is the script (or, for an export
+	// comparison, the .hurl input) relative to that tree's root.
+	Tree string
+	Rel  string
+	// Export is the hurlfmt --out format an export fixture comparison
+	// checks ("hurl", "json" or "html"); empty for a script.
+	Export string
+	Lane   Lane
 	// Reason explains the lane, mainly useful for LaneUnsupported and
 	// LaneNetwork.
 	Reason string
@@ -114,8 +142,28 @@ type Script struct {
 	NeedsProxy bool
 }
 
-// DiscoverScripts walks the vendored directories under root and classifies
-// every *.sh entry point it finds.
+// Discover finds every entry point under a conformance root (the directory
+// holding the hurl/ and hurlfmt/ trees) and keys it by tree.
+func Discover(confRoot string) ([]Script, error) {
+	hurl, err := DiscoverScripts(filepath.Join(confRoot, TreeHurl))
+	if err != nil {
+		return nil, err
+	}
+	fmtScripts, err := DiscoverHurlfmt(filepath.Join(confRoot, TreeHurlfmt))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Script, 0, len(hurl)+len(fmtScripts))
+	for _, s := range hurl {
+		s.Tree, s.Rel, s.Path = TreeHurl, s.Path, TreeHurl+"/"+s.Path
+		out = append(out, s)
+	}
+	return append(out, fmtScripts...), nil
+}
+
+// DiscoverScripts walks the vendored directories under root (the hurl
+// tree) and classifies every *.sh entry point it finds. Paths are relative
+// to root, without the tree prefix Discover adds.
 func DiscoverScripts(root string) ([]Script, error) {
 	var paths []string
 	for _, d := range dirsInScope {
@@ -184,6 +232,9 @@ func classify(root, rel string) Script {
 			return Script{Path: rel, Lane: override.lane, Reason: override.reason}
 		}
 	}
+	if strings.HasPrefix(rel, "tests_pty/") {
+		return Script{Path: rel, Lane: LanePTY, Reason: "needs a terminal (upstream two-pty runner)"}
+	}
 
 	scriptBody, err := os.ReadFile(filepath.Join(root, rel))
 	if err != nil {
@@ -193,6 +244,13 @@ func classify(root, rel string) Script {
 	combined := string(scriptBody)
 	for _, hurlRel := range referencedHurlFiles(root, string(scriptBody)) {
 		if b, err := os.ReadFile(filepath.Join(root, hurlRel)); err == nil { //nolint:gosec // G304: vendored fixture tree.
+			combined += "\n" + string(b)
+		}
+	}
+	// A config file the script selects sets options like a flag does.
+	for _, m := range configHomeRE.FindAllStringSubmatch(string(scriptBody), -1) {
+		path := filepath.Join(root, filepath.Dir(rel), filepath.FromSlash(m[1]), "hurl", "config")
+		if b, err := os.ReadFile(path); err == nil { //nolint:gosec // G304: vendored fixture tree.
 			combined += "\n" + string(b)
 		}
 	}
@@ -215,6 +273,10 @@ func classify(root, rel string) Script {
 		return Script{Path: rel, Lane: LaneBlocking}
 	}
 }
+
+// configHomeRE matches a script setting XDG_CONFIG_HOME to a directory
+// next to itself; the group is that directory's path below the script's.
+var configHomeRE = regexp.MustCompile(`XDG_CONFIG_HOME=\$\(dirname "\$0"\)(/[^\s]*)?`)
 
 // referencedHurlFiles finds every .hurl file a script passes to the CLI,
 // resolving --glob "PATTERN" expressions as well as literal path tokens.
@@ -261,4 +323,38 @@ func externalHost(combined string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// filterScripts keeps the scripts whose manifest key starts with one of the
+// comma-separated prefixes in only (SONDE_CONFORMANCE_ONLY), for iterating
+// on a handful of scripts without running the whole suite.
+func filterScripts(scripts []Script, only string) []Script {
+	var prefixes []string
+	for _, p := range strings.Split(only, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			prefixes = append(prefixes, p)
+		}
+	}
+	var out []Script
+	for _, s := range scripts {
+		for _, p := range prefixes {
+			if strings.HasPrefix(s.Path, p) {
+				out = append(out, s)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// manifestSubset keeps the manifest entries of the given scripts, so a
+// filtered run does not report every other entry as stale.
+func manifestSubset(m Manifest, scripts []Script) Manifest {
+	out := make(Manifest, len(scripts))
+	for _, s := range scripts {
+		if e, ok := m[s.Path]; ok {
+			out[s.Path] = e
+		}
+	}
+	return out
 }

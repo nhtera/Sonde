@@ -53,6 +53,10 @@ type Entry struct {
 	Arg    string `yaml:"arg,omitempty"`
 	// Deprecated names the replacement of a deprecated entry.
 	Deprecated string `yaml:"deprecated,omitempty"`
+	// Since is the reference version that added the entry, when it is
+	// newer than the one the conformance gate runs (8.0.1); its usage is
+	// counted in that version's test tree.
+	Since string `yaml:"since,omitempty"`
 }
 
 // Difference is one row of documented behavior that differs from the
@@ -138,6 +142,9 @@ func validate(t *Table) error {
 				if !ok || repl.Deprecated != "" || repl.Name == e.Name {
 					return fmt.Errorf("docs: %s %q: deprecated in favor of %q, which must be another, current entry", kind, e.Name, e.Deprecated)
 				}
+			}
+			if e.Since != "" && e.Since != "8.1.0" {
+				return fmt.Errorf("docs: %s %q: since %q is not a known version (8.1.0)", kind, e.Name, e.Since)
 			}
 			if !e.Status.valid() {
 				return fmt.Errorf("docs: %s %q: invalid status %q", kind, e.Name, e.Status)

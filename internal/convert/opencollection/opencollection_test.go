@@ -32,7 +32,7 @@ func dump(t *testing.T, out convert.Output, dialect syntax.Dialect) string {
 	files := append([]convert.GeneratedFile(nil), out.Files...)
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	for _, f := range files {
-		src := syntax.Format(f.File)
+		src := syntax.Lint(f.File)
 		if _, err := syntax.Parse(f.Path, src, dialect); err != nil {
 			t.Errorf("%s does not parse: %v", f.Path, err)
 		}
@@ -185,7 +185,7 @@ items:
 	if len(out.Files) != 1 {
 		t.Fatalf("files = %d", len(out.Files))
 	}
-	src := string(syntax.Format(out.Files[0].File))
+	src := string(syntax.Lint(out.Files[0].File))
 	if !strings.Contains(src, "# opencollection after-response script:") || !strings.Contains(src, "writeFileSync") {
 		t.Errorf("script not kept as a comment:\n%s", src)
 	}
@@ -268,7 +268,7 @@ func TestPathParamWholeSegmentOnly(t *testing.T) {
 	if len(out.Files) != 1 {
 		t.Fatalf("files = %d", len(out.Files))
 	}
-	src := string(syntax.Format(out.Files[0].File))
+	src := string(syntax.Lint(out.Files[0].File))
 	if !strings.Contains(src, "/users/{{user}}/{{userId}}") {
 		t.Errorf("path params not rewritten as whole segments:\n%s", src)
 	}
@@ -425,7 +425,7 @@ items:
 	if len(out.Files) != 1 {
 		t.Fatalf("files = %d", len(out.Files))
 	}
-	src := string(syntax.Format(out.Files[0].File))
+	src := string(syntax.Lint(out.Files[0].File))
 	if strings.Contains(src, "Authorization") {
 		t.Errorf("auth: none still inherited the collection's bearer auth:\n%s", src)
 	}
@@ -473,10 +473,10 @@ items:
 	if got := out.Files[0].Path; got != "Fields/Enable   disable field" {
 		t.Errorf("path %q: a slash made a folder", got)
 	}
-	if src := string(syntax.Format(out.Files[0].File)); strings.Contains(src, "[Query]") || !strings.Contains(src, "?q=&page=1") {
+	if src := string(syntax.Lint(out.Files[0].File)); strings.Contains(src, "[Query]") || !strings.Contains(src, "?q=&page=1") {
 		t.Errorf("the URL's query must be sent once:\n%s", src)
 	}
-	if src := string(syntax.Format(out.Files[1].File)); !strings.Contains(src, "[Query]\npage: 1") {
+	if src := string(syntax.Lint(out.Files[1].File)); !strings.Contains(src, "[Query]\npage: 1") {
 		t.Errorf("params of a URL without a query go to [Query]:\n%s", src)
 	}
 	var msgs []string
@@ -630,8 +630,28 @@ func TestSuggest(t *testing.T) {
 	}
 	out, _ := ImportPath(input, syntax.DialectHurl)
 	for _, s := range sugg {
-		if _, err := s.Apply("c.hurl", syntax.Format(out.Files[s.File].File)); err != nil {
+		if _, err := s.Apply("c.hurl", syntax.Lint(out.Files[s.File].File)); err != nil {
 			t.Errorf("%s: %v", s.Label, err)
 		}
+	}
+}
+
+// TestDigestAuth: digest auth becomes the user option and digest: true,
+// not [BasicAuth] (a literal Basic header no challenge is answered with).
+func TestDigestAuth(t *testing.T) {
+	data := []byte(`items:
+  - info: {name: Digest, type: http}
+    http:
+      method: GET
+      url: "https://example.com"
+      auth: {type: digest, username: u, password: "{{pass}}"}
+`)
+	out, err := ImportFile(data, syntax.DialectHurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(syntax.Lint(out.Files[0].File))
+	if !strings.Contains(src, "[Options]\nuser: u:{{pass}}\ndigest: true\n") || strings.Contains(src, "[BasicAuth]") || len(out.Warnings) != 0 {
+		t.Errorf("digest:\n%s\n%v", src, out.Warnings)
 	}
 }

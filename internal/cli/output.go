@@ -74,7 +74,10 @@ func (s *outputSink) Close() error {
 // engine renders an entry error. The run loop prints it to stderr and
 // folds it into the run's worst exit code (ExitRuntime) instead of
 // aborting the whole invocation.
-type outputError struct{ rendered string }
+type outputError struct {
+	rendered string
+	color    bool // rendered with RenderColor; the "error" prefix is coloured too
+}
 
 func (e *outputError) Error() string { return e.rendered }
 
@@ -88,7 +91,7 @@ func writeFileOutput(rc *runContext, sink *outputSink, runner *engine.Runner, re
 	if rc.jsonOutput {
 		w, err := sink.writer()
 		if err != nil {
-			return fileWriteError(res, outputName(rc.output), err)
+			return fileWriteError(res, outputName(rc.output), err, rc.colorErr)
 		}
 		return writeJSONLine(w, runner, res)
 	}
@@ -99,29 +102,37 @@ func writeFileOutput(rc *runContext, sink *outputSink, runner *engine.Runner, re
 	if call == nil || call.Response == nil {
 		return nil
 	}
-	w, err := sink.writer()
-	if err != nil {
-		return fileWriteError(res, outputName(rc.output), err)
-	}
-	if rc.include {
-		writeStatusAndHeaders(w, call.Response, rc.color, identityString)
-	}
 	body := call.Response.Body
 	if entry.Compressed {
 		decoded, derr := call.Response.DecodedBody()
 		if derr != nil {
 			var be *exchange.BodyError
 			if errors.As(derr, &be) {
-				return decompressionError(res, be)
+				return decompressionError(res, be, rc.colorErr)
 			}
 			return derr
 		}
 		body = decoded
 	}
-	if rc.pretty {
-		body = prettyBody(body, call.Response, rc.color)
+	// The whole output is built first: nothing is written when it fails.
+	var out bytes.Buffer
+	if rc.include {
+		writeStatusAndHeaders(&out, call.Response, rc.colorOut, identityString)
 	}
-	_, err = w.Write(body)
+	if rc.pretty {
+		body = prettyBody(body, call.Response, rc.colorOut)
+	}
+	out.Write(body)
+	// Binary output is not dumped onto a terminal unless asked for with
+	// --output -.
+	if rc.output == "" && rc.stdoutTTY && isBinary(out.Bytes()) {
+		return newOutputError(res, runerr.New(entrySpan(res), runerr.BinaryOutput, false), rc.colorErr)
+	}
+	w, err := sink.writer()
+	if err != nil {
+		return fileWriteError(res, outputName(rc.output), err, rc.colorErr)
+	}
+	_, err = w.Write(out.Bytes())
 	return err
 }
 
@@ -173,18 +184,27 @@ func lastEntryLine(res *engine.UnitResult) int {
 
 // fileWriteError reports that path (the -o/--output target) could not be
 // written, rendered like the engine's own FileWriteAccess entry error.
-func fileWriteError(res *engine.UnitResult, path string, cause error) *outputError {
+func fileWriteError(res *engine.UnitResult, path string, cause error, color bool) *outputError {
 	e := runerr.New(entrySpan(res), runerr.FileWriteAccess, false)
 	e.Value, e.Reason = path, cause.Error()
-	return &outputError{rendered: e.Render(res.File, string(res.Source), 0)}
+	return newOutputError(res, e, color)
 }
 
 // decompressionError reports that the last response's body could not be
 // decoded for output (--compressed, or an entry-level `compressed: true`),
 // rendered like the engine's own body-decoding errors.
-func decompressionError(res *engine.UnitResult, cause *exchange.BodyError) *outputError {
+func decompressionError(res *engine.UnitResult, cause *exchange.BodyError, color bool) *outputError {
 	e := runerr.New(entrySpan(res), runerr.HTTP, false)
 	e.Value, e.Reason = cause.Description(), cause.Message()
+	return newOutputError(res, e, color)
+}
+
+// newOutputError renders e against res's source, in colour when stderr
+// is coloured.
+func newOutputError(res *engine.UnitResult, e *runerr.Error, color bool) *outputError {
+	if color {
+		return &outputError{rendered: e.RenderColor(res.File, string(res.Source), 0), color: true}
+	}
 	return &outputError{rendered: e.Render(res.File, string(res.Source), 0)}
 }
 

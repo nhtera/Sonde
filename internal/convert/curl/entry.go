@@ -19,18 +19,6 @@ import (
 func buildEntry(p *parsed) (syntax.EntrySpec, []convert.Warning, string) {
 	var warnings []convert.Warning
 	warn := func(kind, msg string) { warnings = append(warnings, convert.Warning{Kind: kind, Message: msg}) }
-	// warnRuntimeUnsupported is for a flag this package DOES map into
-	// [Options] (so the file round-trips it faithfully, and a future
-	// sonde can pick it up) but that internal/httpx.checkSupported
-	// rejects at run time today (S1, phase 8 checkpoint): without this,
-	// "sonde import curl" for one of these succeeds silently and the
-	// resulting file only fails much later, when actually run. Wording
-	// matches internal/convert/postman/auth.go's own unsupported-auth
-	// warning.
-	warnRuntimeUnsupported := func(flag string) {
-		warn(convert.WarnUnsupportedOption, "sonde cannot send "+flag+" yet; this request fails until it can")
-	}
-
 	if len(p.urls) == 0 {
 		return syntax.EntrySpec{}, nil, "curl: missing URL"
 	}
@@ -189,7 +177,6 @@ func buildEntry(p *parsed) (syntax.EntrySpec, []convert.Warning, string) {
 	}
 	if p.http10 {
 		opts = append(opts, syntax.BoolOption("http1.0", true))
-		warnRuntimeUnsupported("--http1.0")
 	}
 	if p.http11 {
 		opts = append(opts, syntax.BoolOption("http1.1", true))
@@ -199,7 +186,6 @@ func buildEntry(p *parsed) (syntax.EntrySpec, []convert.Warning, string) {
 	}
 	if p.http3 {
 		opts = append(opts, syntax.BoolOption("http3", true))
-		warnRuntimeUnsupported("--http3")
 	}
 	if p.haveProxy {
 		opts = append(opts, syntax.StringOption("proxy", p.proxy.toText()))
@@ -232,19 +218,15 @@ func buildEntry(p *parsed) (syntax.EntrySpec, []convert.Warning, string) {
 	}
 	if p.digest {
 		opts = append(opts, syntax.BoolOption("digest", true))
-		warnRuntimeUnsupported("--digest")
 	}
 	if p.ntlm {
 		opts = append(opts, syntax.BoolOption("ntlm", true))
-		warnRuntimeUnsupported("--ntlm")
 	}
 	if p.negotiate {
 		opts = append(opts, syntax.BoolOption("negotiate", true))
-		warnRuntimeUnsupported("--negotiate")
 	}
 	if p.haveAWSSigV4 {
 		opts = append(opts, syntax.StringOption("aws-sigv4", p.awsSigV4.toText()))
-		warnRuntimeUnsupported("--aws-sigv4")
 	}
 	if p.ipv4 {
 		opts = append(opts, syntax.BoolOption("ipv4", true))
@@ -285,6 +267,21 @@ func buildEntry(p *parsed) (syntax.EntrySpec, []convert.Warning, string) {
 		opts = append(opts, syntax.StringOption("connect-to", c.toText()))
 	}
 
+	// curl --retry retries transient errors, 5xx responses included; a
+	// failing `status < 500` assert makes the retry option do the same.
+	var response *syntax.ResponseSpec
+	if p.haveRetry {
+		if n, ok := parseRetry(p.retry); ok {
+			opts = append(opts, syntax.IntOption("retry", n))
+			response = &syntax.ResponseSpec{Status: "*", Asserts: []string{"status < 500"}}
+		} else {
+			warn(convert.WarnUnsupportedOption, "curl: --retry "+p.retry+" is not a valid count")
+		}
+	}
+	if p.verbose {
+		opts = append(opts, syntax.BoolOption("verbose", true))
+	}
+
 	for _, flag := range p.warnings {
 		warn(convert.WarnUnsupportedOption, "curl: "+flag+" is not supported and was ignored")
 	}
@@ -297,6 +294,7 @@ func buildEntry(p *parsed) (syntax.EntrySpec, []convert.Warning, string) {
 		Multipart: multipart,
 		Options:   opts,
 		Body:      body,
+		Response:  response,
 	}, warnings, ""
 }
 
@@ -439,6 +437,15 @@ func parseSeconds(s string) (time.Duration, bool) {
 func parseMaxRedirs(s string) (int64, bool) {
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil || n < -1 {
+		return 0, false
+	}
+	return n, true
+}
+
+// parseRetry parses curl's --retry argument, a non-negative count.
+func parseRetry(s string) (int64, bool) {
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || n < 0 {
 		return 0, false
 	}
 	return n, true

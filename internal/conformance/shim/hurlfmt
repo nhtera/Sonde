@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Copyright 2026 The Sonde Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Conformance shim: the vendored formatter scripts invoke `hurlfmt` by name.
+# This script sits first on PATH during a conformance run and maps the
+# formatter's flags onto sonde commands of the binary under test
+# (SONDE_CONFORMANCE_TARGET). It only translates flags; every behaviour
+# lives in sonde.
+#
+#   (none), --out hurl          sonde fmt
+#   --check                     sonde fmt --check
+#   --in-place                  sonde fmt -w
+#   --in curl                   sonde import curl, generated file on stdout
+#   --out json                  sonde export json
+#   --out html [--standalone]   sonde export html [--standalone]
+#   --color, --no-color         passed through
+set -euo pipefail
+
+if [ -z "${SONDE_CONFORMANCE_TARGET:-}" ]; then
+  echo "hurlfmt shim: SONDE_CONFORMANCE_TARGET is not set" >&2
+  exit 1
+fi
+sonde="${SONDE_CONFORMANCE_TARGET}"
+
+in=hurl
+out=hurl
+mode=
+flags=()
+files=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --in) in="$2"; shift 2 ;;
+    --in=*) in="${1#--in=}"; shift ;;
+    --out) out="$2"; shift 2 ;;
+    --out=*) out="${1#--out=}"; shift ;;
+    --check) mode=check; shift ;;
+    --in-place) mode=write; shift ;;
+    --standalone) flags+=(--standalone); shift ;;
+    --color|--no-color) flags+=("$1"); shift ;;
+    -h|--help) exec "$sonde" fmt --help ;;
+    -V|--version) exec "$sonde" version ;;
+    *) files+=("$1"); shift ;;
+  esac
+done
+
+if [ "$in" = curl ]; then
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  "$sonde" import curl ${files[@]+"${files[@]}"} --output "$tmp" >/dev/null
+  cat "$tmp"/*.hurl
+  exit 0
+fi
+
+case "$out" in
+  json|html) exec "$sonde" export "$out" ${flags[@]+"${flags[@]}"} ${files[@]+"${files[@]}"} ;;
+esac
+case "$mode" in
+  check) exec "$sonde" fmt --check ${flags[@]+"${flags[@]}"} ${files[@]+"${files[@]}"} ;;
+  write) exec "$sonde" fmt -w ${flags[@]+"${flags[@]}"} ${files[@]+"${files[@]}"} ;;
+  *) exec "$sonde" fmt ${flags[@]+"${flags[@]}"} ${files[@]+"${files[@]}"} ;;
+esac

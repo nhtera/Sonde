@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"golang.org/x/net/http/httpproxy"
@@ -49,18 +50,67 @@ func proxyFunc(proxyURL *url.URL, noProxy string) func(*http.Request) (*url.URL,
 	}
 }
 
-// environmentProxy returns the proxy the http_proxy, https_proxy and
-// no_proxy environment variables (or their uppercase forms) give for u,
-// nil for none; hosts matching noProxy are never proxied.
-func environmentProxy(u *url.URL, noProxy string) *url.URL {
-	if noProxy != "" && noProxyMatch(u.Hostname(), noProxy) {
-		return nil
+// httpProxyFor returns the HTTP proxy that receives a request to u itself
+// (not a tunnel), nil for none: --proxy or the environment's proxy for u,
+// when its scheme is http or https.
+func httpProxyFor(opts *Options, u *url.URL) *url.URL {
+	var p *url.URL
+	if opts.Proxy != "" {
+		parsed, err := parseProxyURL(opts.Proxy)
+		if err != nil || (opts.NoProxy != "" && noProxyMatch(u.Hostname(), opts.NoProxy)) {
+			return nil
+		}
+		p = parsed
+	} else {
+		p = environmentProxy(u, opts.NoProxy)
 	}
-	p, err := httpproxy.FromEnvironment().ProxyFunc()(u)
-	if err != nil {
+	if p == nil || (p.Scheme != "http" && p.Scheme != "https") {
 		return nil
 	}
 	return p
+}
+
+// environmentProxy returns the proxy the environment gives for u, nil
+// for none or a value that cannot be used (environmentProxyErr reports
+// why).
+func environmentProxy(u *url.URL, noProxy string) *url.URL {
+	p, _ := environmentProxyErr(u, noProxy)
+	return p
+}
+
+// environmentProxyErr returns the proxy the environment gives for u, nil
+// for none: http_proxy or https_proxy (or their uppercase forms), else
+// all_proxy or ALL_PROXY, as libcurl reads them; no_proxy (NO_PROXY)
+// applies to both, and hosts matching noProxy are never proxied. A value
+// that does not parse, or a scheme sonde cannot speak (socks4), is an
+// error rather than a direct or plain-HTTP connection.
+func environmentProxyErr(u *url.URL, noProxy string) (*url.URL, error) {
+	if noProxy != "" && noProxyMatch(u.Hostname(), noProxy) {
+		return nil, nil
+	}
+	cfg := httpproxy.FromEnvironment()
+	p, err := cfg.ProxyFunc()(u)
+	if err == nil && p == nil {
+		all := os.Getenv("all_proxy")
+		if all == "" {
+			all = os.Getenv("ALL_PROXY")
+		}
+		if all != "" {
+			cfg.HTTPProxy, cfg.HTTPSProxy = all, all
+			p, err = cfg.ProxyFunc()(u)
+		}
+	}
+	if err != nil {
+		return nil, invalidURLError("proxy from the environment", err.Error())
+	}
+	if p != nil {
+		switch p.Scheme {
+		case "http", "https", "socks5", "socks5h":
+		default:
+			return nil, invalidURLError(p.Redacted(), "unsupported proxy scheme "+p.Scheme)
+		}
+	}
+	return p, nil
 }
 
 // socks5DialContext wraps a SOCKS5 proxy as a DialContext for an

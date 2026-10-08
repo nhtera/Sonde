@@ -24,10 +24,4 @@ GET https://example.com/aws-sigv4
 [Options]
 aws-sigv4: aws:amz:us-east-1:s3
 warning secret: curl: -u wrote a password in plain text; consider --secret and {{password}}
-warning unsupported-option: sonde cannot send --digest yet; this request fails until it can
 warning secret: curl: -u wrote a password in plain text; consider --secret and {{password}}
-warning unsupported-option: sonde cannot send --ntlm yet; this request fails until it can
-warning unsupported-option: sonde cannot send --negotiate yet; this request fails until it can
-warning unsupported-option: sonde cannot send --http1.0 yet; this request fails until it can
-warning unsupported-option: sonde cannot send --http3 yet; this request fails until it can
-warning unsupported-option: sonde cannot send --aws-sigv4 yet; this request fails until it can

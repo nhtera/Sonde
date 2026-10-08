@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nhtera/sonde/internal/config"
+	"github.com/nhtera/sonde/internal/runplan"
 )
 
 // ansiYellow is a plain (non-bold) yellow, used only for a retry label in
@@ -32,20 +35,36 @@ const (
 )
 
 // newProgressMode resolves the display mode: a bar is drawn in test mode
-// when --progress-bar was given, or (without the flag) when stderr is a
-// terminal; a script or pipe never gets a bar unless the flag forces it.
-// Outside test mode there is never a bar, matching Mode::new(test,
-// progress_bar) in the reference CLI (progress_bar there is this same
-// already-TTY-resolved boolean, passed in by its caller).
-func newProgressMode(test, progressBarFlag, stderrIsTTY bool) progressMode {
+// when the progress bar is set on (--progress-bar, HURL_PROGRESS_BAR), or
+// when nothing sets it and stderr is a terminal; it is never drawn when it
+// is set off (HURL_PROGRESS_BAR=false, the config file's
+// --no-progress-bar). Outside test mode there is never a bar, matching
+// Mode::new(test, progress_bar) in the reference CLI.
+func newProgressMode(test bool, set *bool, stderrIsTTY bool) progressMode {
 	switch {
 	case !test:
 		return progressDefault
-	case progressBarFlag || stderrIsTTY:
+	case set != nil && *set, set == nil && stderrIsTTY:
 		return progressTestWithBar
 	default:
 		return progressTestNoBar
 	}
+}
+
+// resolveProgressBar is the progress bar setting, nil when nothing sets
+// it: --progress-bar, else HURL_PROGRESS_BAR, else the config file's
+// --no-progress-bar.
+func resolveProgressBar(inv *runplan.Invocation, env config.Env, fileOff bool) *bool {
+	if inv.Changed("progress-bar") && inv.ProgressBar {
+		return new(true)
+	}
+	if v, ok := env.Bool("PROGRESS_BAR"); ok {
+		return &v
+	}
+	if fileOff {
+		return new(false)
+	}
+	return nil
 }
 
 // progressMaxWidth is the terminal width used to wrap an over-long

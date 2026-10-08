@@ -141,12 +141,12 @@ func TestDeprecatedFilterAndPredicateDiagnostics(t *testing.T) {
 // TestUnsupportedOptionDiagnostic checks an [Options] entry Sonde cannot
 // send yet is warned about, ranged on the option name.
 func TestUnsupportedOptionDiagnostic(t *testing.T) {
-	src := "GET http://a/\n[Options]\ndigest: true\nHTTP 200\n"
-	c := newTestClient(t, nil)
+	src := "GET http://a/\n[Options]\nhttp3: true\nHTTP 200\n"
+	c := newTestClientTable(t, nil, unsupportedTable(t))
 	c.initialize(false, "", nil)
 	diags := c.open("file:///w/a.hurl", src)
 
-	want := Range{Start: Position{Line: 2, Character: 0}, End: Position{Line: 2, Character: uint32(len("digest"))}}
+	want := Range{Start: Position{Line: 2, Character: 0}, End: Position{Line: 2, Character: uint32(len("http3"))}}
 	var got *Diagnostic
 	for i := range diags {
 		if diags[i].Range == want {

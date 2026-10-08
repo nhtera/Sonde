@@ -12,8 +12,9 @@ import (
 	"github.com/nhtera/sonde/internal/syntax"
 )
 
-// maxJSONDepth bounds the nesting JSONBody rebuilds.
-const maxJSONDepth = 512
+// maxJSONDepth bounds the nesting JSONBody rebuilds: deeper bodies do
+// not parse (the reference's limit since 8.1.0).
+const maxJSONDepth = 128
 
 var errNotRebuildable = errors.New("not rebuildable")
 
@@ -21,7 +22,7 @@ var errNotRebuildable = errors.New("not rebuildable")
 // placeholders, as a syntax JSON body: members keep their order (and
 // duplicates), numbers their spelling, and strings go through ParseText.
 // ok is false when text is not exactly one JSON value, nests deeper than
-// 512 levels, or has a placeholder in an object key; callers then keep the
+// 128 levels, or has a placeholder in an object key; callers then keep the
 // text as is with syntax.TextBody(ParseText(text), "json").
 func JSONBody(text string) (body *syntax.BodySpec, warns []Warning, ok bool) {
 	dec := json.NewDecoder(strings.NewReader(text))

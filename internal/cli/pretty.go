@@ -181,13 +181,17 @@ func (p *jsonPrettyPrinter) printPunct(c byte) bool {
 }
 
 func (p *jsonPrettyPrinter) printObject() bool {
-	if !p.printPunct('{') {
+	if p.peek() != '{' {
 		return false
 	}
+	p.pos++
 	p.skipWS()
 	if p.peek() == '}' {
-		return p.printPunct('}')
+		p.pos++
+		p.write(ansiPunct, "{}") // an empty container is one token
+		return true
 	}
+	p.write(ansiPunct, "{")
 	p.depth++
 	for {
 		p.newlineIndent()
@@ -218,13 +222,17 @@ func (p *jsonPrettyPrinter) printObject() bool {
 }
 
 func (p *jsonPrettyPrinter) printArray() bool {
-	if !p.printPunct('[') {
+	if p.peek() != '[' {
 		return false
 	}
+	p.pos++
 	p.skipWS()
 	if p.peek() == ']' {
-		return p.printPunct(']')
+		p.pos++
+		p.write(ansiPunct, "[]") // an empty container is one token
+		return true
 	}
+	p.write(ansiPunct, "[")
 	p.depth++
 	for {
 		p.newlineIndent()

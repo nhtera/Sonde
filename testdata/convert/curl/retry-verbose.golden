@@ -1,0 +1,12 @@
+GET https://example.com/a
+[Options]
+retry: 2
+verbose: true
+HTTP *
+[Asserts]
+status < 500
+
+GET https://example.com/b
+[Options]
+verbose: true
+warning unsupported-option: curl: --retry abc is not a valid count

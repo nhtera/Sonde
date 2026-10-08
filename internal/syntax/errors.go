@@ -161,11 +161,13 @@ func (e *Error) Description() string {
 var (
 	validOptions = []string{
 		"aws-sigv4", "cacert", "cert", "compressed", "connect-timeout", "connect-to", "delay",
-		"digest", "header", "http1.0", "http1.1", "http2", "http3", "insecure", "ipv4", "ipv6",
+		"digest", "header", "http1.0", "http1.1", "http2", "http2-prior-knowledge", "http3", "insecure",
+		"ipv4", "ipv6",
 		"key", "limit-rate", "location", "location-trusted", "max-redirs", "max-time",
 		"negotiate", "netrc", "netrc-file", "netrc-optional", "no-proxy", "ntlm", "output",
 		"path-as-is", "pinnedpubkey", "proxy", "repeat", "resolve", "retry", "retry-interval",
-		"skip", "unix-socket", "user", "variable", "verbose", "verbosity", "very-verbose",
+		"skip", "unix-socket", "user", "variable", "variables-file", "verbose", "verbosity",
+		"very-verbose",
 	}
 	validMethods          = []string{"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"}
 	validRequestSections  = []string{"Query", "Form", "Multipart", "Cookies", "Options"}
@@ -269,7 +271,7 @@ func (e *Error) Message() string {
 	case ErrFileTooLarge:
 		return "the file is larger than " + e.Arg
 	case ErrNestingTooDeep:
-		return "nesting is deeper than " + e.Arg + " levels"
+		return "maximum nesting depth of " + e.Arg + " exceeded"
 	case ErrSondeOnly:
 		return e.Arg + " requires a .sonde file"
 	case ErrMessageStep:

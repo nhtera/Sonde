@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nhtera/sonde/exchange"
 	"github.com/nhtera/sonde/internal/runerr"
 	"github.com/nhtera/sonde/internal/value"
 )
@@ -190,8 +191,6 @@ body contains "auth=Basic Ym9iOnB3"
 		{"limit-rate: {{zero}}", "Invalid expression type"},
 		{"delay: {{neg}}", "Invalid expression type"},
 		{"retry: {{missing}}", "Undefined variable"},
-		{"http1.0: true", "Unsupported option"},
-		{"ntlm: true", "Unsupported option"},
 	} {
 		src := "GET {{base}}/hello\n[Options]\n" + tt.option + "\nHTTP 200\n"
 		res, _ := run(t, src, Options{Variables: map[string]any{"s": "x", "neg": int64(-5), "zero": int64(0)}})
@@ -208,7 +207,7 @@ body contains "auth=Basic Ym9iOnB3"
 }
 
 func TestVersionOptions(t *testing.T) {
-	for _, o := range []string{"http2: false", "http2: true", "http3: false", "ipv6: false", "location-trusted: true", "netrc: false", "negotiate: false", "digest: false", "aws-sigv4: {{empty}}", "cacert: " + "", "proxy: {{empty}}", "pinnedpubkey: {{empty}}", "verbose: false", "output: -", "skip: false", "repeat: 1", "netrc-file: {{empty}}", "cert: {{empty}}", "key: {{empty}}"} {
+	for _, o := range []string{"ntlm: false", "http1.0: true", "http2: false", "http2: true", "http3: false", "ipv6: false", "location-trusted: true", "netrc: false", "negotiate: false", "digest: false", "aws-sigv4: {{empty}}", "cacert: " + "", "proxy: {{empty}}", "pinnedpubkey: {{empty}}", "verbose: false", "output: -", "skip: false", "repeat: 1", "netrc-file: {{empty}}", "cert: {{empty}}", "key: {{empty}}"} {
 		if strings.HasSuffix(o, ": ") {
 			continue
 		}
@@ -268,5 +267,21 @@ func TestRunFileAndVariables(t *testing.T) {
 	}
 	if _, err := NewRunner(Options{Variables: map[string]any{"x": struct{}{}}}).RunSource(context.Background(), path, []byte("GET http://a\n")); err == nil {
 		t.Error("unsupported variable type accepted")
+	}
+}
+
+func TestOutputStdoutBodyHook(t *testing.T) {
+	var out bytes.Buffer
+	var gotStatus int
+	res, _ := run(t, "GET {{base}}/hello\n[Options]\noutput: -\nHTTP 200\n", Options{
+		Stdout: &out,
+		StdoutBody: func(resp *exchange.Response, body []byte) []byte {
+			gotStatus = resp.Status
+			return append([]byte("<"), append(body, '>')...)
+		},
+	})
+	requireSuccess(t, res)
+	if gotStatus != 200 || !strings.HasPrefix(out.String(), "<") || !strings.HasSuffix(out.String(), ">") {
+		t.Errorf("stdout = %q, status seen = %d; want the hook's rendering of the 200 response", out.String(), gotStatus)
 	}
 }

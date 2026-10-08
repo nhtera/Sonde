@@ -29,9 +29,13 @@ Accepted as Hurl does: text after a placeholder's variable inside a string,
 e.g. `{{ "{{" }}a b{{ "}}" }}` or `{{ "{{" }}a{{ "}" }}b{{ "}}" }}`, is ignored (and kept by `sonde fmt`); XML
 declarations with any encoding or version.
 
-`sonde fmt` is not `hurlfmt`: it only normalizes horizontal whitespace and
-line endings (see `docs/architecture.md`, CLI commands) and never reorders
-sections. Files already formatted by `hurlfmt` are left unchanged.
+`sonde fmt` and `sonde export json|html` print what `hurlfmt` prints
+(checked on its suite and, file by file, on every parseable file of the
+conformance suite): whitespace
+normalized, sections in canonical order, `ms` added to unitless durations,
+with `--color`, `--check` and `--write`. `--check` exits `1` when a file
+is not formatted (`hurlfmt`: `3`), keeping sonde's documented exit codes. Curl import differences
+are listed below.
 
 ## Evaluation (queries, filters, predicates, templates)
 
@@ -100,7 +104,7 @@ Request `[Options]` section keys.
 | Option | Status | Phase | Description |
 |---|---|---|---|
 {{ range .Options -}}
-| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }}{{ if .Since }} (new in {{ .Since }}){{ end }} |
 {{ end }}
 ## Sonde extensions
 
@@ -136,7 +140,7 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | Flag | Short | Status | Phase | Hurl test usage | Description |
 |---|---|---|---|---|---|
 {{ range .Flags -}}
-| `{{ .Name }}` | {{ if .Short }}`{{ .Short }}`{{ end }} | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+| `{{ .Name }}` | {{ if .Short }}`{{ .Short }}`{{ end }} | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }}{{ if .Since }} (new in {{ .Since }}){{ end }} |
 {{ end }}
 ## Environment variables
 
@@ -146,15 +150,21 @@ test scripts (`testdata/conformance/hurl/**/*.sh`).
 | Variable | Status | Phase | Hurl test usage | Description |
 |---|---|---|---|---|
 {{ range .Env -}}
-| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }} |
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Usage }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }}{{ if .Since }} (new in {{ .Since }}){{ end }} |
 {{ end }}
 ## Config file
 
-Hurl 8.0.1 reads `$XDG_CONFIG_HOME/hurl/config` (or `$HOME/config/hurl/config`
-as a fallback), a plain-text file of one `--option[ value]` per line.
+Sonde reads `$XDG_CONFIG_HOME/hurl/config` (or `$HOME/.config/hurl/config`
+when `XDG_CONFIG_HOME` is not set), a plain-text file of one
+`--option[ value]` per line, a value after spaces or `=`. It accepts the
+key set of the reference implementation after 8.0.1 (8.0.1 itself reads
+four keys and looks in `$HOME/config/hurl/config`). The environment and
+flags override the file; `--header` lines add to the other sources, and a
+`--secret` name it defines cannot be given again. The CLI and the desktop
+app read the same file.
 
 | Key | Status | Phase | Description |
 |---|---|---|---|
 {{ range .Config -}}
-| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }} |
+| `{{ .Name }}` | {{ .Status }} | {{ if .Phase }}{{ .Phase }}{{ end }} | {{ .Doc }}{{ if .Reason }} ({{ .Reason }}){{ end }}{{ if .Since }} (new in {{ .Since }}){{ end }} |
 {{ end }}

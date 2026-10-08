@@ -120,6 +120,39 @@ func (e Env) Headers() (headers []string, ok bool, err error) {
 	return headers, true, nil
 }
 
+// NoHeaders reads HURL_NO_HEADER/SONDE_NO_HEADER: header names separated
+// by "|", each trimmed and not empty.
+func (e Env) NoHeaders() (names []string, ok bool, err error) {
+	raw, key, present := e.Lookup("NO_HEADER")
+	if !present {
+		return nil, false, nil
+	}
+	for name := range strings.SplitSeq(raw, "|") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return nil, true, fmt.Errorf("Missing header name (%s environment variable)", key)
+		}
+		names = append(names, name)
+	}
+	return names, true, nil
+}
+
+// ProxyHeaders reads HURL_PROXY_HEADER/SONDE_PROXY_HEADER: headers
+// separated by "|", as HURL_HEADER.
+func (e Env) ProxyHeaders() (headers []string, ok bool, err error) {
+	raw, key, present := e.Lookup("PROXY_HEADER")
+	if !present {
+		return nil, false, nil
+	}
+	headers = strings.Split(raw, "|")
+	for _, h := range headers {
+		if !strings.Contains(h, ":") {
+			return nil, true, fmt.Errorf("Invalid proxy header <%s>, missing `:` (%s environment variable)", h, key)
+		}
+	}
+	return headers, true, nil
+}
+
 // ErrorFormat reads HURL_ERROR_FORMAT/SONDE_ERROR_FORMAT: "short" or
 // "long".
 func (e Env) ErrorFormat() (format string, ok bool, err error) {
@@ -154,15 +187,22 @@ func (e Env) Verbosity() (level string, ok bool, err error) {
 	return "", true, fmt.Errorf("Invalid value '%s' for verbosity [possible values: brief, verbose, debug] (%s environment variable)", raw, key)
 }
 
-// HTTPVersion resolves "1.0", "1.1", "2" or "3" from HURL_HTTP3, then
-// HURL_HTTP2, then HURL_HTTP11, then HURL_HTTP10, mirroring the cascading
-// rule of each flag implying the version below it when set false.
+// HTTPVersion resolves "1.0", "1.1", "2", "2-prior-knowledge" or "3" from
+// HURL_HTTP3, then HURL_HTTP2_PRIOR_KNOWLEDGE, then HURL_HTTP2, then
+// HURL_HTTP11, then HURL_HTTP10, mirroring the cascading rule of each flag
+// implying the version below it when set false.
 func (e Env) HTTPVersion() (version string, ok bool) {
 	if v, has := e.Bool("HTTP3"); has {
 		if v {
 			return "3", true
 		}
 		return "2", true
+	}
+	if v, has := e.Bool("HTTP2_PRIOR_KNOWLEDGE"); has {
+		if v {
+			return "2-prior-knowledge", true
+		}
+		return "1.1", true
 	}
 	if v, has := e.Bool("HTTP2"); has {
 		if v {

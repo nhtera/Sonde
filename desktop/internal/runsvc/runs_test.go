@@ -86,6 +86,7 @@ type fixture struct {
 	rec  *emit.Recorder
 	shop *shop
 	dir  string
+	home string // $HOME and $XDG_CONFIG_HOME of the run
 }
 
 func setup(t *testing.T) *fixture {
@@ -105,7 +106,7 @@ func setup(t *testing.T) *fixture {
 	env := config.Env{"HOME": home, "XDG_CONFIG_HOME": home}
 	rec := &emit.Recorder{}
 	r := New(rec, func() *sandbox.Root { return root }, env, "test", &memBodies{m: map[string][]byte{}}, handles.New())
-	return &fixture{runs: r, rec: rec, shop: sh, dir: dir}
+	return &fixture{runs: r, rec: rec, shop: sh, dir: dir, home: home}
 }
 
 type memBodies struct {
@@ -150,6 +151,44 @@ func (f *fixture) events(t *testing.T, runID string) (items []Item, done *Done) 
 		}
 	}
 	return items, done
+}
+
+// TestConfigFileApplies checks that the user config file applies to a
+// desktop run as it does to the CLI, its security-relevant options
+// included, and that its secrets and credentials stay redacted.
+func TestConfigFileApplies(t *testing.T) {
+	f := setup(t)
+	const password, secret = "pa55-from-config", "s3cret-from-config"
+	cfg := "--insecure\n--location-trusted\n--no-proxy 127.0.0.1\n--proxy http://127.0.0.1:9\n" +
+		"--user bob:" + password + "\n--secret cfg_secret=" + secret + "\n"
+	if err := os.MkdirAll(filepath.Join(f.home, "hurl"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(f.home, "hurl", "config"), []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	opts, err := f.runs.Planned(context.Background(), "flow.hurl", flow, "local", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := opts.HTTP
+	if !h.Insecure || !h.FollowLocation || !h.LocationTrusted || h.Proxy != "http://127.0.0.1:9" || h.User != "bob:"+password || opts.Secrets["cfg_secret"] != secret {
+		t.Fatalf("config file not applied: %+v", h)
+	}
+	// The run goes direct (no-proxy), sends the config file's user, and
+	// never shows the secret. (A --user password is redacted only when it
+	// is built from a secret, from the config file as from a flag.)
+	src := "GET {{base}}/echo\nX-Secret: {{cfg_secret}}\nHTTP 200\n"
+	s, err := f.runs.Run(context.Background(), RunRequest{RunID: "cfg", File: "flow.hurl", Source: src, Env: "local"})
+	if err != nil || s.Error != "" || len(s.Units) != 1 || !s.Units[0].Success {
+		t.Fatalf("run: %v %+v", err, s)
+	}
+	if got := f.shop.requests(); len(got) != 1 || !strings.Contains(got[0], "auth=Basic ") {
+		t.Errorf("requests %v", got)
+	}
+	for _, ev := range f.rec.Events() {
+		redactcheck.AssertNoSecret(t, "run event", ev.Data, secret)
+	}
 }
 
 func TestRunBatchesThenDone(t *testing.T) {

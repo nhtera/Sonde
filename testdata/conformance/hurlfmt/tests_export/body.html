@@ -1,0 +1,86 @@
+<pre><code class="language-hurl"><span class="entry"><span class="request"><span class="method">POST</span> <span class="url">http://localhost:8000/json</span>
+<span class="json">{
+  "message": "Hello",
+  "count": 5,
+  "success": false,
+  "errors": [{"id":"error1"},{"id":"error2"}],
+  "failures": [{"id":"failure1"}],
+  "warnings": [],
+  "duration": 1.5,
+  "tags": ["test"],
+  "nullable": null,
+  "profile-id": "123abc",
+  "empty": {},
+  "name": {{name}}
+}</span>
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/json</span>
+<span class="multiline">```json
+{
+  "message": "Hello",
+  "count": 5,
+  "success": false,
+  "errors": [{"id":"error1"},{"id":"error2"}],
+  "failures": [{"id":"failure1"}],
+  "warnings": [],
+  "duration": 1.5,
+  "tags": ["test"],
+  "nullable": null,
+  "profile-id": "123abc",
+  "empty": {},
+  "name": {{name}}
+}
+```</span>
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/xml</span>
+<span class="xml">&lt;message&gt;Hello&lt;/message&gt;</span>
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/multiline-string</span>
+<span class="multiline">```
+Hello\tWord
+A beautiful ✈
+A template {{ var }}
+A template {{     var   }}
+```</span>
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/multiline-string</span>
+<span class="multiline">```raw
+Hello\tWord
+A beautiful ✈
+A template {{ var }}
+A template {{     var   }}
+```</span>
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/oneline-string</span>
+<span class="string">`Hello`</span>
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/oneline-base64</span>
+base64,<span class="base64">bGluZTEKbGluZTINCmxpbmUzCg==</span>;
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/oneline-base64</span>
+base64,<span class="base64">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/==</span>;
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/oneline-file</span>
+file,<span class="filename">data.bin</span>;
+</span></span><span class="entry"><span class="request">
+<span class="method">POST</span> <span class="url">http://localhost:8000/oneline-hex</span>
+hex,<span class="hex">010203</span>;
+</span></span><span class="entry"><span class="request">
+<span class="comment"># A GraphQL body with variables</span>
+<span class="method">POST</span> <span class="url">https://api.starwars.com/graphql</span>
+<span class="multiline">```graphql
+query HeroNameAndFriends($episode: Episode) {
+  hero(episode: $episode) {
+    name
+    friends {
+      name
+    }
+  }
+}
+
+variables {
+  "episode": "JEDI"
+}
+```</span>
+</span><span class="response"><span class="version">HTTP</span> <span class="number">200</span>
+</span></span></code></pre>

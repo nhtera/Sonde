@@ -28,7 +28,7 @@ func TestBuildVariablesPrecedence(t *testing.T) {
 	}
 	file := writeTemp(t, "vars.env", "foo=from-file\nfromfile=1\n")
 
-	vars, err := BuildVariables(env, []string{file}, []string{"foo=from-flag"})
+	vars, err := BuildVariables(FileOptions{}, env, []string{file}, []string{"foo=from-flag"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestBuildVariablesPrecedence(t *testing.T) {
 func TestBuildVariablesFileOverridesEnv(t *testing.T) {
 	env := Env{"HURL_VARIABLE_foo": "1"}
 	file := writeTemp(t, "vars.env", "foo=2\n")
-	vars, err := BuildVariables(env, []string{file}, nil)
+	vars, err := BuildVariables(FileOptions{}, env, []string{file}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestBuildVariablesFileOverridesEnv(t *testing.T) {
 func TestBuildVariablesMultipleFilesInOrder(t *testing.T) {
 	f1 := writeTemp(t, "a.env", "x=1\n")
 	f2 := writeTemp(t, "b.env", "x=2\n")
-	vars, err := BuildVariables(nil, []string{f1, f2}, nil)
+	vars, err := BuildVariables(FileOptions{}, nil, []string{f1, f2}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,13 +69,13 @@ func TestBuildVariablesMultipleFilesInOrder(t *testing.T) {
 }
 
 func TestBuildVariablesMissingFile(t *testing.T) {
-	if _, err := BuildVariables(nil, []string{"/no/such/file"}, nil); err == nil {
+	if _, err := BuildVariables(FileOptions{}, nil, []string{"/no/such/file"}, nil); err == nil {
 		t.Fatal("expected an error for a missing variables file")
 	}
 }
 
 func TestBuildVariablesBadFlag(t *testing.T) {
-	if _, err := BuildVariables(nil, nil, []string{"noequals"}); err == nil {
+	if _, err := BuildVariables(FileOptions{}, nil, nil, []string{"noequals"}); err == nil {
 		t.Fatal("expected an error for a variable with no '='")
 	}
 }
@@ -92,7 +92,7 @@ func TestBuildSecretsDuplicateErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := BuildSecrets(tt.env, tt.files, tt.secrets); err == nil {
+			if _, err := BuildSecrets(FileOptions{}, tt.env, tt.files, tt.secrets); err == nil {
 				t.Fatal("expected a reassignment error")
 			}
 		})
@@ -102,7 +102,7 @@ func TestBuildSecretsDuplicateErrors(t *testing.T) {
 func TestBuildSecretsPrecedence(t *testing.T) {
 	env := Env{"HURL_SECRET_a": "from-env"}
 	file := writeTemp(t, "secrets.env", "b=from-file\n")
-	secrets, err := BuildSecrets(env, []string{file}, []string{"c=from-flag"})
+	secrets, err := BuildSecrets(FileOptions{}, env, []string{file}, []string{"c=from-flag"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestBuildSecretsPrecedence(t *testing.T) {
 }
 
 func TestBuildSecretsForcesString(t *testing.T) {
-	secrets, err := BuildSecrets(nil, nil, []string{"n=30"})
+	secrets, err := BuildSecrets(FileOptions{}, nil, nil, []string{"n=30"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,28 +125,28 @@ func TestBuildSecretsForcesString(t *testing.T) {
 }
 
 func TestBuildSecretsMissingFile(t *testing.T) {
-	if _, err := BuildSecrets(nil, []string{"/no/such/file"}, nil); err == nil {
+	if _, err := BuildSecrets(FileOptions{}, nil, []string{"/no/such/file"}, nil); err == nil {
 		t.Fatal("expected an error for a missing secrets file")
 	}
 }
 
 func TestBuildSecretsBadFile(t *testing.T) {
 	file := writeTemp(t, "secrets.env", "noequals\n")
-	if _, err := BuildSecrets(nil, []string{file}, nil); err == nil {
+	if _, err := BuildSecrets(FileOptions{}, nil, []string{file}, nil); err == nil {
 		t.Fatal("expected an error for a malformed secrets file")
 	}
 }
 
 func TestBuildSecretsFileDuplicate(t *testing.T) {
 	file := writeTemp(t, "secrets.env", "a=1\na=2\n")
-	if _, err := BuildSecrets(nil, []string{file}, nil); err == nil {
+	if _, err := BuildSecrets(FileOptions{}, nil, []string{file}, nil); err == nil {
 		t.Fatal("expected a reassignment error within the file")
 	}
 }
 
 func TestBuildVariablesEnvError(t *testing.T) {
 	env := Env{"HURL_VARIABLE_foo": `"unterminated`}
-	if _, err := BuildVariables(env, nil, nil); err == nil {
+	if _, err := BuildVariables(FileOptions{}, env, nil, nil); err == nil {
 		t.Fatal("expected an error for a malformed env value")
 	}
 }

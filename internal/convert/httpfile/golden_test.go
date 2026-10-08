@@ -34,7 +34,7 @@ func TestImportGolden(t *testing.T) {
 			}
 			var b strings.Builder
 			for _, f := range out.Files {
-				rendered := syntax.Format(f.File)
+				rendered := syntax.Lint(f.File)
 				if _, err := syntax.Parse(f.Path+".hurl", rendered, syntax.DialectHurl); err != nil {
 					t.Errorf("%s does not parse: %v", f.Path, err)
 				}

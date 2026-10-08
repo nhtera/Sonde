@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nhtera/sonde/exchange"
+	"github.com/nhtera/sonde/internal/httpx/auth"
 	"github.com/nhtera/sonde/internal/netpolicy"
 	"github.com/nhtera/sonde/internal/sandbox"
 )
@@ -77,13 +78,16 @@ type RequestSpec struct {
 // HTTPVersion is the requested protocol version.
 type HTTPVersion int
 
-// Requested versions. HTTP10 is not supported.
+// Requested versions, in the order of engine.HTTPVersion.
 const (
 	HTTPDefault HTTPVersion = iota
 	HTTP10
 	HTTP11
 	HTTP2
 	HTTP3
+	// HTTP2PriorKnowledge is cleartext HTTP/2 without an upgrade for
+	// http:// (h2c); HTTP2 for https://.
+	HTTP2PriorKnowledge
 )
 
 // IPResolve restricts name resolution.
@@ -100,14 +104,14 @@ const (
 // overridden by the entry's [Options] section. Paths come from the request
 // file and are read through ClientConfig.Sandbox, except where noted.
 type Options struct {
-	AWSSigV4       string // unsupported: a non-empty value is an error
+	AWSSigV4       string // provider1[:provider2[:region[:service]]]
 	CACert         string
 	ClientCert     string
 	ClientKey      string
 	Compressed     bool
 	ConnectTimeout time.Duration // zero: 300s
 	ConnectTo      []string      // HOST1:PORT1:HOST2:PORT2
-	Digest         bool          // unsupported
+	Digest         bool
 	FollowLocation bool
 	// LocationTrusted forwards credentials to every redirect host.
 	LocationTrusted bool
@@ -119,23 +123,31 @@ type Options struct {
 	MaxRecvSpeed    int64 // bytes per second, 0: no limit
 	MaxSendSpeed    int64 // bytes per second, 0: no limit
 	MaxRedirects    int   // -1: unlimited; default 50
-	Negotiate       bool  // unsupported
+	Negotiate       bool  // SPNEGO, from the Kerberos credential cache
 	Netrc           bool
 	NetrcFile       string
 	NetrcOptional   bool
 	// NetrcAllowReroute sends netrc credentials even when resolve,
 	// connect-to or a proxy reroutes the host.
 	NetrcAllowReroute bool
-	NoProxy           string
-	NTLM              bool // unsupported
-	PathAsIs          bool
-	PinnedPublicKey   string
-	Proxy             string
-	Resolve           []string      // HOST:PORT:ADDR[,ADDR]...
-	Timeout           time.Duration // max-time; zero: 300s
-	UnixSocket        string
-	User              string // user:password
-	UserAgent         string // empty: sonde/<version>
+	// NoHeaders are the names of headers not sent, whether from the
+	// entry, Headers or the defaults (Accept, User-Agent, …). Host and
+	// Content-Length are always sent.
+	NoHeaders       []string
+	NoProxy         string
+	NTLM            bool // unsupported
+	PathAsIs        bool
+	PinnedPublicKey string
+	Proxy           string
+	// ProxyHeaders go to an HTTP proxy only: in the CONNECT request of an
+	// https:// URL, added to the request of an http:// URL sent through
+	// it. Without an HTTP proxy (none, or SOCKS) they are not sent.
+	ProxyHeaders []exchange.Header
+	Resolve      []string      // HOST:PORT:ADDR[,ADDR]...
+	Timeout      time.Duration // max-time; zero: 300s
+	UnixSocket   string
+	User         string // user:password
+	UserAgent    string // empty: sonde/<version>
 	// Verbose enables the debug callback for connection details.
 	Verbose bool
 	// LocalFiles are the file options given on the command line
@@ -215,6 +227,8 @@ type Client struct {
 	jar        *cookieJar
 	netrc      map[string]*netrcFile // by path, loaded when first needed
 	warned     map[string]bool
+	// kerberos is the Negotiate client, made at the first challenge.
+	kerberos *auth.Negotiator
 }
 
 // NewClient, Execute, Cookies, AddCookie, ClearCookies and Close are

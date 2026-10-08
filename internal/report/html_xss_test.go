@@ -59,12 +59,14 @@ func TestWriteHTML_EscapesHostileFields(t *testing.T) {
 					URL:    "http://example.com/" + xssPayload,
 					Headers: exchange.Headers{
 						{Name: "X-Evil", Value: xssPayload},
+						{Name: xssPayload, Value: "evil name"},
 					},
 				},
 				Response: &exchange.Response{
 					Status: 200, Version: "HTTP/1.1",
 					Headers: exchange.Headers{
 						{Name: "X-Resp-Evil", Value: xssPayload},
+						{Name: "<script>alert('Hello')</script>", Value: "foo"},
 					},
 					Body: []byte("plain body"),
 				},

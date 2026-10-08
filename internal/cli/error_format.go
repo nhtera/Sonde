@@ -29,9 +29,9 @@ const maxLongFormatBytes = 64
 func writeLongFormatErrors(stderr io.Writer, res *engine.UnitResult, color bool) {
 	redact := res.Redact
 	hasSecrets := res.HasSecrets()
-	for _, e := range res.Entries {
-		if e.Retried {
-			continue // not the decisive attempt
+	for i, e := range res.Entries {
+		if !res.Decisive(i) {
+			continue // a retried attempt, or a repeat a later one replaced
 		}
 		if len(e.Errors) == 0 {
 			continue

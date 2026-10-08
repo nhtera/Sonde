@@ -25,6 +25,10 @@ type entryOptions struct {
 	skip          bool
 	output        *outputTarget
 	stream        streamOptions
+	// failWithBody writes the body of a failed attempt that is not
+	// retried; noJSONPathCoercion keeps jsonpath results lists.
+	failWithBody       bool
+	noJSONPathCoercion bool
 }
 
 // outputTarget is the `output` option: a file or "-" (standard output).
@@ -43,7 +47,8 @@ func (r *Runner) baseHTTPOptions() httpx.Options {
 		HTTPVersion: httpx.HTTPVersion(h.HTTPVersion), Insecure: h.Insecure, IPResolve: httpx.IPResolve(h.IPResolve),
 		MaxFilesize: h.MaxFilesize, MaxRecvSpeed: h.LimitRate, MaxSendSpeed: h.LimitRate,
 		MaxRedirects: h.MaxRedirects, Negotiate: h.Negotiate, Netrc: h.Netrc, NetrcFile: h.NetrcFile,
-		NetrcOptional: h.NetrcOptional, NetrcAllowReroute: h.NetrcAllowReroute, NoProxy: h.NoProxy, NTLM: h.NTLM,
+		NetrcOptional: h.NetrcOptional, NetrcAllowReroute: h.NetrcAllowReroute,
+		NoHeaders: append([]string(nil), h.NoHeaders...), NoProxy: h.NoProxy, NTLM: h.NTLM,
 		PathAsIs: h.PathAsIs, PinnedPublicKey: h.PinnedPublicKey, Proxy: h.Proxy, Resolve: h.Resolve,
 		Timeout: h.Timeout, UnixSocket: h.UnixSocket, User: h.User, UserAgent: h.UserAgent,
 	}
@@ -66,6 +71,11 @@ func (r *Runner) baseHTTPOptions() httpx.Options {
 	for _, line := range h.Headers {
 		if hd, ok := parseHeader(line); ok {
 			o.Headers = append(o.Headers, hd)
+		}
+	}
+	for _, line := range h.ProxyHeaders {
+		if hd, ok := parseHeader(line); ok {
+			o.ProxyHeaders = append(o.ProxyHeaders, hd)
 		}
 	}
 	return o
@@ -131,10 +141,12 @@ func (u *unit) entryVerbosity(e *syntax.Entry) Verbosity {
 func (u *unit) entryOptions(e *syntax.Entry) (*entryOptions, error) {
 	opt := u.runner.opt
 	eo := &entryOptions{
-		http:          u.runner.baseHTTPOptions(),
-		delay:         opt.Delay,
-		retry:         opt.Retry,
-		retryInterval: opt.RetryInterval,
+		http:               u.runner.baseHTTPOptions(),
+		delay:              opt.Delay,
+		retry:              opt.Retry,
+		retryInterval:      opt.RetryInterval,
+		failWithBody:       opt.FailWithBody,
+		noJSONPathCoercion: opt.NoJSONPathCoercion,
 	}
 	if eo.retryInterval == 0 {
 		eo.retryInterval = time.Second
@@ -172,9 +184,11 @@ func (u *unit) entryOptions(e *syntax.Entry) (*entryOptions, error) {
 			eo.delay, err = u.durationOption(o)
 		case "digest":
 			h.Digest, err = u.boolOption(o)
+		case "fail-with-body":
+			eo.failWithBody, err = u.boolOption(o)
 		case "header":
 			err = u.headerOption(o, h)
-		case "http1.0", "http1.1", "http2", "http3":
+		case "http1.0", "http1.1", "http2", "http2-prior-knowledge", "http3":
 			err = u.versionOption(o, h)
 		case "location":
 			var b bool
@@ -213,6 +227,12 @@ func (u *unit) entryOptions(e *syntax.Entry) (*entryOptions, error) {
 			h.NetrcFile, err = u.stringOption(o)
 		case "netrc-optional":
 			h.NetrcOptional, err = u.boolOption(o)
+		case "no-header":
+			var s string
+			s, err = u.stringOption(o)
+			h.NoHeaders = append(h.NoHeaders, s)
+		case "no-jsonpath-coercion":
+			eo.noJSONPathCoercion, err = u.boolOption(o)
 		case "ntlm":
 			h.NTLM, err = u.boolOption(o)
 		case "output":
@@ -263,6 +283,7 @@ func (u *unit) entryOptions(e *syntax.Entry) (*entryOptions, error) {
 // host the URL names, send stored netrc credentials, or write a file.
 var refusedOptions = map[string]bool{
 	"connect-to":     true,
+	"negotiate":      true, // the Kerberos library reaches the KDC itself
 	"netrc":          true,
 	"netrc-file":     true,
 	"netrc-optional": true,
@@ -446,8 +467,10 @@ func (u *unit) versionOption(o *syntax.Option, h *httpx.Options) error {
 	if err != nil {
 		return err
 	}
-	on := map[string]httpx.HTTPVersion{"http1.0": httpx.HTTP10, "http1.1": httpx.HTTP11, "http2": httpx.HTTP2, "http3": httpx.HTTP3}
-	off := map[string]httpx.HTTPVersion{"http1.1": httpx.HTTP10, "http2": httpx.HTTP11, "http3": httpx.HTTP2}
+	on := map[string]httpx.HTTPVersion{"http1.0": httpx.HTTP10, "http1.1": httpx.HTTP11, "http2": httpx.HTTP2,
+		"http2-prior-knowledge": httpx.HTTP2PriorKnowledge, "http3": httpx.HTTP3}
+	off := map[string]httpx.HTTPVersion{"http1.1": httpx.HTTP10, "http2": httpx.HTTP11,
+		"http2-prior-knowledge": httpx.HTTP11, "http3": httpx.HTTP2}
 	switch {
 	case b:
 		h.HTTPVersion = on[o.Name]

@@ -40,7 +40,7 @@ func TestImportGolden(t *testing.T) {
 			if err != nil {
 				fmt.Fprintf(&b, "error: %v\n", err)
 			} else {
-				b.Write(syntax.Format(res.File))
+				b.Write(syntax.Lint(res.File))
 				for _, w := range res.Warnings {
 					fmt.Fprintf(&b, "warning %s: %s\n", w.Kind, w.Message)
 				}
