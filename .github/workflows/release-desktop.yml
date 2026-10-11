@@ -92,7 +92,7 @@ jobs:
             desktop/tool/update-manifest
             desktop/tool/release-notes.md
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.target == 'linux'
         with:
           name: update-tool
@@ -194,7 +194,7 @@ jobs:
           subject-path: |
             desktop/out/Sonde-Desktop-*
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-${{ matrix.target }}
           path: desktop/out/*
@@ -310,7 +310,7 @@ jobs:
             out/Sonde-Desktop-*.dmg
             out/Sonde-Desktop-*.zip
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: signed-macos
           path: out/*
@@ -380,7 +380,7 @@ jobs:
         with:
           subject-path: out/Sonde-Desktop-*.exe
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: signed-windows
           path: out/*
@@ -446,7 +446,7 @@ jobs:
           # Against the key set the app pins: a wrong secret fails the release.
           "$tool" verify -keys desktop/internal/update/keys -manifest "out/Sonde-Desktop-$v.update.json" -version "$v" -dir files
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: update-manifest
           path: out/*
